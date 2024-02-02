@@ -1,0 +1,13 @@
+/artifacts
+/typechain/
+/node_modules
+.env
+/cache
+coverage/
+.vscode
+.archive
+/deploy_info
+/deployments
+contracts/artifacts
+dist/
+.DS_Store
