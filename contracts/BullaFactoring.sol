@@ -13,22 +13,27 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     using Math for uint256;
 
     IERC20 public assetAddress;
-    uint256 public totalDeposits; // change to private
-    uint256 public totalWithdrawals; // change to private
+    uint256 public totalDeposits; // change to private in prod
+    uint256 public totalWithdrawals; // change to private in prod
+    uint256 public fundingPercentage = 9000; // 90% in bps
+
+    uint256 public constant SCALING_FACTOR = 1000;
+    uint256 public gracePeriodDays = 60;
 
     struct Invoice {
         uint256 faceValue;
         uint256 fundedAmount;
-        bool isPaid;
+        uint256 paidAmount;
         bool isImpaired;
-        address owner; 
+        address originalCreditor; 
+        uint256 dueDate;
     }
 
     /// Mapping from invoice ID to Invoice struct
     mapping(uint256 => Invoice) public invoices;
 
     /// Mapping of paid invoices ID to track gains/losses
-    mapping(uint256 => int256) public paidInvoicesGainLoss;
+    mapping(uint256 => uint256) public paidInvoicesGain;
 
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
@@ -46,40 +51,41 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     }
 
     function pricePerShare() public view returns (uint256) {
-        uint256 capitalAccount = calculateCapitalAccount();
         uint256 sharesOutstanding = totalSupply();
         if (sharesOutstanding == 0) {
-            return 1e18; 
+            return SCALING_FACTOR;
         }
-        return Math.mulDiv(capitalAccount, 1e18, sharesOutstanding);
+        uint256 capitalAccount = calculateCapitalAccount();
+        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
-    function calculateRealizedGainLoss() private view returns (int256) {
-        int256 realizedGains = 0;
-        // Consider impaired invoices from activeInvoices
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            Invoice storage invoice = invoices[activeInvoices[i]];
-            if (invoice.isImpaired) {
-                realizedGains -= int256(invoice.fundedAmount);
-            }
-        }
-        // Consider gains/losses from paid invoices
+    function calculateRealizedGainLoss() private view returns (uint256) {
+        uint256 realizedGains = 0;
+        // Consider gains from paid invoices
         for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
             uint256 invoiceId = paidInvoicesIds[i];
-            realizedGains += paidInvoicesGainLoss[invoiceId];
+            realizedGains += paidInvoicesGain[invoiceId];
+        }
+        // Consider impaired invoices from activeInvoices
+        // to be calculated after gains
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            Invoice storage invoice = invoices[activeInvoices[i]];
+            if (isInvoiceImpaired(activeInvoices[i])) {
+                realizedGains -= uint256(invoice.fundedAmount);
+            }
         }
         return realizedGains;
     }
 
     function calculateCapitalAccount() public view returns (uint256) {
-        int256 realizedGainLoss = calculateRealizedGainLoss();
-        int256 capitalAccount = int256(totalDeposits) - int256(totalWithdrawals) + realizedGainLoss;
+        uint256 realizedGainLoss = calculateRealizedGainLoss();
+        uint256 capitalAccount = totalDeposits - totalWithdrawals + realizedGainLoss;
         return uint256(capitalAccount);
     }
 
     function convertToShares(uint256 assets) public view override returns (uint256) {
         uint256 currentPricePerShare = pricePerShare();
-        return Math.mulDiv(assets, 1e18, currentPricePerShare);
+        return Math.mulDiv(assets, SCALING_FACTOR, currentPricePerShare);
     }
 
     function deposit(uint256 assets, address receiver) public override returns (uint256) {
@@ -91,22 +97,22 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    function fundInvoice(uint256 invoiceId, uint256 faceValue) public {
-        uint256 fundedAmount = Math.mulDiv(faceValue, 90, 100);
-        invoices[invoiceId] = Invoice(faceValue, fundedAmount, false, false, msg.sender);
+    function fundInvoice(uint256 invoiceId, uint256 faceValue, uint256 dueDate) public {
+        uint256 fundedAmount = Math.mulDiv(faceValue, fundingPercentage, 10000);
+        invoices[invoiceId] = Invoice(faceValue, fundedAmount, 0, false, msg.sender, dueDate);
         assetAddress.transfer(msg.sender, fundedAmount);
         activeInvoices.push(invoiceId);
     }
 
     function payInvoice(uint256 invoiceId) public {
         Invoice storage invoice = invoices[invoiceId];
-        require(!invoice.isPaid, "Invoice already paid");
+        require(invoice.paidAmount < invoice.faceValue, "Invoice already paid");
         assetAddress.transferFrom(msg.sender, address(this), invoice.faceValue);
-        invoice.isPaid = true;
+        invoice.paidAmount = invoice.faceValue; 
 
         // Calculate gain/loss and store in the new mapping
         uint256 factoringGain = invoice.faceValue - invoice.fundedAmount;
-        paidInvoicesGainLoss[invoiceId] = int(factoringGain);
+        paidInvoicesGain[invoiceId] = uint256(factoringGain);
 
         // Add invoiceId to paidInvoicesIds for tracking
         paidInvoicesIds.push(invoiceId);
@@ -121,13 +127,15 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         }
     }
 
-    // Function to declare an invoice as impaired
-    function declareInvoiceImpaired(uint256 invoiceId) public onlyOwner {
+    function isInvoiceImpaired(uint256 invoiceId) public view returns (bool) {
         Invoice storage invoice = invoices[invoiceId];
-        require(!invoice.isPaid, "Invoice already paid");
-        require(!invoice.isImpaired, "Invoice already impaired");
+        uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
+        
+        return block.timestamp > DaysAfterDueDate;
+    }
 
-        invoice.isImpaired = true;
+    function setGracePeriodDays(uint256 _days) public onlyOwner {
+        gracePeriodDays = _days;
     }
 
     function maxRedeem() public view returns (uint256) {
@@ -139,22 +147,27 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     }
 
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        uint256 maxWithdrawableShares = maxRedeem(owner);
+        uint256 maxWithdrawableShares = maxRedeem();
         uint256 assets;
-        if (shares > maxWithdrawableShares) {            
-            _withdraw(_msgSender(), receiver, owner, totalAssets(), maxWithdrawableShares);
-            assets = Math.mulDiv(maxWithdrawableShares, pricePerShare(), 1e18);
-            totalWithdrawals += assets; 
+        if (shares > maxWithdrawableShares) {
+            uint256 maxWithdrawableAmount = totalAssets();   
+            _withdraw(_msgSender(), receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
+            assets = Math.mulDiv(maxWithdrawableShares, pricePerShare(), SCALING_FACTOR);
         } else {
             uint256 currentPricePerShare = pricePerShare();
             console.log("currentPricePerShare:");
             console.logUint(currentPricePerShare);
 
-            assets = Math.mulDiv(shares, currentPricePerShare, 1e18);
+            assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);
      
             _withdraw(_msgSender(), receiver, owner, assets, shares);
-            totalWithdrawals += assets;
         }
+        totalWithdrawals += assets;
         return assets;
+    }
+
+    function setFundingPercentage(uint256 _fundingPercentage) public onlyOwner {
+        require(_fundingPercentage > 0 && _fundingPercentage <= 10000, "Invalid percentage");
+        fundingPercentage = _fundingPercentage;
     }
 }

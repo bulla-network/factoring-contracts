@@ -34,6 +34,7 @@ contract TestBullaFactoring is Test {
         console.log("Invoice face value 100");
         uint256 faceValue = 100;
         uint256 depositAmount = 10000;
+        uint256 dueDate = block.timestamp + 30 days;
 
         // Alice deposits 1k USDC
         vm.startPrank(alice);
@@ -58,7 +59,7 @@ contract TestBullaFactoring is Test {
         // Bob factors an invoice
         console.log("Bob factors a 100 USDC invoice");
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId, faceValue);
+        bullaFactoring.fundInvoice(invoiceId, faceValue, dueDate);
         vm.stopPrank();
 
         // Check NAV after factoring
@@ -90,12 +91,12 @@ contract TestBullaFactoring is Test {
     function testFactoringWorkflowWithRedemptions() public {
         // Initial deposit of 2000 USDC
         uint256 initialDeposit = 2000;
+        uint256 dueDate = block.timestamp + 30 days;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
         console.log("Initial deposit of 2000 USDC by Alice");
         console.log("totalSupply(): ", bullaFactoring.totalSupply());
-
 
         // Log price per share after initial deposit
         uint256 pricePerShare = bullaFactoring.pricePerShare();
@@ -110,7 +111,7 @@ contract TestBullaFactoring is Test {
         // Bob funds an invoice for 100 USDC
         uint256 invoiceId1 = 1;
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId1, 100);
+        bullaFactoring.fundInvoice(invoiceId1, 100, dueDate);
         vm.stopPrank();
         console.log("Alice funds an invoice for 100 USDC");
 
@@ -134,7 +135,7 @@ contract TestBullaFactoring is Test {
         // Bob funds a second invoice for 900 USDC
         uint256 invoiceId2 = 2;
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId2, 900);
+        bullaFactoring.fundInvoice(invoiceId2, 900, dueDate);
         vm.stopPrank();
         console.log("Alice funds a second invoice for 900 USDC");
 
