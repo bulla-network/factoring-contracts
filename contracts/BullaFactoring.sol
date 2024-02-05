@@ -17,7 +17,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     uint256 public totalWithdrawals; // change to private in prod
     uint256 public fundingPercentage = 9000; // 90% in bps
 
-    uint256 public constant SCALING_FACTOR = 1000;
+    uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
 
     struct Invoice {
@@ -44,10 +44,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// @param _asset underlying supported stablecoin asset for deposit 
     constructor(IERC20 _asset) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         assetAddress = _asset;
+        SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
     }
 
     function decimals() public view override(ERC20, ERC4626) returns (uint8) {
-        return ERC20.decimals();
+        return ERC20(address(assetAddress)).decimals();
     }
 
     function pricePerShare() public view returns (uint256) {
@@ -155,11 +156,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             assets = Math.mulDiv(maxWithdrawableShares, pricePerShare(), SCALING_FACTOR);
         } else {
             uint256 currentPricePerShare = pricePerShare();
-            console.log("currentPricePerShare:");
-            console.logUint(currentPricePerShare);
-
             assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);
-     
             _withdraw(_msgSender(), receiver, owner, assets, shares);
         }
         totalWithdrawals += assets;
