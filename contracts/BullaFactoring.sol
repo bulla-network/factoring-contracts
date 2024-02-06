@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
+import "./interfaces/IInvoice.sol";
 
 /// @title Bulla Factoring Fund POC
 /// @author @solidoracle
@@ -20,17 +21,14 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
 
-    struct Invoice {
-        uint256 faceValue;
-        uint256 fundedAmount;
-        uint256 paidAmount;
-        bool isImpaired;
-        address originalCreditor; 
-        uint256 dueDate;
+    struct FundedInvoiceDetails {
+        IInvoice contractAddress;
+        address originalCreditor; // is this used anywhere? maybe in the underwriter checks
+        uint256 fundedAmount; // is this used anywhere? maybe in the underwriter checks
     }
 
-    /// Mapping from invoice ID to Invoice struct
-    mapping(uint256 => Invoice) public invoices;
+    /// Mapping from invoice ID to FundedInvoiceDetails struct
+    mapping(uint256 => FundedInvoiceDetails) public invoices;
 
     /// Mapping of paid invoices ID to track gains/losses
     mapping(uint256 => uint256) public paidInvoicesGain;
@@ -47,17 +45,9 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
     }
 
+    /// @notice same decimals as the underlying asset
     function decimals() public view override(ERC20, ERC4626) returns (uint8) {
         return ERC20(address(assetAddress)).decimals();
-    }
-
-    function pricePerShare() public view returns (uint256) {
-        uint256 sharesOutstanding = totalSupply();
-        if (sharesOutstanding == 0) {
-            return SCALING_FACTOR;
-        }
-        uint256 capitalAccount = calculateCapitalAccount();
-        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
     function calculateRealizedGainLoss() private view returns (uint256) {
@@ -68,11 +58,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             realizedGains += paidInvoicesGain[invoiceId];
         }
         // Consider impaired invoices from activeInvoices
-        // to be calculated after gains
         for (uint256 i = 0; i < activeInvoices.length; i++) {
-            Invoice storage invoice = invoices[activeInvoices[i]];
-            if (isInvoiceImpaired(activeInvoices[i])) {
-                realizedGains -= uint256(invoice.fundedAmount);
+            uint256 invoiceId = activeInvoices[i];
+            FundedInvoiceDetails storage invoiceDetail = invoices[invoiceId];
+            if (isInvoiceImpaired(invoiceId, invoiceDetail.contractAddress)) {
+                realizedGains -= uint256(invoiceDetail.fundedAmount);
             }
         }
         return realizedGains;
@@ -81,7 +71,16 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     function calculateCapitalAccount() public view returns (uint256) {
         uint256 realizedGainLoss = calculateRealizedGainLoss();
         uint256 capitalAccount = totalDeposits - totalWithdrawals + realizedGainLoss;
-        return uint256(capitalAccount);
+        return capitalAccount;
+    }
+
+    function pricePerShare() public view returns (uint256) {
+        uint256 sharesOutstanding = totalSupply();
+        if (sharesOutstanding == 0) {
+            return SCALING_FACTOR;
+        }
+        uint256 capitalAccount = calculateCapitalAccount();
+        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
     function convertToShares(uint256 assets) public view override returns (uint256) {
@@ -98,27 +97,103 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    function fundInvoice(uint256 invoiceId, uint256 faceValue, uint256 dueDate) public {
-        uint256 fundedAmount = Math.mulDiv(faceValue, fundingPercentage, 10000);
-        invoices[invoiceId] = Invoice(faceValue, fundedAmount, 0, false, msg.sender, dueDate);
-        assetAddress.transfer(msg.sender, fundedAmount);
-        activeInvoices.push(invoiceId);
+    function fundInvoices(uint256[] memory invoiceIds, IInvoice invoiceContract) public {
+        IInvoice.Invoice[] memory externalInvoices = invoiceContract.getInvoiceDetails(invoiceIds);
+    
+        for (uint i = 0; i < externalInvoices.length; i++) {
+            // TODO: underwriter checks
+
+            uint256 faceValue = externalInvoices[i].faceValue;
+            uint256 fundedAmount = Math.mulDiv(faceValue, fundingPercentage, 10000);
+            assetAddress.transfer(msg.sender, fundedAmount);
+            invoices[invoiceIds[i]] = FundedInvoiceDetails(invoiceContract, msg.sender, fundedAmount);
+            activeInvoices.push(invoiceIds[i]);
+        }
     }
 
-    function payInvoice(uint256 invoiceId) public {
-        Invoice storage invoice = invoices[invoiceId];
-        require(invoice.paidAmount < invoice.faceValue, "Invoice already paid");
-        assetAddress.transferFrom(msg.sender, address(this), invoice.faceValue);
-        invoice.paidAmount = invoice.faceValue; 
+    function viewPoolStatus() public view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
+        uint256 activeCount = activeInvoices.length;
+        uint256[] memory tempPaidInvoices = new uint256[](activeCount);
+        uint256[] memory tempImpairedInvoices = new uint256[](activeCount);
+        uint256 paidCount = 0;
+        uint256 impairedCount = 0;
 
-        // Calculate gain/loss and store in the new mapping
-        uint256 factoringGain = invoice.faceValue - invoice.fundedAmount;
-        paidInvoicesGain[invoiceId] = uint256(factoringGain);
+        for (uint256 i = 0; i < activeCount; i++) {
+            uint256 invoiceId = activeInvoices[i];
+            FundedInvoiceDetails storage invoice = invoices[invoiceId];
+ 
+            if (isInvoicePaid(invoiceId, invoice.contractAddress)) {
+                tempPaidInvoices[paidCount] = invoiceId;
+                paidCount++;
+            } else if (isInvoiceImpaired(invoiceId, invoice.contractAddress)) {
+                tempImpairedInvoices[impairedCount] = invoiceId;
+                impairedCount++;
+            }
+        }
 
-        // Add invoiceId to paidInvoicesIds for tracking
-        paidInvoicesIds.push(invoiceId);
+        paidInvoices = new uint256[](paidCount);
+        impairedInvoices = new uint256[](impairedCount);
 
-        // Remove the invoice ID from the activeInvoices array
+        for (uint256 i = 0; i < paidCount; i++) {
+            paidInvoices[i] = tempPaidInvoices[i];
+        }
+
+        for (uint256 i = 0; i < impairedCount; i++) {
+            impairedInvoices[i] = tempImpairedInvoices[i];
+        }
+
+        return (paidInvoices, impairedInvoices);
+    }
+
+    function isInvoicePaid(uint256 invoiceId, IInvoice invoiceContract) private view returns (bool) {
+        uint256[] memory invoiceIds = new uint256[](1);
+        invoiceIds[0] = invoiceId;
+
+        IInvoice.Invoice[] memory invoicesDetails = invoiceContract.getInvoiceDetails(invoiceIds);
+
+        if (invoicesDetails.length > 0 && invoicesDetails[0].faceValue == invoicesDetails[0].paidAmount) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    function isInvoiceImpaired(uint256 invoiceId, IInvoice invoiceContract) private view returns (bool) {
+        uint256[] memory invoiceIds = new uint256[](1);
+        invoiceIds[0] = invoiceId;
+
+        IInvoice.Invoice[] memory invoicesDetails = invoiceContract.getInvoiceDetails(invoiceIds);
+
+        uint256 DaysAfterDueDate = invoicesDetails[0].dueDate + (gracePeriodDays * 1 days); 
+        return block.timestamp > DaysAfterDueDate;
+    }
+
+    function reconcileActivePaidInvoices() public onlyOwner {
+        (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
+
+        for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
+            uint256 invoiceId = paidInvoiceIds[i];
+            FundedInvoiceDetails storage invoice = invoices[invoiceId];
+
+            // Retrieve the faceValue for the invoice from the external contract
+            uint256[] memory invoiceIds = new uint256[](1);
+            invoiceIds[0] = invoiceId;
+            IInvoice.Invoice[] memory externalInvoices = invoice.contractAddress.getInvoiceDetails(invoiceIds);
+            uint256 faceValue = externalInvoices[0].faceValue;
+
+            // Calculate and store the factoring gain
+            uint256 factoringGain = faceValue - invoice.fundedAmount;
+            paidInvoicesGain[invoiceId] = factoringGain;
+
+            // Add the invoice ID to the paidInvoicesIds array
+            paidInvoicesIds.push(invoiceId);
+
+            // Remove the invoice from activeInvoices array
+            removeActivePaidInvoice(invoiceId);
+        }
+    }
+
+    function removeActivePaidInvoice(uint256 invoiceId) private {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             if (activeInvoices[i] == invoiceId) {
                 activeInvoices[i] = activeInvoices[activeInvoices.length - 1];
@@ -128,22 +203,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         }
     }
 
-    function isInvoiceImpaired(uint256 invoiceId) public view returns (bool) {
-        Invoice storage invoice = invoices[invoiceId];
-        uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
-        
-        return block.timestamp > DaysAfterDueDate;
-    }
-
-    function setGracePeriodDays(uint256 _days) public onlyOwner {
-        gracePeriodDays = _days;
-    }
-
     function maxRedeem() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         uint256 currentPricePerShare = pricePerShare();
         // Calculate the maximum withdrawable shares based on total assets and current price per share
-        uint256 maxWithdrawableShares = Math.mulDiv(totalAssetsInFund, 1e18, currentPricePerShare);
+        uint256 maxWithdrawableShares = Math.mulDiv(totalAssetsInFund, SCALING_FACTOR, currentPricePerShare);
         return maxWithdrawableShares;
     }
 
@@ -163,8 +227,13 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return assets;
     }
 
+    /// @notice 2 decimal basis points, ie 90% is 9000
     function setFundingPercentage(uint256 _fundingPercentage) public onlyOwner {
         require(_fundingPercentage > 0 && _fundingPercentage <= 10000, "Invalid percentage");
         fundingPercentage = _fundingPercentage;
+    }
+
+    function setGracePeriodDays(uint256 _days) public onlyOwner {
+        gracePeriodDays = _days;
     }
 }
