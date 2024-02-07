@@ -5,7 +5,7 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
-import "./interfaces/IInvoice.sol";
+import "./interfaces/IInvoiceProviderAdapter.sol";
 
 /// @title Bulla Factoring Fund POC
 /// @author @solidoracle
@@ -22,9 +22,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     uint256 public gracePeriodDays = 60;
 
     struct FundedInvoiceDetails {
-        IInvoice contractAddress;
-        address originalCreditor; // is this used anywhere? maybe in the underwriter checks
-        uint256 fundedAmount; // is this used anywhere? maybe in the underwriter checks
+        IInvoiceProviderAdapter contractAddress;
+        address originalCreditor; // needed if we decide to send 10% at a later stage
     }
 
     /// Mapping from invoice ID to FundedInvoiceDetails struct
@@ -50,6 +49,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return ERC20(address(assetAddress)).decimals();
     }
 
+    function calculateFundedAmount(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) private view returns (uint256) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceContract.getInvoiceDetails(invoiceId);
+        return Math.mulDiv(invoice.faceValue, fundingPercentage, 10000);
+    }
+
     function calculateRealizedGainLoss() private view returns (uint256) {
         uint256 realizedGains = 0;
         // Consider gains from paid invoices
@@ -62,11 +66,13 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             uint256 invoiceId = activeInvoices[i];
             FundedInvoiceDetails storage invoiceDetail = invoices[invoiceId];
             if (isInvoiceImpaired(invoiceId, invoiceDetail.contractAddress)) {
-                realizedGains -= uint256(invoiceDetail.fundedAmount);
+                uint256 fundedAmount = calculateFundedAmount(invoiceId, invoiceDetail.contractAddress);
+                realizedGains -= uint256(fundedAmount);
             }
         }
         return realizedGains;
     }
+
 
     function calculateCapitalAccount() public view returns (uint256) {
         uint256 realizedGainLoss = calculateRealizedGainLoss();
@@ -97,18 +103,24 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    function fundInvoices(uint256[] memory invoiceIds, IInvoice invoiceContract) public {
-        IInvoice.Invoice[] memory externalInvoices = invoiceContract.getInvoiceDetails(invoiceIds);
-    
-        for (uint i = 0; i < externalInvoices.length; i++) {
+    function fundInvoicesBatched(uint256[] memory invoiceIds, IInvoiceProviderAdapter invoiceContract) public {    
+        for (uint i = 0; i < invoiceIds.length; i++) {
             // TODO: underwriter checks
 
-            uint256 faceValue = externalInvoices[i].faceValue;
-            uint256 fundedAmount = Math.mulDiv(faceValue, fundingPercentage, 10000);
-            assetAddress.transfer(msg.sender, fundedAmount);
-            invoices[invoiceIds[i]] = FundedInvoiceDetails(invoiceContract, msg.sender, fundedAmount);
+            uint256 fundAmount = calculateFundedAmount(invoiceIds[i], invoiceContract);
+            assetAddress.transfer(msg.sender, fundAmount);
+            invoices[invoiceIds[i]] = FundedInvoiceDetails(invoiceContract, msg.sender);
             activeInvoices.push(invoiceIds[i]);
         }
+    }
+
+    function fundInvoice(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) public {
+        // TODO: underwriter checks
+
+        uint256 fundedAmount = calculateFundedAmount(invoiceId, invoiceContract);
+        assetAddress.transfer(msg.sender, fundedAmount);
+        invoices[invoiceId] = FundedInvoiceDetails(invoiceContract, msg.sender);
+        activeInvoices.push(invoiceId);
     }
 
     function viewPoolStatus() public view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
@@ -145,26 +157,14 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return (paidInvoices, impairedInvoices);
     }
 
-    function isInvoicePaid(uint256 invoiceId, IInvoice invoiceContract) private view returns (bool) {
-        uint256[] memory invoiceIds = new uint256[](1);
-        invoiceIds[0] = invoiceId;
-
-        IInvoice.Invoice[] memory invoicesDetails = invoiceContract.getInvoiceDetails(invoiceIds);
-
-        if (invoicesDetails.length > 0 && invoicesDetails[0].faceValue == invoicesDetails[0].paidAmount) {
-            return true;
-        } else {
-            return false;
-        }
+    function isInvoicePaid(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) private view returns (bool) {
+        IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceContract.getInvoiceDetails(invoiceId);
+        return invoicesDetails.faceValue == invoicesDetails.paidAmount;
     }
 
-    function isInvoiceImpaired(uint256 invoiceId, IInvoice invoiceContract) private view returns (bool) {
-        uint256[] memory invoiceIds = new uint256[](1);
-        invoiceIds[0] = invoiceId;
-
-        IInvoice.Invoice[] memory invoicesDetails = invoiceContract.getInvoiceDetails(invoiceIds);
-
-        uint256 DaysAfterDueDate = invoicesDetails[0].dueDate + (gracePeriodDays * 1 days); 
+    function isInvoiceImpaired(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) private view returns (bool) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceContract.getInvoiceDetails(invoiceId);
+        uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
         return block.timestamp > DaysAfterDueDate;
     }
 
@@ -176,13 +176,12 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             FundedInvoiceDetails storage invoice = invoices[invoiceId];
 
             // Retrieve the faceValue for the invoice from the external contract
-            uint256[] memory invoiceIds = new uint256[](1);
-            invoiceIds[0] = invoiceId;
-            IInvoice.Invoice[] memory externalInvoices = invoice.contractAddress.getInvoiceDetails(invoiceIds);
-            uint256 faceValue = externalInvoices[0].faceValue;
+            IInvoiceProviderAdapter.Invoice memory externalInvoice = invoice.contractAddress.getInvoiceDetails(invoiceId);
+            uint256 faceValue = externalInvoice.faceValue;
 
             // Calculate and store the factoring gain
-            uint256 factoringGain = faceValue - invoice.fundedAmount;
+            uint256 fundedAmount = calculateFundedAmount(invoiceId, invoice.contractAddress);
+            uint256 factoringGain = faceValue - fundedAmount;
             paidInvoicesGain[invoiceId] = factoringGain;
 
             // Add the invoice ID to the paidInvoicesIds array

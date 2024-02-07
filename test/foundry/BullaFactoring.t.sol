@@ -5,6 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoring } from 'contracts/BullaFactoring.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockBullaClaim } from 'contracts/mocks/MockBullaClaim.sol';
+import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 
 
 contract TestBullaFactoring is Test {
