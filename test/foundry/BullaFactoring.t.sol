@@ -12,7 +12,7 @@ contract TestBullaFactoring is Test {
 
     BullaFactoring public bullaFactoring;
     MockUSDC public asset;
-    MockBullaClaim public bullaClaim;
+    IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // SEPOLIA
 
 
     address alice = address(0xA11c3);

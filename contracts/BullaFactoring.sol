@@ -14,24 +14,20 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     using Math for uint256;
 
     IERC20 public assetAddress;
-    uint256 public totalDeposits; // change to private in prod
-    uint256 public totalWithdrawals; // change to private in prod
+    IInvoiceProviderAdapter public invoiceProviderAddress;
+    uint256 public totalDeposits; // TODO: change to private in prod
+    uint256 public totalWithdrawals; // TODO: change to private in prod
     uint256 public fundingPercentage = 9000; // 90% in bps
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
 
-    struct FundedInvoiceDetails {
-        IInvoiceProviderAdapter contractAddress;
-        address originalCreditor; // needed if we decide to send 10% at a later stage
-    }
-
-    /// Mapping from invoice ID to FundedInvoiceDetails struct
-    mapping(uint256 => FundedInvoiceDetails) public invoices;
-
     /// Mapping of paid invoices ID to track gains/losses
     mapping(uint256 => uint256) public paidInvoicesGain;
 
+    /// Mapping from invoice ID to original creditor's address
+    mapping(uint256 => address) public originalCreditors;
+    
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
 
@@ -39,9 +35,10 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     uint256[] private paidInvoicesIds;
 
     /// @param _asset underlying supported stablecoin asset for deposit 
-    constructor(IERC20 _asset) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
+    constructor(IERC20 _asset, IInvoiceProviderAdapter _invoiceProviderAddress) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         assetAddress = _asset;
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
+        invoiceProviderAddress = _invoiceProviderAddress;
     }
 
     /// @notice same decimals as the underlying asset
@@ -49,8 +46,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return ERC20(address(assetAddress)).decimals();
     }
 
-    function calculateFundedAmount(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) private view returns (uint256) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceContract.getInvoiceDetails(invoiceId);
+    function calculateFundedAmount(uint256 invoiceId) private view returns (uint256) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAddress.getInvoiceDetails(invoiceId);
         return Math.mulDiv(invoice.faceValue, fundingPercentage, 10000);
     }
 
@@ -64,9 +61,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         // Consider impaired invoices from activeInvoices
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
-            FundedInvoiceDetails storage invoiceDetail = invoices[invoiceId];
-            if (isInvoiceImpaired(invoiceId, invoiceDetail.contractAddress)) {
-                uint256 fundedAmount = calculateFundedAmount(invoiceId, invoiceDetail.contractAddress);
+            if (isInvoiceImpaired(invoiceId)) {
+                uint256 fundedAmount = calculateFundedAmount(invoiceId);
                 realizedGains -= uint256(fundedAmount);
             }
         }
@@ -103,23 +99,23 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    function fundInvoicesBatched(uint256[] memory invoiceIds, IInvoiceProviderAdapter invoiceContract) public {    
+    function fundInvoicesBatched(uint256[] memory invoiceIds) public {    
         for (uint i = 0; i < invoiceIds.length; i++) {
             // TODO: underwriter checks
 
-            uint256 fundAmount = calculateFundedAmount(invoiceIds[i], invoiceContract);
+            uint256 fundAmount = calculateFundedAmount(invoiceIds[i]);
             assetAddress.transfer(msg.sender, fundAmount);
-            invoices[invoiceIds[i]] = FundedInvoiceDetails(invoiceContract, msg.sender);
+            originalCreditors[invoiceIds[i]] = msg.sender;
             activeInvoices.push(invoiceIds[i]);
         }
     }
 
-    function fundInvoice(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) public {
+    function fundInvoice(uint256 invoiceId) public {
         // TODO: underwriter checks
 
-        uint256 fundedAmount = calculateFundedAmount(invoiceId, invoiceContract);
+        uint256 fundedAmount = calculateFundedAmount(invoiceId);
         assetAddress.transfer(msg.sender, fundedAmount);
-        invoices[invoiceId] = FundedInvoiceDetails(invoiceContract, msg.sender);
+        originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
     }
 
@@ -132,12 +128,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
         for (uint256 i = 0; i < activeCount; i++) {
             uint256 invoiceId = activeInvoices[i];
-            FundedInvoiceDetails storage invoice = invoices[invoiceId];
  
-            if (isInvoicePaid(invoiceId, invoice.contractAddress)) {
+            if (isInvoicePaid(invoiceId)) {
                 tempPaidInvoices[paidCount] = invoiceId;
                 paidCount++;
-            } else if (isInvoiceImpaired(invoiceId, invoice.contractAddress)) {
+            } else if (isInvoiceImpaired(invoiceId)) {
                 tempImpairedInvoices[impairedCount] = invoiceId;
                 impairedCount++;
             }
@@ -157,13 +152,13 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return (paidInvoices, impairedInvoices);
     }
 
-    function isInvoicePaid(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) private view returns (bool) {
-        IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceContract.getInvoiceDetails(invoiceId);
+    function isInvoicePaid(uint256 invoiceId) private view returns (bool) {
+        IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAddress.getInvoiceDetails(invoiceId);
         return invoicesDetails.faceValue == invoicesDetails.paidAmount;
     }
 
-    function isInvoiceImpaired(uint256 invoiceId, IInvoiceProviderAdapter invoiceContract) private view returns (bool) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceContract.getInvoiceDetails(invoiceId);
+    function isInvoiceImpaired(uint256 invoiceId) private view returns (bool) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAddress.getInvoiceDetails(invoiceId);
         uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
         return block.timestamp > DaysAfterDueDate;
     }
@@ -173,14 +168,13 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
             uint256 invoiceId = paidInvoiceIds[i];
-            FundedInvoiceDetails storage invoice = invoices[invoiceId];
 
             // Retrieve the faceValue for the invoice from the external contract
-            IInvoiceProviderAdapter.Invoice memory externalInvoice = invoice.contractAddress.getInvoiceDetails(invoiceId);
+            IInvoiceProviderAdapter.Invoice memory externalInvoice = invoiceProviderAddress.getInvoiceDetails(invoiceId);
             uint256 faceValue = externalInvoice.faceValue;
 
             // Calculate and store the factoring gain
-            uint256 fundedAmount = calculateFundedAmount(invoiceId, invoice.contractAddress);
+            uint256 fundedAmount = calculateFundedAmount(invoiceId);
             uint256 factoringGain = faceValue - fundedAmount;
             paidInvoicesGain[invoiceId] = factoringGain;
 
