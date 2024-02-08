@@ -2,11 +2,10 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IInvoiceProviderAdapter.sol";
-import "./mocks/MockBullaClaim.sol";
-import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
+import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract InvoiceAdapterContract is IInvoiceProviderAdapter {
+contract InvoiceAdapter is IInvoiceProviderAdapter {
     IBullaClaim private bullaClaim;
 
     constructor(IBullaClaim _bullaClaimAddress) {
@@ -41,5 +40,9 @@ contract InvoiceAdapterContract is IInvoiceProviderAdapter {
         }
 
         return invoices;
+    }
+
+    function getClaimAddress() external view returns (address) {
+        return address(bullaClaim);
     }
 }

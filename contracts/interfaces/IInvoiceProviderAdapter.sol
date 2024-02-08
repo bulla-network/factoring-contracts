@@ -12,6 +12,6 @@ interface IInvoiceProviderAdapter {
     }
 
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory);
-
+    function getClaimAddress() external view returns (address);
     function getInvoiceDetailsBatched(uint256[] calldata invoiceIds) external view returns (Invoice[] memory);
 }
