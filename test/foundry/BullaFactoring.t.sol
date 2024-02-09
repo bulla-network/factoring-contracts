@@ -3,19 +3,27 @@ pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
 import { BullaFactoring } from 'contracts/BullaFactoring.sol';
-import { MockUSDC } from 'contracts/mocks/mockUSDC.sol';
+import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
+import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
+import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract TestBullaFactoring is Test {
-
     BullaFactoring public bullaFactoring;
+    BullaClaimInvoiceProviderAdapter public invoiceAdapterBulla;
     MockUSDC public asset;
+    IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
+    IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
 
     address alice = address(0xA11c3);
     address bob = address(0xb0b);
 
     function setUp() public {
         asset = new MockUSDC();
-        bullaFactoring = new BullaFactoring(asset);
+        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -29,113 +37,185 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
     }
 
-    function calculateFundedAmount(uint256 faceValue, uint256 fundingPercentage) internal pure returns (uint256) {
-        return (faceValue * fundingPercentage) / 10000;
+
+    function createClaim(
+        address creditor, 
+        address debtor, 
+        uint256 claimAmount, 
+        uint256 dueBy
+    ) internal returns (uint256) {
+        string memory description = "";
+        address claimToken = address(asset);
+        Multihash memory attachment = Multihash({
+            hash: 0x0,
+            hashFunction: 0x12, 
+            size: 32 
+        });
+
+        return bullaClaim.createClaim(
+            creditor,
+            debtor,
+            description,
+            claimAmount,
+            dueBy,
+            claimToken,
+            attachment
+        );
     }
-    
+
+    function calculateFundedAmount(uint256 invoiceId) public view returns (uint256) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        return Math.mulDiv(invoice.faceValue, bullaFactoring.fundingPercentage(), 10000);
+    }
+
     function calculatePricePerShare(uint256 capitalAccount, uint256 sharesOutstanding, uint SCALING_FACTOR) public pure returns (uint256) {
         if (sharesOutstanding == 0) return 0;
         return (capitalAccount * SCALING_FACTOR) / sharesOutstanding;
     }
 
-    function testDepositAndRedemption() public {
-        uint256 dueDate = block.timestamp + 30 days;
-
-        // Initial deposit of 2000 USDC
-        uint256 initialDeposit = 2000;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-        
-        assertEq(bullaFactoring.totalSupply(), initialDeposit, "Initial total supply should equal initial deposit");
-
-        uint256 pricePerShare = bullaFactoring.pricePerShare();
-        uint capitalAccount = bullaFactoring.calculateCapitalAccount();
-        uint sharePriceCheck = calculatePricePerShare(capitalAccount, bullaFactoring.totalSupply(), bullaFactoring.SCALING_FACTOR());
-        assertEq(pricePerShare, sharePriceCheck);
-        assertEq(capitalAccount, initialDeposit, "Initial capital account should equal initial deposit");
-        assertEq(bullaFactoring.totalAssets(), initialDeposit, "Initial capital account should equal initial deposit");
-
-        // Bob funds an invoice for 100 USDC
-        uint256 invoiceId1 = 1;
-        vm.startPrank(bob);
-        uint firstInvoiceAmount = 100;
-        uint firstFundedAmount = calculateFundedAmount(firstInvoiceAmount, bullaFactoring.fundingPercentage());
-        bullaFactoring.fundInvoice(invoiceId1, firstInvoiceAmount, dueDate);
-        vm.stopPrank();
-
-        // Partial redemption of 1000 USDC
-        vm.startPrank(alice);
-        uint firstRedemption = 1000;
-        bullaFactoring.redeem(firstRedemption, alice, alice);
-        vm.stopPrank();
-
-        pricePerShare = bullaFactoring.pricePerShare();
-        capitalAccount = bullaFactoring.calculateCapitalAccount();
-        sharePriceCheck = calculatePricePerShare(capitalAccount, bullaFactoring.totalSupply(), bullaFactoring.SCALING_FACTOR());
-        assertEq(pricePerShare, sharePriceCheck);
-        assertEq(capitalAccount, initialDeposit - firstRedemption, "Capital account should be the differentce between initial deposit and what has been redeemed so far");
-        assertEq(bullaFactoring.totalSupply(), initialDeposit - firstRedemption);
-        uint expectedTotalAssets = initialDeposit - firstRedemption - firstFundedAmount;
-        assertEq(bullaFactoring.totalAssets(), initialDeposit - firstRedemption - firstFundedAmount, "Total assets should reflect the amount of stables in the vault");
-
-        // Bob funds a second invoice for 900 USDC
-        uint256 invoiceId2 = 2;
-        vm.startPrank(bob);
-        uint secondInvoiceAmount = 900;
-        bullaFactoring.fundInvoice(invoiceId2, secondInvoiceAmount, dueDate);
-        uint secondFundedAmount = calculateFundedAmount(secondInvoiceAmount, bullaFactoring.fundingPercentage());
-        vm.stopPrank();
-
-        // Partial redemption of 100 USDC
-        vm.startPrank(alice);
-        uint secondRedemption = 100;
-        bullaFactoring.redeem(secondRedemption, alice, alice);
-        vm.stopPrank();
-
-        pricePerShare = bullaFactoring.pricePerShare();
-        capitalAccount = bullaFactoring.calculateCapitalAccount();
-        sharePriceCheck = calculatePricePerShare(capitalAccount, bullaFactoring.totalSupply(), bullaFactoring.SCALING_FACTOR());
-        assertEq(pricePerShare, sharePriceCheck);
-        assertEq(capitalAccount, initialDeposit - firstRedemption - secondRedemption, "Capital account should be the differentce between initial deposit and what has been redeemed so far");
-        assertEq(bullaFactoring.totalSupply(), initialDeposit - firstRedemption - secondRedemption);
-        expectedTotalAssets = initialDeposit - firstRedemption - secondRedemption - firstFundedAmount - secondFundedAmount;
-        assertEq(bullaFactoring.totalAssets(), expectedTotalAssets, "Total assets should reflect the amount of stables in the vault");
-    }
-
-    function testPricePerToken() public {
-        uint256 dueDate = block.timestamp + 30 days;
+    function testPriceUpdateInvoicesRedeemed() public {
+        uint256 dueBy = block.timestamp + 30 days;
 
         uint256 initialDeposit = 900;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
-        uint256 invoiceId1 = 1;
+        uint initialFactorerBalance = asset.balanceOf(bob);
+
         vm.startPrank(bob);
-        uint firstInvoiceAmount = 100;
-        bullaFactoring.fundInvoice(invoiceId1, firstInvoiceAmount, dueDate);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01);
         vm.stopPrank();
 
-        uint256 invoiceId2 = 2;
         vm.startPrank(bob);
-        uint secondInvoiceAmount = 900;
-        bullaFactoring.fundInvoice(invoiceId2, secondInvoiceAmount, dueDate);
+        uint invoiceId02Amount = 900;
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02);
         vm.stopPrank();
 
-        // First invoice gets paid back for 100 USDC
-        vm.startPrank(bob);
-        bullaFactoring.payInvoice(invoiceId1);
+        uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
+
+        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + calculateFundedAmount(invoiceId01) + calculateFundedAmount(invoiceId02));
+
+        // alice pays both invoices
+        vm.startPrank(alice);
+        // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
-        // Second invoice gets paid back for 900 USDC
-        vm.startPrank(bob);
-        bullaFactoring.payInvoice(invoiceId2);
-        vm.stopPrank();
+        // automation will signal that we have some paid invoices
+        (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
+        assertEq(paidInvoices.length, 2);
 
-        uint pricePerShare = bullaFactoring.pricePerShare();
+        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+        // owner will reconcile paid invoices to account for any realized gains or losses
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
         uint capitalAccount = bullaFactoring.calculateCapitalAccount();
         uint sharePriceCheck = calculatePricePerShare(capitalAccount, bullaFactoring.totalSupply(), bullaFactoring.SCALING_FACTOR());
-        assertEq(pricePerShare, sharePriceCheck);
+        assertEq(pricePerShareAfterReconciliation, sharePriceCheck);
+        assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
+    }
+
+    function testPriceUpdateInvoicesImpaired() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 2000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 900;
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02);
+        vm.stopPrank();
+
+        // alice pays both invoices
+        vm.startPrank(alice);
+        // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId03Amount = 10;
+        uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03);
+        vm.stopPrank();
+
+        // we reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint pricePerShareBeforeImpairment = bullaFactoring.pricePerShare();
+
+        // Fast forward time by 100 days to simulate the invoice becoming impaired
+        vm.warp(block.timestamp + 100 days);
+
+        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        assertEq(impairedInvoices.length, 1);
+
+        // Check the impact on the price per share due to the impaired invoice
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint pricePerShareAfterImpairment = bullaFactoring.pricePerShare();
+        assertTrue(pricePerShareAfterImpairment < pricePerShareBeforeImpairment, "Price per share should decrease due to impaired invoice");
+    }
+
+    function testDeductionsExceedGains() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 2000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 300; // Amount of the invoice
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Fast forward time by 100 days to simulate the invoice becoming impaired
+        vm.warp(block.timestamp + 100 days);
+
+        // automation will signal that we have an impaired invoice
+        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        assertEq(impairedInvoices.length, 1);
+
+
+        bullaFactoring.reconcileActivePaidInvoices(); 
+
+        vm.expectRevert("Impaired invoice deduction exceeds realized gains");
+        bullaFactoring.pricePerShare();
+    }
+
+    function testUnknownInvoiceId() public {
+        uint256 dueBy = block.timestamp + 30 days;
+        uint invoiceId01Amount = 100;
+        createClaim(bob, alice, invoiceId01Amount, dueBy);
+        // picking a random number as incorrect invoice id
+        uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
+        vm.expectRevert("ERC721: owner query for nonexistent token");
+        bullaClaimERC721.approve(address(bullaFactoring), incorrectInvoiceId);
+        vm.expectRevert("ERC721: operator query for nonexistent token");
+        bullaFactoring.fundInvoice(incorrectInvoiceId);
     }
 }
