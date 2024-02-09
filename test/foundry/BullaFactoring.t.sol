@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
 import { BullaFactoring } from 'contracts/BullaFactoring.sol';
-import { InvoiceAdapter } from 'contracts/InvoiceAdapter.sol';
+import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract TestBullaFactoring is Test {
     BullaFactoring public bullaFactoring;
-    InvoiceAdapter public invoiceAdapter;
+    BullaClaimInvoiceProviderAdapter public invoiceAdapterBulla;
     MockUSDC public asset;
     IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
     IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
@@ -22,8 +22,8 @@ contract TestBullaFactoring is Test {
 
     function setUp() public {
         asset = new MockUSDC();
-        invoiceAdapter = new InvoiceAdapter(bullaClaim);
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapter);
+        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -64,7 +64,7 @@ contract TestBullaFactoring is Test {
     }
 
     function calculateFundedAmount(uint256 invoiceId) public view returns (uint256) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapter.getInvoiceDetails(invoiceId);
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         return Math.mulDiv(invoice.faceValue, bullaFactoring.fundingPercentage(), 10000);
     }
 

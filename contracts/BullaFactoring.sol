@@ -119,8 +119,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         assetAddress.transfer(msg.sender, fundedAmount);
 
         // transfer invoice nft ownership to vault
-        address invoiceAddress = invoiceProviderAdapter.getClaimAddress();
-        IERC721(invoiceAddress).transferFrom(msg.sender, address(this), invoiceId);
+        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
+        IERC721(invoiceContractAddress).transferFrom(msg.sender, address(this), invoiceId);
 
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);

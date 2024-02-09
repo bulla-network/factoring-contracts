@@ -5,7 +5,7 @@ import "./interfaces/IInvoiceProviderAdapter.sol";
 import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract InvoiceAdapter is IInvoiceProviderAdapter {
+contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
     IBullaClaim private bullaClaim;
 
     constructor(IBullaClaim _bullaClaimAddress) {
@@ -42,7 +42,7 @@ contract InvoiceAdapter is IInvoiceProviderAdapter {
         return invoices;
     }
 
-    function getClaimAddress() external view returns (address) {
+    function getInvoiceContractAddress() external view returns (address) {
         return address(bullaClaim);
     }
 }
