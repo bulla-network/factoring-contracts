@@ -19,11 +19,12 @@ contract TestBullaFactoring is Test {
 
     address alice = address(0xA11c3);
     address bob = address(0xb0b);
+    address underwriter = address(0x1222);
 
     function setUp() public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -86,6 +87,10 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01);
+        vm.stopPrank();
+        vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01);
         vm.stopPrank();
@@ -94,6 +99,10 @@ contract TestBullaFactoring is Test {
         uint invoiceId02Amount = 900;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02);
+        vm.stopPrank();
+        vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02);
         vm.stopPrank();
 
@@ -135,6 +144,10 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01);
+        vm.stopPrank();
+        vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01);
         vm.stopPrank();
@@ -142,6 +155,10 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint invoiceId02Amount = 900;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02);
+        vm.stopPrank();
+        vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02);
         vm.stopPrank();
@@ -157,6 +174,10 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint invoiceId03Amount = 10;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId03);
+        vm.stopPrank();
+        vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03);
         vm.stopPrank();
@@ -189,6 +210,10 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint invoiceIdAmount = 300; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId);
+        vm.stopPrank();
+        vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
@@ -213,9 +238,31 @@ contract TestBullaFactoring is Test {
         createClaim(bob, alice, invoiceId01Amount, dueBy);
         // picking a random number as incorrect invoice id
         uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(incorrectInvoiceId);
+        vm.stopPrank();
         vm.expectRevert("ERC721: owner query for nonexistent token");
         bullaClaimERC721.approve(address(bullaFactoring), incorrectInvoiceId);
         vm.expectRevert("ERC721: operator query for nonexistent token");
         bullaFactoring.fundInvoice(incorrectInvoiceId);
     }
+
+    function testFundInvoiceWithoutUnderwriterApproval() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        vm.expectRevert("Invoice not approved by underwriter");
+        bullaFactoring.fundInvoice(invoiceId01);
+        vm.stopPrank();
+    }
+
 }
