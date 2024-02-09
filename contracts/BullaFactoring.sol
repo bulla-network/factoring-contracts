@@ -19,6 +19,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
     uint256 public fundingPercentage = 9000; // 90% in bps
+    address public underwriter;
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
@@ -28,6 +29,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
+
+    mapping(uint256 => bool) public approvedInvoices;
     
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
@@ -36,22 +39,38 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     uint256[] private paidInvoicesIds;
 
     /// @param _asset underlying supported stablecoin asset for deposit 
-    constructor(IERC20 _asset, IInvoiceProviderAdapter _invoiceProviderAdapter) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
+    /// @param _invoiceProviderAdapter adapter for invoice provider
+    /// @param _underwriter address of the underwriter
+    constructor(IERC20 _asset, IInvoiceProviderAdapter _invoiceProviderAdapter, address _underwriter) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         assetAddress = _asset;
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
         invoiceProviderAdapter = _invoiceProviderAdapter;
+        underwriter = _underwriter; 
     }
 
-    /// @notice same decimals as the underlying asset
+    /// @notice Returns the number of decimals the token uses, same as the underlying asset
+    /// @return The number of decimals for this token
     function decimals() public view override(ERC20, ERC4626) returns (uint8) {
         return ERC20(address(assetAddress)).decimals();
     }
 
+    /// @notice Approves an invoice for funding, can only be called by the underwriter
+    /// @param invoiceId The ID of the invoice to approve
+    function approveInvoice(uint256 invoiceId) public {
+        require(msg.sender == underwriter, "Caller is not the underwriter");
+        approvedInvoices[invoiceId] = true;
+    }
+
+    /// @notice Calculates the amount to be funded for a given invoice based on its face value and the funding percentage
+    /// @param invoiceId The ID of the invoice for which to calculate the funded amount
+    /// @return The calculated amount to be funded
     function calculateFundedAmount(uint256 invoiceId) private view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         return Math.mulDiv(invoice.faceValue, fundingPercentage, 10000);
     }
 
+    /// @notice Calculates the total realized gain or loss from paid and impaired invoices
+    /// @return The total realized gain adjusted for losses
     function calculateRealizedGainLoss() private view returns (uint256) {
         uint256 realizedGains = 0;
         // Consider gains from paid invoices
@@ -71,13 +90,16 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return realizedGains;
     }
 
-
+    /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
+    /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         uint256 realizedGainLoss = calculateRealizedGainLoss();
         uint256 capitalAccount = totalDeposits - totalWithdrawals + realizedGainLoss;
         return capitalAccount;
     }
 
+    /// @notice Calculates the current price per share of the fund
+    /// @return The current price per share
     function pricePerShare() public view returns (uint256) {
         uint256 sharesOutstanding = totalSupply();
         if (sharesOutstanding == 0) {
@@ -87,11 +109,18 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
+    /// @notice Converts an asset amount into shares based on the current price per share
+    /// @param assets The amount of assets to convert
+    /// @return The equivalent amount of shares
     function convertToShares(uint256 assets) public view override returns (uint256) {
         uint256 currentPricePerShare = pricePerShare();
         return Math.mulDiv(assets, SCALING_FACTOR, currentPricePerShare);
     }
 
+    /// @notice Allows for the deposit of assets in exchange for fund shares
+    /// @param assets The amount of assets to deposit
+    /// @param receiver The address to receive the fund shares
+    /// @return The number of shares issued for the deposit
     function deposit(uint256 assets, address receiver) public override returns (uint256) {
         uint256 shares = convertToShares(assets);
         _deposit(_msgSender(), receiver, assets, shares);
@@ -101,9 +130,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return shares;
     }
 
+    /// @notice Funds a batch of invoices, transferring the funded amount from the fund to the caller
+    /// @param invoiceIds An array of invoice IDs to fund
     function fundInvoicesBatched(uint256[] memory invoiceIds) public {    
         for (uint i = 0; i < invoiceIds.length; i++) {
-            // TODO: underwriter checks
+            require(approvedInvoices[invoiceIds[i]], "Invoice not approved by underwriter");
 
             uint256 fundAmount = calculateFundedAmount(invoiceIds[i]);
             assetAddress.transfer(msg.sender, fundAmount);
@@ -112,8 +143,10 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         }
     }
 
+    /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
+    /// @param invoiceId The ID of the invoice to fund
     function fundInvoice(uint256 invoiceId) public {
-        // TODO: underwriter checks
+        require(approvedInvoices[invoiceId], "Invoice not approved by underwriter");
 
         uint256 fundedAmount = calculateFundedAmount(invoiceId);
         assetAddress.transfer(msg.sender, fundedAmount);
@@ -126,6 +159,9 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         activeInvoices.push(invoiceId);
     }
 
+    /// @notice Provides a view of the pool's status, listing paid and impaired invoices, to be called by Gelato or alike
+    /// @return paidInvoices An array of paid invoice IDs
+    /// @return impairedInvoices An array of impaired invoice IDs
     function viewPoolStatus() public view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
         uint256 activeCount = activeInvoices.length;
         uint256[] memory tempPaidInvoices = new uint256[](activeCount);
@@ -159,17 +195,25 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return (paidInvoices, impairedInvoices);
     }
 
+    /// @notice Checks if an invoice is fully paid
+    /// @param invoiceId The ID of the invoice to check
+    /// @return True if the invoice is fully paid, false otherwise
     function isInvoicePaid(uint256 invoiceId) private view returns (bool) {
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         return invoicesDetails.faceValue == invoicesDetails.paidAmount;
     }
 
+    /// @notice Checks if an invoice is impaired, based on its due date and a grace period
+    /// @param invoiceId The ID of the invoice to check
+    /// @return True if the invoice is impaired, false otherwise
     function isInvoiceImpaired(uint256 invoiceId) private view returns (bool) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
         return block.timestamp > DaysAfterDueDate;
     }
 
+    /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
+    /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
     function reconcileActivePaidInvoices() public onlyOwner {
         (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
 
@@ -193,6 +237,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         }
     }
 
+    /// @notice Removes an invoice from the list of active invoices once it has been paid
+    /// @param invoiceId The ID of the invoice to remove
     function removeActivePaidInvoice(uint256 invoiceId) private {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             if (activeInvoices[i] == invoiceId) {
@@ -203,6 +249,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         }
     }
 
+    /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
+    /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         uint256 currentPricePerShare = pricePerShare();
@@ -211,6 +259,11 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return maxWithdrawableShares;
     }
 
+    /// @notice Redeems shares for underlying assets, transferring the assets to the specified receiver
+    /// @param shares The number of shares to redeem
+    /// @param receiver The address to receive the redeemed assets
+    /// @param owner The owner of the shares being redeemed
+    /// @return The amount of assets redeemed
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         uint256 maxWithdrawableShares = maxRedeem();
         uint256 assets;
@@ -227,13 +280,22 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return assets;
     }
 
-    /// @notice 2 decimal basis points, ie 90% is 9000
+    /// @notice Sets the funding percentage for new invoices
+    /// @param _fundingPercentage The new funding percentage in basis points (2 decimal basis points, ie 90% is 9000)
+    /// @dev This function can only be called by the contract owner
     function setFundingPercentage(uint256 _fundingPercentage) public onlyOwner {
         require(_fundingPercentage > 0 && _fundingPercentage <= 10000, "Invalid percentage");
         fundingPercentage = _fundingPercentage;
     }
 
+    /// @notice Sets the grace period in days for determining if an invoice is impaired
+    /// @param _days The number of days for the grace period
+    /// @dev This function can only be called by the contract owner
     function setGracePeriodDays(uint256 _days) public onlyOwner {
         gracePeriodDays = _days;
+    }
+
+    function withdraw(uint256, address, address) public pure override returns (uint256) {
+        revert("Function not supported");
     }
 }
