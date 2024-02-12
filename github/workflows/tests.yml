@@ -1,0 +1,34 @@
+on:
+  push:
+    branches:
+      - main
+  
+  pull_request:
+
+jobs:
+  check:
+    name: "Foundry Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: onbjerg/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install dependencies
+        run: |
+          forge install
+          yarn
+
+      - name: Run forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+        
+      - name: Run tests with Sepolia fork
+        run: make test
