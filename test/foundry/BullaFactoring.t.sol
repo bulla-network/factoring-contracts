@@ -355,4 +355,29 @@ contract TestBullaFactoring is Test {
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
     }
+    function testFundBalanceGoesToZero() public {
+        uint256 initialBalanceAlice = asset.balanceOf(alice);
+        uint256 initialDepositAlice = 10 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDepositAlice, alice);
+        vm.stopPrank();
+
+        // Alice redeems all her funds
+        vm.startPrank(alice);
+        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vm.stopPrank();
+
+        uint256 aliceBalanceAfterRedemption = asset.balanceOf(alice);
+        assertEq(aliceBalanceAfterRedemption, initialBalanceAlice, "Alice's balance should be equal to her initial deposit after redemption");
+
+        // New depositor Bob comes in
+        uint256 initialDepositBob = 20 ether;
+        vm.startPrank(bob);
+        bullaFactoring.deposit(initialDepositBob, bob);
+        vm.stopPrank();
+
+        uint256 pricePerShareAfterNewDeposit = bullaFactoring.pricePerShare();
+        assertEq(pricePerShareAfterNewDeposit, bullaFactoring.SCALING_FACTOR(), "Price should go back to the scaling factor for new depositor in empty asset vault");
+    }
+
 }

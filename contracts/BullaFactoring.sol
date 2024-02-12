@@ -308,4 +308,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     function withdraw(uint256, address, address) public pure override returns (uint256) {
         revert("Function not supported");
     }
+
+    function mint(uint256, address) public pure override returns (uint256){
+        revert("Function not supported");
+    }
 }
