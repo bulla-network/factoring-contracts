@@ -9,9 +9,9 @@ interface IInvoiceProviderAdapter {
         uint256 dueDate;
         address tokenAddress;
         uint256 paidAmount;
+        bool isCanceled;
     }
 
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory);
     function getInvoiceContractAddress() external view returns (address);
-    function getInvoiceDetailsBatched(uint256[] calldata invoiceIds) external view returns (Invoice[] memory);
 }
