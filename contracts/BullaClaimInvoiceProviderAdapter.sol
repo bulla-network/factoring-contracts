@@ -19,27 +19,11 @@ contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
             debtor: claim.debtor,
             dueDate: claim.dueBy,
             tokenAddress: claim.claimToken,
-            paidAmount: claim.paidAmount
+            paidAmount: claim.paidAmount,
+            isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded
         });
 
         return invoice;
-    }
-
-    function getInvoiceDetailsBatched(uint256[] calldata invoiceIds) external view override returns (Invoice[] memory) {
-        Invoice[] memory invoices = new Invoice[](invoiceIds.length);
-
-        for (uint i = 0; i < invoiceIds.length; i++) {
-            Claim memory claim = bullaClaim.getClaim(invoiceIds[i]);
-            invoices[i] = Invoice({
-                faceValue: claim.claimAmount,
-                debtor: claim.debtor,
-                dueDate: claim.dueBy,
-                tokenAddress: claim.claimToken,
-                paidAmount: claim.paidAmount
-            });
-        }
-
-        return invoices;
     }
 
     function getInvoiceContractAddress() external view returns (address) {

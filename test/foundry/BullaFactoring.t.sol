@@ -265,4 +265,94 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
     }
 
+    function testFundInvoiceExpiredApproval() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId);
+        vm.stopPrank();
+        vm.warp(block.timestamp + 2 hours);
+        vm.startPrank(bob);
+        vm.expectRevert("Approval expired");
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+    }
+
+    function testInvoiceCancelled() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.rescindClaim(invoiceId);
+        vm.expectRevert("Invoice cannot be cancelled");
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        bullaClaim.rejectClaim(invoiceId02);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vm.expectRevert("Invoice cannot be cancelled");
+        bullaFactoring.fundInvoice(invoiceId02);
+        vm.stopPrank();
+    }
+
+    function testInvoicePaid() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vm.expectRevert("Invoice should not have been paid between approval and funding");
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+    }
 }
