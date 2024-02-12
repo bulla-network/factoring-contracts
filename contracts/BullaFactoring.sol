@@ -130,19 +130,6 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    /// @notice Funds a batch of invoices, transferring the funded amount from the fund to the caller
-    /// @param invoiceIds An array of invoice IDs to fund
-    function fundInvoicesBatched(uint256[] memory invoiceIds) public {    
-        for (uint i = 0; i < invoiceIds.length; i++) {
-            require(approvedInvoices[invoiceIds[i]], "Invoice not approved by underwriter");
-
-            uint256 fundAmount = calculateFundedAmount(invoiceIds[i]);
-            assetAddress.transfer(msg.sender, fundAmount);
-            originalCreditors[invoiceIds[i]] = msg.sender;
-            activeInvoices.push(invoiceIds[i]);
-        }
-    }
-
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @param invoiceId The ID of the invoice to fund
     function fundInvoice(uint256 invoiceId) public {
