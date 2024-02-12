@@ -31,4 +31,6 @@ jobs:
         id: build
         
       - name: Run tests with Sepolia fork
+        with:
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
         run: make test
