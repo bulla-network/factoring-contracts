@@ -351,7 +351,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("InvoicePaymentChanged()"));
+        vm.expectRevert(abi.encodeWithSignature("InvoicePaidAmountChanged()"));
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
     }
