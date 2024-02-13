@@ -228,7 +228,7 @@ contract TestBullaFactoring is Test {
 
         bullaFactoring.reconcileActivePaidInvoices(); 
 
-        vm.expectRevert("Impaired invoice deduction exceeds realized gains");
+        vm.expectRevert(abi.encodeWithSignature("DeductionsExceedsRealisedGains()"));
         bullaFactoring.pricePerShare();
     }
 
@@ -260,7 +260,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        vm.expectRevert("Invoice not approved by underwriter");
+        vm.expectRevert(abi.encodeWithSignature("InvoiceNotApproved()"));
         bullaFactoring.fundInvoice(invoiceId01);
         vm.stopPrank();
     }
@@ -283,7 +283,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.warp(block.timestamp + 2 hours);
         vm.startPrank(bob);
-        vm.expectRevert("Approval expired");
+        vm.expectRevert(abi.encodeWithSignature("ApprovalExpired()"));
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
     }
@@ -306,7 +306,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.rescindClaim(invoiceId);
-        vm.expectRevert("Invoice cannot be cancelled");
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCancelled()"));
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
 
@@ -323,7 +323,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        vm.expectRevert("Invoice cannot be cancelled");
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCancelled()"));
         bullaFactoring.fundInvoice(invoiceId02);
         vm.stopPrank();
     }
@@ -351,10 +351,11 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        vm.expectRevert("Invoice should not have been paid between approval and funding");
+        vm.expectRevert(abi.encodeWithSignature("InvoicePaymentChanged()"));
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
     }
+
     function testFundBalanceGoesToZero() public {
         uint256 initialBalanceAlice = asset.balanceOf(alice);
         uint256 initialDepositAlice = 10 ether;
