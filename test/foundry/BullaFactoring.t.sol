@@ -306,7 +306,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.rescindClaim(invoiceId);
-        vm.expectRevert(abi.encodeWithSignature("InvoiceCancelled()"));
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
 
@@ -323,7 +323,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("InvoiceCancelled()"));
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
         bullaFactoring.fundInvoice(invoiceId02);
         vm.stopPrank();
     }

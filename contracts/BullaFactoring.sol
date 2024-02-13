@@ -48,10 +48,10 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
     /// Events
     event InvoiceApproved(uint256 indexed invoiceId);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed funder);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event DepositMade(address indexed depositor, uint256 assets, uint256 sharesIssued);
-    event Redeemed(address indexed redeemer, uint256 shares, uint256 assets);
+    event SharesRedeemed(address indexed redeemer, uint256 shares, uint256 assets);
     event FundingPercentageChanged(uint256 newFundingPercentage);
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newDuration);
@@ -62,8 +62,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     error DeductionsExceedsRealisedGains();
     error InvoiceNotApproved();
     error ApprovalExpired();
-    error InvoiceCancelled();
-    error InvoicePaymentChanged();
+    error InvoiceCanceled();
+    error InvoicePaidAmountChanged();
     error InvalidFundingPercentage();
     error FunctionNotSupported();
 
@@ -170,8 +170,8 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        if (invoicesDetails.isCanceled) revert InvoiceCancelled();
-        if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaymentChanged();
+        if (invoicesDetails.isCanceled) revert InvoiceCanceled();
+        if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
 
         uint256 fundedAmount = calculateFundedAmount(invoiceId);
         assetAddress.transfer(msg.sender, fundedAmount);
@@ -259,10 +259,9 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             paidInvoicesIds.push(invoiceId);
 
             // Remove the invoice from activeInvoices array
-            removeActivePaidInvoice(invoiceId);
-
-            emit ActivePaidInvoicesReconciled(paidInvoiceIds);
+            removeActivePaidInvoice(invoiceId);   
         }
+        emit ActivePaidInvoicesReconciled(paidInvoiceIds);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
@@ -305,7 +304,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             _withdraw(_msgSender(), receiver, owner, assets, shares);
         }
         totalWithdrawals += assets;
-        emit Redeemed(_msgSender(), shares, assets);
+        emit SharesRedeemed(_msgSender(), shares, assets);
         return assets;
     }
 
