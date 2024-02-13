@@ -43,8 +43,29 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
 
-    // Array to track IDs of paid invoices
+    /// Array to track IDs of paid invoices
     uint256[] private paidInvoicesIds;
+
+    /// Events
+    event InvoiceApproved(uint256 indexed invoiceId);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
+    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
+    event DepositMade(address indexed depositor, uint256 assets, uint256 sharesIssued);
+    event SharesRedeemed(address indexed redeemer, uint256 shares, uint256 assets);
+    event FundingPercentageChanged(uint256 newFundingPercentage);
+    event GracePeriodDaysChanged(uint256 newGracePeriodDays);
+    event ApprovalDurationChanged(uint256 newDuration);
+
+    /// Errors
+    // error IncorrectValue(uint256 value, uint256 expectedValue);
+    error CallerNotUnderwriter();
+    error DeductionsExceedsRealisedGains();
+    error InvoiceNotApproved();
+    error ApprovalExpired();
+    error InvoiceCanceled();
+    error InvoicePaidAmountChanged();
+    error InvalidFundingPercentage();
+    error FunctionNotSupported();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -65,12 +86,13 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
     function approveInvoice(uint256 invoiceId) public {
-        require(msg.sender == underwriter, "Caller is not the underwriter");
+        if (msg.sender != underwriter) revert CallerNotUnderwriter();
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,
             validUntil: block.timestamp + approvalDuration,
             invoiceSnapshot: invoiceProviderAdapter.getInvoiceDetails(invoiceId)
         });
+        emit InvoiceApproved(invoiceId);
     }
 
     /// @notice Calculates the amount to be funded for a given invoice based on its face value and the funding percentage
@@ -95,7 +117,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             uint256 invoiceId = activeInvoices[i];
             if (isInvoiceImpaired(invoiceId)) {
                 uint256 fundedAmount = calculateFundedAmount(invoiceId);
-                require(realizedGains >= fundedAmount, "Impaired invoice deduction exceeds realized gains");
+                if (realizedGains < fundedAmount) revert DeductionsExceedsRealisedGains();
                 realizedGains -= fundedAmount;
             }
         }
@@ -138,18 +160,18 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
         _deposit(_msgSender(), receiver, assets, shares);
         
         totalDeposits += assets;
-
+        emit DepositMade(_msgSender(), assets, shares);
         return shares;
     }
 
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @param invoiceId The ID of the invoice to fund
     function fundInvoice(uint256 invoiceId) public {
-        require(approvedInvoices[invoiceId].approved, "Invoice not approved by underwriter");
-        require(block.timestamp <= approvedInvoices[invoiceId].validUntil, "Approval expired");
+        if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
+        if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        require(!invoicesDetails.isCanceled, "Invoice cannot be cancelled");
-        require(approvedInvoices[invoiceId].invoiceSnapshot.paidAmount == invoicesDetails.paidAmount, "Invoice should not have been paid between approval and funding");
+        if (invoicesDetails.isCanceled) revert InvoiceCanceled();
+        if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
 
         uint256 fundedAmount = calculateFundedAmount(invoiceId);
         assetAddress.transfer(msg.sender, fundedAmount);
@@ -160,6 +182,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
+        emit InvoiceFunded(invoiceId, fundedAmount, msg.sender);
     }
 
     /// @notice Provides a view of the pool's status, listing paid and impaired invoices, to be called by Gelato or alike
@@ -236,8 +259,9 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             paidInvoicesIds.push(invoiceId);
 
             // Remove the invoice from activeInvoices array
-            removeActivePaidInvoice(invoiceId);
+            removeActivePaidInvoice(invoiceId);   
         }
+        emit ActivePaidInvoicesReconciled(paidInvoiceIds);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
@@ -280,6 +304,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
             _withdraw(_msgSender(), receiver, owner, assets, shares);
         }
         totalWithdrawals += assets;
+        emit SharesRedeemed(_msgSender(), shares, assets);
         return assets;
     }
 
@@ -287,8 +312,9 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// @param _fundingPercentage The new funding percentage in basis points (2 decimal basis points, ie 90% is 9000)
     /// @dev This function can only be called by the contract owner
     function setFundingPercentage(uint256 _fundingPercentage) public onlyOwner {
-        require(_fundingPercentage > 0 && _fundingPercentage <= 10000, "Invalid percentage");
+        if (_fundingPercentage <= 0 || _fundingPercentage > 10000) revert InvalidFundingPercentage();
         fundingPercentage = _fundingPercentage;
+        emit FundingPercentageChanged(_fundingPercentage);
     }
 
     /// @notice Sets the grace period in days for determining if an invoice is impaired
@@ -296,6 +322,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// @dev This function can only be called by the contract owner
     function setGracePeriodDays(uint256 _days) public onlyOwner {
         gracePeriodDays = _days;
+        emit GracePeriodDaysChanged(_days);
     }
 
     /// @notice Sets the duration for which invoice approvals are valid
@@ -303,13 +330,14 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// @dev This function can only be called by the contract owner
     function setApprovalDuration(uint256 _duration) public onlyOwner {
         approvalDuration = _duration;
+        emit ApprovalDurationChanged(_duration);
     }
 
     function withdraw(uint256, address, address) public pure override returns (uint256) {
-        revert("Function not supported");
+        revert FunctionNotSupported();
     }
 
     function mint(uint256, address) public pure override returns (uint256){
-        revert("Function not supported");
+        revert FunctionNotSupported();
     }
 }
