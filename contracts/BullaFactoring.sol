@@ -6,13 +6,14 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
+import "./interfaces/IBullaFactoring.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 
 /// @title Bulla Factoring Fund POC
 /// @author @solidoracle
 /// @notice  
-contract BullaFactoring is ERC20, ERC4626, Ownable {
+contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     using Math for uint256;
 
     IERC20 public assetAddress;
@@ -31,12 +32,6 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
 
-    struct InvoiceApproval {
-        bool approved;
-        IInvoiceProviderAdapter.Invoice invoiceSnapshot;
-        uint256 validUntil;
-    }
-
     mapping(uint256 => InvoiceApproval) public approvedInvoices;
     uint256 public approvalDuration = 1 hours;
 
@@ -45,16 +40,6 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
     /// Array to track IDs of paid invoices
     uint256[] private paidInvoicesIds;
-
-    /// Events
-    event InvoiceApproved(uint256 indexed invoiceId);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
-    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
-    event DepositMade(address indexed depositor, uint256 assets, uint256 sharesIssued);
-    event SharesRedeemed(address indexed redeemer, uint256 shares, uint256 assets);
-    event FundingPercentageChanged(uint256 newFundingPercentage);
-    event GracePeriodDaysChanged(uint256 newGracePeriodDays);
-    event ApprovalDurationChanged(uint256 newDuration);
 
     /// Errors
     // error IncorrectValue(uint256 value, uint256 expectedValue);
@@ -105,7 +90,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
     /// @notice Calculates the total realized gain or loss from paid and impaired invoices
     /// @return The total realized gain adjusted for losses
-    function calculateRealizedGainLoss() private view returns (uint256) {
+    function calculateRealizedGainLoss() public view returns (uint256) {
         uint256 realizedGains = 0;
         // Consider gains from paid invoices
         for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
@@ -278,7 +263,7 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
-    function maxRedeem() public view returns (uint256) {
+    function maxRedeem() private view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         uint256 currentPricePerShare = pricePerShare();
         // Calculate the maximum withdrawable shares based on total assets and current price per share
@@ -331,6 +316,14 @@ contract BullaFactoring is ERC20, ERC4626, Ownable {
     function setApprovalDuration(uint256 _duration) public onlyOwner {
         approvalDuration = _duration;
         emit ApprovalDurationChanged(_duration);
+    }
+
+    /// @notice Sets a new underwriter for the contract
+    /// @param _newUnderwriter The address of the new underwriter
+    function setUnderwriter(address _newUnderwriter) public onlyOwner {
+        address oldUnderwriter = underwriter;
+        underwriter = _newUnderwriter;
+        emit UnderwriterChanged(oldUnderwriter, _newUnderwriter);
     }
 
     function withdraw(uint256, address, address) public pure override returns (uint256) {
