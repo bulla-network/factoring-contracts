@@ -28,8 +28,10 @@ export const deployBullaFactoring = async function () {
         ...addresses,
         [chainId]: {
             ...(addresses[chainId as keyof typeof addresses] ?? {}),
-            BullaClaimInvoiceProviderAdapterAddress,
-            bullaFactoringAddress,
+            [bullaFactoringAddress]: {
+                name: 'Bulla Factoring V0',
+                bullaClaimInvoiceProviderAdapter: BullaClaimInvoiceProviderAdapterAddress,
+            },
         },
     };
 
@@ -44,7 +46,7 @@ export const deployBullaFactoring = async function () {
         bullaFactoringAddress,
     };
     console.log('Bulla Invoice Invoice Provider Adapter Deployment Address: \n', BullaClaimInvoiceProviderAdapterAddress);
-    console.log('Bulla Factoring Deployment Address: \n', deployInfo);
+    console.log('Bulla Factoring Deployment Address: \n', bullaFactoringAddress);
 
     return deployInfo;
 };
