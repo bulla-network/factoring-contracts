@@ -5,6 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoring } from 'contracts/BullaFactoring.sol';
 import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
+import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -14,17 +15,29 @@ contract TestBullaFactoring is Test {
     BullaFactoring public bullaFactoring;
     BullaClaimInvoiceProviderAdapter public invoiceAdapterBulla;
     MockUSDC public asset;
+    MockPermissions public depositPermissions;
+    MockPermissions public factoringPermissions;
     IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
     IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
 
     address alice = address(0xA11c3);
     address bob = address(0xb0b);
     address underwriter = address(0x1222);
+    address userWithoutPermissions = address(0x743123);
 
     function setUp() public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter);
+        depositPermissions = new MockPermissions();
+        factoringPermissions = new MockPermissions();
+
+        // Allow alice and bob for deposits, and bob for factoring
+        depositPermissions.allow(alice);
+        depositPermissions.allow(bob);
+        factoringPermissions.allow(bob);
+        factoringPermissions.allow(address(this));
+
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -381,4 +394,26 @@ contract TestBullaFactoring is Test {
         assertEq(pricePerShareAfterNewDeposit, bullaFactoring.SCALING_FACTOR(), "Price should go back to the scaling factor for new depositor in empty asset vault");
     }
 
+    function testWhitelistFactoring() public {
+        uint256 dueBy = block.timestamp + 30 days;
+        uint invoiceId01Amount = 100;
+        vm.startPrank(userWithoutPermissions);
+        uint256 InvoiceId = createClaim(userWithoutPermissions, alice, invoiceId01Amount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(InvoiceId);
+        vm.stopPrank();
+        vm.startPrank(userWithoutPermissions);
+        bullaClaimERC721.approve(address(bullaFactoring), InvoiceId);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", userWithoutPermissions));
+        bullaFactoring.fundInvoice(InvoiceId);
+        vm.stopPrank();
+    }
+
+    function testWhitelistDeposit() public {
+        vm.startPrank(userWithoutPermissions);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        bullaFactoring.deposit(1 ether, alice);
+        vm.stopPrank();
+    }
 }
