@@ -7,6 +7,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IBullaFactoring.sol";
+import "./interfaces/IPermissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 
@@ -25,6 +26,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
+
+    IPermissions public depositPermissions;
+    IPermissions public factoringPermissions;
 
     /// Mapping of paid invoices ID to track gains/losses
     mapping(uint256 => uint256) public paidInvoicesGain;
@@ -51,15 +55,25 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error InvoicePaidAmountChanged();
     error InvalidFundingPercentage();
     error FunctionNotSupported();
+    error UnauthorizedDeposit(address caller);
+    error UnauthorizedFactoring(address caller);
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
     /// @param _underwriter address of the underwriter
-    constructor(IERC20 _asset, IInvoiceProviderAdapter _invoiceProviderAdapter, address _underwriter) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
+    constructor(
+        IERC20 _asset, 
+        IInvoiceProviderAdapter _invoiceProviderAdapter, 
+        address _underwriter,
+        IPermissions _depositPermissions,
+        IPermissions _factoringPermissions
+    ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         assetAddress = _asset;
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
         invoiceProviderAdapter = _invoiceProviderAdapter;
-        underwriter = _underwriter; 
+        underwriter = _underwriter;
+        depositPermissions = _depositPermissions;
+        factoringPermissions = _factoringPermissions;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -141,6 +155,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param receiver The address to receive the fund shares
     /// @return The number of shares issued for the deposit
     function deposit(uint256 assets, address receiver) public override returns (uint256) {
+        if (!depositPermissions.isAllowed(msg.sender)) revert UnauthorizedDeposit(msg.sender);
+
         uint256 shares = convertToShares(assets);
         _deposit(_msgSender(), receiver, assets, shares);
         
@@ -152,6 +168,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @param invoiceId The ID of the invoice to fund
     function fundInvoice(uint256 invoiceId) public {
+        if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
+
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
