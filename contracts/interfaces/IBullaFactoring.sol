@@ -25,6 +25,8 @@ interface IBullaFactoring {
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
+    event KickbackDispersed(uint256 indexed invoiceId, address indexed creditor, uint256 amount);
+    event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
 
     // Functions
     function approveInvoice(uint256 invoiceId) external;

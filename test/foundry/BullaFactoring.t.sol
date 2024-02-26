@@ -79,7 +79,12 @@ contract TestBullaFactoring is Test {
 
     function calculateFundedAmount(uint256 invoiceId) public view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
-        return Math.mulDiv(invoice.faceValue, bullaFactoring.fundingPercentage(), 10000);
+        return Math.mulDiv(invoice.faceValue, bullaFactoring.fundingPercentageBps(), 10000);
+    }
+
+    function calculateKickbackAmount(uint256 invoiceId) private view returns (uint256) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        return Math.mulDiv(invoice.faceValue, bullaFactoring.fundingPercentageBps(), 10000);
     }
 
     function calculatePricePerShare(uint256 capitalAccount, uint256 sharesOutstanding, uint SCALING_FACTOR) public pure returns (uint256) {
@@ -415,5 +420,65 @@ contract TestBullaFactoring is Test {
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
         bullaFactoring.deposit(1 ether, alice);
         vm.stopPrank();
+    }
+
+    function testDisperseKickbackAmount() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint initialFactorerBalance = asset.balanceOf(bob);
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 900;
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaFactoring.fundInvoice(invoiceId02);
+        vm.stopPrank();
+
+        // alice pays both invoices
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        // automation will signal that we have some paid invoices
+        (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
+        assertEq(paidInvoices.length, 2);
+
+        // owner will reconcile paid invoices to account for any realized gains or losses
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Disperse kickback amount
+        vm.startPrank(address(this)); // Assuming the contract owner is the one calling this function
+        uint256 kickbackAmount01 = calculateKickbackAmount(invoiceId01);
+        uint256 kickbackAmount02 = calculateKickbackAmount(invoiceId02);
+        // Assuming disperseKickbackAmount is a function to be called for each invoice
+        bullaFactoring.disperseKickbackAmount(invoiceId01);
+        bullaFactoring.disperseKickbackAmount(invoiceId02);
+        vm.stopPrank();
+
+        // Check if the kickback amount was correctly transferred
+        uint256 finalBalanceOwner = asset.balanceOf(address(bob));
+        assertEq(finalBalanceOwner, initialFactorerBalance + kickbackAmount01 + kickbackAmount02, "Kickback amount was not dispersed correctly");
     }
 }
