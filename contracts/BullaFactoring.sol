@@ -60,6 +60,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error UnauthorizedFactoring(address caller);
     error UnpaidInvoice();
     error InvalidKickbackPercentage();
+    error InvalidPercentage();
+
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -73,8 +75,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 _fundingPercentageBps,
         uint256 _kickbackPercentageBps
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
-        if (_fundingPercentageBps >= 10000) revert InvalidFundingPercentage();
-        if (_kickbackPercentageBps >= 10000) revert InvalidFundingPercentage();
+        if (_fundingPercentageBps + _kickbackPercentageBps > 10000) revert InvalidPercentage();
+
         assetAddress = _asset;
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
         invoiceProviderAdapter = _invoiceProviderAdapter;
@@ -281,10 +283,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             paidInvoicesIds.push(invoiceId);
 
             // Disperse kickback amount to the original creditor
-            address originalCreditor = originalCreditors[invoiceId];
-            require(assetAddress.transfer(originalCreditor, kickbackAmount), "Kickback transfer failed");
-            emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, originalCreditor);
-            
+            address originalCreditor = originalCreditors[invoiceId];            
+            if (kickbackPercentageBps != 0) {
+                require(assetAddress.transfer(originalCreditor, kickbackAmount), "Kickback transfer failed");
+                emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, originalCreditor);
+            }
+
             // Remove the invoice from activeInvoices array
             removeActivePaidInvoice(invoiceId);   
         }

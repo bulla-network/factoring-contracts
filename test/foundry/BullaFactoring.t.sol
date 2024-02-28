@@ -466,4 +466,42 @@ contract TestBullaFactoring is Test {
 
         assertEq(finalBalanceOwner, initialFactorerBalance + kickbackAmount + fundedAmount, "Kickback amount was not dispersed correctly");
     }
+
+    function testCannotRedeemKickbackAmount() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        // Alice deposits into the fund
+        uint256 initialDepositAlice = 100;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDepositAlice);
+        bullaFactoring.deposit(initialDepositAlice, alice);
+        vm.stopPrank();
+
+        // Bob funds an invoice
+        uint invoiceIdAmount = 100; // Amount of the invoice
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Alice pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceIdAmount);
+        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
+        vm.stopPrank();
+
+        uint256 kickbackAmount = calculateKickbackAmount(invoiceId);
+        uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
+
+        // if Alice tries to redeem more shares than she owns, she wont have enough BFT balance to do so
+        vm.startPrank(alice);
+        uint BftAliceBalance = bullaFactoring.balanceOf(alice);
+        vm.expectRevert(abi.encodeWithSignature("ERC20InsufficientBalance(address,uint256,uint256)", alice, BftAliceBalance, sharesToRedeemIncludingKickback));
+        bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
+        vm.stopPrank();
+    }
 }
