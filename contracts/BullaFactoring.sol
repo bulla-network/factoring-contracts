@@ -309,7 +309,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
-    function maxRedeem() private view returns (uint256) {
+    function maxRedeem() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         uint256 currentPricePerShare = pricePerShare();
         // Calculate the maximum withdrawable shares based on total assets and current price per share
