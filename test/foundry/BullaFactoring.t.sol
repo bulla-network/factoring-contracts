@@ -504,4 +504,35 @@ contract TestBullaFactoring is Test {
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
         vm.stopPrank();
     }
+
+    function testUnfactorInvoice() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Bob unfactors the invoice
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Assert the invoice NFT is transferred back to Bob and that fund has received the funded amount back
+        assertEq(bullaClaimERC721.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
+        assertEq(asset.balanceOf(address(bullaFactoring)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
+    }
 }
