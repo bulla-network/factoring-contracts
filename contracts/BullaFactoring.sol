@@ -61,6 +61,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error UnpaidInvoice();
     error InvalidKickbackPercentage();
     error InvalidPercentage();
+    error InvoiceAlreadyPaid();
+    error CallerNotOriginalCreditor();
 
 
     /// @param _asset underlying supported stablecoin asset for deposit 
@@ -295,6 +297,30 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
     }
 
+    /// @notice Unfactors an invoice, returning the invoice NFT to the original creditor and refunding the funded amount
+    /// @param invoiceId The ID of the invoice to unfactor
+    function unfactorInvoice(uint256 invoiceId) public {
+        if (isInvoicePaid(invoiceId)) revert InvoiceAlreadyPaid();
+        address originalCreditor = originalCreditors[invoiceId];
+        if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
+
+        // Calculate the funded amount for the invoice
+        uint256 fundedAmount = calculateFundedAmount(invoiceId);
+
+        // Refund the funded amount to the fund from the original creditor
+        require(assetAddress.transferFrom(originalCreditor, address(this), fundedAmount), "Refund transfer failed");
+
+        // Transfer the invoice NFT back to the original creditor
+        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
+        IERC721(invoiceContractAddress).transferFrom(address(this), originalCreditor, invoiceId);
+
+        // Update the contract's state to reflect the unfactoring
+        removeActivePaidInvoice(invoiceId); 
+        delete originalCreditors[invoiceId];
+
+        emit InvoiceUnfactored(invoiceId, originalCreditor);
+    }
+
     /// @notice Removes an invoice from the list of active invoices once it has been paid
     /// @param invoiceId The ID of the invoice to remove
     function removeActivePaidInvoice(uint256 invoiceId) private {
@@ -309,7 +335,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
-    function maxRedeem() private view returns (uint256) {
+    function maxRedeem() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         uint256 currentPricePerShare = pricePerShare();
         // Calculate the maximum withdrawable shares based on total assets and current price per share

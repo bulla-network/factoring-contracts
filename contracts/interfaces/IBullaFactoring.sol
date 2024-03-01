@@ -27,6 +27,7 @@ interface IBullaFactoring {
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event KickbackPercentageChanged(uint256 newKickbackPercentageBps);
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor);
 
     // Functions
     function approveInvoice(uint256 invoiceId) external;
