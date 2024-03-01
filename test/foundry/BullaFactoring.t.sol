@@ -535,4 +535,119 @@ contract TestBullaFactoring is Test {
         assertEq(bullaClaimERC721.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
         assertEq(asset.balanceOf(address(bullaFactoring)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
     }
+
+    // function testUnfactorImpairedInvoiceAffectsSharePrice() public {
+    //     uint256 dueBy = block.timestamp + 30 days;
+
+    //     // Alice deposits into the fund
+    //     uint256 initialDeposit = 1000;
+    //     vm.startPrank(alice);
+    //     asset.approve(address(bullaFactoring), initialDeposit);
+    //     bullaFactoring.deposit(initialDeposit, alice);
+    //     vm.stopPrank();
+
+    //     // Bob creates and funds an invoice
+    //     uint invoiceIdAmount = 300;
+    //     uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+    //     vm.startPrank(underwriter);
+    //     bullaFactoring.approveInvoice(invoiceId);
+    //     vm.stopPrank();
+    //     vm.startPrank(bob);
+    //     bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+    //     bullaFactoring.fundInvoice(invoiceId);
+    //     vm.stopPrank();
+
+    //     // Fast forward time to simulate the invoice becoming impaired
+    //     vm.warp(block.timestamp + 100 days);
+
+    //     // Reconcile and check the share price before unfactoring the impaired invoice
+    //     bullaFactoring.reconcileActivePaidInvoices();
+    //     uint256 sharePriceBefore = bullaFactoring.pricePerShare();
+    //     console.log("sharePriceBefore",sharePriceBefore);
+
+    //     // Bob unfactors the impaired invoice
+    //     vm.startPrank(bob);
+    //     bullaFactoring.unfactorInvoice(invoiceId);
+    //     vm.stopPrank();
+
+    //     // Reconcile the pool to update the share price after removing the impaired invoice
+    //     bullaFactoring.reconcileActivePaidInvoices();
+
+    //     // Check the share price after unfactoring the impaired invoice
+    //     uint256 sharePriceAfter = bullaFactoring.pricePerShare();
+
+    //     console.log("sharePriceAfter",sharePriceAfter);
+
+    //     // Assert that the share price has changed after the impaired invoice was unfactored
+    //     // assertNotEqual(sharePriceBefore, sharePriceAfter, "Share price should change after unfactoring an impaired invoice");
+    // }
+
+
+     function testUnfactorImpairedInvoiceAffectsSharePrice() public {
+        uint256 dueBy = block.timestamp + 30 days;
+
+        uint256 initialDeposit = 2000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 900;
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02);
+        vm.stopPrank();
+
+        // alice pays both invoices
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId03Amount = 50;
+        uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId03);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03);
+        vm.stopPrank();
+
+        // Fast forward time by 100 days to simulate the invoice becoming impaired
+        vm.warp(block.timestamp + 100 days);
+
+        // reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
+
+        // Bob unfactors the invoice
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId03);
+        vm.stopPrank();
+  
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
+
+        assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
+    }
+    
 }

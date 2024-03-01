@@ -62,7 +62,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error InvalidKickbackPercentage();
     error InvalidPercentage();
     error InvoiceAlreadyPaid();
-    error InvoiceIsImpaired();
     error CallerNotOriginalCreditor();
 
 
