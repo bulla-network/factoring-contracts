@@ -15,6 +15,12 @@ interface IBullaFactoring {
         uint256 validUntil;
     }
 
+    struct Multihash {
+        bytes32 hash;
+        uint8 hashFunction;
+        uint8 size;
+    }
+
     // Events
     event InvoiceApproved(uint256 indexed invoiceId);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
@@ -28,6 +34,8 @@ interface IBullaFactoring {
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event KickbackPercentageChanged(uint256 newKickbackPercentageBps);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor);
+    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
+    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
 
     // Functions
     function approveInvoice(uint256 invoiceId) external;

@@ -172,17 +172,39 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return Math.mulDiv(assets, SCALING_FACTOR, currentPricePerShare);
     }
 
+    /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
+    /// @param from The address making the deposit
+    /// @param receiver The address to receive the fund shares
+    /// @param assets The amount of assets to deposit
+    /// @return The number of shares issued for the deposit
+    function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
+        if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
+
+        assetAddress.transferFrom(from, address(this), assets);
+        uint256 shares = convertToShares(assets);
+        _mint(receiver, shares);
+
+        totalDeposits += assets;
+        return shares;
+    }
+
+    /// @notice Allows for the deposit of assets in exchange for fund shares with an attachment
+    /// @param assets The amount of assets to deposit
+    /// @param receiver The address to receive the fund shares
+    /// @param attachment The attachment data for the deposit
+    /// @return The number of shares issued for the deposit
+    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) public returns (uint256) {
+        uint256 shares = _deposit(_msgSender(), receiver, assets);
+        emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
+        return shares;
+    }
+
     /// @notice Allows for the deposit of assets in exchange for fund shares
     /// @param assets The amount of assets to deposit
     /// @param receiver The address to receive the fund shares
     /// @return The number of shares issued for the deposit
     function deposit(uint256 assets, address receiver) public override returns (uint256) {
-        if (!depositPermissions.isAllowed(msg.sender)) revert UnauthorizedDeposit(msg.sender);
-
-        uint256 shares = convertToShares(assets);
-        _deposit(_msgSender(), receiver, assets, shares);
-        
-        totalDeposits += assets;
+        uint256 shares = _deposit(_msgSender(), receiver, assets);
         emit DepositMade(_msgSender(), assets, shares);
         return shares;
     }
@@ -343,24 +365,47 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return maxWithdrawableShares;
     }
 
+    /// @notice Helper function to handle the logic of redeeming shares for underlying assets
+    /// @param from The address initiating the redemption
+    /// @param receiver The address to receive the redeemed assets
+    /// @param owner The owner of the shares being redeemed
+    /// @param shares The number of shares to redeem
+    /// @return The amount of assets redeemed
+    function _redeem(address from, address receiver, address owner, uint256 shares) private returns (uint256) {
+        uint256 maxWithdrawableShares = maxRedeem();
+        uint256 assets;
+        if (shares > maxWithdrawableShares) {
+            uint256 maxWithdrawableAmount = totalAssets();   
+            _withdraw(from, receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
+            assets = Math.mulDiv(maxWithdrawableShares, pricePerShare(), SCALING_FACTOR);
+        } else {
+            uint256 currentPricePerShare = pricePerShare();
+            assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);
+            _withdraw(from, receiver, owner, assets, shares);
+        }
+        totalWithdrawals += assets;
+        return assets;
+    }
+
+    /// @notice Redeems shares for underlying assets with an attachment, transferring the assets to the specified receiver
+    /// @param shares The number of shares to redeem
+    /// @param receiver The address to receive the redeemed assets
+    /// @param owner The owner of the shares being redeemed
+    /// @param attachment The attachment data for the redemption
+    /// @return The amount of assets redeemed
+    function redeemWithAttachment(uint256 shares, address receiver, address owner, Multihash calldata attachment) public returns (uint256) {
+        uint256 assets = _redeem(_msgSender(), receiver, owner, shares);
+        emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
+        return assets;
+    }
+
     /// @notice Redeems shares for underlying assets, transferring the assets to the specified receiver
     /// @param shares The number of shares to redeem
     /// @param receiver The address to receive the redeemed assets
     /// @param owner The owner of the shares being redeemed
     /// @return The amount of assets redeemed
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        uint256 maxWithdrawableShares = maxRedeem();
-        uint256 assets;
-        if (shares > maxWithdrawableShares) {
-            uint256 maxWithdrawableAmount = totalAssets();   
-            _withdraw(_msgSender(), receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
-            assets = Math.mulDiv(maxWithdrawableShares, pricePerShare(), SCALING_FACTOR);
-        } else {
-            uint256 currentPricePerShare = pricePerShare();
-            assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);
-            _withdraw(_msgSender(), receiver, owner, assets, shares);
-        }
-        totalWithdrawals += assets;
+        uint256 assets = _redeem(_msgSender(), receiver, owner, shares);
         emit SharesRedeemed(_msgSender(), shares, assets);
         return assets;
     }
