@@ -34,8 +34,8 @@ interface IBullaFactoring {
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event KickbackPercentageChanged(uint256 newKickbackPercentageBps);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor);
-    event DepositWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
-    event RedeemWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
+    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
+    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
 
     // Functions
     function approveInvoice(uint256 invoiceId) external;

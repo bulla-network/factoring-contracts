@@ -180,9 +180,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
         if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
 
+        assetAddress.transferFrom(from, address(this), assets);
         uint256 shares = convertToShares(assets);
         _mint(receiver, shares);
-        assetAddress.transferFrom(from, address(this), assets);
 
         totalDeposits += assets;
         return shares;
@@ -195,7 +195,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) public returns (uint256) {
         uint256 shares = _deposit(_msgSender(), receiver, assets);
-        emit DepositWithAttachment(_msgSender(), assets, shares, attachment);
+        emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
         return shares;
     }
 
@@ -395,7 +395,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The amount of assets redeemed
     function redeemWithAttachment(uint256 shares, address receiver, address owner, Multihash calldata attachment) public returns (uint256) {
         uint256 assets = _redeem(_msgSender(), receiver, owner, shares);
-        emit RedeemWithAttachment(_msgSender(), shares, assets, attachment);
+        emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
         return assets;
     }
 
