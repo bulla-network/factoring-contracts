@@ -21,8 +21,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     IInvoiceProviderAdapter public invoiceProviderAdapter;
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
-    uint256 public fundingPercentageBps; 
-    uint256 public kickbackPercentageBps;
+    // uint256 public fundingPercentageBps; 
+    // uint256 public kickbackPercentageBps;
     address public underwriter;
 
     uint256 public SCALING_FACTOR;
@@ -54,13 +54,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error ApprovalExpired();
     error InvoiceCanceled();
     error InvoicePaidAmountChanged();
-    error InvalidFundingPercentage();
     error FunctionNotSupported();
     error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
     error UnpaidInvoice();
-    error InvalidKickbackPercentage();
-    error InvalidPercentage();
     error InvoiceAlreadyPaid();
     error CallerNotOriginalCreditor();
 
@@ -73,20 +70,14 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapter _invoiceProviderAdapter, 
         address _underwriter,
         IPermissions _depositPermissions,
-        IPermissions _factoringPermissions,
-        uint256 _fundingPercentageBps,
-        uint256 _kickbackPercentageBps
+        IPermissions _factoringPermissions
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
-        if (_fundingPercentageBps + _kickbackPercentageBps > 10000) revert InvalidPercentage();
-
         assetAddress = _asset;
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
         invoiceProviderAdapter = _invoiceProviderAdapter;
         underwriter = _underwriter;
         depositPermissions = _depositPermissions;
         factoringPermissions = _factoringPermissions;
-        fundingPercentageBps = _fundingPercentageBps;
-        kickbackPercentageBps = _kickbackPercentageBps;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -97,30 +88,57 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
-    function approveInvoice(uint256 invoiceId) public {
+    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) public {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,
             validUntil: block.timestamp + approvalDuration,
-            invoiceSnapshot: invoiceProviderAdapter.getInvoiceDetails(invoiceId)
+            invoiceSnapshot: invoiceProviderAdapter.getInvoiceDetails(invoiceId),
+            fundedAmount: 0,
+            fundedTimestamp: 0,
+            apr: _apr,
+            bps: _bps
         });
         emit InvoiceApproved(invoiceId);
     }
 
-    /// @notice Calculates the amount to be funded for a given invoice based on its face value and the funding percentage
+    /// @notice Calculates the amount to be funded for a given invoice based on its face value, funding percentage, APR, and duration until due date
     /// @param invoiceId The ID of the invoice for which to calculate the funded amount
+    /// @param apr Annual Percentage Rate in basis points
+    /// @param upfrontBps Upfront basis points for the funding percentage
     /// @return The calculated amount to be funded
-    function calculateFundedAmount(uint256 invoiceId) private view returns (uint256) {
+    function calculateFundedAmount(uint256 invoiceId, uint16 apr, uint16 upfrontBps) private view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        return Math.mulDiv(invoice.faceValue, fundingPercentageBps, 10000);
+        uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
+        uint256 discountRate = Math.mulDiv(apr, daysUntilDue , 365); // APR adjusted for the duration until due date, in basis points
+        // TODO: make a requirement in the approveInvoice, ie when these are set
+        uint256 effectiveFundingPercentageBps = upfrontBps > discountRate ? upfrontBps - discountRate : 0; // Ensure non-negative result
+        return Math.mulDiv(invoice.faceValue, effectiveFundingPercentageBps, 10000);
     }
 
-    /// @notice Calculates the kickback amount for a given funded amount
+    /// @notice Calculates the kickback amount for a given funded amount allowing early payment
     /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
     /// @return The calculated kickback amount
     function calculateKickbackAmount(uint256 invoiceId) private view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        return Math.mulDiv(invoice.faceValue, kickbackPercentageBps, 10000);
+        InvoiceApproval memory approval = approvedInvoices[invoiceId];
+       
+        uint256 maxDaysApr = (invoice.dueDate - approval.fundedTimestamp) / 60 / 60 / 24;
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
+        // Cap the days since funded at the maximum days for APR calculation to ensure the APR is applied correctly over the intended period
+        uint256 daysSinceFundedCap = Math.min(daysSinceFunded,maxDaysApr);
+        // Calculate the true APR discount for the actual payment period
+        uint256 trueDiscountRateBps = Math.mulDiv(approval.apr, daysSinceFundedCap, 365);
+        // Calculate the true haircut
+        uint256 trueHaircut = Math.mulDiv(invoice.faceValue, trueDiscountRateBps, 10000);
+        // Calculate the total amount that should have been paid to the original creditor
+        uint256 totalDueToCreditor = invoice.faceValue - trueHaircut;
+        // Retrieve the funded amount from the approvedInvoices mapping
+        uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmount;
+        // Calculate the kickback amount
+        uint256 kickbackAmount = totalDueToCreditor - fundedAmount;
+
+        return kickbackAmount;
     }
 
     /// @notice Calculates the total realized gain or loss from paid and impaired invoices
@@ -137,7 +155,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
             if (isInvoiceImpaired(invoiceId)) {
-                uint256 fundedAmount = calculateFundedAmount(invoiceId);
+                uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmount;
+
                 if (realizedGains < fundedAmount) revert DeductionsExceedsRealisedGains();
                 realizedGains -= fundedAmount;
             }
@@ -220,7 +239,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
 
-        uint256 fundedAmount = calculateFundedAmount(invoiceId);
+        uint256 fundedAmount = calculateFundedAmount(invoiceId, approvedInvoices[invoiceId].apr, approvedInvoices[invoiceId].bps);
+        approvedInvoices[invoiceId].fundedAmount = fundedAmount;
+        approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
         assetAddress.transfer(msg.sender, fundedAmount);
 
         // transfer invoice nft ownership to vault
@@ -298,7 +319,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             uint256 faceValue = externalInvoice.faceValue;
 
             // Calculate and store the factoring gain
-            uint256 fundedAmount = calculateFundedAmount(invoiceId);
+            uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmount;
             uint256 kickbackAmount = calculateKickbackAmount(invoiceId);
             uint256 factoringGain = faceValue - fundedAmount - kickbackAmount;
             paidInvoicesGain[invoiceId] = factoringGain;
@@ -308,7 +329,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
             // Disperse kickback amount to the original creditor
             address originalCreditor = originalCreditors[invoiceId];            
-            if (kickbackPercentageBps != 0) {
+            if (kickbackAmount != 0) {
                 require(assetAddress.transfer(originalCreditor, kickbackAmount), "Kickback transfer failed");
                 emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, originalCreditor);
             }
@@ -327,7 +348,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
 
         // Calculate the funded amount for the invoice
-        uint256 fundedAmount = calculateFundedAmount(invoiceId);
+        uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmount;
 
         // Refund the funded amount to the fund from the original creditor
         require(assetAddress.transferFrom(originalCreditor, address(this), fundedAmount), "Refund transfer failed");
@@ -408,24 +429,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 assets = _redeem(_msgSender(), receiver, owner, shares);
         emit SharesRedeemed(_msgSender(), shares, assets);
         return assets;
-    }
-
-    /// @notice Sets the funding percentage for new invoices
-    /// @param _fundingPercentageBps The new funding percentage in basis points (2 decimal basis points, ie 90% is 9000)
-    /// @dev This function can only be called by the contract owner
-    function setFundingPercentage(uint256 _fundingPercentageBps) public onlyOwner {
-        if (_fundingPercentageBps <= 0 || _fundingPercentageBps > 10000) revert InvalidFundingPercentage();
-        fundingPercentageBps = _fundingPercentageBps;
-        emit FundingPercentageChanged(_fundingPercentageBps);
-    }
-
-    /// @notice Sets the kickback percentage for funded invoices
-    /// @param _kickbackPercentageBps The new kickback percentage in basis points
-    /// @dev This function can only be called by the contract owner
-    function setKickbackPercentage(uint256 _kickbackPercentageBps) public onlyOwner {
-        if (_kickbackPercentageBps < 0 || _kickbackPercentageBps > 10000) revert InvalidKickbackPercentage();
-        kickbackPercentageBps = _kickbackPercentageBps;
-        emit KickbackPercentageChanged(_kickbackPercentageBps);
     }
 
     /// @notice Sets the grace period in days for determining if an invoice is impaired

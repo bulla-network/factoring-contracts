@@ -13,6 +13,10 @@ interface IBullaFactoring {
         bool approved;
         IInvoiceProviderAdapter.Invoice invoiceSnapshot;
         uint256 validUntil;
+        uint256 fundedAmount;
+        uint256 fundedTimestamp;
+        uint16 apr;
+        uint16 bps;
     }
 
     struct Multihash {
@@ -38,13 +42,12 @@ interface IBullaFactoring {
     event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
 
     // Functions
-    function approveInvoice(uint256 invoiceId) external;
+    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) external;
     function calculateRealizedGainLoss() external view returns (uint256);
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId) external;
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);
     function reconcileActivePaidInvoices() external;
-    function setFundingPercentage(uint256 _fundingPercentage) external;
     function setGracePeriodDays(uint256 _days) external;
     function setApprovalDuration(uint256 _duration) external;
 }
