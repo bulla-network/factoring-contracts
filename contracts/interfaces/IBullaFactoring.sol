@@ -15,8 +15,8 @@ interface IBullaFactoring {
         uint256 validUntil;
         uint256 fundedAmount;
         uint256 fundedTimestamp;
-        uint16 apr;
-        uint16 bps;
+        uint16 interestApr;
+        uint16 upfrontBps;
     }
 
     struct Multihash {

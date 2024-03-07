@@ -21,8 +21,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     IInvoiceProviderAdapter public invoiceProviderAdapter;
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
-    // uint256 public fundingPercentageBps; 
-    // uint256 public kickbackPercentageBps;
     address public underwriter;
 
     uint256 public SCALING_FACTOR;
@@ -60,7 +58,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error UnpaidInvoice();
     error InvoiceAlreadyPaid();
     error CallerNotOriginalCreditor();
-
+    error InvalidPercentage();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -88,7 +86,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
-    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) public {
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _upfrontBps) public {
+        if (_upfrontBps < 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,
@@ -96,8 +95,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             invoiceSnapshot: invoiceProviderAdapter.getInvoiceDetails(invoiceId),
             fundedAmount: 0,
             fundedTimestamp: 0,
-            apr: _apr,
-            bps: _bps
+            interestApr: _interestApr,
+            upfrontBps: _upfrontBps
         });
         emit InvoiceApproved(invoiceId);
     }
@@ -110,8 +109,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function calculateFundedAmount(uint256 invoiceId, uint16 apr, uint16 upfrontBps) private view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
+        // Ensure at least 1 day is counted
+        daysUntilDue = daysUntilDue < 1 ? 1 : daysUntilDue;
         uint256 discountRate = Math.mulDiv(apr, daysUntilDue , 365); // APR adjusted for the duration until due date, in basis points
-        // TODO: make a requirement in the approveInvoice, ie when these are set
         uint256 effectiveFundingPercentageBps = upfrontBps > discountRate ? upfrontBps - discountRate : 0; // Ensure non-negative result
         return Math.mulDiv(invoice.faceValue, effectiveFundingPercentageBps, 10000);
     }
@@ -123,14 +123,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
        
-        uint256 maxDaysApr = (invoice.dueDate - approval.fundedTimestamp) / 60 / 60 / 24;
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        // Cap the days since funded at the maximum days for APR calculation to ensure the APR is applied correctly over the intended period
-        uint256 daysSinceFundedCap = Math.min(daysSinceFunded,maxDaysApr);
+        // Ensure at least 1 day is counted
+        daysSinceFunded = daysSinceFunded < 1 ? 1 : daysSinceFunded;
+
         // Calculate the true APR discount for the actual payment period
-        uint256 trueDiscountRateBps = Math.mulDiv(approval.apr, daysSinceFundedCap, 365);
+        uint256 trueInterestRateBps = Math.mulDiv(approval.interestApr, daysSinceFunded, 365);
+        // cap haircut to max available to distribute
+        uint256 haircutCap = invoice.faceValue - approval.fundedAmount;
         // Calculate the true haircut
-        uint256 trueHaircut = Math.mulDiv(invoice.faceValue, trueDiscountRateBps, 10000);
+        uint256 trueHaircut = Math.min(Math.mulDiv(invoice.faceValue, trueInterestRateBps, 10000), haircutCap);
+
         // Calculate the total amount that should have been paid to the original creditor
         uint256 totalDueToCreditor = invoice.faceValue - trueHaircut;
         // Retrieve the funded amount from the approvedInvoices mapping
@@ -239,7 +242,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
 
-        uint256 fundedAmount = calculateFundedAmount(invoiceId, approvedInvoices[invoiceId].apr, approvedInvoices[invoiceId].bps);
+        uint256 fundedAmount = calculateFundedAmount(invoiceId, approvedInvoices[invoiceId].interestApr, approvedInvoices[invoiceId].upfrontBps);
         approvedInvoices[invoiceId].fundedAmount = fundedAmount;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
         assetAddress.transfer(msg.sender, fundedAmount);

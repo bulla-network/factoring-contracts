@@ -106,7 +106,7 @@ contract TestBullaFactoring is Test {
     function testInvoicePaymentAndKickbackCalculation() public {
         uint256 dueBy = block.timestamp + 60 days; // Invoice due in 60 days
         uint256 invoiceAmount = 100000; // Invoice amount is $100000
-        uint16 apr = 1000; // 10% APR
+        uint16 interestApr = 1000; // 10% APR
         uint16 upfrontBps = 8000; // 80% upfront
 
         uint256 initialDeposit = 200000;
@@ -121,7 +121,7 @@ contract TestBullaFactoring is Test {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, apr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -151,10 +151,10 @@ contract TestBullaFactoring is Test {
 
     }
 
-    function testImmediateRepaymentLeavesPriceUnchanged() public {
+    function testImmediateRepaymentStillChangesPrice() public {
         uint256 dueBy = block.timestamp + 60 days; // Invoice due in 60 days
         uint256 invoiceAmount = 100000; // Invoice amount is $100000
-        uint16 apr = 1000; // 10% APR
+        uint16 interestApr = 1000; // 10% APR
         uint16 upfrontBps = 8000; // 80% upfront
 
         uint256 initialDeposit = 200000;
@@ -169,7 +169,7 @@ contract TestBullaFactoring is Test {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, apr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -177,11 +177,6 @@ contract TestBullaFactoring is Test {
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId);
         vm.stopPrank();
-
-
-        // Simulate debtor paying in 30 days instead of 60
-        uint256 actualDaysUntilPayment = 0;
-        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
         // Debtor pays the invoice
         vm.startPrank(alice);
@@ -195,13 +190,13 @@ contract TestBullaFactoring is Test {
 
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
     
-        assertTrue(pricePerShareBeforeReconciliation == pricePerShareAfterReconciliation, "Price per share should not change if invoice repaid immediately");
+        assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should change even if invoice repaid immediately");
     }
 
     function testPriceUpdateInvoicesRedeemed() public {
         uint256 dueBy = block.timestamp + 30 days;
-        uint16 apr = 1000;
-        uint16 bps = 8000;
+        uint16 interestApr = 1000;
+        uint16 upfrontBps = 8000;
 
         uint256 initialDeposit = 900;
         vm.startPrank(alice);
@@ -214,7 +209,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -226,7 +221,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02);
@@ -234,7 +229,7 @@ contract TestBullaFactoring is Test {
 
         uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
 
-        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + calculateFundedAmount(invoiceId01, apr, bps) + calculateFundedAmount(invoiceId02, apr, bps));
+        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + calculateFundedAmount(invoiceId01, interestApr, upfrontBps) + calculateFundedAmount(invoiceId02, interestApr, upfrontBps));
 
         // Simulate debtor paying in 30 days
         vm.warp(block.timestamp + 30 days);
@@ -263,10 +258,11 @@ contract TestBullaFactoring is Test {
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
     }
 
+    // TODO: understand
     function testAprCapWhenPastDueDate() public {
         uint256 dueBy = block.timestamp + 30 days;
-        uint16 apr = 2000;
-        uint16 bps = 8000;
+        uint16 interestApr = 2000;
+        uint16 upfrontBps = 8000;
 
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
@@ -278,7 +274,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -295,7 +291,7 @@ contract TestBullaFactoring is Test {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
 
-        uint earningsAfterFirstInvoiceRepayment = asset.balanceOf(bob) - initialBalance;
+        bullaFactoring.reconcileActivePaidInvoices();
 
         uint256 dueByNew = block.timestamp + 30 days;
 
@@ -303,17 +299,17 @@ contract TestBullaFactoring is Test {
         uint invoiceId03Amount = 100;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03);
         vm.stopPrank();
 
+        // Fast forward time by 900 days to simulate haircut cap
+        vm.warp(block.timestamp + 900 days);
 
-        // Fast forward time by 100 days to simulate the invoice becoming impaired
-        vm.warp(block.timestamp + 100 days);
-
+        uint balanceBefore = asset.balanceOf(bob);
         // alice pays the second invoice
         vm.startPrank(alice);
         // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
@@ -321,16 +317,17 @@ contract TestBullaFactoring is Test {
         bullaClaim.payClaim(invoiceId03, invoiceId03Amount);
         vm.stopPrank();
 
-        uint earningsAfterSecondInvoiceRepayment = asset.balanceOf(bob) - initialBalance;
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint balanceAfter = asset.balanceOf(bob);
 
-        assertTrue(earningsAfterSecondInvoiceRepayment == 2 * earningsAfterFirstInvoiceRepayment, "APR should be capped");
+        assertTrue(balanceBefore == balanceAfter, "No kickback as haircut cap has been reached");
     }
 
 
     function testPriceUpdateInvoicesImpaired() public {
         uint256 dueBy = block.timestamp + 30 days;
-        uint16 apr = 2000;
-        uint16 bps = 8000;
+        uint16 interestApr = 2000;
+        uint16 upfrontBps = 8000;
 
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
@@ -341,7 +338,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -352,7 +349,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId02Amount = 900;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
@@ -374,7 +371,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId03Amount = 10;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -605,8 +602,8 @@ contract TestBullaFactoring is Test {
 
     function testDisperseKickbackAmount() public {
         uint256 dueBy = block.timestamp + 30 days;
-        uint16 apr = 2000;
-        uint16 bps = 8000;
+        uint16 interestApr = 2000;
+        uint16 upfrontBps = 8000;
 
         uint256 initialDeposit = 900;
         vm.startPrank(alice);
@@ -620,7 +617,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
 
-        bullaFactoring.approveInvoice(invoiceId01, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -646,8 +643,8 @@ contract TestBullaFactoring is Test {
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Check if the kickback and funded amount were correctly transferred
-        uint256 fundedAmount = calculateFundedAmount(invoiceId01, apr, bps);
-        uint256 kickbackAmount = calculateKickbackAmount(invoiceId01, fundedTimestamp, apr, fundedAmount);
+        uint256 fundedAmount = calculateFundedAmount(invoiceId01, interestApr, upfrontBps);
+        uint256 kickbackAmount = calculateKickbackAmount(invoiceId01, fundedTimestamp, interestApr, fundedAmount);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
 
@@ -656,8 +653,8 @@ contract TestBullaFactoring is Test {
 
     function testCannotRedeemKickbackAmount() public {
         uint256 dueBy = block.timestamp + 30 days;
-        uint16 apr = 2000;
-        uint16 bps = 8000;
+        uint16 interestApr = 2000;
+        uint16 upfrontBps = 8000;
 
 
         // Alice deposits into the fund
@@ -671,7 +668,7 @@ contract TestBullaFactoring is Test {
         uint invoiceIdAmount = 100; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, apr, bps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -688,8 +685,8 @@ contract TestBullaFactoring is Test {
         bullaClaim.payClaim(invoiceId, invoiceIdAmount);
         vm.stopPrank();
 
-        uint256 fundedAmount = calculateFundedAmount(invoiceId, apr, bps);
-        uint256 kickbackAmount = calculateKickbackAmount(invoiceId, fundedTimestamp, apr, fundedAmount);
+        uint256 fundedAmount = calculateFundedAmount(invoiceId, interestApr, upfrontBps);
+        uint256 kickbackAmount = calculateKickbackAmount(invoiceId, fundedTimestamp, interestApr, fundedAmount);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
 
         // if Alice tries to redeem more shares than she owns, she wont have enough BFT balance to do so
