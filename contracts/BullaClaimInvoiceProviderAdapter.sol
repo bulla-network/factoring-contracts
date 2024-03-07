@@ -4,9 +4,12 @@ pragma solidity ^0.8.20;
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {console} from "../lib/forge-std/src/console.sol";
 
 contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
     IBullaClaim private bullaClaim;
+
+    error InexistentInvoice();
 
     constructor(IBullaClaim _bullaClaimAddress) {
         bullaClaim = _bullaClaimAddress;
@@ -14,6 +17,7 @@ contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
 
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory) {
         Claim memory claim = bullaClaim.getClaim(invoiceId);
+        if (claim.claimToken == address(0)) revert InexistentInvoice();
         Invoice memory invoice = Invoice({
             faceValue: claim.claimAmount,
             debtor: claim.debtor,
