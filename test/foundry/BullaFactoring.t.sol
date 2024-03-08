@@ -795,7 +795,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
 
         uint balanceAfterUnfactoring = asset.balanceOf(bob);
-        uint refundedAmount = balanceAfterUnfactoring - balanceBeforeUnfactoring;
+        uint refundedAmount = balanceBeforeUnfactoring - balanceAfterUnfactoring;
 
         vm.startPrank(bob);
         uint256 invoiceId03 = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -821,6 +821,5 @@ contract TestBullaFactoring is Test {
         uint refundeDelayedUnfactoring = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
 
         assertTrue(refundedAmount > refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
-    }
-    
+    } 
 }
