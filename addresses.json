@@ -247,6 +247,12 @@
     "0x7eA9168B22f1C10Fa5D15783c02210907A59e0Be": {
       "name": "Bulla Factoring V0",
       "bullaClaimInvoiceProviderAdapter": "0xE1A6c453492075Fd9A77Fb66e254f6dc6Ce97289"
+    },
+    "0x5e94a4fF11C82D1E1DF912E40658718e95c7f990": {
+      "name": "Bulla Factoring V1",
+      "bullaClaimInvoiceProviderAdapter": "0x595C0972b5D1E02C4A2f16480528733d912e4e48",
+      "depositPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb",
+      "factoringPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb"
     }
   },
   "1313161554": {
