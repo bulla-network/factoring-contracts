@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IInvoiceProviderAdapter.sol";
-import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
+import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
 

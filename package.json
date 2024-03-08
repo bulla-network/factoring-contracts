@@ -15,6 +15,7 @@
         "run-node": "npx hardhat node --fork https://rpc.xdaichain.com",
         "dev": "npx hardhat node",
         "deploy:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoring.ts",
+        "deploy:automation:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoringAutomationChecker.ts",
         "verify": "hardhat etherscan-verify"
     },
     "dependencies": {
