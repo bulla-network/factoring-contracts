@@ -352,8 +352,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Calculate the funded amount for the invoice
         uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmount;
 
+        // Calculate the number of days since funding
+        uint256 daysSinceFunding = (block.timestamp - approvedInvoices[invoiceId].fundedTimestamp) / 60 / 60 / 24;
+        uint256 daysOfInterestToCharge = daysSinceFunding + 1;
+
+        // Calculate interest to charge
+        uint256 accruedInterest = Math.mulDiv(approvedInvoices[invoiceId].interestApr, daysOfInterestToCharge, 365); // APR adjusted for the number of days
+        uint256 interestToCharge = Math.mulDiv(fundedAmount, accruedInterest, 10000); // Calculate interest
+        uint256 totalRefundAmount = fundedAmount > interestToCharge ?  fundedAmount - interestToCharge : 0;
+
         // Refund the funded amount to the fund from the original creditor
-        require(assetAddress.transferFrom(originalCreditor, address(this), fundedAmount), "Refund transfer failed");
+        require(assetAddress.transferFrom(originalCreditor, address(this), totalRefundAmount), "Refund transfer failed");
 
         // Transfer the invoice NFT back to the original creditor
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
