@@ -3,7 +3,7 @@ import hre from 'hardhat';
 import addresses from '../addresses.json';
 
 export const deployBullaFactoring = async function () {
-    const { deployments, getNamedAccounts, getChainId, ethers } = hre;
+    const { deployments, getNamedAccounts, getChainId } = hre;
     const { deploy } = deployments;
     const { deployer } = await getNamedAccounts();
 
@@ -14,6 +14,12 @@ export const deployBullaFactoring = async function () {
         args: [bullaClaim],
     });
 
+    // deploy mock permissions contract
+    const { address: permissionsAddress } = await deploy('MockPermissions', {
+        from: deployer,
+        args: [],
+    });
+
     // deploy bulla factoring contract
     const mockUSDC = '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8'; // the USDC we use on bulla.network sepolia chain
     const chainId = await getChainId();
@@ -21,7 +27,7 @@ export const deployBullaFactoring = async function () {
 
     const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
         from: deployer,
-        args: [mockUSDC, BullaClaimInvoiceProviderAdapterAddress, underwriter],
+        args: [mockUSDC, BullaClaimInvoiceProviderAdapterAddress, underwriter, permissionsAddress, permissionsAddress],
     });
 
     const newAddresses = {
@@ -29,8 +35,10 @@ export const deployBullaFactoring = async function () {
         [chainId]: {
             ...(addresses[chainId as keyof typeof addresses] ?? {}),
             [bullaFactoringAddress]: {
-                name: 'Bulla Factoring V0',
+                name: 'Bulla Factoring V1',
                 bullaClaimInvoiceProviderAdapter: BullaClaimInvoiceProviderAdapterAddress,
+                depositPermissions: permissionsAddress,
+                factoringPermissions: permissionsAddress,
             },
         },
     };
@@ -47,6 +55,7 @@ export const deployBullaFactoring = async function () {
     };
     console.log('Bulla Invoice Invoice Provider Adapter Deployment Address: \n', BullaClaimInvoiceProviderAdapterAddress);
     console.log('Bulla Factoring Deployment Address: \n', bullaFactoringAddress);
+    console.log('Permissions Address: \n', permissionsAddress);
 
     return deployInfo;
 };
