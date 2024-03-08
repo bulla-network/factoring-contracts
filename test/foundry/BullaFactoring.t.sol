@@ -765,4 +765,62 @@ contract TestBullaFactoring is Test {
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
     }
+
+
+    function testInterestAccruedOnUnfactoredInvoice() public {
+        interestApr = 2000;
+        upfrontBps = 8000;
+        uint invoiceAmount = 100;
+
+        uint256 initialDeposit = 2000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01);
+        vm.stopPrank();
+
+        uint balanceBeforeUnfactoring = asset.balanceOf(bob);
+
+        // Bob unfactors the first invoice
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId01);
+        vm.stopPrank();
+
+        uint balanceAfterUnfactoring = asset.balanceOf(bob);
+        uint refundedAmount = balanceAfterUnfactoring - balanceBeforeUnfactoring;
+
+        vm.startPrank(bob);
+        uint256 invoiceId03 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03);
+        vm.stopPrank();
+
+        // Fast forward time by 90 days 
+        vm.warp(block.timestamp + 90 days);
+
+        uint balanceBeforeDelayedUnfactoring = asset.balanceOf(bob);
+
+        // Bob unfactors the second invoice
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId03);
+        vm.stopPrank();
+  
+        uint balanceAfterDelayedUnfactoring = asset.balanceOf(bob);
+        uint refundeDelayedUnfactoring = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
+
+        assertTrue(refundedAmount > refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
+    }
+    
 }
