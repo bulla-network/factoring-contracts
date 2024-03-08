@@ -87,7 +87,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _upfrontBps) public {
-        if (_upfrontBps < 0 || _upfrontBps > 10000) revert InvalidPercentage();
+        if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,
@@ -109,8 +109,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function calculateFundedAmount(uint256 invoiceId, uint16 apr, uint16 upfrontBps) private view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
-        // Ensure at least 1 day is counted
-        daysUntilDue = daysUntilDue < 1 ? 1 : daysUntilDue;
+        // Start counting the first second
+        daysUntilDue = daysUntilDue + 1;
         uint256 discountRate = Math.mulDiv(apr, daysUntilDue , 365); // APR adjusted for the duration until due date, in basis points
         uint256 effectiveFundingPercentageBps = upfrontBps > discountRate ? upfrontBps - discountRate : 0; // Ensure non-negative result
         return Math.mulDiv(invoice.faceValue, effectiveFundingPercentageBps, 10000);
@@ -124,8 +124,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
        
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        // Ensure at least 1 day is counted
-        daysSinceFunded = daysSinceFunded < 1 ? 1 : daysSinceFunded;
+        daysSinceFunded = daysSinceFunded +1;
 
         // Calculate the true APR discount for the actual payment period
         uint256 trueInterestRateBps = Math.mulDiv(approval.interestApr, daysSinceFunded, 365);
