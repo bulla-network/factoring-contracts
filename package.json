@@ -16,6 +16,7 @@
         "dev": "npx hardhat node",
         "deploy:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoring.ts",
         "approve-factoring:sepolia": "npx hardhat run --network sepolia scripts/apply-permissions.ts",
+        "deploy:automation:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoringAutomationChecker.ts",
         "verify": "hardhat etherscan-verify"
     },
     "dependencies": {

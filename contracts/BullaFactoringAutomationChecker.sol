@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.20;
+import './BullaFactoring.sol';
+
+contract BullaFactoringAutomationChecker {
+    function checker(address poolAddress)
+        external
+        view
+        returns (bool canExec, bytes memory execPayload)
+    {
+        (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) = BullaFactoring(poolAddress).viewPoolStatus();
+
+        canExec = paidInvoices.length + impairedInvoices.length > 0;
+
+        execPayload = abi.encodeCall(BullaFactoring.reconcileActivePaidInvoices, ());
+    }
+}
