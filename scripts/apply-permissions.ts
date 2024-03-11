@@ -7,25 +7,16 @@ import { getLineReader } from './utils';
 export const updatePermissions = async function () {
     const { getNamedAccounts, getChainId } = hre;
     const { deployer } = await getNamedAccounts();
-    const chainId = await getChainId();
     const lineReader = getLineReader();
     const signer = await ethers.getSigner(deployer);
 
     const bullaFactoringAddress = '0x5e94a4fF11C82D1E1DF912E40658718e95c7f990';
+    const depositPermissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
+    const factoringPermissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
 
-    const addresses = JSON.parse(readFileSync('./addresses.json', { encoding: 'utf-8' }));
-
-    const factoringAddresses = addresses[chainId][bullaFactoringAddress];
-
-    // Ensure the bullaFactoringAddress exists for the chainId
-    if (!factoringAddresses) {
-        console.log('Factoring Address not found: ', bullaFactoringAddress);
-        return;
-    }
-
-    // Deposit Permissions Granted
-    const depositPermissionsContract = new ethers.Contract(factoringAddresses.depositPermissions, permissionsABI.abi, signer);
-    const factoringPermissionsContract = new ethers.Contract(factoringAddresses.depositPermissions, permissionsABI.abi, signer);
+    // Grant Deposit and Factoring Permissions
+    const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, permissionsABI.abi, signer);
+    const factoringPermissionsContract = new ethers.Contract(factoringPermissionsAddress, permissionsABI.abi, signer);
 
     let addressToApprove: string | undefined = await new Promise(resolve =>
         lineReader.question('address to approve?: \n...\n', address => {
@@ -40,34 +31,9 @@ export const updatePermissions = async function () {
     await depositPermissionsContract.allow(addressToApprove);
     await factoringPermissionsContract.allow(addressToApprove);
 
-    const depositApprovedAddresses = addresses[chainId][bullaFactoringAddress].depositApprovedAddresses || [];
-    if (!depositApprovedAddresses.includes(addressToApprove)) {
-        depositApprovedAddresses.push(addressToApprove);
-    }
-
-    const factoringApprovedAddresses = addresses[chainId][bullaFactoringAddress].factoringApprovedAddresses || [];
-    if (!factoringApprovedAddresses.includes(addressToApprove)) {
-        factoringApprovedAddresses.push(addressToApprove);
-    }
-
-    // Assign the updated arrays back to the addresses object
-    addresses[chainId][bullaFactoringAddress].depositApprovedAddresses = depositApprovedAddresses;
-    addresses[chainId][bullaFactoringAddress].factoringApprovedAddresses = factoringApprovedAddresses;
-
-    // Write the updated addresses back to the file
-    writeFileSync('./addresses.json', JSON.stringify(addresses, null, 2));
-
-    const scriptInfo = {
-        bullaFactoringAddress,
-        depositApprovedAddresses,
-        factoringApprovedAddresses,
-    };
-
     console.log('For the following Factoring Contract : \n', bullaFactoringAddress);
-
-    console.log('Deposit Permissions granted to : \n', depositApprovedAddresses);
-    console.log('Factoring Permissions granted to : \n', factoringApprovedAddresses);
-    return scriptInfo;
+    console.log('Deposit Permissions granted to : \n', addressToApprove);
+    console.log('Factoring Permissions granted to : \n', addressToApprove);
 };
 
 // uncomment this line to run the script individually
