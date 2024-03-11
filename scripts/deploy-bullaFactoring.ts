@@ -15,10 +15,13 @@ export const deployBullaFactoring = async function () {
     });
 
     // deploy mock permissions contract
-    const { address: permissionsAddress } = await deploy('MockPermissions', {
-        from: deployer,
-        args: [],
-    });
+    // const { address: permissionsAddress } = await deploy('MockPermissions', {
+    //     from: deployer,
+    //     args: [],
+    // });
+
+    // use the current deployed mock permissions contract in order to use the granted permissions
+    const permissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
 
     // deploy bulla factoring contract
     const mockUSDC = '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8'; // the USDC we use on bulla.network sepolia chain
