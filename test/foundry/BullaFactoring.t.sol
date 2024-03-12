@@ -660,13 +660,49 @@ contract TestBullaFactoring is Test {
         uint256 fundedAmount = calculateFundedAmount(invoiceId, interestApr, upfrontBps);
         uint256 kickbackAmount = calculateKickbackAmount(invoiceId, fundedTimestamp, interestApr, fundedAmount);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
+        uint maxRedeem = bullaFactoring.maxRedeem();
 
-        // if Alice tries to redeem more shares than she owns, she wont have enough BFT balance to do so
+        assertTrue(sharesToRedeemIncludingKickback > maxRedeem);
+
+        uint pricePerShare = bullaFactoring.pricePerShare();
+        uint maxRedeemAmount = maxRedeem * pricePerShare / bullaFactoring.SCALING_FACTOR();
+
+        // if Alice tries to redeem more shares than she owns, she'll be capped by max redeem amount
         vm.startPrank(alice);
-        uint BftAliceBalance = bullaFactoring.balanceOf(alice);
-        vm.expectRevert(abi.encodeWithSignature("ERC20InsufficientBalance(address,uint256,uint256)", alice, BftAliceBalance, sharesToRedeemIncludingKickback));
+        uint balanceBefore = asset.balanceOf(alice);
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
+        uint balanceAfter = asset.balanceOf(alice);
         vm.stopPrank();
+
+        uint actualAssetsRedeems = balanceAfter - balanceBefore;
+
+        assertEq(actualAssetsRedeems, maxRedeemAmount, "Redeem amount should be capped to max redeem amount");
+    }
+    
+    function testAvailableAssetsLessThanTotal() public {
+        // Alice deposits into the fund
+        uint256 initialDepositAlice = 2000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDepositAlice);
+        bullaFactoring.deposit(initialDepositAlice, alice);
+        vm.stopPrank();
+
+        // Bob funds an invoice
+        uint invoiceIdAmount = 100; // Amount of the invoice
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+    
+        assertTrue(bullaFactoring.totalAssets() > bullaFactoring.availableAssets());
+
+        uint fundedAmount = calculateFundedAmount(invoiceId, interestApr, upfrontBps);
+
+        assertEq(bullaFactoring.totalAssets() - fundedAmount, bullaFactoring.availableAssets(), "Available Assets should be the differenct of total assets and what has been funded");
     }
 
     function testUnfactorInvoice() public {
