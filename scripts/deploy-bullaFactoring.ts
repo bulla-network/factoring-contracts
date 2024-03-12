@@ -13,12 +13,27 @@ export const deployBullaFactoring = async function () {
         from: deployer,
         args: [bullaClaim],
     });
+    // Verify BullaClaimInvoiceProviderAdapter contract
+    await hre.run('verify:verify', {
+        address: BullaClaimInvoiceProviderAdapterAddress,
+        constructorArguments: [bullaClaim],
+        network: 'sepolia',
+    });
+    console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
 
     // deploy mock permissions contract
-    // const { address: permissionsAddress } = await deploy('MockPermissions', {
-    //     from: deployer,
-    //     args: [],
-    // });
+    /*
+    const { address: permissionsAddress } = await deploy('MockPermissions', {
+        from: deployer,
+        args: [],
+    });
+    await hre.run('verify:verify', {
+        address: permissionsAddress,
+        constructorArguments: [],
+        network: 'sepolia',
+    });
+    console.log(`MockPermissions verified: ${permissionsAddress}`);
+    */
 
     // use the current deployed mock permissions contract in order to use the granted permissions
     const permissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
