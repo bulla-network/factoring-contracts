@@ -140,7 +140,9 @@ const config: HardhatUserConfig = {
         // coinmarketcap: COINMARKETCAP_API,
     },
     etherscan: {
-        apiKey: ETHERSCAN_API_KEY,
+        apiKey: {
+            sepolia: ETHERSCAN_API_KEY,
+        },
         customChains: [
             {
                 network: 'base-goerli',
