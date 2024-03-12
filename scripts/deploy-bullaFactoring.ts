@@ -60,6 +60,13 @@ export const deployBullaFactoring = async function () {
     console.log('Bulla Factoring Deployment Address: \n', bullaFactoringAddress);
     console.log('Permissions Address: \n', permissionsAddress);
 
+    await hre.run('verify:verify', {
+        address: bullaFactoringAddress,
+        constructorArguments: [mockUSDC, BullaClaimInvoiceProviderAdapterAddress, underwriter, permissionsAddress, permissionsAddress],
+        network: 'sepolia',
+    });
+    console.log(`Contract verified: ${bullaFactoringAddress}`);
+
     return deployInfo;
 };
 
