@@ -29,6 +29,10 @@ contract TestBullaFactoring is Test {
     uint16 upfrontBps = 8000;
     uint256 dueBy = block.timestamp + 30 days;
 
+    address bullaDao = address(this);
+    uint16 protocolFeeBps = 25;
+    uint16 adminFeeBps = 50;
+
     function setUp() public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
@@ -41,7 +45,7 @@ contract TestBullaFactoring is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao,protocolFeeBps, adminFeeBps) ;
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -81,12 +85,19 @@ contract TestBullaFactoring is Test {
         );
     }
 
+    // net admin and protocol fees
     function calculateFundedAmount(uint256 invoiceId, uint16 apr, uint16 _upfrontBps) public view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
         uint256 discountRate = Math.mulDiv(apr, daysUntilDue , 365); // APR adjusted for the duration until due date, in basis points
         uint256 effectiveFundingPercentageBps = upfrontBps > discountRate ? _upfrontBps - discountRate : 0; // Ensure non-negative result
-        return Math.mulDiv(invoice.faceValue, effectiveFundingPercentageBps, 10000);
+
+        uint adminFeeAmount = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);
+
+        uint fundedAmountGross = Math.mulDiv(invoice.faceValue, effectiveFundingPercentageBps, 10000);
+        uint256 protocolFeeBpseeAmount = Math.mulDiv(fundedAmountGross, protocolFeeBps, 10000);
+
+        return fundedAmountGross - protocolFeeBpseeAmount - adminFeeAmount;
     }
 
     function calculateKickbackAmount(uint256 invoiceId, uint fundedTimestamp, uint16 apr, uint fundedAmount) private view returns (uint256) {
@@ -858,4 +869,45 @@ contract TestBullaFactoring is Test {
 
         assertTrue(refundedAmount > refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
     } 
+
+    function testWithdrawFees() public {
+        uint256 initialDeposit = 20000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Simulate funding an invoice to generate fees
+        uint256 invoiceAmount = 1000 ;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Check initial balances
+        uint256 initialBullaDaoBalance = asset.balanceOf(bullaDao);
+        uint256 initialOwnerBalance = asset.balanceOf(address(this));
+
+        // Withdraw protocol fees
+        vm.startPrank(bullaDao);
+        bullaFactoring.withdrawProtocolFees();
+        vm.stopPrank();
+
+        // Withdraw admin fees
+        vm.startPrank(address(this)); 
+        bullaFactoring.withdrawAdminFees();
+        vm.stopPrank();
+
+        // Check final balances
+        uint256 finalBullaDaoBalance = asset.balanceOf(bullaDao);
+        uint256 finalOwnerBalance = asset.balanceOf(address(this));
+
+        // Check that the Bulla DAO and the owner's balances have increased by the expected fee amounts
+        assertTrue(finalBullaDaoBalance > initialBullaDaoBalance, "Bulla DAO should receive protocol fees");
+        assertTrue(finalOwnerBalance > initialOwnerBalance, "Owner should receive admin fees");
+    }
+
 }

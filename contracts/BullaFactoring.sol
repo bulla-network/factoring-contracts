@@ -17,6 +17,11 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     using Math for uint256;
 
+    address public bullaDao;
+    uint16 public protocolFeeBps;
+    uint16 public adminFeeBps;
+    uint256 bullaDaoBalance;
+    uint256 adminFeeBalance;
     IERC20 public assetAddress;
     IInvoiceProviderAdapter public invoiceProviderAdapter;
     uint256 private totalDeposits; 
@@ -59,6 +64,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error InvoiceAlreadyPaid();
     error CallerNotOriginalCreditor();
     error InvalidPercentage();
+    error CallerNotBullaDao();
+    error NoFeesToWithdraw();
+    error FeeWithdrawalFailed();
+    error InvalidAddress();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -68,14 +77,23 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapter _invoiceProviderAdapter, 
         address _underwriter,
         IPermissions _depositPermissions,
-        IPermissions _factoringPermissions
+        IPermissions _factoringPermissions,
+        address _bullaDao,
+        uint16 _protocolFeeBps,
+        uint16 _adminFeeBps
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
+        if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
+        if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
+
         assetAddress = _asset;
         SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
         invoiceProviderAdapter = _invoiceProviderAdapter;
         underwriter = _underwriter;
         depositPermissions = _depositPermissions;
         factoringPermissions = _factoringPermissions;
+        bullaDao = _bullaDao;
+        protocolFeeBps = _protocolFeeBps;
+        adminFeeBps = _adminFeeBps; 
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -241,7 +259,19 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
 
-        uint256 fundedAmount = calculateFundedAmount(invoiceId, approvedInvoices[invoiceId].interestApr, approvedInvoices[invoiceId].upfrontBps);
+        uint256 fundedAmountGross = calculateFundedAmount(invoiceId, approvedInvoices[invoiceId].interestApr, approvedInvoices[invoiceId].upfrontBps);
+
+        // calculate admin fee from face value
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        uint adminFeeAmount = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);
+        adminFeeBalance += adminFeeAmount;
+
+        // calculate and deduct protocol fee from gross funded amount
+        uint256 protocolFeeBpseeAmount = Math.mulDiv(fundedAmountGross, protocolFeeBps, 10000);
+        bullaDaoBalance += protocolFeeBpseeAmount;
+
+        uint fundedAmount = fundedAmountGross - protocolFeeBpseeAmount - adminFeeAmount;
+        
         approvedInvoices[invoiceId].fundedAmount = fundedAmount;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
         assetAddress.transfer(msg.sender, fundedAmount);
@@ -480,9 +510,55 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Sets a new underwriter for the contract
     /// @param _newUnderwriter The address of the new underwriter
     function setUnderwriter(address _newUnderwriter) public onlyOwner {
+        if (_newUnderwriter == address(0)) revert InvalidAddress();
         address oldUnderwriter = underwriter;
         underwriter = _newUnderwriter;
         emit UnderwriterChanged(oldUnderwriter, _newUnderwriter);
+    }
+
+    /// @notice Allows the Bulla DAO to withdraw accumulated protocol fees.
+    function withdrawProtocolFees() public {
+        if (msg.sender != bullaDao) revert CallerNotBullaDao();
+        uint256 feeAmount = bullaDaoBalance;
+        if (feeAmount == 0) revert NoFeesToWithdraw();
+        bullaDaoBalance = 0;
+        bool success = assetAddress.transfer(bullaDao, feeAmount);
+        if (!success) revert FeeWithdrawalFailed();
+        emit ProtocolFeesWithdrawn(bullaDao, feeAmount);
+    }
+
+    /// @notice Allows the Pool Owner to withdraw accumulated admin fees.
+    function withdrawAdminFees() onlyOwner public {
+        uint256 feeAmount = adminFeeBalance;
+        if (feeAmount == 0) revert NoFeesToWithdraw();
+        adminFeeBalance = 0;
+        bool success = assetAddress.transfer(msg.sender, feeAmount);
+        if (!success) revert FeeWithdrawalFailed();
+        emit AdminFeesWithdrawn(msg.sender, feeAmount);
+    }
+
+    /// @notice Updates the Bulla DAO address
+    /// @param _newBullaDao The new address for the Bulla DAO
+    function setBullaDaoAddress(address _newBullaDao) public onlyOwner {
+        if (_newBullaDao == address(0)) revert InvalidAddress();
+        bullaDao = _newBullaDao;
+        emit BullaDaoAddressChanged(bullaDao, _newBullaDao);
+    }
+
+    /// @notice Updates the protocol fee in basis points (bps)
+    /// @param _newProtocolFeeBps The new protocol fee in basis points
+    function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyOwner {
+        if (_newProtocolFeeBps <= 0 || _newProtocolFeeBps > 10000) revert InvalidPercentage();
+        protocolFeeBps = _newProtocolFeeBps;
+        emit ProtocolFeeBpsChanged(protocolFeeBps, _newProtocolFeeBps);
+    }
+
+    /// @notice Sets the admin fee in basis points
+    /// @param _newAdminFeeBps The new admin fee in basis points
+    function setAdminFeeBps(uint16 _newAdminFeeBps) public onlyOwner {
+        if (_newAdminFeeBps <= 0 || _newAdminFeeBps > 10000) revert InvalidPercentage();
+        adminFeeBps = _newAdminFeeBps;
+        emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
     }
 
     function withdraw(uint256, address, address) public pure override returns (uint256) {

@@ -40,6 +40,12 @@ interface IBullaFactoring {
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor);
     event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
     event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
+    event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
+    event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
+    event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
+    event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
+    event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
+
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) external;
