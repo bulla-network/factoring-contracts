@@ -20,8 +20,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     address public bullaDao;
     uint16 public protocolFeeBps;
     uint16 public adminFeeBps;
-    uint256 bullaDaoBalance;
-    uint256 adminFeeBalance;
+    uint256 public bullaDaoFeeBalance;
+    uint256 public adminFeeBalance;
     IERC20 public assetAddress;
     IInvoiceProviderAdapter public invoiceProviderAdapter;
     uint256 private totalDeposits; 
@@ -146,11 +146,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // Calculate the true APR discount for the actual payment period
         uint256 trueInterestRateBps = Math.mulDiv(approval.interestApr, daysSinceFunded, 365);
+
         // cap haircut to max available to distribute
         uint256 haircutCap = invoice.faceValue - approval.fundedAmount;
+
         // Calculate the true haircut
         uint256 trueHaircut = Math.min(Math.mulDiv(invoice.faceValue, trueInterestRateBps, 10000), haircutCap);
-
         // Calculate the total amount that should have been paid to the original creditor
         uint256 totalDueToCreditor = invoice.faceValue - trueHaircut;
         // Retrieve the funded amount from the approvedInvoices mapping
@@ -188,7 +189,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         uint256 realizedGainLoss = calculateRealizedGainLoss();
-        uint256 capitalAccount = totalDeposits - totalWithdrawals + realizedGainLoss;
+        uint256 capitalAccount = totalDeposits - totalWithdrawals + realizedGainLoss - bullaDaoFeeBalance - adminFeeBalance;
         return capitalAccount;
     }
 
@@ -266,11 +267,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint adminFeeAmount = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);
         adminFeeBalance += adminFeeAmount;
 
-        // calculate and deduct protocol fee from gross funded amount
-        uint256 protocolFeeBpseeAmount = Math.mulDiv(fundedAmountGross, protocolFeeBps, 10000);
-        bullaDaoBalance += protocolFeeBpseeAmount;
-
-        uint fundedAmount = fundedAmountGross - protocolFeeBpseeAmount - adminFeeAmount;
+        uint fundedAmount = fundedAmountGross - adminFeeAmount;
         
         approvedInvoices[invoiceId].fundedAmount = fundedAmount;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
@@ -338,6 +335,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return block.timestamp > DaysAfterDueDate;
     }
 
+    function getFundedAmount(uint invoiceId) public view returns (uint) {
+        return approvedInvoices[invoiceId].fundedAmount;
+    }
+
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
     function reconcileActivePaidInvoices() public onlyOwner {
@@ -354,6 +355,14 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmount;
             uint256 kickbackAmount = calculateKickbackAmount(invoiceId);
             uint256 factoringGain = faceValue - fundedAmount - kickbackAmount;
+
+            // Calculate protocol fee on the factoring gain
+            uint256 protocolFeeAmount = Math.mulDiv(factoringGain, protocolFeeBps, 10000);
+            bullaDaoFeeBalance += protocolFeeAmount;
+
+            // Adjust factoring gain after deducting protocol fee
+            factoringGain -= protocolFeeAmount;
+
             paidInvoicesGain[invoiceId] = factoringGain;
 
             // Add the invoice ID to the paidInvoicesIds array
@@ -431,10 +440,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function availableAssets() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
-        uint256 atRiskCapital = totalFundedAmountForActiveInvoices();
+        uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
 
-        // Ensures we don't consider at-risk capital as part of the withdrawable assets
-        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital : 0;
+        // Ensures we don't consider at-risk capital as part of the withdrawable assets, as well as fees
+        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - bullaDaoFeeBalance - adminFeeBalance : 0;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
@@ -519,9 +528,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Allows the Bulla DAO to withdraw accumulated protocol fees.
     function withdrawProtocolFees() public {
         if (msg.sender != bullaDao) revert CallerNotBullaDao();
-        uint256 feeAmount = bullaDaoBalance;
+        uint256 feeAmount = bullaDaoFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
-        bullaDaoBalance = 0;
+        bullaDaoFeeBalance = 0;
         bool success = assetAddress.transfer(bullaDao, feeAmount);
         if (!success) revert FeeWithdrawalFailed();
         emit ProtocolFeesWithdrawn(bullaDao, feeAmount);
