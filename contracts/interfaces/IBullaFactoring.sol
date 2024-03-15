@@ -13,10 +13,12 @@ interface IBullaFactoring {
         bool approved;
         IInvoiceProviderAdapter.Invoice invoiceSnapshot;
         uint256 validUntil;
-        uint256 fundedAmount;
         uint256 fundedTimestamp;
         uint16 interestApr;
         uint16 upfrontBps;
+        uint256 fundedAmountGross;
+        uint256 fundedAmountNet;
+        uint256 adminFee;
     }
 
     struct Multihash {

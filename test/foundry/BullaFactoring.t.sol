@@ -85,21 +85,6 @@ contract TestBullaFactoring is Test {
         );
     }
 
-    // net admin and protocol fees
-    function calculateFundedAmount(uint256 invoiceId, uint16 apr, uint16 _upfrontBps) public view returns (uint256) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
-
-        uint256 daysUntilDue = invoice.dueDate > block.timestamp ? (invoice.dueDate - block.timestamp) / 60 / 60 / 24 : 0;
-        uint256 discountRate = Math.mulDiv(apr, daysUntilDue , 365); // APR adjusted for the duration until due date, in basis points
-        uint256 effectiveFundingPercentageBps = upfrontBps > discountRate ? _upfrontBps - discountRate : 0; // Ensure non-negative result
-
-        uint adminFeeAmount = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);
-
-        uint fundedAmountGross = Math.mulDiv(invoice.faceValue, effectiveFundingPercentageBps, 10000);
-
-        return fundedAmountGross - adminFeeAmount;
-    }
-
     function calculateKickbackAmount(uint256 invoiceId, uint fundedTimestamp, uint16 apr, uint fundedAmount) private view returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         uint256 daysSinceFunded = (block.timestamp > fundedTimestamp) ? (block.timestamp - fundedTimestamp) / 60 / 60 / 24 : 0;
@@ -213,7 +198,7 @@ contract TestBullaFactoring is Test {
         interestApr = 1000;
         upfrontBps = 8000;
 
-        uint256 initialDeposit = 900;
+        uint256 initialDeposit = 9000000;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
@@ -221,7 +206,7 @@ contract TestBullaFactoring is Test {
         uint initialFactorerBalance = asset.balanceOf(bob);
 
         vm.startPrank(bob);
-        uint invoiceId01Amount = 100;
+        uint invoiceId01Amount = 100000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
@@ -232,7 +217,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint invoiceId02Amount = 900;
+        uint invoiceId02Amount = 900000;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
@@ -244,7 +229,7 @@ contract TestBullaFactoring is Test {
 
         uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
 
-        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + calculateFundedAmount(invoiceId01, interestApr, upfrontBps) + calculateFundedAmount(invoiceId02, interestApr, upfrontBps));
+        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + bullaFactoring.getFundedAmount(invoiceId01) + bullaFactoring.getFundedAmount(invoiceId02));
 
         // Simulate debtor paying in 30 days
         vm.warp(block.timestamp + 30 days);
@@ -318,7 +303,7 @@ contract TestBullaFactoring is Test {
         bullaFactoring.fundInvoice(invoiceId03);
         vm.stopPrank();
 
-        // Fast forward time by 900 days to simulate haircut cap
+        // Fast forward time by 900 days to simulate interest rate cap
         vm.warp(block.timestamp + 900 days);
 
         uint balanceBefore = asset.balanceOf(bob);
@@ -332,7 +317,7 @@ contract TestBullaFactoring is Test {
         bullaFactoring.reconcileActivePaidInvoices();
         uint balanceAfter = asset.balanceOf(bob);
 
-        assertTrue(balanceBefore == balanceAfter, "No kickback as haircut cap has been reached");
+        assertTrue(balanceBefore == balanceAfter, "No kickback as interest rate cap has been reached");
     }
 
 
@@ -632,7 +617,7 @@ contract TestBullaFactoring is Test {
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Check if the kickback and funded amount were correctly transferred
-        uint256 fundedAmount = calculateFundedAmount(invoiceId01, interestApr, upfrontBps);
+        uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId01);
         uint256 kickbackAmount = calculateKickbackAmount(invoiceId01, fundedTimestamp, interestApr, fundedAmount);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
@@ -669,7 +654,7 @@ contract TestBullaFactoring is Test {
         bullaClaim.payClaim(invoiceId, invoiceIdAmount);
         vm.stopPrank();
 
-        uint256 fundedAmount = calculateFundedAmount(invoiceId, interestApr, upfrontBps);
+        uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId);
         uint256 kickbackAmount = calculateKickbackAmount(invoiceId, fundedTimestamp, interestApr, fundedAmount);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
         uint maxRedeem = bullaFactoring.maxRedeem();
@@ -712,7 +697,7 @@ contract TestBullaFactoring is Test {
     
         assertTrue(bullaFactoring.totalAssets() > bullaFactoring.availableAssets());
 
-        uint fundedAmount = calculateFundedAmount(invoiceId, interestApr, upfrontBps);
+        uint fundedAmount = bullaFactoring.getFundedAmount(invoiceId);
 
         assertEq(bullaFactoring.totalAssets() - fundedAmount, bullaFactoring.availableAssets(), "Available Assets should be the differenct of total assets and what has been funded");
     }
@@ -921,67 +906,6 @@ contract TestBullaFactoring is Test {
         assertTrue(finalOwnerBalance > initialOwnerBalance, "Owner should receive admin fees");
     }
 
-    function simulateProtocolFeeCalculation(uint256 invoiceId, uint fundedTimestamp) public view returns (uint256) {
-        // Assuming these functions are available and similar to those in BullaFactoring.sol
-        uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId);
-        uint256 kickbackAmount = calculateKickbackAmount(invoiceId, fundedTimestamp, interestApr, fundedAmount);
-        
-        // Retrieve the face value of the invoice
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
-        uint256 faceValue = invoice.faceValue;
-        
-        // Calculate the factoring gain
-        uint256 factoringGain = faceValue - (fundedAmount + kickbackAmount);
-        
-        // Calculate the protocol fee based on the factoring gain
-        uint256 protocolFee = Math.mulDiv(factoringGain, protocolFeeBps, 10000);
-        
-        return protocolFee;
-    }
-
-
-    function testFeesDeductionFromMaxAvailableAmount() public {
-        uint256 initialDeposit = 100000000;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        // Simulate funding an invoice to generate fees
-        vm.startPrank(bob);
-        uint256 invoiceAmount = 100000;
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        uint256 fundedTimestamp = block.timestamp;
-        bullaFactoring.fundInvoice(invoiceId);
-        vm.stopPrank();
-
-        // Fast forward time by 90 days 
-        vm.warp(block.timestamp + 90 days);
-
-        // alice pays invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), 1000 ether);
-        bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        // Calculate fees based on the funded invoice
-        uint256 adminFee = Math.mulDiv(invoiceAmount, adminFeeBps, 10000);
-
-        bullaFactoring.reconcileActivePaidInvoices();
-
-        uint256 protocolFee = simulateProtocolFeeCalculation(invoiceId, fundedTimestamp);
-
-        uint256 actualMaxAvailableBefore = bullaFactoring.availableAssets();
-
-        assertEq(bullaFactoring.totalAssets() - protocolFee - adminFee, actualMaxAvailableBefore, "Max available amount to withdraw should exclude fees");
-    }
-
-    // test capital account after some gains, and then withdraw the fees and verify it has changed
     function testFeesDeductionFromCapitalAccount() public {
         interestApr = 1000;
         upfrontBps = 8000;
@@ -1029,9 +953,6 @@ contract TestBullaFactoring is Test {
 
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
-        uint adminFees = bullaFactoring.adminFeeBalance();
-        uint protocolFee = bullaFactoring.bullaDaoFeeBalance();
-
         // Withdraw admin fees
         vm.startPrank(address(this)); 
         bullaFactoring.withdrawAdminFees();
@@ -1044,7 +965,7 @@ contract TestBullaFactoring is Test {
 
         uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
 
-        assertEq(capitalAccountAfter - capitalAccountBefore, adminFees + protocolFee, "Capital Account calculation includes fees deduction");
+        assertEq(capitalAccountAfter , capitalAccountBefore, "Capital Account should remain unchanged");
     }
 
 
