@@ -131,9 +131,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
         daysSinceFunded = daysSinceFunded +1;
 
+        uint256 interestAprBps = approval.interestApr;
+
+        // notice it is milli bps, so 1000 mbps = 1 bps
+        uint256 interestAprMbps = interestAprBps*1000;
 
         // Calculate the true APR discount for the actual payment period
-        uint256 trueInterestRateBps = Math.mulDiv(approval.interestApr, daysSinceFunded, 365);
+        uint256 trueInterestRateMbps = Math.mulDiv(interestAprMbps, daysSinceFunded, 365);
 
         // PREVIOUS WORKING CODE
         // // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
@@ -145,16 +149,16 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // uint256 trueProtocolFee = Math.mulDiv(trueInterest, protocolFeeBps, 10000);
 
         // NEW CODE GIVING 0 PROTOCOL FEES:
-        uint256 trueInterestAndProtocolFeeBps =  Math.mulDiv(trueInterestRateBps, (10000 + protocolFeeBps), 10000);
+        uint256 trueInterestAndProtocolFeeMbps =  Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
 
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
         uint256 interestCap = approval.fundedAmountGross - approval.adminFee;
 
         // Calculate the true interest and protocol fee
-        uint256 trueInterestAndProtocolFee = Math.min(interestCap, Math.mulDiv(interestCap, trueInterestAndProtocolFeeBps , 10000));
+        uint256 trueInterestAndProtocolFee = Math.min(interestCap, Math.mulDiv(interestCap, trueInterestAndProtocolFeeMbps , 1000_0000));
 
         // Calculate the true interest
-        uint256 trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateBps, trueInterestAndProtocolFeeBps);
+        uint256 trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
 
         // Calculate true protocol fee
         uint256 trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
@@ -165,7 +169,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Calculate the total amount that should have been paid to the original creditor
         uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest  - trueProtocolFee;
         // Retrieve the funded amount from the approvedInvoices mapping
-        uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
+        uint256 fundedAmount = approval.fundedAmountNet;
         // Calculate the kickback amount
         uint256 kickbackAmount = totalDueToCreditor > fundedAmount ? totalDueToCreditor - fundedAmount : 0;
 
