@@ -139,16 +139,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Calculate the true APR discount for the actual payment period
         uint256 trueInterestRateMbps = Math.mulDiv(interestAprMbps, daysSinceFunded, 365);
 
-        // PREVIOUS WORKING CODE
-        // // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
-        // uint256 interestCap = approval.fundedAmountGross - approval.adminFee;
-        // // Calculate the true interest
-        // uint256 trueInterest = Math.min(Math.mulDiv(interestCap, trueInterestRateBps, 10000), interestCap);
-
-        // // Calculate the true protocol fee
-        // uint256 trueProtocolFee = Math.mulDiv(trueInterest, protocolFeeBps, 10000);
-
-        // NEW CODE GIVING 0 PROTOCOL FEES:
+        // calculate the true APR discount with protocols fee
         uint256 trueInterestAndProtocolFeeMbps =  Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
 
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
