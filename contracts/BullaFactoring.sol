@@ -7,9 +7,8 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IBullaFactoring.sol";
-import "./interfaces/IPermissions.sol";
+import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-
 
 /// @title Bulla Factoring Fund POC
 /// @author @solidoracle
@@ -31,8 +30,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
 
-    IPermissions public depositPermissions;
-    IPermissions public factoringPermissions;
+    Permissions public depositPermissions;
+    Permissions public factoringPermissions;
 
     /// Mapping of paid invoices ID to track gains/losses
     mapping(uint256 => uint256) public paidInvoicesGain;
@@ -76,8 +75,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IERC20 _asset, 
         IInvoiceProviderAdapter _invoiceProviderAdapter, 
         address _underwriter,
-        IPermissions _depositPermissions,
-        IPermissions _factoringPermissions,
+        Permissions _depositPermissions,
+        Permissions _factoringPermissions,
         address _bullaDao,
         uint16 _protocolFeeBps,
         uint16 _adminFeeBps

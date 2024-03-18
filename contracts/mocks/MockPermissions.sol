@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../interfaces/IPermissions.sol";
+import "../Permissions.sol";
 
-contract MockPermissions is IPermissions {
+contract MockPermissions is Permissions {
     mapping(address => bool) public allowedAddresses;
 
     function isAllowed(address _address) external view override returns (bool) {
