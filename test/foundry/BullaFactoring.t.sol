@@ -128,7 +128,7 @@ contract TestBullaFactoring is Test {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
 
@@ -176,7 +176,7 @@ contract TestBullaFactoring is Test {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
         // Debtor pays the invoice
@@ -213,7 +213,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -224,7 +224,7 @@ contract TestBullaFactoring is Test {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
@@ -275,7 +275,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -300,7 +300,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
         vm.stopPrank();
 
         // Fast forward time by 900 days to simulate interest rate cap
@@ -335,7 +335,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -346,7 +346,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -368,7 +368,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
         vm.stopPrank();
 
         // we reconcile redeemed invoice to adjust the price
@@ -402,7 +402,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
         // Fast forward time by 100 days to simulate the invoice becoming impaired
@@ -442,7 +442,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
         vm.expectRevert(abi.encodeWithSignature("InvoiceNotApproved()"));
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
     }
 
@@ -463,7 +463,7 @@ contract TestBullaFactoring is Test {
         vm.warp(block.timestamp + 2 hours);
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("ApprovalExpired()"));
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
     }
 
@@ -484,7 +484,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         bullaClaim.rescindClaim(invoiceId);
         vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -501,7 +501,7 @@ contract TestBullaFactoring is Test {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
-        bullaFactoring.fundInvoice(invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
     }
 
@@ -527,7 +527,7 @@ contract TestBullaFactoring is Test {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvoicePaidAmountChanged()"));
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
     }
 
@@ -567,7 +567,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(userWithoutPermissions);
         bullaClaimERC721.approve(address(bullaFactoring), InvoiceId);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", userWithoutPermissions));
-        bullaFactoring.fundInvoice(InvoiceId);
+        bullaFactoring.fundInvoice(InvoiceId, upfrontBps);
         vm.stopPrank();
     }
 
@@ -595,7 +595,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         uint256 fundedTimestamp = block.timestamp;
         vm.stopPrank();
 
@@ -641,7 +641,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         uint256 fundedTimestamp = block.timestamp;
         vm.stopPrank();
 
@@ -692,7 +692,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
     
         assertTrue(bullaFactoring.totalAssets() > bullaFactoring.availableAssets());
@@ -718,7 +718,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
         // Bob unfactors the invoice
@@ -748,7 +748,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -759,7 +759,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         // alice pays both invoices
@@ -777,7 +777,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
         vm.stopPrank();
 
         // Fast forward time by 100 days to simulate the invoice becoming impaired
@@ -817,7 +817,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         uint balanceBeforeUnfactoring = asset.balanceOf(bob);
@@ -837,7 +837,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
         vm.stopPrank();
 
         // Fast forward time by 90 days 
@@ -872,7 +872,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
         // Check initial balances
@@ -923,7 +923,7 @@ contract TestBullaFactoring is Test {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -934,7 +934,7 @@ contract TestBullaFactoring is Test {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -968,5 +968,39 @@ contract TestBullaFactoring is Test {
         assertEq(capitalAccountAfter , capitalAccountBefore, "Capital Account should remain unchanged");
     }
 
+    function testFactorerUsesLowerUpfrontBps() public {
+        uint256 invoiceAmount = 100000; 
+        uint16 approvedUpfrontBps = 8000; 
+        uint16 factorerUpfrontBps = 7000;
 
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the 2 invoices
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice with approvedUpfrontBps
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, approvedUpfrontBps);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, approvedUpfrontBps);
+        vm.stopPrank();
+
+        // Factorer funds one invoice at a lower UpfrontBps
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, approvedUpfrontBps);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        bullaFactoring.fundInvoice(invoiceId2, factorerUpfrontBps);
+        vm.stopPrank();
+
+        uint256 actualFundedAmount = bullaFactoring.getFundedAmount(invoiceId);
+        uint256 actualFundedAmountLowerUpfrontBps = bullaFactoring.getFundedAmount(invoiceId2);
+
+        assertTrue(actualFundedAmount > actualFundedAmountLowerUpfrontBps, "Funded amounts should reflect the actual upfront bps chosen by the factorer" );
+    }
 }
