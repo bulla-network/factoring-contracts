@@ -260,7 +260,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) public {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
-        if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps) revert InvalidPercentage();
+        if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
