@@ -256,9 +256,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @param invoiceId The ID of the invoice to fund
-    function fundInvoice(uint256 invoiceId) public {
+    /// @param factorerUpfrontBps factorer specified upfront bps
+    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) public {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
+        if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps) revert InvalidPercentage();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
@@ -267,7 +269,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
         // calculate target interest, fees and net funded amount
-        uint256 fundedAmountGross_ = Math.mulDiv(invoice.faceValue, approvedInvoices[invoiceId].upfrontBps, 10000);
+        uint256 fundedAmountGross_ = Math.mulDiv(invoice.faceValue, factorerUpfrontBps, 10000);
         uint256 adminFeeAmount = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);        
         adminFeeBalance += adminFeeAmount;
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
@@ -283,6 +285,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
         approvedInvoices[invoiceId].adminFee = adminFeeAmount;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
+        // update upfrontBps with what was passed in the arg by the factorer
+        approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
 
         // transfer net funded amount to caller
         assetAddress.transfer(msg.sender, fundedAmountNet);
