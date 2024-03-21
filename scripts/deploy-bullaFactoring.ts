@@ -2,23 +2,38 @@ import { writeFileSync } from 'fs';
 import hre from 'hardhat';
 import addresses from '../addresses.json';
 
+const verifyContract = async (address: string, constructorArguments: any[], network: string) => {
+    try {
+        await hre.run('verify:verify', {
+            address,
+            constructorArguments,
+            network,
+        });
+        console.log(`Contract verified: ${address}`);
+    } catch (error: any) {
+        if (error.message.includes('already verified')) {
+            console.log(`Contract already verified: ${address}`);
+        } else {
+            throw error;
+        }
+    }
+};
+
 export const deployBullaFactoring = async function () {
     const { deployments, getNamedAccounts, getChainId } = hre;
     const { deploy } = deployments;
     const { deployer } = await getNamedAccounts();
 
     // deploy invoice provider contract
-    const bullaClaim = '0x3702D060cbB102b6AebF40B40880F77BeF3d7225'; // Sepolia Address
-    const { address: BullaClaimInvoiceProviderAdapterAddress } = await deploy('BullaClaimInvoiceProviderAdapter', {
-        from: deployer,
-        args: [bullaClaim],
-    });
+    // const bullaClaim = '0x3702D060cbB102b6AebF40B40880F77BeF3d7225'; // Sepolia Address
+    // const { address: BullaClaimInvoiceProviderAdapterAddress } = await deploy('BullaClaimInvoiceProviderAdapter', {
+    //     from: deployer,
+    //     args: [bullaClaim],
+    // });
     // Verify BullaClaimInvoiceProviderAdapter contract
-    await hre.run('verify:verify', {
-        address: BullaClaimInvoiceProviderAdapterAddress,
-        constructorArguments: [bullaClaim],
-        network: 'sepolia',
-    });
+    // await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], 'sepolia');
+
+    const BullaClaimInvoiceProviderAdapterAddress = '0x595c0972b5d1e02c4a2f16480528733d912e4e48';
     console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
 
     // deploy mock permissions contract
@@ -41,11 +56,23 @@ export const deployBullaFactoring = async function () {
     // deploy bulla factoring contract
     const mockUSDC = '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8'; // the USDC we use on bulla.network sepolia chain
     const chainId = await getChainId();
-    const underwriter = deployer; // TBD
+    const underwriter = '0x201D274192Fa7b21ce802f0b87D75Ae493A8C93D'; // Ben's address used in current underwriter function in backend
+    const bullaDao = '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d'; // Mike's address
+    const protocolFeeBps = 25;
+    const adminFeeBps = 50;
 
     const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
         from: deployer,
-        args: [mockUSDC, BullaClaimInvoiceProviderAdapterAddress, underwriter, permissionsAddress, permissionsAddress],
+        args: [
+            mockUSDC,
+            BullaClaimInvoiceProviderAdapterAddress,
+            underwriter,
+            permissionsAddress,
+            permissionsAddress,
+            bullaDao,
+            protocolFeeBps,
+            adminFeeBps,
+        ],
     });
 
     const newAddresses = {
@@ -75,11 +102,20 @@ export const deployBullaFactoring = async function () {
     console.log('Bulla Factoring Deployment Address: \n', bullaFactoringAddress);
     console.log('Permissions Address: \n', permissionsAddress);
 
-    await hre.run('verify:verify', {
-        address: bullaFactoringAddress,
-        constructorArguments: [mockUSDC, BullaClaimInvoiceProviderAdapterAddress, underwriter, permissionsAddress, permissionsAddress],
-        network: 'sepolia',
-    });
+    await verifyContract(
+        bullaFactoringAddress,
+        [
+            mockUSDC,
+            BullaClaimInvoiceProviderAdapterAddress,
+            underwriter,
+            permissionsAddress,
+            permissionsAddress,
+            bullaDao,
+            protocolFeeBps,
+            adminFeeBps,
+        ],
+        'sepolia',
+    );
     console.log(`Contract verified: ${bullaFactoringAddress}`);
 
     return deployInfo;

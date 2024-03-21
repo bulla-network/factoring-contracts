@@ -249,7 +249,7 @@
       "bullaClaimInvoiceProviderAdapter": "0xE1A6c453492075Fd9A77Fb66e254f6dc6Ce97289"
     },
     "0x5e94a4fF11C82D1E1DF912E40658718e95c7f990": {
-      "name": "Bulla Factoring V0.1",
+      "name": "Bulla Factoring V1",
       "bullaClaimInvoiceProviderAdapter": "0x595C0972b5D1E02C4A2f16480528733d912e4e48",
       "depositPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb",
       "factoringPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb"
@@ -257,6 +257,12 @@
     "0x4fB6cE348dcd8039d0f52d46578c423D3DE528b9": {
       "name": "Bulla Factoring V1",
       "bullaClaimInvoiceProviderAdapter": "0x595C0972b5D1E02C4A2f16480528733d912e4e48",
+      "depositPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb",
+      "factoringPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb"
+    },
+    "0xbdefcAFaDe1d86b451e5Aa44b896EF29432dCe76": {
+      "name": "Bulla Factoring V1",
+      "bullaClaimInvoiceProviderAdapter": "0x595c0972b5d1e02c4a2f16480528733d912e4e48",
       "depositPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb",
       "factoringPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb"
     }

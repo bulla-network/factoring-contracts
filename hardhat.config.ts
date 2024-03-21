@@ -19,8 +19,11 @@ const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS!;
 const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
     solidity: {
-        compilers: [{ version: '0.8.7' }, { version: '0.8.3' }, { version: '0.8.20' }],
-        settings: { optimizer: { enabled: true, runs: 200 } },
+        compilers: [
+            { version: '0.8.7', settings: { optimizer: { enabled: true, runs: 200 } } },
+            { version: '0.8.3', settings: { optimizer: { enabled: true, runs: 200 } } },
+            { version: '0.8.20', settings: { optimizer: { enabled: true, runs: 200 } } },
+        ],
     },
     networks: {
         /** comment out this hardhat config if running tests */

@@ -45,7 +45,7 @@ contract TestBullaFactoring is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao,protocolFeeBps, adminFeeBps) ;
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps) ;
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
