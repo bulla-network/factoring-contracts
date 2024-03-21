@@ -28,7 +28,7 @@ interface IBullaFactoring {
     }
 
     // Events
-    event InvoiceApproved(uint256 indexed invoiceId);
+    event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event DepositMade(address indexed depositor, uint256 assets, uint256 sharesIssued);
