@@ -4,10 +4,12 @@ pragma solidity ^0.8.20;
 import 'forge-std/Test.sol';
 import { BullaFactoring } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
+import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
 import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
+import { TestSafe } from 'contracts/mocks/gnosisSafe.sol';
 import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -21,6 +23,8 @@ contract TestBullaFactoring is Test {
     MockPermissions public factoringPermissions;
     PermissionsWithAragon public permissionsWithAragon;
     DAOMock public daoMock;
+    PermissionsWithSafe public permissionsWithSafe;
+    TestSafe public testSafe;
     IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
     IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
 
@@ -43,8 +47,13 @@ contract TestBullaFactoring is Test {
         depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
         daoMock = new DAOMock();
+        address[] memory safeOwners = new address[](2);
+        safeOwners[0] = alice;
+        safeOwners[1] = address(this);
+        testSafe = new TestSafe(safeOwners, uint8(2));
         bytes32 ALLOW_PERMISSION_ID = keccak256("ALLOW_PERMISSION");
         permissionsWithAragon = new PermissionsWithAragon(address(daoMock), ALLOW_PERMISSION_ID);
+        permissionsWithSafe = new PermissionsWithSafe(address(testSafe));
 
         // Allow alice and bob for deposits, and bob for factoring
         depositPermissions.allow(alice);
@@ -1022,7 +1031,6 @@ contract TestBullaFactoring is Test {
         asset.approve(address(bullaFactoringAragon), 1000 ether);
         bullaFactoringAragon.deposit(initialDeposit, alice);
         vm.stopPrank();
-
     }
 
     function testAragonDaoInteractionUnHappyPath() public {
@@ -1035,6 +1043,31 @@ contract TestBullaFactoring is Test {
         asset.approve(address(bullaFactoringAragon), 1000 ether);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", alice));
         bullaFactoringAragon.deposit(initialDeposit, alice);
+        vm.stopPrank();
+    }
+
+    function testGnosisPermissionsHappyPath() public {
+        daoMock.setHasPermissionReturnValueMock(true);
+        
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps) ;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoringSafe), 1000 ether);
+        bullaFactoringSafe.deposit(initialDeposit, alice);
+        vm.stopPrank();
+    }
+
+    function testGnosisPermissionsUnHappyPath() public {
+        daoMock.setHasPermissionReturnValueMock(true);
+        
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps) ;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(bob);
+        asset.approve(address(bullaFactoringSafe), 1000 ether);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", bob));
+        bullaFactoringSafe.deposit(initialDeposit, bob);
         vm.stopPrank();
     }
 }
