@@ -1,6 +1,8 @@
 import { writeFileSync } from 'fs';
-import hre from 'hardhat';
+import hre, { ethers } from 'hardhat';
 import addresses from '../addresses.json';
+import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
+import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
 
 const verifyContract = async (address: string, constructorArguments: any[], network: string) => {
     try {
@@ -74,6 +76,15 @@ export const deployBullaFactoring = async function () {
             adminFeeBps,
         ],
     });
+
+    // Set Impair Reserve and approve token
+    const signer = await ethers.getSigner(deployer);
+    const initialImpairReserve = 50000;
+    const underlyingTokenContract = new ethers.Contract(mockUSDC, ERC20.abi, signer);
+    await underlyingTokenContract.approve(bullaFactoringAddress, initialImpairReserve);
+
+    const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, signer);
+    await bullaFactoringContract.setImpairReserve(initialImpairReserve);
 
     const newAddresses = {
         ...addresses,

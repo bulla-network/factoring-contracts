@@ -41,6 +41,9 @@ contract TestBullaFactoring is Test {
     uint16 protocolFeeBps = 25;
     uint16 adminFeeBps = 50;
 
+    string poolName = 'Test Pool';
+
+
     function setUp() public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
@@ -61,7 +64,7 @@ contract TestBullaFactoring is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps) ;
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -1024,7 +1027,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1036,7 +1039,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1049,7 +1052,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1061,7 +1064,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);
@@ -1069,5 +1072,11 @@ contract TestBullaFactoring is Test {
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", bob));
         bullaFactoringSafe.deposit(initialDeposit, bob);
         vm.stopPrank();
+    }
+
+    function testImparedReserve() public {
+        uint initialImpairReserve = 50000; // 5 cents
+        asset.approve(address(bullaFactoring), initialImpairReserve);
+        bullaFactoring.setImpairReserve(initialImpairReserve);
     }
 }

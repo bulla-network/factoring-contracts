@@ -26,6 +26,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
     address public underwriter;
+    uint256 public creationBlockNumber;
+    uint256 public impairReserve;
+    string public poolName;
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
@@ -79,7 +82,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         Permissions _factoringPermissions,
         address _bullaDao,
         uint16 _protocolFeeBps,
-        uint16 _adminFeeBps
+        uint16 _adminFeeBps,
+        string memory _poolName
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -93,6 +97,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         bullaDao = _bullaDao;
         protocolFeeBps = _protocolFeeBps;
         adminFeeBps = _adminFeeBps; 
+        creationBlockNumber = block.number;
+        poolName = _poolName;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -171,6 +177,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The total realized gain adjusted for losses
     function calculateRealizedGainLoss() public view returns (uint256) {
         uint256 realizedGains = 0;
+        // TODO: include gains from impared invoices impared by the fund?
         // Consider gains from paid invoices
         for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
             uint256 invoiceId = paidInvoicesIds[i];
@@ -187,6 +194,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
                 realizedGains -= fundedAmount;
             }
         }
+
+        // TODO: consider impaired invoices that have been impared by the fund?
+
         return realizedGains;
     }
 
@@ -461,7 +471,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     }
     /// @notice Calculates the total funded amount for all active invoices
     /// @return The total funded amount for all active invoices
-    function totalFundedAmountForActiveInvoices() internal view returns (uint256) {
+    function totalFundedAmountForActiveInvoices() public view returns (uint256) {
         uint256 totalFunded = 0;
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
@@ -477,7 +487,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
 
         // Ensures we don't consider at-risk capital as part of the withdrawable assets, as well as fees
-        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - bullaDaoFeeBalance - adminFeeBalance : 0;
+        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - bullaDaoFeeBalance - adminFeeBalance - impairReserve : 0;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
@@ -610,5 +620,38 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     function mint(uint256, address) public pure override returns (uint256){
         revert FunctionNotSupported();
+    }
+
+    /// @notice Updates the deposit permissions contract
+    /// @param _newDepositPermissionsAddress The new deposit permissions contract address
+    function setDepositPermissions(address _newDepositPermissionsAddress) public onlyOwner {
+        depositPermissions = Permissions(_newDepositPermissionsAddress);
+        emit DepositPermissionsChanged(_newDepositPermissionsAddress);
+    }
+
+    /// @notice Updates the factoring permissions contract
+    /// @param _newFactoringPermissionsAddress The address of the new factoring permissions contract
+    function setFactoringPermissions(address _newFactoringPermissionsAddress) public onlyOwner {
+        factoringPermissions = Permissions(_newFactoringPermissionsAddress);
+        emit FactoringPermissionsChanged(_newFactoringPermissionsAddress);
+    }
+
+    /// @notice Sets the impair reserve amount
+    /// @param _impairReserve The new impair reserve amount
+    function setImpairReserve(uint256 _impairReserve) public onlyOwner {
+        impairReserve = _impairReserve;
+        assetAddress.transferFrom(msg.sender, address(this), _impairReserve);
+    }
+
+    // TODO: finish function
+    function impairInvoice(uint256 invoiceId) public onlyOwner {
+        if (!isInvoiceImpaired(invoiceId)) revert UnpaidInvoice();
+
+        uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
+        uint256 impairAmount = impairReserve / 2;
+        impairReserve -= impairAmount; // incidentially adds impairAmount to fund balance
+
+        // deduct from risk capitl, move to realised loss
+        removeActivePaidInvoice(invoiceId);
     }
 }

@@ -10,7 +10,7 @@ export const updatePermissions = async function () {
     const lineReader = getLineReader();
     const signer = await ethers.getSigner(deployer);
 
-    const bullaFactoringAddress = '0x5e94a4fF11C82D1E1DF912E40658718e95c7f990';
+    const bullaFactoringAddress = '0xbdefcAFaDe1d86b451e5Aa44b896EF29432dCe76';
     const depositPermissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
     const factoringPermissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
 
