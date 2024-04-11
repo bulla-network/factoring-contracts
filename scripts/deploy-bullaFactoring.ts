@@ -36,24 +36,37 @@ export const deployBullaFactoring = async function () {
     // await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], 'sepolia');
 
     const BullaClaimInvoiceProviderAdapterAddress = '0x595c0972b5d1e02c4a2f16480528733d912e4e48';
-    console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
+    // console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
 
-    // deploy mock permissions contract
-    /*
-    const { address: permissionsAddress } = await deploy('MockPermissions', {
-        from: deployer,
-        args: [],
-    });
-    await hre.run('verify:verify', {
-        address: permissionsAddress,
-        constructorArguments: [],
-        network: 'sepolia',
-    });
-    console.log(`MockPermissions verified: ${permissionsAddress}`);
-    */
+    // deploy mock permissions contracts for deposit and factoring
+    // const { address: depositPermissionsAddress } = await deploy('MockPermissions', {
+    //     from: deployer,
+    //     args: [],
+    // });
+    // await hre.run('verify:verify', {
+    //     address: depositPermissionsAddress,
+    //     constructorArguments: [],
+    //     network: 'sepolia',
+    // });
+    // console.log(`MockDepositPermissionsAddress verified: ${depositPermissionsAddress}`);
 
-    // use the current deployed mock permissions contract in order to use the granted permissions
-    const permissionsAddress = '0xF388894046678081dFB02107dE53e03b4c474Adb';
+    // const { address: factoringPermissionsAddress } = await deploy('MockPermissions', {
+    //     from: deployer,
+    //     args: [],
+    // });
+
+    // await hre.run('verify:verify', {
+    //     address: factoringPermissionsAddress,
+    //     constructorArguments: [],
+    //     network: 'sepolia',
+    // });
+    // console.log(`MockFactoringPermissionsAddresss verified: ${factoringPermissionsAddress}`);
+
+    // use the current deployed mocks permissions contract for both factoring and depositing in order to use the granted permissions for the appropriate safes
+    const factoringPermissionsAddress = '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e';
+    // await verifyContract(factoringPermissionsAddress, [], 'sepolia');
+    const depositPermissionsAddress = '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8';
+    // await verifyContract(depositPermissionsAddress, [], 'sepolia');
 
     // deploy bulla factoring contract
     const mockUSDC = '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8'; // the USDC we use on bulla.network sepolia chain
@@ -62,20 +75,24 @@ export const deployBullaFactoring = async function () {
     const bullaDao = '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d'; // Mike's address
     const protocolFeeBps = 25;
     const adminFeeBps = 50;
+    const poolName = 'Bulla TCS Factoring Pool';
 
-    const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
-        from: deployer,
-        args: [
-            mockUSDC,
-            BullaClaimInvoiceProviderAdapterAddress,
-            underwriter,
-            permissionsAddress,
-            permissionsAddress,
-            bullaDao,
-            protocolFeeBps,
-            adminFeeBps,
-        ],
-    });
+    // const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
+    //     from: deployer,
+    //     args: [
+    //         mockUSDC,
+    //         BullaClaimInvoiceProviderAdapterAddress,
+    //         underwriter,
+    //         depositPermissionsAddress,
+    //         factoringPermissionsAddress,
+    //         bullaDao,
+    //         protocolFeeBps,
+    //         adminFeeBps,
+    //         poolName,
+    //     ],
+    // });
+
+    const bullaFactoringAddress = '0xE0C27578a2cd31e4Ea92a3b0BDB2873CCd763242';
 
     // Set Impair Reserve and approve token
     const signer = await ethers.getSigner(deployer);
@@ -86,50 +103,55 @@ export const deployBullaFactoring = async function () {
     const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, signer);
     await bullaFactoringContract.setImpairReserve(initialImpairReserve);
 
+    const impairReserve = await bullaFactoringContract.impairReserve();
+    console.log('Bulla Factoring Impair Reserve Set to: \n', impairReserve);
+
     const newAddresses = {
         ...addresses,
         [chainId]: {
             ...(addresses[chainId as keyof typeof addresses] ?? {}),
             [bullaFactoringAddress]: {
-                name: 'Bulla Factoring V1',
+                name: 'Bulla TCS Factoring Pool',
                 bullaClaimInvoiceProviderAdapter: BullaClaimInvoiceProviderAdapterAddress,
-                depositPermissions: permissionsAddress,
-                factoringPermissions: permissionsAddress,
+                depositPermissions: depositPermissionsAddress,
+                factoringPermissions: factoringPermissionsAddress,
             },
         },
     };
 
     writeFileSync('./addresses.json', JSON.stringify(newAddresses, null, 2));
 
-    const now = new Date();
-    const deployInfo = {
-        deployer,
-        chainId: await getChainId(),
-        currentTime: now.toISOString(),
-        BullaClaimInvoiceProviderAdapterAddress,
-        bullaFactoringAddress,
-    };
+    // const now = new Date();
+    // const deployInfo = {
+    //     deployer,
+    //     chainId: await getChainId(),
+    //     currentTime: now.toISOString(),
+    //     BullaClaimInvoiceProviderAdapterAddress,
+    //     bullaFactoringAddress,
+    // };
     console.log('Bulla Invoice Invoice Provider Adapter Deployment Address: \n', BullaClaimInvoiceProviderAdapterAddress);
     console.log('Bulla Factoring Deployment Address: \n', bullaFactoringAddress);
-    console.log('Permissions Address: \n', permissionsAddress);
+    console.log('Deposit Permissions Address: \n', depositPermissionsAddress);
+    console.log('Factoring Permissions Address: \n', factoringPermissionsAddress);
 
-    await verifyContract(
-        bullaFactoringAddress,
-        [
-            mockUSDC,
-            BullaClaimInvoiceProviderAdapterAddress,
-            underwriter,
-            permissionsAddress,
-            permissionsAddress,
-            bullaDao,
-            protocolFeeBps,
-            adminFeeBps,
-        ],
-        'sepolia',
-    );
-    console.log(`Contract verified: ${bullaFactoringAddress}`);
+    // await verifyContract(
+    //     bullaFactoringAddress,
+    //     [
+    //         mockUSDC,
+    //         BullaClaimInvoiceProviderAdapterAddress,
+    //         underwriter,
+    //         depositPermissionsAddress,
+    //         factoringPermissionsAddress,
+    //         bullaDao,
+    //         protocolFeeBps,
+    //         adminFeeBps,
+    //         poolName,
+    //     ],
+    //     'sepolia',
+    // );
+    // console.log(`Bulla Factoring Contract verified: ${bullaFactoringAddress}`);
 
-    return deployInfo;
+    // return deployInfo;
 };
 
 // uncomment this line to run the script individually

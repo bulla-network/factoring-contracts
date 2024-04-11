@@ -265,6 +265,12 @@
       "bullaClaimInvoiceProviderAdapter": "0x595c0972b5d1e02c4a2f16480528733d912e4e48",
       "depositPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb",
       "factoringPermissions": "0xF388894046678081dFB02107dE53e03b4c474Adb"
+    },
+    "0xE0C27578a2cd31e4Ea92a3b0BDB2873CCd763242": {
+      "name": "Bulla TCS Factoring Pool",
+      "bullaClaimInvoiceProviderAdapter": "0x595c0972b5d1e02c4a2f16480528733d912e4e48",
+      "depositPermissions": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8",
+      "factoringPermissions": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e"
     }
   },
   "1313161554": {
