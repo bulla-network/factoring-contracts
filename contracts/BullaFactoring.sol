@@ -643,6 +643,28 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         assetAddress.transferFrom(msg.sender, address(this), _impairReserve);
     }
 
+    function getFundInfo() public view returns (FundInfo memory) {
+        uint256 fundBalance = availableAssets();
+        uint256 deployedCapital = totalFundedAmountForActiveInvoices();
+        uint256 realizedGain = calculateRealizedGainLoss();
+        uint256 capitalAccount = calculateCapitalAccount();
+        uint256 price = pricePerShare();
+        uint256 tokensAvailableForRedemption = totalSupply();
+
+        return FundInfo({
+            name: poolName,
+            creationBlockNumber: creationBlockNumber,
+            fundBalance: fundBalance,
+            deployedCapital: deployedCapital,
+            realizedGain: realizedGain,
+            capitalAccount: capitalAccount,
+            price: price,
+            tokensAvailableForRedemption: tokensAvailableForRedemption,
+            adminFee: adminFeeBps,
+            impairReserve: impairReserve
+        });
+    }
+
     // TODO: finish function
     function impairInvoice(uint256 invoiceId) public onlyOwner {
         if (!isInvoiceImpaired(invoiceId)) revert UnpaidInvoice();
