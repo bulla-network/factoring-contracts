@@ -27,6 +27,19 @@ interface IBullaFactoring {
         uint8 size;
     }
 
+    struct FundInfo {
+        string name;
+        uint256 creationBlockNumber;
+        uint256 fundBalance;
+        uint256 deployedCapital;
+        uint256 realizedGain;
+        uint256 capitalAccount;
+        uint256 price;
+        uint256 tokensAvailableForRedemption;
+        uint16 adminFee;
+        uint256 impairReserve;
+    }
+
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
@@ -47,6 +60,8 @@ interface IBullaFactoring {
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
+    event DepositPermissionsChanged(address newAddress);
+    event FactoringPermissionsChanged(address newAddress);
 
 
     // Functions
