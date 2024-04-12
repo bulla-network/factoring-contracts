@@ -26,7 +26,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
     address public underwriter;
-    uint256 public creationBlockNumber;
+    uint256 public creationTimestamp;
     uint256 public impairReserve;
     string public poolName;
 
@@ -97,7 +97,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         bullaDao = _bullaDao;
         protocolFeeBps = _protocolFeeBps;
         adminFeeBps = _adminFeeBps; 
-        creationBlockNumber = block.number;
+        creationTimestamp = block.timestamp;
         poolName = _poolName;
     }
 
@@ -390,7 +390,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
-    function reconcileActivePaidInvoices() public onlyOwner {
+    function reconcileActivePaidInvoices() public {
         (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
@@ -475,7 +475,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 totalFunded = 0;
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
-            totalFunded += approvedInvoices[invoiceId].fundedAmountNet;
+            totalFunded += getFundedAmount(invoiceId);
         }
         return totalFunded;
     }
@@ -653,7 +653,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         return FundInfo({
             name: poolName,
-            creationBlockNumber: creationBlockNumber,
+            creationTimestamp: creationTimestamp,
             fundBalance: fundBalance,
             deployedCapital: deployedCapital,
             realizedGain: realizedGain,

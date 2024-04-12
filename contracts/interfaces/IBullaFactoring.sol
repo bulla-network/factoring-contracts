@@ -29,7 +29,7 @@ interface IBullaFactoring {
 
     struct FundInfo {
         string name;
-        uint256 creationBlockNumber;
+        uint256 creationTimestamp;
         uint256 fundBalance;
         uint256 deployedCapital;
         uint256 realizedGain;
