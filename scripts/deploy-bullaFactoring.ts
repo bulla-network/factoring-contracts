@@ -92,34 +92,34 @@ export const deployBullaFactoring = async function () {
     //     ],
     // });
 
-    const bullaFactoringAddress = '0xE0C27578a2cd31e4Ea92a3b0BDB2873CCd763242';
+    const bullaFactoringAddress = '0x1C6974eb7A96828d4Bbfe1653FEDB734D46B92a8';
 
     // Set Impair Reserve and approve token
-    const signer = await ethers.getSigner(deployer);
-    const initialImpairReserve = 50000;
-    const underlyingTokenContract = new ethers.Contract(mockUSDC, ERC20.abi, signer);
-    await underlyingTokenContract.approve(bullaFactoringAddress, initialImpairReserve);
+    // const signer = await ethers.getSigner(deployer);
+    // const initialImpairReserve = 50000;
+    // const underlyingTokenContract = new ethers.Contract(mockUSDC, ERC20.abi, signer);
+    // await underlyingTokenContract.approve(bullaFactoringAddress, initialImpairReserve);
 
-    const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, signer);
-    await bullaFactoringContract.setImpairReserve(initialImpairReserve);
+    // const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, signer);
+    // await bullaFactoringContract.setImpairReserve(initialImpairReserve);
 
-    const impairReserve = await bullaFactoringContract.impairReserve();
-    console.log('Bulla Factoring Impair Reserve Set to: \n', impairReserve);
+    // const impairReserve = await bullaFactoringContract.impairReserve();
+    // console.log('Bulla Factoring Impair Reserve Set to: \n', impairReserve);
 
-    const newAddresses = {
-        ...addresses,
-        [chainId]: {
-            ...(addresses[chainId as keyof typeof addresses] ?? {}),
-            [bullaFactoringAddress]: {
-                name: 'Bulla TCS Factoring Pool',
-                bullaClaimInvoiceProviderAdapter: BullaClaimInvoiceProviderAdapterAddress,
-                depositPermissions: depositPermissionsAddress,
-                factoringPermissions: factoringPermissionsAddress,
-            },
-        },
-    };
+    // const newAddresses = {
+    //     ...addresses,
+    //     [chainId]: {
+    //         ...(addresses[chainId as keyof typeof addresses] ?? {}),
+    //         [bullaFactoringAddress]: {
+    //             name: 'Bulla TCS Factoring Pool',
+    //             bullaClaimInvoiceProviderAdapter: BullaClaimInvoiceProviderAdapterAddress,
+    //             depositPermissions: depositPermissionsAddress,
+    //             factoringPermissions: factoringPermissionsAddress,
+    //         },
+    //     },
+    // };
 
-    writeFileSync('./addresses.json', JSON.stringify(newAddresses, null, 2));
+    // writeFileSync('./addresses.json', JSON.stringify(newAddresses, null, 2));
 
     // const now = new Date();
     // const deployInfo = {
