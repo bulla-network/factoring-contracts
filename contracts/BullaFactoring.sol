@@ -19,7 +19,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     address public bullaDao;
     uint16 public protocolFeeBps;
     uint16 public adminFeeBps;
-    uint256 public bullaDaoFeeBalance;
+    uint256 public protocolFeeBalance;
     uint256 public adminFeeBalance;
     IERC20 public assetAddress;
     IInvoiceProviderAdapter public invoiceProviderAdapter;
@@ -169,7 +169,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
 
         // Realise the protocol fee
-        bullaDaoFeeBalance += trueProtocolFee;
+        protocolFeeBalance += trueProtocolFee;
 
         // Calculate the total amount that should have been paid to the original creditor
         uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest  - trueProtocolFee;
@@ -536,7 +536,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
 
         // Ensures we don't consider at-risk capital as part of the withdrawable assets, as well as fees
-        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - bullaDaoFeeBalance - adminFeeBalance - impairReserve : 0;
+        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - protocolFeeBalance - adminFeeBalance - impairReserve : 0;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
@@ -621,9 +621,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Allows the Bulla DAO to withdraw accumulated protocol fees.
     function withdrawProtocolFees() public {
         if (msg.sender != bullaDao) revert CallerNotBullaDao();
-        uint256 feeAmount = bullaDaoFeeBalance;
+        uint256 feeAmount = protocolFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
-        bullaDaoFeeBalance = 0;
+        protocolFeeBalance = 0;
         bool success = assetAddress.transfer(bullaDao, feeAmount);
         if (!success) revert FeeWithdrawalFailed();
         emit ProtocolFeesWithdrawn(bullaDao, feeAmount);
