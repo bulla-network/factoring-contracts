@@ -41,6 +41,7 @@ contract TestBullaFactoring is Test {
     address bullaDao = address(this);
     uint16 protocolFeeBps = 25;
     uint16 adminFeeBps = 50;
+    uint16 taxBps = 10;
 
     string poolName = 'Test Pool';
 
@@ -65,7 +66,7 @@ contract TestBullaFactoring is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -169,7 +170,6 @@ contract TestBullaFactoring is Test {
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
     
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
-
     }
 
     function testImmediateRepaymentStillChangesPrice() public {
@@ -1028,7 +1028,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1040,7 +1040,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1053,7 +1053,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1065,7 +1065,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);
@@ -1180,6 +1180,61 @@ contract TestBullaFactoring is Test {
         IBullaFactoring.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
         
         assertTrue(fundInfoAfterImpairmentyFund.realizedGain < fundInfoAfterRepayment.realizedGain, "Realized gain increases when invoice impaired by fund gets paid");
+    }
+
+    function testTaxAccrualAndWithdraw() public {
+        dueBy = block.timestamp + 60 days; 
+        uint256 invoiceAmount = 1000000000; 
+        interestApr = 1000; 
+        upfrontBps = 8000; 
+
+        uint256 initialDeposit = 20 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+
+        // Simulate debtor paying in 30 days instead of 60
+        uint256 actualDaysUntilPayment = 30;
+        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
+
+        // Debtor pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint taxAmountBefore = bullaFactoring.taxBalance();
+    
+        assertTrue(taxAmountBefore > 0, "Tax accrues on invoice payment");
+
+        // owner withdraws tax
+        bullaFactoring.withdrawTaxBalance();
+        uint taxAmountAfter = bullaFactoring.taxBalance();
+
+        assertEq(taxAmountAfter, 0, "Tax balance should be 0 after withdrawal");
+
+        // cannot call when tax balance is 0
+        vm.expectRevert(abi.encodeWithSignature("NoTaxBalanceToWithdraw()"));
+        bullaFactoring.withdrawTaxBalance();
     }
 }
 

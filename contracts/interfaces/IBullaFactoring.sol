@@ -38,6 +38,7 @@ interface IBullaFactoring {
         uint256 tokensAvailableForRedemption;
         uint16 adminFee;
         uint256 impairReserve;
+        uint256 targetYield;
     }
 
     struct ImpairmentDetails {
@@ -69,6 +70,8 @@ interface IBullaFactoring {
     event DepositPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
+    event TaxBalanceWithdrawn(address indexed receiver, uint256 amount);
+    event TaxBpsChanged(uint16 indexed oldTaxBps, uint256 indexed newTaxBps);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) external;
