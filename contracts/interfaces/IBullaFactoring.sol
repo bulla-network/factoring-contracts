@@ -40,6 +40,12 @@ interface IBullaFactoring {
         uint256 impairReserve;
     }
 
+    struct ImpairmentDetails {
+        uint256 gainAmount;
+        uint256 lossAmount;
+        bool isImpaired;
+    }
+
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
@@ -62,7 +68,7 @@ interface IBullaFactoring {
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event DepositPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
-
+    event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) external;

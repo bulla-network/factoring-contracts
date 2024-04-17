@@ -51,6 +51,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// Array to track IDs of paid invoices
     uint256[] private paidInvoicesIds;
 
+    /// Array to track IDs of impaired invoices by fund
+    uint256[] private impairedByFundInvoicesIds;
+
+    /// Mapping from invoice ID to impairment details
+    mapping(uint256 => ImpairmentDetails) public impairments;
+
     /// Errors
     // error IncorrectValue(uint256 value, uint256 expectedValue);
     error CallerNotUnderwriter();
@@ -63,7 +69,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
     error UnpaidInvoice();
+    error InvoiceNotImpaired();
     error InvoiceAlreadyPaid();
+    error InvoiceAlreadyImpairedByFund();
     error CallerNotOriginalCreditor();
     error InvalidPercentage();
     error CallerNotBullaDao();
@@ -177,14 +185,19 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The total realized gain adjusted for losses
     function calculateRealizedGainLoss() public view returns (uint256) {
         uint256 realizedGains = 0;
-        // TODO: include gains from impared invoices impared by the fund?
         // Consider gains from paid invoices
         for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
             uint256 invoiceId = paidInvoicesIds[i];
             realizedGains += paidInvoicesGain[invoiceId];
         }
 
-        // Consider impaired invoices from activeInvoices
+        // Consider gains from impaired invoices by fund
+        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
+            uint256 invoiceId = impairedByFundInvoicesIds[i];
+            realizedGains += impairments[invoiceId].gainAmount;
+        }
+
+        // Consider losses from impaired invoices in activeInvoices
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
             if (isInvoiceImpaired(invoiceId)) {
@@ -195,7 +208,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             }
         }
 
-        // TODO: consider impaired invoices that have been impared by the fund?
+        // Consider losses from impaired invoices by fund
+        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
+            uint256 invoiceId = impairedByFundInvoicesIds[i];
+            if (realizedGains < impairments[invoiceId].lossAmount) revert DeductionsExceedsRealisedGains();
+            realizedGains -= impairments[invoiceId].lossAmount;
+        }
 
         return realizedGains;
     }
@@ -336,7 +354,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return impairedInvoices An array of impaired invoice IDs
     function viewPoolStatus() public view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
         uint256 activeCount = activeInvoices.length;
-        uint256[] memory tempPaidInvoices = new uint256[](activeCount);
+        uint256 impairedByFundCount = impairedByFundInvoicesIds.length;
+        uint256[] memory tempPaidInvoices = new uint256[](activeCount + impairedByFundCount);
         uint256[] memory tempImpairedInvoices = new uint256[](activeCount);
         uint256 paidCount = 0;
         uint256 impairedCount = 0;
@@ -353,6 +372,16 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             }
         }
 
+        // check if any of the impaired invoices by the fund got paid
+        for (uint256 i = 0; i < impairedByFundCount; i++) {
+            uint256 invoiceId = impairedByFundInvoicesIds[i];
+ 
+            if (isInvoicePaid(invoiceId)) {
+                tempPaidInvoices[paidCount] = invoiceId;
+                paidCount++;
+            } 
+        }
+    
         paidInvoices = new uint256[](paidCount);
         impairedInvoices = new uint256[](impairedCount);
 
@@ -419,10 +448,30 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
                 emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, originalCreditor);
             }
 
-            // Remove the invoice from activeInvoices array
-            removeActivePaidInvoice(invoiceId);   
+            // Check if the invoice was previously marked as impaired by the fund
+            if (impairments[invoiceId].isImpaired) {
+                // Remove the invoice from impaired array
+                removeImpairedByFundInvoice(invoiceId);
+
+                // Adjust impairment in fund records
+                delete impairments[invoiceId];
+            } else {
+                // Remove the invoice from activeInvoices array
+                removeActivePaidInvoice(invoiceId);   
+            }
+            
         }
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
+    }
+
+    function removeImpairedByFundInvoice(uint256 invoiceId) private {
+        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
+            if (impairedByFundInvoicesIds[i] == invoiceId) {
+                impairedByFundInvoicesIds[i] = impairedByFundInvoicesIds[impairedByFundInvoicesIds.length - 1];
+                impairedByFundInvoicesIds.pop();
+                break;
+            }
+        }
     }
 
     /// @notice Unfactors an invoice, returning the invoice NFT to the original creditor and refunding the funded amount
@@ -665,15 +714,30 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         });
     }
 
-    // TODO: finish function
     function impairInvoice(uint256 invoiceId) public onlyOwner {
-        if (!isInvoiceImpaired(invoiceId)) revert UnpaidInvoice();
+        if (!isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
+
+        if (impairments[invoiceId].isImpaired) {
+            revert InvoiceAlreadyImpairedByFund();
+        }
 
         uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
         uint256 impairAmount = impairReserve / 2;
-        impairReserve -= impairAmount; // incidentially adds impairAmount to fund balance
+        impairReserve -= impairAmount; // incidentially adds impairAmount to fund balance as seen in availableAssets
 
-        // deduct from risk capitl, move to realised loss
+        // deduct from capital at risk
         removeActivePaidInvoice(invoiceId);
+
+        // add to impairedByFundInvoicesIds
+        impairedByFundInvoicesIds.push(invoiceId);
+
+        // Record impairment details
+        impairments[invoiceId] = ImpairmentDetails({
+            gainAmount: impairAmount,
+            lossAmount: fundedAmount,
+            isImpaired: true
+        });
+
+        emit InvoiceImpaired(invoiceId, fundedAmount, impairAmount);
     }
 }
