@@ -36,9 +36,9 @@ interface IBullaFactoring {
         uint256 capitalAccount;
         uint256 price;
         uint256 tokensAvailableForRedemption;
-        uint16 adminFee;
+        uint16 adminFeeBps;
         uint256 impairReserve;
-        uint256 targetYield;
+        uint256 targetYieldBps;
     }
 
     struct ImpairmentDetails {

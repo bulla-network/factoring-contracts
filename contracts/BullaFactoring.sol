@@ -31,7 +31,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     string public poolName;
     uint16 public taxBps;
     uint256 public taxBalance;
-    uint16 public targetYield;
+    uint16 public targetYieldBps;
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
@@ -104,7 +104,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint16 _adminFeeBps,
         string memory _poolName,
         uint16 _taxBps,
-        uint16 _targetYield
+        uint16 _targetYieldBps
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -121,7 +121,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         taxBps = _taxBps;
-        targetYield = _targetYield;
+        targetYieldBps = _targetYieldBps;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -746,11 +746,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Sets the target yield in basis points
-    /// @param _targetYield The new target yield in basis points
-    function setTargetYield(uint16 _targetYield) public onlyOwner {
-        if (_targetYield < 0 || _targetYield > 10000) revert InvalidPercentage();
-        targetYield = _targetYield;
-        emit TargetYieldChanged(_targetYield);
+    /// @param _targetYieldBps The new target yield in basis points
+    function setTargetYield(uint16 _targetYieldBps) public onlyOwner {
+        if (_targetYieldBps < 0 || _targetYieldBps > 10000) revert InvalidPercentage();
+        targetYieldBps = _targetYieldBps;
+        emit TargetYieldChanged(_targetYieldBps);
     }
 
     function getFundInfo() public view returns (FundInfo memory) {
@@ -770,9 +770,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             capitalAccount: capitalAccount,
             price: price,
             tokensAvailableForRedemption: tokensAvailableForRedemption,
-            adminFee: adminFeeBps,
+            adminFeeBps: adminFeeBps,
             impairReserve: impairReserve,
-            targetYield: targetYield
+            targetYieldBps: targetYieldBps
         });
     }
 
