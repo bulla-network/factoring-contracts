@@ -42,6 +42,7 @@ contract TestBullaFactoring is Test {
     uint16 protocolFeeBps = 25;
     uint16 adminFeeBps = 50;
     uint16 taxBps = 10;
+    uint16 targetYield = 730;
 
     string poolName = 'Test Pool';
 
@@ -66,7 +67,7 @@ contract TestBullaFactoring is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -1028,7 +1029,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1040,7 +1041,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1053,7 +1054,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1065,7 +1066,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);
@@ -1211,7 +1212,7 @@ contract TestBullaFactoring is Test {
 
 
         // Simulate debtor paying in 30 days instead of 60
-        uint256 actualDaysUntilPayment = 30;
+        uint256 actualDaysUntilPayment = 60;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
         // Debtor pays the invoice
@@ -1225,6 +1226,10 @@ contract TestBullaFactoring is Test {
         uint taxAmountBefore = bullaFactoring.taxBalance();
     
         assertTrue(taxAmountBefore > 0, "Tax accrues on invoice payment");
+
+        // Retrieve the tax amount paid for the specific invoice
+        uint256 expectedTaxAmount = bullaFactoring.paidInvoiceTax(invoiceId);
+        assertEq(taxAmountBefore, expectedTaxAmount, "Tax amount matches the expected value");
 
         // owner withdraws tax
         bullaFactoring.withdrawTaxBalance();

@@ -31,6 +31,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     string public poolName;
     uint16 public taxBps;
     uint256 public taxBalance;
+    uint16 public targetYield;
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
@@ -59,6 +60,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// Mapping from invoice ID to impairment details
     mapping(uint256 => ImpairmentDetails) public impairments;
 
+    /// Mapping from invoice ID to tax amount
+    mapping(uint256 => uint256) public paidInvoiceTax;
+
     /// Errors
     // error IncorrectValue(uint256 value, uint256 expectedValue);
     error CallerNotUnderwriter();
@@ -82,6 +86,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error InvalidAddress();
     error NoTaxBalanceToWithdraw();
     error TaxWithdrawalFailed();
+    error ImpairReserveMustBeGreater();
+    error TransferFailed();
 
 
     /// @param _asset underlying supported stablecoin asset for deposit 
@@ -97,7 +103,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint16 _protocolFeeBps,
         uint16 _adminFeeBps,
         string memory _poolName,
-        uint16 _taxBps
+        uint16 _taxBps,
+        uint16 _targetYield
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -114,6 +121,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         taxBps = _taxBps;
+        targetYield = _targetYield;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -174,6 +182,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // Calculate tax amount on trueInterest
         uint256 taxAmount = calculateTax(trueInterest);
+        paidInvoiceTax[invoiceId] = taxAmount;
         taxBalance += taxAmount;
 
         // Calculate the true interest after tax deduction
@@ -728,8 +737,20 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Sets the impair reserve amount
     /// @param _impairReserve The new impair reserve amount
     function setImpairReserve(uint256 _impairReserve) public onlyOwner {
+        if (_impairReserve < impairReserve) revert ImpairReserveMustBeGreater();
+        uint256 amountToAdd = _impairReserve - impairReserve;
+        bool success = assetAddress.transferFrom(msg.sender, address(this), amountToAdd);
+        if (!success) revert TransferFailed();
         impairReserve = _impairReserve;
-        assetAddress.transferFrom(msg.sender, address(this), _impairReserve);
+        emit ImpairReserveChanged(_impairReserve);
+    }
+
+    /// @notice Sets the target yield in basis points
+    /// @param _targetYield The new target yield in basis points
+    function setTargetYield(uint16 _targetYield) public onlyOwner {
+        if (_targetYield < 0 || _targetYield > 10000) revert InvalidPercentage();
+        targetYield = _targetYield;
+        emit TargetYieldChanged(_targetYield);
     }
 
     function getFundInfo() public view returns (FundInfo memory) {
@@ -751,7 +772,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             tokensAvailableForRedemption: tokensAvailableForRedemption,
             adminFee: adminFeeBps,
             impairReserve: impairReserve,
-            targetYield: protocolFeeBps
+            targetYield: targetYield
         });
     }
 
