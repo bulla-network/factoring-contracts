@@ -19,7 +19,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     address public bullaDao;
     uint16 public protocolFeeBps;
     uint16 public adminFeeBps;
-    uint256 public bullaDaoFeeBalance;
+    uint256 public protocolFeeBalance;
     uint256 public adminFeeBalance;
     IERC20 public assetAddress;
     IInvoiceProviderAdapter public invoiceProviderAdapter;
@@ -29,6 +29,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     uint256 public creationTimestamp;
     uint256 public impairReserve;
     string public poolName;
+    uint16 public taxBps;
+    uint256 public taxBalance;
+    uint16 public targetYieldBps;
 
     uint256 public SCALING_FACTOR;
     uint256 public gracePeriodDays = 60;
@@ -57,6 +60,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// Mapping from invoice ID to impairment details
     mapping(uint256 => ImpairmentDetails) public impairments;
 
+    /// Mapping from invoice ID to tax amount
+    mapping(uint256 => uint256) public paidInvoiceTax;
+
     /// Errors
     // error IncorrectValue(uint256 value, uint256 expectedValue);
     error CallerNotUnderwriter();
@@ -78,6 +84,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error NoFeesToWithdraw();
     error FeeWithdrawalFailed();
     error InvalidAddress();
+    error NoTaxBalanceToWithdraw();
+    error TaxWithdrawalFailed();
+    error ImpairReserveMustBeGreater();
+    error TransferFailed();
+
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -91,7 +102,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         address _bullaDao,
         uint16 _protocolFeeBps,
         uint16 _adminFeeBps,
-        string memory _poolName
+        string memory _poolName,
+        uint16 _taxBps,
+        uint16 _targetYieldBps
     ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -107,6 +120,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         adminFeeBps = _adminFeeBps; 
         creationTimestamp = block.timestamp;
         poolName = _poolName;
+        taxBps = _taxBps;
+        targetYieldBps = _targetYieldBps;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -165,11 +180,19 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Calculate the true interest
         uint256 trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
 
+        // Calculate tax amount on trueInterest
+        uint256 taxAmount = calculateTax(trueInterest);
+        paidInvoiceTax[invoiceId] = taxAmount;
+        taxBalance += taxAmount;
+
+        // Calculate the true interest after tax deduction
+        trueInterest -= taxAmount;
+
         // Calculate true protocol fee
         uint256 trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
 
         // Realise the protocol fee
-        bullaDaoFeeBalance += trueProtocolFee;
+        protocolFeeBalance += trueProtocolFee;
 
         // Calculate the total amount that should have been paid to the original creditor
         uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest  - trueProtocolFee;
@@ -459,9 +482,15 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
                 // Remove the invoice from activeInvoices array
                 removeActivePaidInvoice(invoiceId);   
             }
-            
         }
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
+    }
+
+    /// @notice Calculates the tax amount based on a specified payment amount and the current tax basis points (bps).
+    /// @param amount The amount of the payment on which tax is to be calculated.
+    /// @return The calculated tax amount.
+    function calculateTax(uint256 amount) public view returns (uint256) {
+        return Math.mulDiv(amount, taxBps, 10000);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
@@ -536,7 +565,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
 
         // Ensures we don't consider at-risk capital as part of the withdrawable assets, as well as fees
-        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - bullaDaoFeeBalance - adminFeeBalance - impairReserve : 0;
+        return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - protocolFeeBalance - adminFeeBalance - impairReserve : 0;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
@@ -621,9 +650,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Allows the Bulla DAO to withdraw accumulated protocol fees.
     function withdrawProtocolFees() public {
         if (msg.sender != bullaDao) revert CallerNotBullaDao();
-        uint256 feeAmount = bullaDaoFeeBalance;
+        uint256 feeAmount = protocolFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
-        bullaDaoFeeBalance = 0;
+        protocolFeeBalance = 0;
         bool success = assetAddress.transfer(bullaDao, feeAmount);
         if (!success) revert FeeWithdrawalFailed();
         emit ProtocolFeesWithdrawn(bullaDao, feeAmount);
@@ -637,6 +666,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         bool success = assetAddress.transfer(msg.sender, feeAmount);
         if (!success) revert FeeWithdrawalFailed();
         emit AdminFeesWithdrawn(msg.sender, feeAmount);
+    }
+
+    /// @notice Withdraws the accumulated tax balance to the pool owner
+    /// @dev This function can only be called by the contract owner
+    function withdrawTaxBalance() public onlyOwner {
+        if (taxBalance == 0) revert NoTaxBalanceToWithdraw();
+        uint256 amountToWithdraw = taxBalance;
+        taxBalance = 0;
+        bool success = assetAddress.transfer(msg.sender, amountToWithdraw);
+        if (!success) revert TaxWithdrawalFailed();
+        emit TaxBalanceWithdrawn(msg.sender, amountToWithdraw);
     }
 
     /// @notice Updates the Bulla DAO address
@@ -661,6 +701,15 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (_newAdminFeeBps <= 0 || _newAdminFeeBps > 10000) revert InvalidPercentage();
         adminFeeBps = _newAdminFeeBps;
         emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
+    }
+
+    /// @notice Sets the tax basis points (bps)
+    /// @param _newTaxBps The new tax rate in basis points
+    /// @dev This function can only be called by the contract owner
+    function setTaxBps(uint16 _newTaxBps) public onlyOwner {
+        if (_newTaxBps < 0 || _newTaxBps > 10000) revert InvalidPercentage();
+        taxBps = _newTaxBps;
+        emit TaxBpsChanged(taxBps, _newTaxBps);
     }
 
     function withdraw(uint256, address, address) public pure override returns (uint256) {
@@ -688,8 +737,20 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Sets the impair reserve amount
     /// @param _impairReserve The new impair reserve amount
     function setImpairReserve(uint256 _impairReserve) public onlyOwner {
+        if (_impairReserve < impairReserve) revert ImpairReserveMustBeGreater();
+        uint256 amountToAdd = _impairReserve - impairReserve;
+        bool success = assetAddress.transferFrom(msg.sender, address(this), amountToAdd);
+        if (!success) revert TransferFailed();
         impairReserve = _impairReserve;
-        assetAddress.transferFrom(msg.sender, address(this), _impairReserve);
+        emit ImpairReserveChanged(_impairReserve);
+    }
+
+    /// @notice Sets the target yield in basis points
+    /// @param _targetYieldBps The new target yield in basis points
+    function setTargetYield(uint16 _targetYieldBps) public onlyOwner {
+        if (_targetYieldBps < 0 || _targetYieldBps > 10000) revert InvalidPercentage();
+        targetYieldBps = _targetYieldBps;
+        emit TargetYieldChanged(_targetYieldBps);
     }
 
     function getFundInfo() public view returns (FundInfo memory) {
@@ -709,8 +770,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             capitalAccount: capitalAccount,
             price: price,
             tokensAvailableForRedemption: tokensAvailableForRedemption,
-            adminFee: adminFeeBps,
-            impairReserve: impairReserve
+            adminFeeBps: adminFeeBps,
+            impairReserve: impairReserve,
+            targetYieldBps: targetYieldBps
         });
     }
 
