@@ -76,6 +76,8 @@ export const deployBullaFactoring = async function () {
     const protocolFeeBps = 25;
     const adminFeeBps = 50;
     const poolName = 'Bulla TCS Factoring Pool';
+    const taxBps = 10;
+    const targetYieldBps = 730;
 
     // const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
     //     from: deployer,
@@ -89,10 +91,12 @@ export const deployBullaFactoring = async function () {
     //         protocolFeeBps,
     //         adminFeeBps,
     //         poolName,
+    //         taxBps,
+    //         targetYieldBps,
     //     ],
     // });
 
-    const bullaFactoringAddress = '0x1C6974eb7A96828d4Bbfe1653FEDB734D46B92a8';
+    const bullaFactoringAddress = '0xc6cEad7081eb60E8b2ffBE1EDD897690Db64dFC9';
 
     // Set Impair Reserve and approve token
     // const signer = await ethers.getSigner(deployer);
@@ -146,6 +150,8 @@ export const deployBullaFactoring = async function () {
     //         protocolFeeBps,
     //         adminFeeBps,
     //         poolName,
+    //         taxBps,
+    //         targetYieldBps,
     //     ],
     //     'sepolia',
     // );
