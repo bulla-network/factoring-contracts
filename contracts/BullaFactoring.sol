@@ -132,7 +132,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
-    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _upfrontBps) public {
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _upfrontBps, uint16 minDays) public {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
@@ -145,9 +145,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             upfrontBps: _upfrontBps,
             fundedAmountGross: 0,
             fundedAmountNet: 0,
-            adminFee: 0
+            adminFee: 0,
+            minDays: minDays
         });
-        emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil);
+        emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDays);
     }
 
     /// @notice Calculates the kickback amount for a given funded amount allowing early payment
@@ -158,7 +159,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
        
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = daysSinceFunded +1;
+        daysSinceFunded = Math.max(daysSinceFunded +1, approval.minDays + 1);
 
         uint256 interestAprBps = approval.interestApr;
 
@@ -324,7 +325,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         adminFee = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);
 
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
-        daysUntilDue = daysUntilDue + 1;
+        /// @notice add 1 to daysUntilDue to account for the fact that the invoice is due tomorrow
+        /// @dev minDays is the minimum number of days the invoice can be funded for, set by the underwriter during approval
+        daysUntilDue = Math.max(daysUntilDue + 1, approval.minDays + 1);
 
         uint256 targetInterestRate = Math.mulDiv(approval.interestApr, daysUntilDue, 365);
         targetInterest = Math.mulDiv(fundedAmountGross, targetInterestRate, 10000);
