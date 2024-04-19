@@ -37,6 +37,7 @@ contract TestBullaFactoring is Test {
     uint16 interestApr = 1000;
     uint16 upfrontBps = 8000;
     uint256 dueBy = block.timestamp + 30 days;
+    uint16 minDays = 30;
 
     address bullaDao = address(this);
     uint16 protocolFeeBps = 25;
@@ -144,7 +145,7 @@ contract TestBullaFactoring is Test {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -191,7 +192,7 @@ contract TestBullaFactoring is Test {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -230,7 +231,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -242,7 +243,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
@@ -292,7 +293,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -317,7 +318,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId03Amount = 100;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -352,7 +353,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -363,7 +364,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId02Amount = 900;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
@@ -385,7 +386,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId03Amount = 10;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -419,7 +420,7 @@ contract TestBullaFactoring is Test {
         uint invoiceIdAmount = 300; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -447,7 +448,7 @@ contract TestBullaFactoring is Test {
         uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InexistentInvoice()"));
-        bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
     }
 
@@ -479,7 +480,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.warp(block.timestamp + 2 hours);
         vm.startPrank(bob);
@@ -500,7 +501,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.rescindClaim(invoiceId);
@@ -513,7 +514,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -538,7 +539,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -583,7 +584,7 @@ contract TestBullaFactoring is Test {
         uint256 InvoiceId = createClaim(userWithoutPermissions, alice, invoiceId01Amount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(InvoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(InvoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(userWithoutPermissions);
         bullaClaimERC721.approve(address(bullaFactoring), InvoiceId);
@@ -612,7 +613,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
 
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -658,7 +659,7 @@ contract TestBullaFactoring is Test {
         uint invoiceIdAmount = 100; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -709,7 +710,7 @@ contract TestBullaFactoring is Test {
         uint invoiceIdAmount = 100; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -735,7 +736,7 @@ contract TestBullaFactoring is Test {
         uint invoiceIdAmount = 100;
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -765,7 +766,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -776,7 +777,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId02Amount = 900;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
@@ -794,7 +795,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId03Amount = 50;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -834,7 +835,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint256 invoiceId01 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -854,7 +855,7 @@ contract TestBullaFactoring is Test {
         vm.startPrank(bob);
         uint256 invoiceId03 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -889,7 +890,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -940,7 +941,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 100000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -952,7 +953,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
@@ -1007,8 +1008,8 @@ contract TestBullaFactoring is Test {
 
         // Underwriter approves the invoice with approvedUpfrontBps
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, approvedUpfrontBps);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, approvedUpfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, approvedUpfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, approvedUpfrontBps, minDays);
         vm.stopPrank();
 
         // Factorer funds one invoice at a lower UpfrontBps
@@ -1093,7 +1094,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId01Amount = 10000000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -1105,7 +1106,7 @@ contract TestBullaFactoring is Test {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
@@ -1129,7 +1130,7 @@ contract TestBullaFactoring is Test {
         uint invoiceId03Amount = 10000;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -1201,7 +1202,7 @@ contract TestBullaFactoring is Test {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -1240,6 +1241,66 @@ contract TestBullaFactoring is Test {
         // cannot call when tax balance is 0
         vm.expectRevert(abi.encodeWithSignature("NoTaxBalanceToWithdraw()"));
         bullaFactoring.withdrawTaxBalance();
+    }
+
+    function testMinDaysInterest() public {
+        interestApr = 1000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 9000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        dueBy = block.timestamp + 7 days;
+        minDays = 30;
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100000;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        (, , uint targetInterest01, ,) = bullaFactoring.calculateTargetFees(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        dueBy = block.timestamp + 30 days;
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 100000;
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        (, , uint targetInterest02, ,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        assertEq(targetInterest02, targetInterest01, "Target interest should be the same for both invoices as min days for interest to be charged is 30 days");
+
+        // alice pays both invoices, at different times
+        vm.startPrank(alice);
+        // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
+        asset.approve(address(bullaClaim), 1000 ether);
+        // Simulate debtor paying in 1 days
+        vm.warp(block.timestamp + 1 days);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        // Simulate debtor paying second invoice in 30 days
+        vm.warp(block.timestamp + 30 days);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint factoringGain01 = bullaFactoring.paidInvoicesGain(invoiceId01);
+        uint factoringGain02 = bullaFactoring.paidInvoicesGain(invoiceId02);
+
+        assertEq(factoringGain01, factoringGain02, "Factoring gain should be the same for both invoices as min days for interest to be charged is 30 days");
     }
 }
 

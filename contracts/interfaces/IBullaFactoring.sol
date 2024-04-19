@@ -19,6 +19,7 @@ interface IBullaFactoring {
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
         uint256 adminFee;
+        uint16 minDays;
     }
 
     struct Multihash {
@@ -48,7 +49,7 @@ interface IBullaFactoring {
     }
 
     // Events
-    event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil);
+    event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil, uint16 minDays);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event DepositMade(address indexed depositor, uint256 assets, uint256 sharesIssued);
@@ -76,7 +77,7 @@ interface IBullaFactoring {
     event TargetYieldChanged(uint16 newTargetYield);
 
     // Functions
-    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps) external;
+    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDays) external;
     function calculateRealizedGainLoss() external view returns (uint256);
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external;
