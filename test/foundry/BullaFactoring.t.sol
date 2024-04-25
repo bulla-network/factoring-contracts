@@ -46,7 +46,8 @@ contract TestBullaFactoring is Test {
     uint16 targetYield = 730;
 
     string poolName = 'Test Pool';
-
+    string poolTokenName = 'Test Bulla Factoring Pool Token';
+    string poolTokenSymbol = 'BFT-Test';
 
     function setUp() public {
         asset = new MockUSDC();
@@ -68,7 +69,7 @@ contract TestBullaFactoring is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield);
+        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -1030,7 +1031,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1042,7 +1043,7 @@ contract TestBullaFactoring is Test {
     function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
+        BullaFactoring bullaFactoringAragon = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1055,7 +1056,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -1067,7 +1068,7 @@ contract TestBullaFactoring is Test {
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield) ;
+        BullaFactoring bullaFactoringSafe = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);
