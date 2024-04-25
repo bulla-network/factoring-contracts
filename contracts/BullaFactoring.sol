@@ -104,8 +104,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint16 _adminFeeBps,
         string memory _poolName,
         uint16 _taxBps,
-        uint16 _targetYieldBps
-    ) ERC20('Bulla Fund Token', 'BFT') ERC4626(_asset) Ownable(msg.sender) {
+        uint16 _targetYieldBps,
+        string memory _tokenName, 
+        string memory _tokenSymbol
+    ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
 

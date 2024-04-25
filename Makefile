@@ -15,6 +15,6 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 # ex: 0x316..FB5 "Name" 10
 constructor-args := 
 
-build  :; forge build
-test   :; forge test -vv --fork-url ${SEPOLIA_RPC_URL}
-trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL}
+build  :; forge build --via-ir
+test   :; forge test -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
+trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir

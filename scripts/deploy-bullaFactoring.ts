@@ -78,6 +78,8 @@ export const deployBullaFactoring = async function () {
     const poolName = 'Bulla TCS Factoring Pool';
     const taxBps = 10;
     const targetYieldBps = 730;
+    const poolTokenName = 'Bulla TCS Factoring Pool';
+    const poolTokenSymbol = 'BFT-TCS';
 
     // const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
     //     from: deployer,
@@ -93,6 +95,8 @@ export const deployBullaFactoring = async function () {
     //         poolName,
     //         taxBps,
     //         targetYieldBps,
+    //         poolTokenName,
+    //         poolTokenSymbol,
     //     ],
     // });
 
