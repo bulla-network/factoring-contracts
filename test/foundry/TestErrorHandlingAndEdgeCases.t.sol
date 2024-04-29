@@ -1,0 +1,248 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.20;
+
+import 'forge-std/Test.sol';
+import { BullaFactoring } from 'contracts/BullaFactoring.sol';
+import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
+import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
+import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
+import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
+import { DAOMock } from 'contracts/mocks/DAOMock.sol';
+import { TestSafe } from 'contracts/mocks/gnosisSafe.sol';
+import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
+import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "contracts/interfaces/IBullaFactoring.sol";
+
+import { CommonSetup } from './CommonSetup.t.sol';
+
+
+contract TestErrorHandlingAndEdgeCases is CommonSetup {
+   function testUnknownInvoiceId() public {
+        uint invoiceId01Amount = 100;
+        createClaim(bob, alice, invoiceId01Amount, dueBy);
+        // picking a random number as incorrect invoice id
+        uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InexistentInvoice()"));
+        bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+    }
+
+   function testFundInvoiceWithoutUnderwriterApproval() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceNotApproved()"));
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+    }
+
+    function testFundInvoiceExpiredApproval() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.warp(block.timestamp + 2 hours);
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSignature("ApprovalExpired()"));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+    }
+
+    function testInvoiceCancelled() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.rescindClaim(invoiceId);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        bullaClaim.rejectClaim(invoiceId02);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        vm.stopPrank();
+    }
+
+   function testInvoicePaid() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSignature("InvoicePaidAmountChanged()"));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+    }
+
+    function testAprCapWhenPastDueDate() public {
+        interestApr = 2000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 2000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 100;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate debtor paying in 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays the first invoice
+        vm.startPrank(alice);
+        // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint256 dueByNew = block.timestamp + 30 days;
+
+        vm.startPrank(bob);
+        uint invoiceId03Amount = 100;
+        uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
+        vm.stopPrank();
+
+        // Fast forward time by 900 days to simulate interest rate cap
+        vm.warp(block.timestamp + 900 days);
+
+        uint balanceBefore = asset.balanceOf(bob);
+        // alice pays the second invoice
+        vm.startPrank(alice);
+        // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId03, invoiceId03Amount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint balanceAfter = asset.balanceOf(bob);
+
+        assertTrue(balanceBefore == balanceAfter, "No kickback as interest rate cap has been reached");
+    }
+
+    function testCannotRedeemKickbackAmount() public {
+        // Alice deposits into the fund
+        uint256 initialDepositAlice = 100;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDepositAlice);
+        bullaFactoring.deposit(initialDepositAlice, alice);
+        vm.stopPrank();
+
+        // Bob funds an invoice
+        uint invoiceIdAmount = 100; // Amount of the invoice
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        uint256 fundedTimestamp = block.timestamp;
+        vm.stopPrank();
+
+        uint256 actualDaysUntilPayment = 30;
+        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
+
+        // Alice pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceIdAmount);
+        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
+        vm.stopPrank();
+
+        uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId);
+        uint256 kickbackAmount = calculateKickbackAmount(invoiceId, fundedTimestamp, interestApr, fundedAmount);
+        uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
+        uint maxRedeem = bullaFactoring.maxRedeem();
+
+        assertTrue(sharesToRedeemIncludingKickback > maxRedeem);
+
+        uint pricePerShare = bullaFactoring.pricePerShare();
+        uint maxRedeemAmount = maxRedeem * pricePerShare / bullaFactoring.SCALING_FACTOR();
+
+        // if Alice tries to redeem more shares than she owns, she'll be capped by max redeem amount
+        vm.startPrank(alice);
+        uint balanceBefore = asset.balanceOf(alice);
+        bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
+        uint balanceAfter = asset.balanceOf(alice);
+        vm.stopPrank();
+
+        uint actualAssetsRedeems = balanceAfter - balanceBefore;
+
+        assertEq(actualAssetsRedeems, maxRedeemAmount, "Redeem amount should be capped to max redeem amount");
+    }
+
+}
