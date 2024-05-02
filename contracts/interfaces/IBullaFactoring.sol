@@ -80,7 +80,7 @@ interface IBullaFactoring {
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDays) external;
     function calculateRealizedGainLoss() external view returns (uint256);
     function pricePerShare() external view returns (uint256);
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external;
+    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);
     function reconcileActivePaidInvoices() external;
     function setGracePeriodDays(uint256 _days) external;

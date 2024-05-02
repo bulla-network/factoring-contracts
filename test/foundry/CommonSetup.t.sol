@@ -35,7 +35,7 @@ contract CommonSetup is Test {
     address underwriter = address(0x1222);
     address userWithoutPermissions = address(0x743123);
 
-    uint16 interestApr = 1000;
+    uint16 interestApr = 730;
     uint16 upfrontBps = 8000;
     uint256 dueBy = block.timestamp + 30 days;
     uint16 minDays = 30;
