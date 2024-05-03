@@ -156,7 +156,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the kickback amount for a given funded amount allowing early payment
     /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
     /// @return The calculated kickback amount
-    function calculateKickbackAmount(uint256 invoiceId) private returns (uint256) {
+    function calculateKickbackAmount(uint256 invoiceId) public returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
        
@@ -329,7 +329,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
         /// @notice add 1 to daysUntilDue to account for the fact that the invoice is due tomorrow
         /// @dev minDays is the minimum number of days the invoice can be funded for, set by the underwriter during approval
-        daysUntilDue = Math.max(daysUntilDue + 1, approval.minDays + 1);
+        daysUntilDue = Math.max(daysUntilDue, approval.minDays);
 
         uint256 targetInterestRate = Math.mulDiv(approval.interestApr, daysUntilDue, 365);
         targetInterest = Math.mulDiv(fundedAmountGross, targetInterestRate, 10000);
@@ -345,7 +345,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @param invoiceId The ID of the invoice to fund
     /// @param factorerUpfrontBps factorer specified upfront bps
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) public {
+    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) public returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
@@ -375,6 +375,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
         emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender);
+        return fundedAmountNet;
     }
 
     /// @notice Provides a view of the pool's status, listing paid and impaired invoices, to be called by Gelato or alike

@@ -251,4 +251,47 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         assertEq(finalBalanceOwner, initialFactorerBalance + kickbackAmount + fundedAmount, "Kickback amount was not dispersed correctly");
     }
+
+    function testZeroKickbackAmount() public {
+        // 100% upfront bps to simulate TCS
+        upfrontBps = 10000;
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate debtor paying in 30 days
+        uint256 actualDaysUntilPayment = 30;
+        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+
+        uint kickbackAmount = bullaFactoring.calculateKickbackAmount(invoiceId01);
+
+        uint balanceBeforeReconciliation = asset.balanceOf(bob);
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint balanceAfterReconciliation = asset.balanceOf(bob);
+
+        assertEq(kickbackAmount, 0, "Kickback amount should be 0");
+        assertEq(balanceBeforeReconciliation, balanceAfterReconciliation, "Kickback amount should be 0");
+    }
 }
