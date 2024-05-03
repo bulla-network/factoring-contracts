@@ -521,7 +521,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // Calculate the number of days since funding
         uint256 daysSinceFunding = (block.timestamp - approvedInvoices[invoiceId].fundedTimestamp) / 60 / 60 / 24;
-        uint256 daysOfInterestToCharge = daysSinceFunding;
+        uint256 daysOfInterestToCharge = daysSinceFunding + 1;
 
         // Calculate interest to charge
         uint256 accruedInterest = Math.mulDiv(approvedInvoices[invoiceId].interestApr, daysOfInterestToCharge, 365); // APR adjusted for the number of days
