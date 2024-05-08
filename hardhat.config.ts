@@ -20,9 +20,9 @@ const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
     solidity: {
         compilers: [
-            { version: '0.8.7', settings: { optimizer: { enabled: true, runs: 200 } } },
-            { version: '0.8.3', settings: { optimizer: { enabled: true, runs: 200 } } },
-            { version: '0.8.20', settings: { optimizer: { enabled: true, runs: 200 } } },
+            { version: '0.8.7', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
+            { version: '0.8.3', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
+            { version: '0.8.20', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
         ],
     },
     networks: {

@@ -765,7 +765,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 realizedGain = calculateRealizedGainLoss();
         uint256 capitalAccount = calculateCapitalAccount();
         uint256 price = pricePerShare();
-        uint256 tokensAvailableForRedemption = totalSupply();
+        uint256 tokensAvailableForRedemption = maxRedeem();
 
         return FundInfo({
             name: poolName,
