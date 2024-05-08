@@ -539,7 +539,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         removeActivePaidInvoice(invoiceId); 
         delete originalCreditors[invoiceId];
 
-        emit InvoiceUnfactored(invoiceId, originalCreditor);
+        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundAmount, interestToCharge);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
