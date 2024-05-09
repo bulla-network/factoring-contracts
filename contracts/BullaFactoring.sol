@@ -247,9 +247,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-        uint256 realizedGainLoss = calculateRealizedGainLoss();
+                uint256 realizedGainLoss = calculateRealizedGainLoss();
         uint256 capitalAccount = totalDeposits - totalWithdrawals + realizedGainLoss;
-        return capitalAccount;
+                return capitalAccount;
     }
 
     /// @notice Calculates the current price per share of the fund
@@ -323,8 +323,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        fundedAmountGross = Math.mulDiv(invoice.faceValue, factorerUpfrontBps, 10000);
-        adminFee = Math.mulDiv(invoice.faceValue, adminFeeBps, 10000);
+        uint256 trueFaceValue = invoice.faceValue - invoice.paidAmount;
+
+        fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
+        adminFee = Math.mulDiv(trueFaceValue, adminFeeBps, 10000);
 
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
         /// @notice add 1 to daysUntilDue to account for the fact that the invoice is due tomorrow
@@ -569,7 +571,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function availableAssets() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
-
+        
         // Ensures we don't consider at-risk capital as part of the withdrawable assets, as well as fees
         return totalAssetsInFund > atRiskCapital ? totalAssetsInFund - atRiskCapital - protocolFeeBalance - adminFeeBalance - impairReserve : 0;
     }

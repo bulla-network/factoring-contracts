@@ -294,4 +294,45 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertEq(kickbackAmount, 0, "Kickback amount should be 0");
         assertEq(balanceBeforeReconciliation, balanceAfterReconciliation, "Kickback amount should be 0");
     }
+
+    function testFundInvoiceWithPartiallyAndFullyPaidInvoices() public {
+        uint256 invoiceAmount = 100000;
+        uint256 initialPaidAmount = 50000; // 50% of the invoice amount is already paid
+        uint16 upfrontBps = 8000;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates two invoices
+        vm.startPrank(bob);
+        uint256 partiallyPaidInvoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 fullyUnpaidInvoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Simulate partial payment of the first invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), initialPaidAmount);
+        bullaClaim.payClaim(partiallyPaidInvoiceId, initialPaidAmount);
+        vm.stopPrank();
+
+        // Underwriter approves both invoices
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(partiallyPaidInvoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(fullyUnpaidInvoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Factorer funds both invoices
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), partiallyPaidInvoiceId);
+        uint256 partiallyPaidFundedAmount = bullaFactoring.fundInvoice(partiallyPaidInvoiceId, upfrontBps);
+        bullaClaimERC721.approve(address(bullaFactoring), fullyUnpaidInvoiceId);
+        uint256 fullyUnpaidFundedAmount =bullaFactoring.fundInvoice(fullyUnpaidInvoiceId, upfrontBps);
+        vm.stopPrank();
+
+        assertTrue(fullyUnpaidFundedAmount > partiallyPaidFundedAmount, "Funded amount for partially paid invoice should be less than fully unpaid invoice");
+        assertApproxEqAbs((fullyUnpaidFundedAmount / 2), partiallyPaidFundedAmount, 1, "Funded amount for partially paid invoice should be half than fully unpaid invoice");
+    }
+
 }
