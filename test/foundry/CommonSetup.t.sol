@@ -110,19 +110,6 @@ contract CommonSetup is Test {
         );
     }
 
-    function calculateKickbackAmount(uint256 invoiceId, uint fundedTimestamp, uint16 apr, uint fundedAmount) public view returns (uint256) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
-        uint256 daysSinceFunded = (block.timestamp > fundedTimestamp) ? (block.timestamp - fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = daysSinceFunded +1;
-        uint256 trueDiscountRateBps = Math.mulDiv(apr, daysSinceFunded, 365);
-        uint256 haircutCap = invoice.faceValue - fundedAmount;
-        uint256 trueHaircut = Math.min(Math.mulDiv(invoice.faceValue, trueDiscountRateBps, 10000), haircutCap);        
-        uint256 totalDueToCreditor = invoice.faceValue - trueHaircut;
-        uint256 kickbackAmount = totalDueToCreditor - fundedAmount;
-
-        return kickbackAmount;
-    }
-
     function calculatePricePerShare(uint256 capitalAccount, uint256 sharesOutstanding, uint SCALING_FACTOR) public pure returns (uint256) {
         if (sharesOutstanding == 0) return 0;
         return (capitalAccount * SCALING_FACTOR) / sharesOutstanding;
