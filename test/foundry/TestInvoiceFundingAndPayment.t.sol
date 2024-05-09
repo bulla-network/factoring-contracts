@@ -245,7 +245,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Check if the kickback and funded amount were correctly transferred
         uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId01);
-        uint256 kickbackAmount = calculateKickbackAmount(invoiceId01, fundedTimestamp, interestApr, fundedAmount);
+        (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
 
@@ -283,7 +283,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
 
-        uint kickbackAmount = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+
 
         uint balanceBeforeReconciliation = asset.balanceOf(bob);
 
