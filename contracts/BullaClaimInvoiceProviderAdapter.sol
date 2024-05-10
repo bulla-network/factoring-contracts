@@ -6,6 +6,7 @@ import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
 
+// this could be a lib
 contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
     IBullaClaim private bullaClaim;
 

@@ -19,14 +19,19 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     address public bullaDao;
     uint16 public protocolFeeBps;
     uint16 public adminFeeBps;
+    // look into how this is being withdrawn
     uint256 public protocolFeeBalance;
     uint256 public adminFeeBalance;
     IERC20 public assetAddress;
+    
+    // @audit it may be worth having a setter for this in the case of a bullacontracts v2 upgrade
     IInvoiceProviderAdapter public invoiceProviderAdapter;
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
     address public underwriter;
+    // can be sourced offchain
     uint256 public creationTimestamp;
+
     uint256 public impairReserve;
     string public poolName;
     uint16 public taxBps;
@@ -48,6 +53,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     mapping(uint256 => InvoiceApproval) public approvedInvoices;
     uint256 public approvalDuration = 1 hours;
 
+    // @audit-ok refactor idea: this could this be an array of structs that contains id and status, that'd reduce the amount of storage and create a single source of truth
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
 
@@ -148,6 +154,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             fundedAmountGross: 0,
             fundedAmountNet: 0,
             adminFee: 0,
+            // what is min days
             minDays: minDays
         });
         emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDays);
@@ -156,12 +163,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the kickback amount for a given funded amount allowing early payment
     /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
     /// @return The calculated kickback amount
+    // @audit this needs to either be private or have an only address(this) || msg.sedner === owner protection.
     function calculateKickbackAmount(uint256 invoiceId) public returns (uint256) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
        
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = Math.max(daysSinceFunded +1, approval.minDays + 1);
+        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDays + 1);
 
         uint256 interestAprBps = approval.interestApr;
 
@@ -169,22 +177,29 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 interestAprMbps = interestAprBps*1000;
 
         // Calculate the true APR discount for the actual payment period
+        /// @audit "we're using days since funded, not the due date" - Ben
         uint256 trueInterestRateMbps = Math.mulDiv(interestAprMbps, daysSinceFunded, 365);
 
+        /// @audit needs documentation on why we need to use millibips in order to calculate interest and protocol fee
         // calculate the true APR discount with protocols fee
         uint256 trueInterestAndProtocolFeeMbps =  Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
 
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
+
+        /// @audit rename: "this is true gross funded amount" - ben | bulla
         uint256 interestCap = approval.fundedAmountGross - approval.adminFee;
 
         // Calculate the true interest and protocol fee
-        uint256 trueInterestAndProtocolFee = Math.min(interestCap, Math.mulDiv(interestCap, trueInterestAndProtocolFeeMbps , 1000_0000));
+        uint256 trueInterestAndProtocolFee = Math.min(interestCap, Math.mulDiv(
+            // TODO: @colin: is this correct?
+            interestCap, trueInterestAndProtocolFeeMbps , 1000_0000));
 
         // Calculate the true interest
         uint256 trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
 
         // Calculate tax amount on trueInterest
         uint256 taxAmount = calculateTax(trueInterest);
+        // @audit this storage is unnecessary
         paidInvoiceTax[invoiceId] = taxAmount;
         taxBalance += taxAmount;
 
@@ -277,7 +292,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param assets The amount of assets to deposit
     /// @return The number of shares issued for the deposit
     function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
-        if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
+                if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
 
         assetAddress.transferFrom(from, address(this), assets);
         uint256 shares = convertToShares(assets);
@@ -294,6 +309,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) public returns (uint256) {
         uint256 shares = _deposit(_msgSender(), receiver, assets);
+
         emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
         return shares;
     }
@@ -353,6 +369,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
+        // @audit is it an issue that the creditor can change?
 
         (uint256 fundedAmountGross, uint256 adminFeeAmount, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         adminFeeBalance += adminFeeAmount;
