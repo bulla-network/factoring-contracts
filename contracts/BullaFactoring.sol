@@ -134,7 +134,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
-    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _upfrontBps, uint16 minDays) public {
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _upfrontBps, uint16 minDaysInterestApplied) public {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
@@ -148,9 +148,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             fundedAmountGross: 0,
             fundedAmountNet: 0,
             adminFee: 0,
-            minDays: minDays
+            minDaysInterestApplied: minDaysInterestApplied
         });
-        emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDays);
+        emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDaysInterestApplied);
     }
 
     /// @notice Calculates the kickback amount for a given funded amount allowing early payment
@@ -164,22 +164,24 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
     
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDays + 1);
+        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied + 1);
 
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
 
         // Calculate the true APR discount for the actual payment period
+        // millibips used due to the small nature of the fees
         uint256 trueInterestRateMbps = Math.mulDiv(interestAprMbps, daysSinceFunded, 365);
 
         // calculate the true APR discount with protocols fee
+        // millibips used due to the small nature of the fees
         uint256 trueInterestAndProtocolFeeMbps = Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
 
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
-        uint256 interestCap = approval.fundedAmountGross - approval.adminFee;
+        uint256 trueGrossFundedAmount = approval.fundedAmountGross - approval.adminFee;
 
         // Calculate the true interest and protocol fee
-        uint256 trueInterestAndProtocolFee = Math.min(interestCap, Math.mulDiv(interestCap, trueInterestAndProtocolFeeMbps, 1000_0000));
+        uint256 trueInterestAndProtocolFee = Math.min(trueGrossFundedAmount, Math.mulDiv(trueGrossFundedAmount, trueInterestAndProtocolFeeMbps, 1000_0000));
 
         // Calculate the true interest
         trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
@@ -327,7 +329,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
         /// @notice add 1 to daysUntilDue to account for the fact that the invoice is due tomorrow
         /// @dev minDays is the minimum number of days the invoice can be funded for, set by the underwriter during approval
-        daysUntilDue = Math.max(daysUntilDue, approval.minDays);
+        daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
         uint256 targetInterestRate = Math.mulDiv(approval.interestApr, daysUntilDue, 365);
         targetInterest = Math.mulDiv(fundedAmountGross, targetInterestRate, 10000);
