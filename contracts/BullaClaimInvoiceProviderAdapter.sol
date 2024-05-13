@@ -18,8 +18,13 @@ contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory) {
         Claim memory claim = bullaClaim.getClaim(invoiceId);
         if (claim.claimToken == address(0)) revert InexistentInvoice();
+
+        address invoiceContractAddress = this.getInvoiceContractAddress();
+        address creditor = IERC721(invoiceContractAddress).ownerOf(invoiceId);
+
         Invoice memory invoice = Invoice({
             faceValue: claim.claimAmount,
+            creditor: creditor,
             debtor: claim.debtor,
             dueDate: claim.dueBy,
             tokenAddress: claim.claimToken,

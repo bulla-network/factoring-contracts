@@ -88,6 +88,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error TaxWithdrawalFailed();
     error ImpairReserveMustBeGreater();
     error TransferFailed();
+    error InvoiceCreditorChanged();
 
 
     /// @param _asset underlying supported stablecoin asset for deposit 
@@ -353,6 +354,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
+        if (approvedInvoices[invoiceId].invoiceSnapshot.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
         (uint256 fundedAmountGross, uint256 adminFeeAmount, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         adminFeeBalance += adminFeeAmount;

@@ -132,6 +132,31 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
     }
 
+    function testCreditorChanged() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.transferFrom(bob, alice, invoiceId);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCreditorChanged()"));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+    }
+
     function testAprCapWhenPastDueDate() public {
         interestApr = 2000;
         upfrontBps = 8000;
