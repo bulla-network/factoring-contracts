@@ -5,6 +5,7 @@ interface IInvoiceProviderAdapter {
 
     struct Invoice {
         uint256 faceValue;
+        address creditor;
         address debtor;
         uint256 dueDate;
         address tokenAddress;
