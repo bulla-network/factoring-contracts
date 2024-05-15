@@ -225,6 +225,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the total realized gain or loss from paid and impaired invoices
     /// @return The total realized gain adjusted for losses
     function calculateRealizedGainLoss() public view returns (uint256) {
+        // @audit this needs to be an int256! Worst case scenario:
+        // given: a situation where the pool would only initially have losses or impared invoices:
+        //  any deposit or redeem (withdraw) flow would be completely bricked as the below
+        //  realizedGains -= fundedAmount && realizedGains -= impairments[invoiceId].lossAmount decrements
+        //  would cause a runtime revert of DeductionsExceedsRealisedGains or DeductionsExceedsRealisedGains
         uint256 realizedGains = 0;
         // Consider gains from paid invoices
         for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
@@ -275,6 +280,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             return SCALING_FACTOR;
         }
         uint256 capitalAccount = calculateCapitalAccount();
+        // @audit-ok question: what if the account is ever 0? - that would force the share price to ever be zero (free)?
         return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
@@ -453,6 +459,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Checks if an invoice is impaired, based on its due date and a grace period
     /// @param invoiceId The ID of the invoice to check
     /// @return True if the invoice is impaired, false otherwise
+    // @audit this would be a helpful public function
     function isInvoiceImpaired(uint256 invoiceId) private view returns (bool) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
