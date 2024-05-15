@@ -766,6 +766,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit TargetYieldChanged(_targetYieldBps);
     }
 
+    /// @notice Sets a new invoice provider adapter
+    /// @param _newInvoiceProviderAdapter The address of the new invoice provider adapter
+    function setInvoiceProviderAdapter(IInvoiceProviderAdapter _newInvoiceProviderAdapter) public onlyOwner {
+        invoiceProviderAdapter = _newInvoiceProviderAdapter;
+        emit InvoiceProviderAdapterChanged(_newInvoiceProviderAdapter);
+    }
+
     function getFundInfo() public view returns (FundInfo memory) {
         uint256 fundBalance = availableAssets();
         uint256 deployedCapital = totalFundedAmountForActiveInvoices();

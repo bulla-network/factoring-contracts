@@ -33,9 +33,10 @@ export const deployBullaFactoring = async function () {
     //     args: [bullaClaim],
     // });
     // Verify BullaClaimInvoiceProviderAdapter contract
+
+    const BullaClaimInvoiceProviderAdapterAddress = '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5';
     // await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], 'sepolia');
 
-    const BullaClaimInvoiceProviderAdapterAddress = '0x595c0972b5d1e02c4a2f16480528733d912e4e48';
     // console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
 
     // deploy mock permissions contracts for deposit and factoring
@@ -100,7 +101,7 @@ export const deployBullaFactoring = async function () {
     //     ],
     // });
 
-    const bullaFactoringAddress = '0xd55077b4e2E80bB9d76235E49dbfF330d2a39b0d';
+    const bullaFactoringAddress = '0x2371A9F2c103f8f546a969109B350d6A13d0851B';
 
     // Set Impair Reserve and approve token
     // const signer = await ethers.getSigner(deployer);
@@ -156,6 +157,8 @@ export const deployBullaFactoring = async function () {
     //         poolName,
     //         taxBps,
     //         targetYieldBps,
+    //         poolTokenName,
+    //         poolTokenSymbol,
     //     ],
     //     'sepolia',
     // );
