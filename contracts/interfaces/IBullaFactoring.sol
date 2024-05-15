@@ -75,6 +75,7 @@ interface IBullaFactoring {
     event TaxBpsChanged(uint16 indexed oldTaxBps, uint256 indexed newTaxBps);
     event ImpairReserveChanged(uint256 newImpairReserve);
     event TargetYieldChanged(uint16 newTargetYield);
+    event InvoiceProviderAdapterChanged(IInvoiceProviderAdapter newInvoiceProviderAdapter);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;
