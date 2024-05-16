@@ -33,7 +33,7 @@ interface IBullaFactoring {
         uint256 creationTimestamp;
         uint256 fundBalance;
         uint256 deployedCapital;
-        uint256 realizedGain;
+        int256 realizedGain;
         uint256 capitalAccount;
         uint256 price;
         uint256 tokensAvailableForRedemption;
@@ -79,7 +79,7 @@ interface IBullaFactoring {
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;
-    function calculateRealizedGainLoss() external view returns (uint256);
+    function calculateRealizedGainLoss() external view returns (int256);
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);

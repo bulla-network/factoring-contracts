@@ -150,7 +150,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         assertTrue(pricePerShareAfterImpairment < pricePerShareBeforeImpairment, "Price per share should decrease due to impaired invoice");
     }
     
-    function testDeductionsExceedGains() public {
+    function testReducedPricePerShareDueToImpairment() public {
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
@@ -168,6 +168,8 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
+        uint initialPricePerShare = bullaFactoring.pricePerShare();
+
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
 
@@ -178,8 +180,8 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices(); 
 
-        vm.expectRevert(abi.encodeWithSignature("DeductionsExceedsRealisedGains()"));
-        bullaFactoring.pricePerShare();
+        uint pricePerShareAfter = bullaFactoring.pricePerShare();
+        assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
     }
 
 }
