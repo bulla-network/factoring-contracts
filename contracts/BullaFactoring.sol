@@ -592,14 +592,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
         uint256 impairedLosses = 0;
 
-        // Calculate losses from impaired invoices in activeInvoices
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            if (isInvoiceImpaired(invoiceId)) {
-                impairedLosses += approvedInvoices[invoiceId].fundedAmountNet;
-            }
-        }
-
         // Calculate losses from impaired invoices by fund
         for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
             uint256 invoiceId = impairedByFundInvoicesIds[i];
@@ -616,12 +608,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 currentPricePerShare = pricePerShare();
         // Calculate the maximum withdrawable shares based on available assets and current price per share
         uint256 availableAssetAmount = availableAssets();
-        uint256 maxWithdrawableShares;
-        if (currentPricePerShare < SCALING_FACTOR) {
-            maxWithdrawableShares = Math.mulDiv(availableAssetAmount, currentPricePerShare, SCALING_FACTOR);
-        } else {
-            maxWithdrawableShares = Math.mulDiv(availableAssetAmount, SCALING_FACTOR, currentPricePerShare);
-        }        
+        uint256 maxWithdrawableShares = Math.mulDiv(availableAssetAmount, SCALING_FACTOR, currentPricePerShare);
 
         return maxWithdrawableShares;
     }
