@@ -373,6 +373,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         (uint256 fundedAmountGross, uint256 adminFeeAmount, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         adminFeeBalance += adminFeeAmount;
 
+        // Mint admin fee tokens
+        uint256 adminFeeShares = convertToShares(adminFeeAmount);
+        _mint(address(this), adminFeeShares);
+
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
@@ -487,6 +491,14 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             paidInvoiceTax[invoiceId] = taxAmount;
             taxBalance += taxAmount;
             protocolFeeBalance += trueProtocolFee;
+
+            // Mint protocol fee tokens
+            uint256 protocolFeeShares = convertToShares(trueProtocolFee);
+            _mint(address(this), protocolFeeShares);
+
+            // Mint tax tokens
+            uint256 taxShares = convertToShares(taxAmount);
+            _mint(address(this), taxShares);
 
             // Add the invoice ID to the paidInvoicesIds array
             paidInvoicesIds.push(invoiceId);
