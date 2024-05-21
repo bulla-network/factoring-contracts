@@ -601,8 +601,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function availableAssets() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
-        uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
-        uint256 impairedLosses = 0;
+                uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
+                uint256 impairedLosses = 0;
 
         // Calculate losses from impaired invoices by fund
         for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
@@ -610,7 +610,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             impairedLosses += impairments[invoiceId].lossAmount;
         }
         
-        // Ensures we don't consider at-risk capital and impaired losses as part of the withdrawable assets, as well as fees
+                // Ensures we don't consider at-risk capital and impaired losses as part of the withdrawable assets, as well as fees
         return totalAssetsInFund > atRiskCapital + impairedLosses ? totalAssetsInFund - atRiskCapital - impairedLosses - protocolFeeBalance - adminFeeBalance - impairReserve : 0;
     }
 
@@ -618,8 +618,15 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
         uint256 currentPricePerShare = pricePerShare();
-        // Calculate the maximum withdrawable shares based on available assets and current price per share
         uint256 availableAssetAmount = availableAssets();
+
+        if (activeInvoices.length == 0 && impairedByFundInvoicesIds.length > 0) {
+            // If there are no active invoices and there are impaired invoices,
+            // allow redeeming the sender's total shares
+            return this.balanceOf(msg.sender);
+        }
+
+        // Calculate the maximum withdrawable shares based on available assets and current price per share
         uint256 maxWithdrawableShares = Math.mulDiv(availableAssetAmount, SCALING_FACTOR, currentPricePerShare);
 
         return maxWithdrawableShares;
@@ -637,7 +644,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (shares > maxWithdrawableShares) {
             uint256 maxWithdrawableAmount = availableAssets();   
             _withdraw(from, receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
-            assets = Math.mulDiv(maxWithdrawableShares, pricePerShare(), SCALING_FACTOR);
+            return maxWithdrawableAmount;
         } else {
             uint256 currentPricePerShare = pricePerShare();
             assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);

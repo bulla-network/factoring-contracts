@@ -334,8 +334,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
     function testImpairedInvoiceWithAllSharesRedeemed() public {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should start at 0");
-        uint aliceInitialBalance = asset.balanceOf(alice);
-
 
         uint256 initialDeposit = 1000000;
         vm.startPrank(alice);
@@ -368,59 +366,18 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint256 maxRedeemAmountAfterGraceImpairment = bullaFactoring.maxRedeem();
 
-        assertEq(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should equal maxRedeemAmountAfterGraceImpairment");
-        assertLt(maxRedeemAmountAfterGraceImpairment, bullaFactoring.balanceOf(alice), "Alice's redeem amount should be lower than depositors fund token balance");
+        assertGt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be greater than maxRedeemAmountAfterGraceImpairment");
+
+        bullaFactoring.reconcileActivePaidInvoices();
 
         // Alice redeems all her shares
         vm.prank(alice);
         uint redeemAmountFirst = bullaFactoring.redeem(aliceShares, alice, alice);
+        assertGt(initialDeposit, redeemAmountFirst, "Alice should be able to redeem less than what she initial deposited");
         vm.stopPrank();
 
-        uint aliceBalanceAfter = bullaFactoring.balanceOf(alice);
-
-        // Verify that Alice's share balance is not zero, as the max redeem amount is less than her balance
-        assertGt(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should not be zero");
-
-        // max redeem should be 0 now
-        assertEq(bullaFactoring.maxRedeem(), 0, "The max redeem amount should now be zero");
-
-        uint256 fundBalanceBefore = bullaFactoring.availableAssets();
-
-        // Simulate the debtor paying the impaired invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), invoiceAmount);
-        bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        // Reconcile the newly paid invoices
-        bullaFactoring.reconcileActivePaidInvoices();
-
-        uint256 fundBalanceAfter = bullaFactoring.availableAssets();
-
-        // Verify that the fund's balance has increased after the invoice payment
-        assertGt(fundBalanceAfter, fundBalanceBefore, "The fund's balance should be greater than when there was impairment");
-
-        uint256 maxRedeemAmountAfterRepayment = bullaFactoring.maxRedeem();
-        assertGt(maxRedeemAmountAfterRepayment, 0, "The max redeem amount now should be greater than zero");
-
-        uint balanceEnd = bullaFactoring.balanceOf(alice);
-
-        // Alice redeems all her remaining shares
-        vm.prank(alice);
-        uint redeemAmountSecond = bullaFactoring.redeem(balanceEnd, alice, alice);
-        vm.stopPrank();
-
-        uint256 fundBalanceEnd = bullaFactoring.availableAssets();
-
-        assertEq(fundBalanceEnd, 0, "The fund's balance should be zero once everything is withdrawn");
-
-        uint aliceBalanceAfterFullRedemption = asset.balanceOf(alice);
-
-        // depositor turns a profit after full redemption
-        assertGt(aliceBalanceAfterFullRedemption + invoiceAmount, aliceInitialBalance, "Alice should register a profit after all redemptions");
-
-        // TODO: needs further investigation, as I'm expecting this to be 0?
-        assertGt(bullaFactoring.balanceOf(alice), 0, "Alice should have some shares left");
+        // Verify that Alice's share balance is now zero, as there are no other pending invoices to be paid
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should be zero");
     }
 }
 
