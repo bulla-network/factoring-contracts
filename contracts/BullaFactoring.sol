@@ -680,6 +680,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 feeAmount = protocolFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
         protocolFeeBalance = 0;
+        totalWithdrawals += feeAmount;
         bool success = assetAddress.transfer(bullaDao, feeAmount);
         if (!success) revert FeeWithdrawalFailed();
         emit ProtocolFeesWithdrawn(bullaDao, feeAmount);
@@ -690,6 +691,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 feeAmount = adminFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
         adminFeeBalance = 0;
+        totalWithdrawals += feeAmount;
         bool success = assetAddress.transfer(msg.sender, feeAmount);
         if (!success) revert FeeWithdrawalFailed();
         emit AdminFeesWithdrawn(msg.sender, feeAmount);
@@ -701,6 +703,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (taxBalance == 0) revert NoTaxBalanceToWithdraw();
         uint256 amountToWithdraw = taxBalance;
         taxBalance = 0;
+        totalWithdrawals += amountToWithdraw;
         bool success = assetAddress.transfer(msg.sender, amountToWithdraw);
         if (!success) revert TaxWithdrawalFailed();
         emit TaxBalanceWithdrawn(msg.sender, amountToWithdraw);
