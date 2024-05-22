@@ -245,6 +245,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
         uint256 totalDepositsMinusWithdrawals;
+        uint256 fees = adminFeeBalance + protocolFeeBalance + taxBalance;
 
         if (totalWithdrawals > totalDeposits) {
             totalDepositsMinusWithdrawals = totalWithdrawals - totalDeposits;
@@ -257,10 +258,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             if (absRealizedGainLoss > totalDepositsMinusWithdrawals) {
                 return 0;
             } else {
-                return totalDepositsMinusWithdrawals - absRealizedGainLoss;
+                return totalDepositsMinusWithdrawals - absRealizedGainLoss - fees;
             }
         } else {
-            return totalDepositsMinusWithdrawals + uint256(realizedGainLoss);
+            return totalDepositsMinusWithdrawals + uint256(realizedGainLoss) - fees;
         }
     }
 
@@ -373,9 +374,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         (uint256 fundedAmountGross, uint256 adminFeeAmount, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         adminFeeBalance += adminFeeAmount;
 
-        // Mint admin fee tokens
-        uint256 adminFeeShares = convertToShares(adminFeeAmount);
-        _mint(address(this), adminFeeShares);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
@@ -491,14 +489,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             paidInvoiceTax[invoiceId] = taxAmount;
             taxBalance += taxAmount;
             protocolFeeBalance += trueProtocolFee;
-
-            // Mint protocol fee tokens
-            uint256 protocolFeeShares = convertToShares(trueProtocolFee);
-            _mint(address(this), protocolFeeShares);
-
-            // Mint tax tokens
-            uint256 taxShares = convertToShares(taxAmount);
-            _mint(address(this), taxShares);
 
             // Add the invoice ID to the paidInvoicesIds array
             paidInvoicesIds.push(invoiceId);

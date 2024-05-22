@@ -129,7 +129,7 @@ contract TestFeesAndTax is CommonSetup {
 
         uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
 
-        assertEq(capitalAccountAfter , capitalAccountBefore, "Capital Account should remain unchanged");
+        assertGt(capitalAccountAfter , capitalAccountBefore, "Capital Account should increase as fees are deducted");
     }
 
     function testTaxAccrualAndWithdraw() public {
