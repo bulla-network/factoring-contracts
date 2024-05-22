@@ -244,25 +244,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
-        uint256 totalDepositsMinusWithdrawals;
         uint256 fees = adminFeeBalance + protocolFeeBalance + taxBalance;
 
-        if (totalWithdrawals > totalDeposits) {
-            totalDepositsMinusWithdrawals = totalWithdrawals - totalDeposits;
-        } else {
-            totalDepositsMinusWithdrawals = totalDeposits - totalWithdrawals;
-        }
+        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
+        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss - int256(fees);
 
-        if (realizedGainLoss < 0) {
-            uint256 absRealizedGainLoss = uint256(-realizedGainLoss);
-            if (absRealizedGainLoss > totalDepositsMinusWithdrawals) {
-                return 0;
-            } else {
-                return totalDepositsMinusWithdrawals - absRealizedGainLoss - fees;
-            }
-        } else {
-            return totalDepositsMinusWithdrawals + uint256(realizedGainLoss) - fees;
-        }
+        return uint256(capitalAccount);
     }
 
     /// @notice Calculates the current price per share of the fund
@@ -603,7 +590,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         }
 
         // Ensures we don't consider at-risk capital and impaired losses as part of the withdrawable assets, as well as fees
-        return totalAssetsInFund > atRiskCapital + impairedLosses ? totalAssetsInFund - atRiskCapital - impairedLosses - protocolFeeBalance - adminFeeBalance - impairReserve : 0;
+        return totalAssetsInFund > atRiskCapital + impairedLosses ? totalAssetsInFund - atRiskCapital - impairedLosses - protocolFeeBalance - adminFeeBalance - impairReserve - taxBalance : 0;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
