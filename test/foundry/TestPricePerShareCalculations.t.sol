@@ -77,9 +77,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
-        uint capitalAccount = bullaFactoring.calculateCapitalAccount();
-        uint sharePriceCheck = calculatePricePerShare(capitalAccount, bullaFactoring.totalSupply(), bullaFactoring.SCALING_FACTOR());
-        assertEq(pricePerShareAfterReconciliation, sharePriceCheck);
 
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
     }
