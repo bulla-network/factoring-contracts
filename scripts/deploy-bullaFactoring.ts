@@ -101,7 +101,7 @@ export const deployBullaFactoring = async function () {
     //     ],
     // });
 
-    const bullaFactoringAddress = '0x2371A9F2c103f8f546a969109B350d6A13d0851B';
+    const bullaFactoringAddress = '0xd186953b135012D4CF052437c17343F40b9B3816';
 
     // Set Impair Reserve and approve token
     // const signer = await ethers.getSigner(deployer);
