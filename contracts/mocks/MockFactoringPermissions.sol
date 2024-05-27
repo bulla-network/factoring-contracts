@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../Permissions.sol";
 
-contract MockDepositPermissions is Permissions {
+contract MockFactoringPermissions is Permissions {
     mapping(address => bool) public allowedAddresses;
 
     function isAllowed(address _address) external view override returns (bool) {

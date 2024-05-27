@@ -135,7 +135,13 @@
     "moduleFactoryAddress": "0x71E634a30a6FEc0800C1d2740B46EC56fA32aA53",
     "bullaModuleMasterCopyAddress": "0x5E279b981E4162a30eeE3F3eC4EbFd66ccA09222",
     "bullaFinanceAddress": "0xF7d793dc425E64CA93Cf92bb6cfF6173bdbA3995",
-    "frendLendAddress": "0x60b49BB18b60dE3A95235A4d5F42062dD1D461E2"
+    "frendLendAddress": "0x60b49BB18b60dE3A95235A4d5F42062dD1D461E2",
+    "0xb29218C74Bc6211092A288579be681187E21aFd8": {
+      "name": "Bulla TCS Factoring Pool - Polygon V0 Test",
+      "bullaClaimInvoiceProviderAdapter": "0xB5B31E95f0C732450Bc869A6467A9941C8565b10",
+      "depositPermissions": "0x052E0d83BCeF4e75917Fcc10aB89D3F0F505926b",
+      "factoringPermissions": "0x79B14C823A20DC5556A6922291020785B31274D5"
+    }
   },
   "1284": {
     "name": "Moonbeam",

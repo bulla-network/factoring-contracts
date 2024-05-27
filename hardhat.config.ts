@@ -11,6 +11,7 @@ import '@nomiclabs/hardhat-etherscan';
 
 const INFURA_API_KEY = process.env.INFURA_API_KEY!;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
+const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY!;
 const GET_BLOCK_API_KEY = process.env.GET_BLOCK_API_KEY!;
 const DEPLOY_PK = process.env.DEPLOY_PK!;
 const COINMARKETCAP_API = process.env.COINMARKETCAP_API!;
@@ -145,6 +146,7 @@ const config: HardhatUserConfig = {
     etherscan: {
         apiKey: {
             sepolia: ETHERSCAN_API_KEY,
+            polygon: POLYGONSCAN_API_KEY,
         },
         customChains: [
             {
