@@ -260,7 +260,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             return SCALING_FACTOR;
         }
 
-        uint256 capitalAccount = calculateCapitalAccount() - adminFeeBalance - protocolFeeBalance;
+        uint256 capitalAccount = calculateCapitalAccount();
         return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 

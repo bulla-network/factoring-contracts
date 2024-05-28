@@ -378,6 +378,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Verify that Alice's share balance is now zero, as there are no other pending invoices to be paid
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should be zero");
+
+        assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
     }
 }
 
