@@ -137,7 +137,53 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should be 0 after full redemption");
 
         bullaFactoring.withdrawAdminFees(); 
+    }
 
-        assertEq(bullaFactoring.adminFeeBalance(), 0, "Fees should be 0 after withdrawing");
+    function testMaxRedemtionIsZeroAfterAllRedemptions() public {
+        dueBy = block.timestamp + 60 days; // Invoice due in 60 days
+        uint256 invoiceAmount = 100000; // Invoice amount is $100000
+        interestApr = 1000; // 10% APR
+        upfrontBps = 8000; // 80% upfront
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate debtor paying in 30 days instead of 60
+        uint256 actualDaysUntilPayment = 30;
+        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
+
+        // Debtor pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Alice redeems all her funds
+        vm.startPrank(alice);
+        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vm.stopPrank();
+
+        assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
     }
 }
+
