@@ -14,14 +14,12 @@
         "test": "npx hardhat test",
         "run-node": "npx hardhat node --fork https://rpc.xdaichain.com",
         "dev": "npx hardhat node",
-        "deploy:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoring-sepolia.ts",
-        "deploy:polygon": "npx hardhat run --network polygon scripts/deploy-bullaFactoring-polygon.ts",
-        "apply-permissions:sepolia": "npx hardhat run --network sepolia scripts/apply-permissions-sepolia.ts",
-        "apply-permissions:polygon": "npx hardhat run --network polygon scripts/apply-permissions-polygon.ts",
+        "deploy:sepolia": "NETWORK=sepolia npx hardhat run --network sepolia scripts/deploy-bullaFactoring.ts",
+        "deploy:polygon": "NETWORK=polygon npx hardhat run --network polygon scripts/deploy-bullaFactoring.ts ",
+        "apply-permissions:sepolia": "npx hardhat run --network sepolia scripts/apply-permissions.ts",
         "deploy:automation:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoringAutomationChecker.ts",
         "deploy:automation:polygon": "npx hardhat run --network polygon scripts/deploy-bullaFactoringAutomationChecker.ts",
         "change-underwriter:sepolia": "npx hardhat run --network sepolia scripts/change-underwriter.ts",
-        "change-underwriter:polygon": "npx hardhat run --network polygon scripts/change-underwriter.ts",
         "verify": "hardhat etherscan-verify"
     },
     "dependencies": {
