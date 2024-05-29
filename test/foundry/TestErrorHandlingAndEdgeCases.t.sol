@@ -380,6 +380,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should be zero");
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
     }
 }
 

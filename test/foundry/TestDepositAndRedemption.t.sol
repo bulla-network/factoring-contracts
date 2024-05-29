@@ -184,6 +184,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
     }
 }
 
