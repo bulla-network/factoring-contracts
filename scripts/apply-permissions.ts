@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import hre, { ethers } from 'hardhat';
 import addresses from '../addresses.json';
-import permissionsABI from '../deployments/sepolia/MockPermissions.json';
+import permissionsABI from '../artifacts/contracts/Permissions.sol/Permissions.json';
 import { getLineReader } from './utils';
 
 export const updatePermissions = async function () {

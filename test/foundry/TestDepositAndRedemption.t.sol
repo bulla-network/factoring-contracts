@@ -11,7 +11,7 @@ import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
 import { TestSafe } from 'contracts/mocks/gnosisSafe.sol';
-import "@bulla-network/contracts/interfaces/IBullaClaim.sol";
+import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -184,6 +184,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
     }
 }
 
