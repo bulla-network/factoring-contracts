@@ -119,9 +119,6 @@ contract TestFeesAndTax is CommonSetup {
 
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
-        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
-        uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
-
         // Withdraw admin fees
         vm.startPrank(address(this)); 
         bullaFactoring.withdrawAdminFees();
