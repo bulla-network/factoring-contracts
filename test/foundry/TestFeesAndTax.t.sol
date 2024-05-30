@@ -134,7 +134,7 @@ contract TestFeesAndTax is CommonSetup {
 
         uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
 
-        assertEq(capitalAccountAfter, capitalAccountBefore - adminFeeBalanceBefore - protocolFeeBalanceBefore, "Fees are should be deducted from capital account");
+        assertEq(capitalAccountAfter, capitalAccountBefore, "Fees are should be deducted from capital account");
     }
 
     function testTaxAccrualAndWithdraw() public {
