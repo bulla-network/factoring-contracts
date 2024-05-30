@@ -190,14 +190,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Calculate tax amount on trueInterest
         taxAmount = calculateTax(trueInterest);
 
-        // Calculate the true interest after tax deduction
-        trueInterest -= taxAmount;
-
         // Calculate true protocol fee
         trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
 
         // Calculate the total amount that should have been paid to the original creditor
-        uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest - trueProtocolFee;
+        uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest - trueProtocolFee - taxAmount;
         // Retrieve the funded amount from the approvedInvoices mapping
         uint256 fundedAmount = approval.fundedAmountNet;
         // Calculate the kickback amount
@@ -247,7 +244,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 fees = adminFeeBalance + protocolFeeBalance + taxBalance;
 
         int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
-        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss - int256(fees);
+        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
 
         return uint256(capitalAccount);
     }
@@ -465,14 +462,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             // store admin fee in approvedInvoices for its usage in calculateKickbackAmount
             approvedInvoices[invoiceId].adminFee = adminFee;
 
-            // Calculate and store the factoring gain
-            uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
             // calculate kickback amount adjusting for true interest and fees
-            (uint256 kickbackAmount, , uint256 trueProtocolFee, uint256 taxAmount) = calculateKickbackAmount(invoiceId);
-            uint256 factoringGain = faceValue - fundedAmount - kickbackAmount;
+            (uint256 kickbackAmount, uint256 trueInterest , uint256 trueProtocolFee, uint256 taxAmount) = calculateKickbackAmount(invoiceId);
 
             // store factoring gain
-            paidInvoicesGain[invoiceId] = factoringGain;
+            paidInvoicesGain[invoiceId] = trueInterest;
 
             // Update storage variables
             paidInvoiceTax[invoiceId] = taxAmount;

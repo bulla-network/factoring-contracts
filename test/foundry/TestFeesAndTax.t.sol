@@ -119,6 +119,9 @@ contract TestFeesAndTax is CommonSetup {
 
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
+        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
+        uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
+
         // Withdraw admin fees
         vm.startPrank(address(this)); 
         bullaFactoring.withdrawAdminFees();
@@ -131,7 +134,7 @@ contract TestFeesAndTax is CommonSetup {
 
         uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
 
-        assertEq(capitalAccountAfter , capitalAccountBefore, "Capital Account should remain unchanged");
+        assertEq(capitalAccountAfter, capitalAccountBefore - adminFeeBalanceBefore - protocolFeeBalanceBefore, "Fees are should be deducted from capital account");
     }
 
     function testTaxAccrualAndWithdraw() public {
