@@ -43,10 +43,7 @@ contract TestFeesAndTax is CommonSetup {
         uint256 initialBullaDaoBalance = asset.balanceOf(bullaDao);
         uint256 initialOwnerBalance = asset.balanceOf(address(this));
 
-        // Withdraw admin fees
-        vm.startPrank(address(this)); 
-        bullaFactoring.withdrawAdminFees();
-        vm.stopPrank();
+
 
         // alice pays invoice
         vm.startPrank(alice);
@@ -55,6 +52,11 @@ contract TestFeesAndTax is CommonSetup {
         vm.stopPrank();
 
         bullaFactoring.reconcileActivePaidInvoices();
+
+        // Withdraw admin fees
+        vm.startPrank(address(this)); 
+        bullaFactoring.withdrawAdminFees();
+        vm.stopPrank();
 
         // Withdraw protocol fees
         vm.startPrank(bullaDao);

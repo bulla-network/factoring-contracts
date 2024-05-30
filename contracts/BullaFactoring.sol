@@ -358,14 +358,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].invoiceSnapshot.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, uint256 adminFeeAmount, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
-        adminFeeBalance += adminFeeAmount;
-
+        (uint256 fundedAmountGross, , , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
-        approvedInvoices[invoiceId].adminFee = adminFeeAmount;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
         // update upfrontBps with what was passed in the arg by the factorer
         approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
@@ -462,6 +459,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             // Retrieve the faceValue for the invoice from the external contract
             IInvoiceProviderAdapter.Invoice memory externalInvoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
             uint256 faceValue = externalInvoice.faceValue;
+            uint256 adminFee = Math.mulDiv(faceValue, adminFeeBps, 10000);
+            // Add the admin fee to the balance
+            adminFeeBalance += adminFee;
+            // store admin fee in approvedInvoices for its usage in calculateKickbackAmount
+            approvedInvoices[invoiceId].adminFee = adminFee;
 
             // Calculate and store the factoring gain
             uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
