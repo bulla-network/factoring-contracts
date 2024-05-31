@@ -283,12 +283,12 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
 
-        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
-
 
         uint balanceBeforeReconciliation = asset.balanceOf(bob);
 
         bullaFactoring.reconcileActivePaidInvoices();
+
+        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint balanceAfterReconciliation = asset.balanceOf(bob);
 

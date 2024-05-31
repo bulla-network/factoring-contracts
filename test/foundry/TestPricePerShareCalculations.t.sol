@@ -181,4 +181,54 @@ contract TestPricePerShareCalculations is CommonSetup {
         assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
     }
 
+    function testPriceDoesntChangeAfterSecondFactoring() public {
+        uint256 initialDeposit = 100000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate debtor paying in 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint pricePerShareBeforeSecondFactoring = bullaFactoring.pricePerShare();
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 2000000;
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        bullaFactoring.redeem(initialDeposit / 2, alice, alice);
+        vm.stopPrank();
+
+        uint pricePerShareAfterSecondFactoring = bullaFactoring.pricePerShare();
+
+        assertEq(pricePerShareBeforeSecondFactoring, pricePerShareAfterSecondFactoring, "Price per share should not change after second factoring");
+    }
 }
+
