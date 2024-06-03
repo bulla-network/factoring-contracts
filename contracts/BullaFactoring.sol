@@ -179,26 +179,25 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 trueInterestAndProtocolFeeMbps = Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
 
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
-        uint256 trueGrossFundedAmount = approval.fundedAmountGross - approval.adminFee;
+        uint256 capInterest = invoice.faceValue - approval.fundedAmountNet - approval.adminFee;
 
         // Calculate the true interest and protocol fee
-        uint256 trueInterestAndProtocolFee = Math.min(trueGrossFundedAmount, Math.mulDiv(trueGrossFundedAmount, trueInterestAndProtocolFeeMbps, 1000_0000));
+        uint256 trueInterestAndProtocolFee = Math.min(capInterest, Math.mulDiv(approval.fundedAmountGross, trueInterestAndProtocolFeeMbps, 1000_0000));
 
+        // Calculate the total amount that should have been paid to the original creditor
+        uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterestAndProtocolFee;
+        
         // Calculate the true interest
         trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
+
+        // Calculate the kickback amount
+        kickbackAmount = totalDueToCreditor > approval.fundedAmountNet ? totalDueToCreditor - approval.fundedAmountNet : 0;
 
         // Calculate tax amount on trueInterest
         taxAmount = calculateTax(trueInterest);
 
         // Calculate true protocol fee
-        trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
-
-        // Calculate the total amount that should have been paid to the original creditor
-        uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest - trueProtocolFee - taxAmount;
-        // Retrieve the funded amount from the approvedInvoices mapping
-        uint256 fundedAmount = approval.fundedAmountNet;
-        // Calculate the kickback amount
-        kickbackAmount = totalDueToCreditor > fundedAmount ? totalDueToCreditor - fundedAmount : 0;
+        trueProtocolFee = trueInterestAndProtocolFee - trueInterest;     
 
         return (kickbackAmount, trueInterest, trueProtocolFee, taxAmount);
     }
@@ -354,12 +353,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].invoiceSnapshot.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
+        (uint256 fundedAmountGross, uint256 adminFee, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
+        approvedInvoices[invoiceId].adminFee = adminFee;
         // update upfrontBps with what was passed in the arg by the factorer
         approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
 
@@ -454,18 +454,15 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
             // Retrieve the faceValue for the invoice from the external contract
             IInvoiceProviderAdapter.Invoice memory externalInvoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            uint256 faceValue = externalInvoice.faceValue;
-            uint256 adminFee = Math.mulDiv(faceValue, adminFeeBps, 10000);
+            
             // Add the admin fee to the balance
-            adminFeeBalance += adminFee;
-            // store admin fee in approvedInvoices for its usage in calculateKickbackAmount
-            approvedInvoices[invoiceId].adminFee = adminFee;
+            adminFeeBalance += approvedInvoices[invoiceId].adminFee;
 
             // calculate kickback amount adjusting for true interest and fees
             (uint256 kickbackAmount, uint256 trueInterest , uint256 trueProtocolFee, uint256 taxAmount) = calculateKickbackAmount(invoiceId);
 
             // store factoring gain
-            paidInvoicesGain[invoiceId] = trueInterest;
+            paidInvoicesGain[invoiceId] = trueInterest - taxAmount;
 
             // Update storage variables
             paidInvoiceTax[invoiceId] = taxAmount;
