@@ -274,7 +274,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
-        uint256 actualDaysUntilPayment = 30;
+        uint256 actualDaysUntilPayment = 60;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
         // alice pays invoice

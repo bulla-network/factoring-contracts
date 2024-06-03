@@ -183,7 +183,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // Calculate the true interest and protocol fee
         uint256 trueInterestAndProtocolFee = Math.min(trueGrossFundedAmount, Math.mulDiv(trueGrossFundedAmount, trueInterestAndProtocolFeeMbps, 1000_0000));
-        console.log("trueInterestAndProtocolFee", trueInterestAndProtocolFee);
 
         // Calculate the true interest
         trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
