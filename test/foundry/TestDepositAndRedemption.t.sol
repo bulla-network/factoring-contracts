@@ -191,7 +191,7 @@ contract TestDepositAndRedemption is CommonSetup {
         interestApr = 2000;
         upfrontBps = 8000;
 
-        uint initialImpairReserve = 500; 
+        uint initialImpairReserve = 50000; 
         asset.approve(address(bullaFactoring), initialImpairReserve);
         bullaFactoring.setImpairReserve(initialImpairReserve);
 
