@@ -186,5 +186,68 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
         assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
     }
+
+    function testDepositAndRedemptionWithImpairReserve() public {
+        interestApr = 2000;
+        upfrontBps = 8000;
+
+        uint initialImpairReserve = 500; 
+        asset.approve(address(bullaFactoring), initialImpairReserve);
+        bullaFactoring.setImpairReserve(initialImpairReserve);
+
+        assertEq(bullaFactoring.impairReserve(), initialImpairReserve, "Impair reserve should be set to 500");
+
+        uint256 initialDeposit = 3000000; // deposit 3 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 500000; // 0.5 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 1000000; // 1 USDC
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+
+
+        // Fast forward time by 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays both invoices
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        // reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+       
+        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+
+        uint amountToRedeem = bullaFactoring.maxRedeem();
+
+        // Alice redeems all her shares
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vm.stopPrank();
+    }
 }
 
