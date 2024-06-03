@@ -189,7 +189,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
     function testDepositAndRedemptionWithImpairReserve() public {
         interestApr = 2000;
-        upfrontBps = 8000;
+        upfrontBps = 10000;
 
         uint initialImpairReserve = 50000; 
         asset.approve(address(bullaFactoring), initialImpairReserve);

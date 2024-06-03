@@ -165,7 +165,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
     
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied + 1);
+        daysSinceFunded = Math.max(daysSinceFunded, approval.minDaysInterestApplied);
 
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
@@ -183,6 +183,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // Calculate the true interest and protocol fee
         uint256 trueInterestAndProtocolFee = Math.min(trueGrossFundedAmount, Math.mulDiv(trueGrossFundedAmount, trueInterestAndProtocolFeeMbps, 1000_0000));
+        console.log("trueInterestAndProtocolFee", trueInterestAndProtocolFee);
 
         // Calculate the true interest
         trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
@@ -241,7 +242,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
-        uint256 fees = adminFeeBalance + protocolFeeBalance + taxBalance;
 
         int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
         int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
