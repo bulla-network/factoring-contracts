@@ -451,9 +451,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
             uint256 invoiceId = paidInvoiceIds[i];
-
-            // Retrieve the faceValue for the invoice from the external contract
-            IInvoiceProviderAdapter.Invoice memory externalInvoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
             
             // Add the admin fee to the balance
             adminFeeBalance += approvedInvoices[invoiceId].adminFee;
