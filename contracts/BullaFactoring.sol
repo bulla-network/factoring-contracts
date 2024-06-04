@@ -240,7 +240,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
-
+        
         int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
         int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
 
@@ -251,12 +251,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The current price per share
     function pricePerShare() public view returns (uint256) {
         uint256 sharesOutstanding = totalSupply();
-        if (sharesOutstanding == 0) {
+                if (sharesOutstanding == 0) {
             return SCALING_FACTOR;
         }
 
         uint256 capitalAccount = calculateCapitalAccount();
-        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
+                return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
     /// @notice Converts an asset amount into shares based on the current price per share
@@ -585,11 +585,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
-        uint256 currentPricePerShare = pricePerShare();
         uint256 availableAssetAmount = availableAssets();
+        uint256 capitalAccount = calculateCapitalAccount();
 
-        // Calculate the maximum withdrawable shares based on available assets and current price per share
-        uint256 maxWithdrawableShares = Math.mulDiv(availableAssetAmount, SCALING_FACTOR, currentPricePerShare);
+        if (capitalAccount == 0) {
+            return 0;
+        }
+
+        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR;
+        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+
+        uint256 maxWithdrawableShares = Math.mulDiv(scaledAvailableAssets, totalSupply(), scaledCapitalAccount);
         return maxWithdrawableShares;
     }
 
