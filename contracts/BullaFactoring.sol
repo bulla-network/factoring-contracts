@@ -165,7 +165,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
     
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = Math.max(daysSinceFunded, approval.minDaysInterestApplied);
+        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
 
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
@@ -587,7 +587,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function maxRedeem() public view returns (uint256) {
         uint256 availableAssetAmount = availableAssets();
         uint256 capitalAccount = calculateCapitalAccount();
-        console.log("capitalAccount", capitalAccount);
 
         if (capitalAccount == 0) {
             return 0;
