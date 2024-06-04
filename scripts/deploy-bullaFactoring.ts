@@ -212,7 +212,7 @@ const sepoliaConfig = {
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
     protocolFeeBps: 25,
     adminFeeBps: 50,
-    poolName: 'Bulla TCS Factoring Pool Sepolia v0.2 ',
+    poolName: 'Bulla TCS Factoring Pool Sepolia v0.3',
     taxBps: 10,
     targetYieldBps: 730,
     poolTokenName: 'Bulla TCS Factoring Pool',
@@ -221,7 +221,7 @@ const sepoliaConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    bullaFactoringAddress: '0x84485accC1A6633fbd6D1E835768d452eB126899',
+    bullaFactoringAddress: '0x9390258Fa2864b71537B037f65feD7abca3cB1B2',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
