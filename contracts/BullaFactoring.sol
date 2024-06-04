@@ -240,11 +240,16 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
-        
-        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
-        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
 
-        return uint256(capitalAccount);
+        if (totalWithdrawals > totalDeposits) {
+            int256 withdrawalsMinusDeposits = int256(totalWithdrawals) - int256(totalDeposits);
+            int256 capitalAccount = realizedGainLoss - withdrawalsMinusDeposits;
+            return uint256(capitalAccount > 0 ? uint(capitalAccount) : 0);
+        } else {
+            int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
+            int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
+            return uint256(capitalAccount);
+        }
     }
 
     /// @notice Calculates the current price per share of the fund
@@ -587,6 +592,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function maxRedeem() public view returns (uint256) {
         uint256 availableAssetAmount = availableAssets();
         uint256 capitalAccount = calculateCapitalAccount();
+        console.log("capitalAccount", capitalAccount);
 
         if (capitalAccount == 0) {
             return 0;
