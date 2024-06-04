@@ -165,7 +165,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
     
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied + 1);
+        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
 
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
@@ -179,26 +179,25 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 trueInterestAndProtocolFeeMbps = Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
 
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
-        uint256 trueGrossFundedAmount = approval.fundedAmountGross - approval.adminFee;
+        uint256 capInterest = invoice.faceValue - approval.fundedAmountNet - approval.adminFee;
 
         // Calculate the true interest and protocol fee
-        uint256 trueInterestAndProtocolFee = Math.min(trueGrossFundedAmount, Math.mulDiv(trueGrossFundedAmount, trueInterestAndProtocolFeeMbps, 1000_0000));
+        uint256 trueInterestAndProtocolFee = Math.min(capInterest, Math.mulDiv(approval.fundedAmountGross, trueInterestAndProtocolFeeMbps, 1000_0000));
 
+        // Calculate the total amount that should have been paid to the original creditor
+        uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterestAndProtocolFee;
+        
         // Calculate the true interest
         trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
+
+        // Calculate the kickback amount
+        kickbackAmount = totalDueToCreditor > approval.fundedAmountNet ? totalDueToCreditor - approval.fundedAmountNet : 0;
 
         // Calculate tax amount on trueInterest
         taxAmount = calculateTax(trueInterest);
 
         // Calculate true protocol fee
-        trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
-
-        // Calculate the total amount that should have been paid to the original creditor
-        uint256 totalDueToCreditor = invoice.faceValue - approval.adminFee - trueInterest - trueProtocolFee - taxAmount;
-        // Retrieve the funded amount from the approvedInvoices mapping
-        uint256 fundedAmount = approval.fundedAmountNet;
-        // Calculate the kickback amount
-        kickbackAmount = totalDueToCreditor > fundedAmount ? totalDueToCreditor - fundedAmount : 0;
+        trueProtocolFee = trueInterestAndProtocolFee - trueInterest;     
 
         return (kickbackAmount, trueInterest, trueProtocolFee, taxAmount);
     }
@@ -241,24 +240,23 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
-        uint256 fees = adminFeeBalance + protocolFeeBalance + taxBalance;
 
         int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
         int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
 
-        return uint256(capitalAccount);
+        return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
 
     /// @notice Calculates the current price per share of the fund
     /// @return The current price per share
     function pricePerShare() public view returns (uint256) {
         uint256 sharesOutstanding = totalSupply();
-        if (sharesOutstanding == 0) {
+                if (sharesOutstanding == 0) {
             return SCALING_FACTOR;
         }
 
         uint256 capitalAccount = calculateCapitalAccount();
-        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
+                return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
     /// @notice Converts an asset amount into shares based on the current price per share
@@ -355,12 +353,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].invoiceSnapshot.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
+        (uint256 fundedAmountGross, uint256 adminFee, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
+        approvedInvoices[invoiceId].adminFee = adminFee;
         // update upfrontBps with what was passed in the arg by the factorer
         approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
 
@@ -452,21 +451,15 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
             uint256 invoiceId = paidInvoiceIds[i];
-
-            // Retrieve the faceValue for the invoice from the external contract
-            IInvoiceProviderAdapter.Invoice memory externalInvoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            uint256 faceValue = externalInvoice.faceValue;
-            uint256 adminFee = Math.mulDiv(faceValue, adminFeeBps, 10000);
+            
             // Add the admin fee to the balance
-            adminFeeBalance += adminFee;
-            // store admin fee in approvedInvoices for its usage in calculateKickbackAmount
-            approvedInvoices[invoiceId].adminFee = adminFee;
+            adminFeeBalance += approvedInvoices[invoiceId].adminFee;
 
             // calculate kickback amount adjusting for true interest and fees
             (uint256 kickbackAmount, uint256 trueInterest , uint256 trueProtocolFee, uint256 taxAmount) = calculateKickbackAmount(invoiceId);
 
             // store factoring gain
-            paidInvoicesGain[invoiceId] = trueInterest;
+            paidInvoicesGain[invoiceId] = trueInterest - taxAmount;
 
             // Update storage variables
             paidInvoiceTax[invoiceId] = taxAmount;
@@ -592,11 +585,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
-        uint256 currentPricePerShare = pricePerShare();
         uint256 availableAssetAmount = availableAssets();
+        uint256 capitalAccount = calculateCapitalAccount();
 
-        // Calculate the maximum withdrawable shares based on available assets and current price per share
-        uint256 maxWithdrawableShares = Math.mulDiv(availableAssetAmount, SCALING_FACTOR, currentPricePerShare);
+        if (capitalAccount == 0) {
+            return 0;
+        }
+
+        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR;
+        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+
+        uint256 maxWithdrawableShares = Math.mulDiv(scaledAvailableAssets, totalSupply(), scaledCapitalAccount);
         return maxWithdrawableShares;
     }
 
