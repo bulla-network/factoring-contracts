@@ -592,7 +592,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function maxRedeem() public view returns (uint256) {
         uint256 availableAssetAmount = availableAssets();
         uint256 capitalAccount = calculateCapitalAccount();
-        console.log("capitalAccount", capitalAccount);
 
         if (capitalAccount == 0) {
             return 0;
