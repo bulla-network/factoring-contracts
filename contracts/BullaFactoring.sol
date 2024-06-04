@@ -239,12 +239,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-            int256 realizedGainLoss = calculateRealizedGainLoss();
+        int256 realizedGainLoss = calculateRealizedGainLoss();
 
-            int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
-            int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
+        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
+        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
 
-            return capitalAccount > 0 ? uint(capitalAccount) : 0;
+        return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
 
     /// @notice Calculates the current price per share of the fund
