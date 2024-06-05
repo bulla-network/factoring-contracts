@@ -563,11 +563,23 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return totalFunded;
     }
 
+    /// @notice Sums the target interest for all active invoices
+    /// @return totalTargetInterest The total target interest for all active invoices
+    function sumTargetInterestForActiveInvoices() public view returns (uint256 totalTargetInterest) {
+        totalTargetInterest = 0;
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            uint256 invoiceId = activeInvoices[i];
+            totalTargetInterest += approvedInvoices[invoiceId].interestApr;
+        }
+        return totalTargetInterest;
+    }
+
     /// @notice Calculates the available assets in the fund net of fees, impair reserve and tax
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function availableAssets() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
-        uint256 fees = protocolFeeBalance + adminFeeBalance;
+        uint256 targetInterest = sumTargetInterestForActiveInvoices();
+        uint256 fees = protocolFeeBalance + adminFeeBalance + targetInterest;
         return totalAssetsInFund - fees - impairReserve - taxBalance;
     }
 

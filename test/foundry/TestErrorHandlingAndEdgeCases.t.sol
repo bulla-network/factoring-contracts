@@ -368,7 +368,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint256 maxRedeemAmountAfterGraceImpairment = bullaFactoring.maxRedeem();
 
-        assertEq(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be equal to maxRedeemAmountAfterGraceImpairment");
+        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as availableAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
