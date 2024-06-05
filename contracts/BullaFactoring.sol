@@ -563,23 +563,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return totalFunded;
     }
 
-    /// @notice Calculates the available assets in the fund that are not currently at risk due to active invoice funding
+    /// @notice Calculates the available assets in the fund net of fees, impair reserve and tax
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function availableAssets() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
-        uint256 atRiskCapital = totalFundedAmountForActiveInvoices(); 
-        uint256 impairedLosses = 0;
-
-        // Calculate losses from impaired invoices by fund only if there are active invoices
-        if (activeInvoices.length > 0) {
-            for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
-                uint256 invoiceId = impairedByFundInvoicesIds[i];
-                impairedLosses += impairments[invoiceId].lossAmount;
-            }
-        }
-
-        // Ensures we don't consider at-risk capital and impaired losses as part of the withdrawable assets, as well as fees
-        return totalAssetsInFund > atRiskCapital + impairedLosses ? totalAssetsInFund - atRiskCapital - impairedLosses - protocolFeeBalance - adminFeeBalance - impairReserve - taxBalance : 0;
+        uint256 fees = protocolFeeBalance + adminFeeBalance;
+        return totalAssetsInFund - fees - impairReserve - taxBalance;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund

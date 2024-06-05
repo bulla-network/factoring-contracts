@@ -55,14 +55,14 @@ contract TestDepositAndRedemption is CommonSetup {
     
     function testAvailableAssetsLessThanTotal() public {
         // Alice deposits into the fund
-        uint256 initialDepositAlice = 2000;
+        uint256 initialDepositAlice = 20000000000000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDepositAlice);
         bullaFactoring.deposit(initialDepositAlice, alice);
         vm.stopPrank();
 
         // Bob funds an invoice
-        uint invoiceIdAmount = 100; // Amount of the invoice
+        uint invoiceIdAmount = 10000000; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
@@ -71,12 +71,18 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
+
+        // Debtor pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceIdAmount);
+        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
+        vm.stopPrank();
     
-        assertTrue(bullaFactoring.totalAssets() > bullaFactoring.availableAssets());
+        bullaFactoring.reconcileActivePaidInvoices();
 
-        uint fundedAmount = bullaFactoring.getFundedAmount(invoiceId);
+        uint feesAndTax =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve() + bullaFactoring.taxBalance();
 
-        assertEq(bullaFactoring.totalAssets() - fundedAmount, bullaFactoring.availableAssets(), "Available Assets should be the differenct of total assets and what has been funded");
+        assertEq(bullaFactoring.totalAssets(), bullaFactoring.availableAssets() + feesAndTax, "Available Assets should be lower than total assets by the sum of fees and tax");
     }
 
     function testInvestorWithdrawAllFunds() public {

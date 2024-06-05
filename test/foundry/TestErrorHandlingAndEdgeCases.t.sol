@@ -247,11 +247,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceIdAmount);
         vm.stopPrank();
 
+        bullaFactoring.reconcileActivePaidInvoices();
+
         (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
         uint maxRedeem = bullaFactoring.maxRedeem();
 
-        assertTrue(sharesToRedeemIncludingKickback > maxRedeem);
+        assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
 
         uint pricePerShare = bullaFactoring.pricePerShare();
         uint maxRedeemAmount = maxRedeem * pricePerShare / bullaFactoring.SCALING_FACTOR();
@@ -366,7 +368,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint256 maxRedeemAmountAfterGraceImpairment = bullaFactoring.maxRedeem();
 
-        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as availableAssets get reduces only if an impaired invoice has not yet been impaired by the fund");
+        assertEq(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be equal to maxRedeemAmountAfterGraceImpairment");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
