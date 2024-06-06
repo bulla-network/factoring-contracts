@@ -243,7 +243,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
        
-        assertEq(bullaFactoring.availableAssets(), bullaFactoring.calculateCapitalAccount(), "Available asseta should be equal to capital account");
+        assertEq(bullaFactoring.availableAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
         assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
         uint amountToRedeem = bullaFactoring.maxRedeem();
