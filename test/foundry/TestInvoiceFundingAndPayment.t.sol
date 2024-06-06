@@ -336,4 +336,48 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertApproxEqAbs((fullyUnpaidFundedAmount / 2), partiallyPaidFundedAmount, 1, "Funded amount for partially paid invoice should be half than fully unpaid invoice");
     }
 
+    function testPartiallyPaidInvoice() public {
+        upfrontBps = 8000;
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+
+
+        // alice pays half of the first outstanding invoice
+        vm.startPrank(alice);
+        uint initialPayment = invoiceId01Amount / 2;
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId01, initialPayment);
+        vm.stopPrank();
+
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId02, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        uint fundedAmount01 = bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        uint fundedAmount02 = bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        assertLt(fundedAmount01, fundedAmount02, "Funded amount for partially paid invoice should be less than fully unpaid invoice");
+
+        // Simulate debtor paying on time
+        vm.warp(dueBy - 1);
+
+        (uint256 kickbackAmount01,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount02,,,) = bullaFactoring.calculateKickbackAmount(invoiceId02);
+        assertLt(kickbackAmount01, kickbackAmount02, "Kickback amount for partially paid invoice should be less than kickback amount for fully unpaid invoice");
+    }
+
+
 }

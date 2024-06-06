@@ -20,6 +20,7 @@ interface IBullaFactoring {
         uint256 fundedAmountNet;
         uint256 adminFee;
         uint16 minDaysInterestApplied;
+        uint256 trueFaceValue;
     }
 
     struct Multihash {
