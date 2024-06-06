@@ -247,11 +247,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceIdAmount);
         vm.stopPrank();
 
+        bullaFactoring.reconcileActivePaidInvoices();
+
         (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
         uint maxRedeem = bullaFactoring.maxRedeem();
 
-        assertTrue(sharesToRedeemIncludingKickback > maxRedeem);
+        assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
 
         uint pricePerShare = bullaFactoring.pricePerShare();
         uint maxRedeemAmount = maxRedeem * pricePerShare / bullaFactoring.SCALING_FACTOR();
@@ -366,7 +368,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint256 maxRedeemAmountAfterGraceImpairment = bullaFactoring.maxRedeem();
 
-        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as availableAssets get reduces only if an impaired invoice has not yet been impaired by the fund");
+        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as availableAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
@@ -381,6 +383,52 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
         assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+    }
+
+    function testTargetAndRealisedFeeMatchIfPaidOnTime() public {
+        dueBy = block.timestamp + 30 days;
+        assertEq(dueBy, block.timestamp + minDays * 1 days);
+
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 1000000000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceAmount = 1000000000000;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate invoice is paid exactly on time
+        vm.warp(dueBy - 1);
+
+        uint totalAssetsBefore = bullaFactoring.totalAssets();
+        uint availableAssetsBefore = bullaFactoring.availableAssets();
+
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint availableAssetsAfter = bullaFactoring.availableAssets();
+        uint totalAssetsAfter = bullaFactoring.totalAssets();
+
+        uint targetFees = totalAssetsBefore - availableAssetsBefore;
+        uint realizedFees = totalAssetsAfter - availableAssetsAfter ;
+        assertEq(realizedFees + uint(bullaFactoring.calculateRealizedGainLoss()), targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
 }
 
