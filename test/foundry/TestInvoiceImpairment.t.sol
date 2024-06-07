@@ -126,4 +126,38 @@ contract TestInvoiceImpairment is CommonSetup {
         
         assertTrue(fundInfoAfterImpairmentyFund.realizedGain < fundInfoAfterRepayment.realizedGain, "Realized gain increases when invoice impaired by fund gets paid");
     }
+
+    function testErrorIfImparedReserveNotSet() public {
+        interestApr = 3000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 900000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 dueByNew = block.timestamp + 30 days;
+
+        vm.startPrank(bob);
+        uint invoiceId03Amount = 10000;
+        uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
+        vm.stopPrank();
+
+
+        // Fast forward time by 100 days to simulate the invoice becoming impaired
+        vm.warp(block.timestamp + 100 days);
+
+        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        assertEq(impairedInvoices.length, 1);
+
+        // fund impares the third invoice
+        vm.expectRevert(abi.encodeWithSignature("ImpairReserveNotSet()"));
+        bullaFactoring.impairInvoice(invoiceId03);
+       }
 }

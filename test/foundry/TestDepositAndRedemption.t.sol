@@ -253,6 +253,83 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.redeem(amountToRedeem, alice, alice);
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
+
+        // withdraw all fess
+        bullaFactoring.withdrawAdminFees();
+        assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
+        bullaFactoring.withdrawTaxBalance();
+        assertEq(bullaFactoring.taxBalance(), 0, "Tax balance should be 0");
+
+        vm.prank(bullaDao);
+        bullaFactoring.withdrawProtocolFees();
+        assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
+    }
+
+
+
+    function testBalanceOfFundShouldBeZeroAfterAllFeeWithdrawals() public {
+        dueBy = block.timestamp + 60 days; // Invoice due in 60 days
+        uint256 invoiceAmount = 100000; // Invoice amount is $100000
+        interestApr = 1000; // 10% APR
+        upfrontBps = 8000; // 80% upfront
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate debtor paying in 30 days instead of 60
+        uint256 actualDaysUntilPayment = 30;
+        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
+
+        // Debtor pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Alice redeems all her funds
+        vm.startPrank(alice);
+        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vm.stopPrank();
+
+        assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+
+        // withdraw all fess
+        bullaFactoring.withdrawAdminFees();
+        assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
+        bullaFactoring.withdrawTaxBalance();
+        assertEq(bullaFactoring.taxBalance(), 0, "Tax balance should be 0");
+
+        vm.prank(bullaDao);
+        bullaFactoring.withdrawProtocolFees();
+        assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
 }
 
