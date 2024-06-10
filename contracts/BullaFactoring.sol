@@ -498,7 +498,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param amount The amount of the payment on which tax is to be calculated.
     /// @return The calculated tax amount.
     function calculateTax(uint256 amount) public view returns (uint256) {
-        return Math.mulDiv(amount, taxBps * 1000, SCALING_FACTOR);
+        return Math.mulDiv(amount, taxBps * 1000, 1_000_000);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
