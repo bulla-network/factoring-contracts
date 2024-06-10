@@ -89,6 +89,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error ImpairReserveMustBeGreater();
     error TransferFailed();
     error InvoiceCreditorChanged();
+    error ImpairReserveNotSet();
 
 
     /// @param _asset underlying supported stablecoin asset for deposit 
@@ -179,7 +180,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // calculate the true APR discount with protocols fee
         // millibips used due to the small nature of the fees
         uint256 trueInterestAndProtocolFeeMbps = Math.mulDiv(trueInterestRateMbps, (10000 + protocolFeeBps), 10000);
-
+        
         // cap interest to max available to distribute, excluding the targetInterest and targetProtocolFee
         uint256 capInterest = approval.trueFaceValue - approval.fundedAmountNet - approval.adminFee;
 
@@ -497,7 +498,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param amount The amount of the payment on which tax is to be calculated.
     /// @return The calculated tax amount.
     function calculateTax(uint256 amount) public view returns (uint256) {
-        return Math.mulDiv(amount, taxBps, 10000);
+        return Math.mulDiv(amount, taxBps * 1000, 1_000_000);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
@@ -808,6 +809,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     }
 
     function impairInvoice(uint256 invoiceId) public onlyOwner {
+        if (impairReserve == 0) revert ImpairReserveNotSet();
         if (!isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
 
         if (impairments[invoiceId].isImpaired) {

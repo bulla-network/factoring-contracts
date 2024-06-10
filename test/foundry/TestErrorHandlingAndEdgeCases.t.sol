@@ -271,6 +271,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     }
 
     function testGainLossCanBeNegative() public {
+        uint initialImpairReserve = 500; 
+        asset.approve(address(bullaFactoring), initialImpairReserve);
+        bullaFactoring.setImpairReserve(initialImpairReserve);
+
         // Alice deposits into the fund
         bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no funds");
@@ -335,6 +339,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     }
 
     function testImpairedInvoiceWithAllSharesRedeemed() public {
+        uint initialImpairReserve = 500; 
+        asset.approve(address(bullaFactoring), initialImpairReserve);
+        bullaFactoring.setImpairReserve(initialImpairReserve);
+        
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should start at 0");
 
         uint256 initialDeposit = 1000000;
