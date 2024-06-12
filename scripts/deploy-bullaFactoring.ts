@@ -88,7 +88,7 @@ export const deployBullaFactoring = async ({
 
     // Deploy mock permissions contracts if not provided
     if (!factoringPermissionsAddress) {
-        const { address: factoringPermissionsAddress } = await deploy('MockPermissions', {
+        const { address: factoringPermissionsAddress } = await deploy('FactoringPermissions', {
             from: deployer,
             args: [],
         });
@@ -99,7 +99,7 @@ export const deployBullaFactoring = async ({
     }
 
     if (!depositPermissionsAddress) {
-        const { address: depositPermissionsAddress } = await deploy('MockPermissions', {
+        const { address: depositPermissionsAddress } = await deploy('DepositPermissions', {
             from: deployer,
             args: [],
         });
@@ -229,19 +229,20 @@ const sepoliaConfig = {
 const polygonConfig = {
     bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4', // Polygon Address
     underlyingAsset: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359', // Polygon USDC
-    underwriter: '0x201D274192Fa7b21ce802f0b87D75Ae493A8C93D', // Ben's address
-    bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
-    protocolFeeBps: 25,
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+    bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+    protocolFeeBps: 100,
     adminFeeBps: 50,
-    poolName: 'Bulla TCS Factoring Pool - Polygon V0 Test',
+    poolName: 'Bulla TCS Factoring Pool - Polygon V1',
     taxBps: 10,
-    targetYieldBps: 730,
-    poolTokenName: 'Bulla TCS Factoring Pool',
+    targetYieldBps: 1000, // 10%
+    poolTokenName: 'Bulla TCS Factoring Pool Token',
     poolTokenSymbol: 'BFT-TCS',
     network,
     BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
-    factoringPermissionsAddress: '0x79B14C823A20DC5556A6922291020785B31274D5',
-    depositPermissionsAddress: '0x052E0d83BCeF4e75917Fcc10aB89D3F0F505926b',
+    // factoringPermissionsAddress: '',
+    // depositPermissionsAddress: '',
+    // bullaFactoringAddress: '',
     writeNewAddresses: false,
     setImpairReserve: false,
 };
