@@ -4,12 +4,13 @@ import addresses from '../addresses.json';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
 
-export const verifyContract = async (address: string, constructorArguments: any[], network: string) => {
+export const verifyContract = async (address: string, constructorArguments: any[], network: string, contractName?: string) => {
     try {
         await hre.run('verify:verify', {
             address,
             constructorArguments,
             network,
+            contractName,
         });
         console.log(`Contract verified: ${address}`);
     } catch (error: any) {
@@ -92,8 +93,8 @@ export const deployBullaFactoring = async ({
             from: deployer,
             args: [],
         });
-        await verifyContract(factoringPermissionsAddress, [], network);
-        console.log(`MockFactoringPermissionsAddress deployed: ${factoringPermissionsAddress}`);
+        await verifyContract(factoringPermissionsAddress, [], network, 'contracts/FactoringPermissions.sol:FactoringPermissions');
+        console.log(`FactoringPermissionsAddress deployed: ${factoringPermissionsAddress}`);
     } else {
         console.log(`Using provided factoringPermissionsAddress: ${factoringPermissionsAddress}`);
     }
@@ -103,14 +104,14 @@ export const deployBullaFactoring = async ({
             from: deployer,
             args: [],
         });
-        await verifyContract(depositPermissionsAddress, [], network);
-        console.log(`MockDepositPermissionsAddress deployed: ${depositPermissionsAddress}`);
+        await verifyContract(depositPermissionsAddress, [], network, 'contracts/DepositPermissions.sol:DepositPermissions');
+        console.log(`DepositPermissionsAddress deployed: ${depositPermissionsAddress}`);
     } else {
         console.log(`Using provided depositPermissionsAddress: ${depositPermissionsAddress}`);
     }
 
     // Deploy bulla factoring contract if not provided
-    if (!bullaFactoringAddress) {
+    if (!bullaFactoringAddress && factoringPermissionsAddress && depositPermissionsAddress) {
         const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
             from: deployer,
             args: [
@@ -208,7 +209,7 @@ if (!network) {
 const sepoliaConfig = {
     bullaClaim: '0x3702D060cbB102b6AebF40B40880F77BeF3d7225', // Sepolia Address
     underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // Sepolia USDC
-    underwriter: '0x201D274192Fa7b21ce802f0b87D75Ae493A8C93D', // Ben's address
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
     protocolFeeBps: 25,
     adminFeeBps: 50,
@@ -240,11 +241,11 @@ const polygonConfig = {
     poolTokenSymbol: 'BFT-TCS',
     network,
     BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
-    // factoringPermissionsAddress: '',
-    // depositPermissionsAddress: '',
-    // bullaFactoringAddress: '',
-    writeNewAddresses: false,
-    setImpairReserve: false,
+    factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
+    depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
+    bullaFactoringAddress: '0x651B03509C9c05f8A438c3e2f437d8b05aA762a2',
+    writeNewAddresses: true,
+    setImpairReserve: true,
 };
 
 const config = network === 'sepolia' ? sepoliaConfig : polygonConfig;
