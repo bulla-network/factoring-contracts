@@ -438,5 +438,85 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint realizedFees = totalAssetsAfter - availableAssetsAfter ;
         assertEq(realizedFees + uint(bullaFactoring.calculateRealizedGainLoss()), targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
+
+    function testAvailableAssetsDeclineWhenCapitalIsAtRisk() public {
+        interestApr = 2000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 3000000; // deposit 3 USDC
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint initialPps = bullaFactoring.pricePerShare();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 500000; // 0.5 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // Fast forward time by 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays first invoice
+        vm.startPrank(alice);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+        // reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
+
+        assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 1000000; // 1 USDC
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        // alice maxRedeems
+        uint amountToRedeem = bullaFactoring.maxRedeem();
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertGt(bullaFactoring.balanceOf(alice), 0, "Alice should have some balance left");
+        vm.stopPrank();
+        
+        // Fast forward time by 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays second invoice
+        vm.startPrank(alice);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        // reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
+        assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");
+
+        // alice maxRedeems
+        amountToRedeem = bullaFactoring.maxRedeem();
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vm.stopPrank();
+
+        uint ppsAfterFullRedemption = bullaFactoring.pricePerShare();
+        assertEq(initialPps, ppsAfterFullRedemption, "Price per share should be equal to initial price per share");
+    }
 }
 

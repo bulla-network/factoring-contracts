@@ -17,5 +17,5 @@ constructor-args :=
 
 build  :; forge build --via-ir
 test   :; forge test -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
-test-s   :; forge test --match-path test/foundry/TestDepositAndRedemption.t.sol -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
+test-s   :; forge test --match-path test/foundry/TestErrorHandlingAndEdgeCases.t.sol -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir

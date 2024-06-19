@@ -223,7 +223,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
-        uint256 fundedTimestamp = block.timestamp;
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
