@@ -276,9 +276,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
         if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
-
+        uint256 capitalAccount = calculateCapitalAccount();
+        uint256 sharesOutstanding = totalSupply();
         assetAddress.transferFrom(from, address(this), assets);
-        uint256 shares = convertToShares(assets);
+
+        uint256 shares;
+        if(sharesOutstanding == 0) {
+            shares = assets;
+        } else {
+            shares = Math.mulDiv(assets * SCALING_FACTOR, sharesOutstanding, capitalAccount) / SCALING_FACTOR;
+        }
+
         _mint(receiver, shares);
 
         totalDeposits += assets;
