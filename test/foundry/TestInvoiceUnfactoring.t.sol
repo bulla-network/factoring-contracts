@@ -115,8 +115,6 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
-        
-        console.log(bullaFactoring.availableAssets(), bullaFactoring.calculateCapitalAccount());
         assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
         uint amountToRedeem = bullaFactoring.maxRedeem();
@@ -181,6 +179,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint balanceAfterDelayedUnfactoring = asset.balanceOf(bob);
         uint refundeDelayedUnfactoring = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
 
-        assertTrue(refundedAmount > refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
+        // If the unfactoring is delayed, the will be more interest to be paid BY Bob, therefore, his refund payment should be bigger than the low interest unfactor.
+        assertTrue(refundedAmount < refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
     } 
 }
