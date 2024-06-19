@@ -487,13 +487,18 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
+        uint priceBeforeRedeem = bullaFactoring.pricePerShare();
+
         // alice maxRedeems
         uint amountToRedeem = bullaFactoring.maxRedeem();
         vm.prank(alice);
         bullaFactoring.redeem(amountToRedeem, alice, alice);
         assertGt(bullaFactoring.balanceOf(alice), 0, "Alice should have some balance left");
         vm.stopPrank();
-        
+
+        uint priceAfterRedeem = bullaFactoring.pricePerShare();
+        assertEq(priceBeforeRedeem, priceAfterRedeem, "Price per share should remain the same after redemption");
+
         // Fast forward time by 30 days
         vm.warp(block.timestamp + 30 days);
 

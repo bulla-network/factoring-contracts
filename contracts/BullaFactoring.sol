@@ -10,9 +10,8 @@ import "./interfaces/IBullaFactoring.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
-/// @title Bulla Factoring Fund POC
+/// @title Bulla Factoring Fund
 /// @author @solidoracle
-/// @notice  
 contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     using Math for uint256;
 
@@ -254,7 +253,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The current price per share
     function pricePerShare() public view returns (uint256) {
         uint256 sharesOutstanding = totalSupply();
-                if (sharesOutstanding == 0) {
+        if (sharesOutstanding == 0) {
             return SCALING_FACTOR;
         }
 
@@ -595,8 +594,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             return 0;
         }
 
-        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR;
-        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR * 1000;
+        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR * 1000;
 
         uint256 maxWithdrawableShares = Math.mulDiv(scaledAvailableAssets, totalSupply(), scaledCapitalAccount);
         return maxWithdrawableShares;
