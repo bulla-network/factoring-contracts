@@ -276,7 +276,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.setImpairReserve(initialImpairReserve);
 
         // Alice deposits into the fund
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no funds");
         uint256 initialDepositAlice = 25000000000; // initialize a 25k pool
         vm.startPrank(alice);
