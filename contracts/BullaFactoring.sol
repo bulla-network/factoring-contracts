@@ -594,8 +594,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             return 0;
         }
 
-        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR * 1000;
-        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR * 1000;
+        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR;
+        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
 
         uint256 maxWithdrawableShares = Math.mulDiv(scaledAvailableAssets, totalSupply(), scaledCapitalAccount);
         return maxWithdrawableShares;
@@ -615,8 +615,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             _withdraw(from, receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
             assets = maxWithdrawableAmount;
         } else {
-            uint256 currentPricePerShare = pricePerShare();
-            assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);
+            uint256 scaledShares = shares * SCALING_FACTOR;
+            uint256 capitalAccount = calculateCapitalAccount();
+            uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+            uint assetsScaled = Math.mulDiv(scaledShares , scaledCapitalAccount , totalSupply());
+            assets = assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
             _withdraw(from, receiver, owner, assets, shares);
         }
         totalWithdrawals += assets;
