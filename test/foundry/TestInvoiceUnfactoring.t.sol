@@ -115,6 +115,15 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
+        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+
+        uint amountToRedeem = bullaFactoring.maxRedeem();
+
+        // Alice redeems all her shares
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vm.stopPrank();
     }
 
     function testInterestAccruedOnUnfactoredInvoice() public {
