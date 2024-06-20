@@ -230,5 +230,88 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         assertEq(pricePerShareBeforeSecondFactoring, pricePerShareAfterSecondFactoring, "Price per share should not change after second factoring");
     }
+
+    function testConstantSharePrice() public {
+        interestApr = 2000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 3000000; // deposit 3 USDC
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint initialPps = bullaFactoring.pricePerShare();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 500000; // 0.5 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // Fast forward time by 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays first invoice
+        vm.startPrank(alice);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+        // reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
+
+        assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
+
+        // alice deposits an additional 1 USDC
+        uint256 anotherDeposit = 1000000; // deposit 1 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(anotherDeposit, alice);
+        vm.stopPrank();
+
+        uint ppsAfterSecondDeposit = bullaFactoring.pricePerShare();
+
+        assertEq(ppsAfterSecondDeposit, ppsAfterFirstRepayment, "Price per share should remain the same after second deposit");
+
+        vm.startPrank(bob);
+        uint invoiceId02Amount = 1000000; // 1 USDC
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        // Fast forward time by 30 days
+        vm.warp(block.timestamp + 30 days);
+
+        // alice pays second invoice
+        vm.startPrank(alice);
+        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
+        vm.stopPrank();
+
+        // reconcile redeemed invoice to adjust the price
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
+        assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");
+
+        // alice redeems half of her balance 
+        uint256 sharesToWithdraw = bullaFactoring.balanceOf(alice) / 2;
+        vm.startPrank(alice);
+        bullaFactoring.redeem(sharesToWithdraw, alice, alice);
+        vm.stopPrank();
+
+        uint ppsAfterRedemption = bullaFactoring.pricePerShare();
+
+        assertEq(ppsAfterSecondRepayment, ppsAfterRedemption, "Price per share should remain the same after partial redemption");
+    }
 }
 

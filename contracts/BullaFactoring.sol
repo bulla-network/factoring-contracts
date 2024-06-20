@@ -10,9 +10,8 @@ import "./interfaces/IBullaFactoring.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
-/// @title Bulla Factoring Fund POC
+/// @title Bulla Factoring Fund
 /// @author @solidoracle
-/// @notice  
 contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     using Math for uint256;
 
@@ -158,24 +157,18 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDaysInterestApplied);
     }
 
-    /// @notice Calculates the kickback amount for a given funded amount allowing early payment
-    /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
-    /// @return kickbackAmount The calculated kickback amount
-    /// @return trueInterest The true interest amount
-    /// @return trueProtocolFee The true protocol fee amount
-    /// @return taxAmount The tax amount on the true interest
-    function calculateKickbackAmount(uint256 invoiceId) public view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee, uint256 taxAmount) {
-        InvoiceApproval memory approval = approvedInvoices[invoiceId];
-    
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
-        daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
-
+    /// @notice Calculates the interest and protocol fee for a given invoice approval over a specified number of days
+    /// @param approval The invoice approval details
+    /// @param daysOfInterest The number of days over which interest is calculated
+    /// @return trueInterest The calculated true interest amount
+    /// @return trueProtocolFee The calculated true protocol fee amount
+    function calculateInterestAndProtocolFee(InvoiceApproval memory approval, uint256 daysOfInterest) private view returns (uint256 trueInterest, uint256 trueProtocolFee) {
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
 
         // Calculate the true APR discount for the actual payment period
         // millibips used due to the small nature of the fees
-        uint256 trueInterestRateMbps = Math.mulDiv(interestAprMbps, daysSinceFunded, 365);
+        uint256 trueInterestRateMbps = Math.mulDiv(interestAprMbps, daysOfInterest, 365);
 
         // calculate the true APR discount with protocols fee
         // millibips used due to the small nature of the fees
@@ -186,23 +179,36 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // Calculate the true interest and protocol fee
         uint256 trueInterestAndProtocolFee = Math.min(capInterest, Math.mulDiv(approval.fundedAmountGross, trueInterestAndProtocolFeeMbps, 1000_0000));
-
-        // Calculate the total amount that should have been paid to the original creditor
-        uint256 totalDueToCreditor = approval.trueFaceValue - approval.adminFee - trueInterestAndProtocolFee;
         
         // Calculate the true interest
         trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
 
+        // Calculate true protocol fee
+        trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
+
+        return (trueInterest, trueProtocolFee);
+    }
+
+    /// @notice Calculates the kickback amount for a given funded amount allowing early payment
+    /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
+    /// @return kickbackAmount The calculated kickback amount
+    /// @return trueInterest The true interest amount
+    /// @return trueProtocolFee The true protocol fee amount
+    function calculateKickbackAmount(uint256 invoiceId) public view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee) {
+        InvoiceApproval memory approval = approvedInvoices[invoiceId];
+    
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
+        uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
+
+        (trueInterest, trueProtocolFee) = calculateInterestAndProtocolFee(approval, daysOfInterest);
+
+        // Calculate the total amount that should have been paid to the original creditor
+        uint256 totalDueToCreditor = approval.trueFaceValue - approval.adminFee - trueInterest - trueProtocolFee;
+
         // Calculate the kickback amount
         kickbackAmount = totalDueToCreditor > approval.fundedAmountNet ? totalDueToCreditor - approval.fundedAmountNet : 0;
 
-        // Calculate tax amount on trueInterest
-        taxAmount = calculateTax(trueInterest);
-
-        // Calculate true protocol fee
-        trueProtocolFee = trueInterestAndProtocolFee - trueInterest;     
-
-        return (kickbackAmount, trueInterest, trueProtocolFee, taxAmount);
+        return (kickbackAmount, trueInterest, trueProtocolFee);
     }
 
     /// @notice Calculates the total realized gain or loss from paid and impaired invoices
@@ -254,12 +260,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The current price per share
     function pricePerShare() public view returns (uint256) {
         uint256 sharesOutstanding = totalSupply();
-                if (sharesOutstanding == 0) {
+        if (sharesOutstanding == 0) {
             return SCALING_FACTOR;
         }
 
         uint256 capitalAccount = calculateCapitalAccount();
-                return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
+        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
     /// @notice Converts an asset amount into shares based on the current price per share
@@ -277,9 +283,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
         if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
-
+        uint256 capitalAccount = calculateCapitalAccount();
+        uint256 sharesOutstanding = totalSupply();
         assetAddress.transferFrom(from, address(this), assets);
-        uint256 shares = convertToShares(assets);
+
+        uint256 shares;
+        if(sharesOutstanding == 0) {
+            shares = assets;
+        } else {
+            shares = Math.mulDiv(assets * SCALING_FACTOR, sharesOutstanding, capitalAccount) / SCALING_FACTOR;
+        }
+
         _mint(receiver, shares);
 
         totalDeposits += assets;
@@ -446,6 +460,28 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function getFundedAmount(uint invoiceId) public view returns (uint) {
         return approvedInvoices[invoiceId].fundedAmountNet;
     }
+    
+    /// @notice Increments the profit, tax, and fee balances for a given invoice
+    /// @param invoiceId The ID of the invoice
+    /// @param trueInterest The true interest amount for the invoice
+    /// @param trueProtocolFee The true protocol fee amount for the invoice
+    function incrementProfitTaxAndFeeBalances(uint256 invoiceId, uint256 trueInterest, uint256 trueProtocolFee) private {
+        // Add the admin fee to the balance
+        adminFeeBalance += approvedInvoices[invoiceId].adminFee;
+        
+        uint256 taxAmount = calculateTax(trueInterest);
+
+        // store factoring gain
+        paidInvoicesGain[invoiceId] = trueInterest - taxAmount;
+
+        // Update storage variables
+        paidInvoiceTax[invoiceId] = taxAmount;
+        taxBalance += taxAmount;
+        protocolFeeBalance += trueProtocolFee;
+
+        // Add the invoice ID to the paidInvoicesIds array
+        paidInvoicesIds.push(invoiceId);
+    }
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
@@ -455,22 +491,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
             uint256 invoiceId = paidInvoiceIds[i];
             
-            // Add the admin fee to the balance
-            adminFeeBalance += approvedInvoices[invoiceId].adminFee;
-
             // calculate kickback amount adjusting for true interest and fees
-            (uint256 kickbackAmount, uint256 trueInterest , uint256 trueProtocolFee, uint256 taxAmount) = calculateKickbackAmount(invoiceId);
+            (uint256 kickbackAmount, uint256 trueInterest , uint256 trueProtocolFee) = calculateKickbackAmount(invoiceId);
 
-            // store factoring gain
-            paidInvoicesGain[invoiceId] = trueInterest - taxAmount;
-
-            // Update storage variables
-            paidInvoiceTax[invoiceId] = taxAmount;
-            taxBalance += taxAmount;
-            protocolFeeBalance += trueProtocolFee;
-
-            // Add the invoice ID to the paidInvoicesIds array
-            paidInvoicesIds.push(invoiceId);
+            incrementProfitTaxAndFeeBalances(invoiceId, trueInterest, trueProtocolFee);
 
             // Disperse kickback amount to the original creditor
             address originalCreditor = originalCreditors[invoiceId];            
@@ -518,17 +542,18 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         address originalCreditor = originalCreditors[invoiceId];
         if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
 
+        InvoiceApproval memory approval = approvedInvoices[invoiceId];
         // Calculate the funded amount for the invoice
-        uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
+        uint256 fundedAmount = approval.fundedAmountNet;
 
         // Calculate the number of days since funding
-        uint256 daysSinceFunding = (block.timestamp - approvedInvoices[invoiceId].fundedTimestamp) / 60 / 60 / 24;
+        uint256 daysSinceFunding = (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24;
         uint256 daysOfInterestToCharge = daysSinceFunding + 1;
 
-        // Calculate interest to charge
-        uint256 accruedInterest = Math.mulDiv(approvedInvoices[invoiceId].interestApr, daysOfInterestToCharge, 365); // APR adjusted for the number of days
-        uint256 interestToCharge = Math.mulDiv(fundedAmount, accruedInterest, 10000); // Calculate interest
-        uint256 totalRefundAmount = fundedAmount > interestToCharge ?  fundedAmount - interestToCharge : 0;
+        uint256 targetInterestAndProtocolFees = approval.fundedAmountGross - approval.fundedAmountNet - approval.adminFee;
+        
+        (uint256 trueInterest, uint256 trueProtocolFee) = calculateInterestAndProtocolFee(approval, daysOfInterestToCharge);
+        uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee > targetInterestAndProtocolFees ? fundedAmount + trueInterest + trueProtocolFee - targetInterestAndProtocolFees : 0;
 
         // Refund the funded amount to the fund from the original creditor
         require(assetAddress.transferFrom(originalCreditor, address(this), totalRefundAmount), "Refund transfer failed");
@@ -538,10 +563,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         IERC721(invoiceContractAddress).transferFrom(address(this), originalCreditor, invoiceId);
 
         // Update the contract's state to reflect the unfactoring
-        removeActivePaidInvoice(invoiceId); 
+        removeActivePaidInvoice(invoiceId);
+        incrementProfitTaxAndFeeBalances(invoiceId, trueInterest, trueProtocolFee);
+
         delete originalCreditors[invoiceId];
 
-        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundAmount, interestToCharge);
+        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundAmount, trueInterest);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
@@ -616,8 +643,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             _withdraw(from, receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
             assets = maxWithdrawableAmount;
         } else {
-            uint256 currentPricePerShare = pricePerShare();
-            assets = Math.mulDiv(shares, currentPricePerShare, SCALING_FACTOR);
+            uint256 scaledShares = shares * SCALING_FACTOR;
+            uint256 capitalAccount = calculateCapitalAccount();
+            uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+            uint assetsScaled = Math.mulDiv(scaledShares , scaledCapitalAccount , totalSupply());
+            assets = assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
             _withdraw(from, receiver, owner, assets, shares);
         }
         totalWithdrawals += assets;

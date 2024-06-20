@@ -115,6 +115,15 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
+        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+
+        uint amountToRedeem = bullaFactoring.maxRedeem();
+
+        // Alice redeems all her shares
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vm.stopPrank();
     }
 
     function testInterestAccruedOnUnfactoredInvoice() public {
@@ -145,7 +154,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
 
         uint balanceAfterUnfactoring = asset.balanceOf(bob);
-        uint refundedAmount = balanceBeforeUnfactoring - balanceAfterUnfactoring;
+        uint refundedUnfactoringInterest = balanceBeforeUnfactoring - balanceAfterUnfactoring;
 
         vm.startPrank(bob);
         uint256 invoiceId03 = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -168,8 +177,9 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
   
         uint balanceAfterDelayedUnfactoring = asset.balanceOf(bob);
-        uint refundeDelayedUnfactoring = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
+        uint refundedDelayedUnfactoringInterest = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
 
-        assertTrue(refundedAmount > refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
+        // If the unfactoring is delayed, the will be more interest to be paid BY Bob, therefore, his refund payment should be bigger than the low interest unfactor.
+        assertTrue(refundedUnfactoringInterest < refundedDelayedUnfactoringInterest, "Interest should accrue when unfactoring invoices");
     } 
 }
