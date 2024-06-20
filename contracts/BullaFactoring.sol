@@ -157,6 +157,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDaysInterestApplied);
     }
 
+    /// @notice Calculates the interest and protocol fee for a given invoice approval over a specified number of days
+    /// @param approval The invoice approval details
+    /// @param daysOfInterest The number of days over which interest is calculated
+    /// @return trueInterest The calculated true interest amount
+    /// @return trueProtocolFee The calculated true protocol fee amount
     function calculateInterestAndProtocolFee(InvoiceApproval memory approval, uint256 daysOfInterest) private view returns (uint256 trueInterest, uint256 trueProtocolFee) {
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
@@ -455,7 +460,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function getFundedAmount(uint invoiceId) public view returns (uint) {
         return approvedInvoices[invoiceId].fundedAmountNet;
     }
-
+    
+    /// @notice Increments the profit, tax, and fee balances for a given invoice
+    /// @param invoiceId The ID of the invoice
+    /// @param trueInterest The true interest amount for the invoice
+    /// @param trueProtocolFee The true protocol fee amount for the invoice
     function incrementProfitTaxAndFeeBalances(uint256 invoiceId, uint256 trueInterest, uint256 trueProtocolFee) private {
         // Add the admin fee to the balance
         adminFeeBalance += approvedInvoices[invoiceId].adminFee;

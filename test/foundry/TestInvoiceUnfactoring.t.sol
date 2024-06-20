@@ -154,7 +154,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
 
         uint balanceAfterUnfactoring = asset.balanceOf(bob);
-        uint refundedAmount = balanceBeforeUnfactoring - balanceAfterUnfactoring;
+        uint refundedUnfactoringInterest = balanceBeforeUnfactoring - balanceAfterUnfactoring;
 
         vm.startPrank(bob);
         uint256 invoiceId03 = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -177,9 +177,9 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
   
         uint balanceAfterDelayedUnfactoring = asset.balanceOf(bob);
-        uint refundeDelayedUnfactoring = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
+        uint refundedDelayedUnfactoringInterest = balanceBeforeDelayedUnfactoring - balanceAfterDelayedUnfactoring;
 
         // If the unfactoring is delayed, the will be more interest to be paid BY Bob, therefore, his refund payment should be bigger than the low interest unfactor.
-        assertTrue(refundedAmount < refundeDelayedUnfactoring, "Interest should accrue when unfactoring invoices");
+        assertTrue(refundedUnfactoringInterest < refundedDelayedUnfactoringInterest, "Interest should accrue when unfactoring invoices");
     } 
 }
