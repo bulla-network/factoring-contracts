@@ -130,13 +130,13 @@ contract TestInvoiceUnfactoring is CommonSetup {
         interestApr = 2000;
         upfrontBps = 10000;
 
-        uint256 initialDeposit = 2000;
+        uint256 initialDeposit = 200000;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint invoiceId01Amount = 500;
+        uint invoiceId01Amount = 50000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
