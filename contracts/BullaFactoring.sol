@@ -553,7 +553,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 targetInterestAndProtocolFees = approval.fundedAmountGross - approval.fundedAmountNet - approval.adminFee;
         
         (uint256 trueInterest, uint256 trueProtocolFee) = calculateInterestAndProtocolFee(approval, daysOfInterestToCharge);
-        uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee > targetInterestAndProtocolFees ? fundedAmount + trueInterest + trueProtocolFee - targetInterestAndProtocolFees : 0;
+        uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee + approval.adminFee;
 
         // Refund the funded amount to the fund from the original creditor
         require(assetAddress.transferFrom(originalCreditor, address(this), totalRefundAmount), "Refund transfer failed");

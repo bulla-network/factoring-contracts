@@ -126,6 +126,49 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
     }
 
+    function testEarlyUnfactoringCorrectlyCalculatesRefund() public {
+        interestApr = 2000;
+        upfrontBps = 10000;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 50000;
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1 days);
+
+        uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
+
+        // Bob unfactors the invoice
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId01);
+        vm.stopPrank();
+
+        uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
+
+        assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored invoice");
+        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+
+        uint amountToRedeem = bullaFactoring.maxRedeem();
+
+        // Alice redeems all her shares
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vm.stopPrank();
+    }
+
     function testInterestAccruedOnUnfactoredInvoice() public {
         interestApr = 2000;
         upfrontBps = 8000;
