@@ -236,14 +236,14 @@ const polygonConfig = {
     adminFeeBps: 50,
     poolName: 'Bulla TCS Factoring Pool - Polygon V1',
     taxBps: 10,
-    targetYieldBps: 1000, // 10%
+    targetYieldBps: 1030, // 10.3%
     poolTokenName: 'Bulla TCS Factoring Pool Token',
     poolTokenSymbol: 'BFT-TCS',
     network,
     BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
     depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-    bullaFactoringAddress: '0x651B03509C9c05f8A438c3e2f437d8b05aA762a2',
+    bullaFactoringAddress: '0x573119CF113281270F21cFE6537482E84D0300eF',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
