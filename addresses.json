@@ -147,6 +147,12 @@
       "bullaClaimInvoiceProviderAdapter": "0xB5B31E95f0C732450Bc869A6467A9941C8565b10",
       "depositPermissions": "0xBB56c6E4e0812de05bf870941676F6467D964d5e",
       "factoringPermissions": "0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4"
+    },
+    "0x573119CF113281270F21cFE6537482E84D0300eF": {
+      "name": "Bulla TCS Factoring Pool - Polygon V1",
+      "bullaClaimInvoiceProviderAdapter": "0xB5B31E95f0C732450Bc869A6467A9941C8565b10",
+      "depositPermissions": "0xBB56c6E4e0812de05bf870941676F6467D964d5e",
+      "factoringPermissions": "0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4"
     }
   },
   "1284": {
