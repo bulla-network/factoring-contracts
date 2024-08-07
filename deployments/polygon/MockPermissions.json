@@ -1,0 +1,174 @@
+{
+  "address": "0x052E0d83BCeF4e75917Fcc10aB89D3F0F505926b",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "AccessGranted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "AccessRevoked",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "allow",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "allowedAddresses",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "disallow",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "isAllowed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xa46f97c2304adde6381e055a384cf70081be6e4da29195906539d930808eb5c3",
+  "receipt": {
+    "to": null,
+    "from": "0xD0f598821FaAe3Fbec9874f43A25ad3301021817",
+    "contractAddress": "0x052E0d83BCeF4e75917Fcc10aB89D3F0F505926b",
+    "transactionIndex": 5,
+    "gasUsed": "135871",
+    "logsBloom": "0x00100000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000008000000000000000000000000000000080000000000000000000000000800000000000000000000100000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000080000200000000000000000000000000000000000000000000000000000000000004000000000000000000001000000000000000000000000000000100000000004000000000000000000000000000000000000000000000000000000000000100000",
+    "blockHash": "0x69afdfcd6494ec21ebb7d8171b9f8f61f7c042f6a4e6c5822ba7f35a5e1b140d",
+    "transactionHash": "0xa46f97c2304adde6381e055a384cf70081be6e4da29195906539d930808eb5c3",
+    "logs": [
+      {
+        "transactionIndex": 5,
+        "blockNumber": 57445589,
+        "transactionHash": "0xa46f97c2304adde6381e055a384cf70081be6e4da29195906539d930808eb5c3",
+        "address": "0x0000000000000000000000000000000000001010",
+        "topics": [
+          "0x4dfe1bbbcf077ddc3e01291eea2d5c70c2b422b415d95645b9adcfd678cb1d63",
+          "0x0000000000000000000000000000000000000000000000000000000000001010",
+          "0x000000000000000000000000d0f598821faae3fbec9874f43a25ad3301021817",
+          "0x000000000000000000000000f0245f6251bef9447a08766b9da2b07b28ad80b0"
+        ],
+        "data": "0x0000000000000000000000000000000000000000000000000025e8db1ea6e30e00000000000000000000000000000000000000000000000197cd968939c3c74c00000000000000000000000000000000000000000000002e1e38d6ecc4923a2b00000000000000000000000000000000000000000000000197a7adae1b1ce43e00000000000000000000000000000000000000000000002e1e5ebfc7e3391d39",
+        "logIndex": 16,
+        "blockHash": "0x69afdfcd6494ec21ebb7d8171b9f8f61f7c042f6a4e6c5822ba7f35a5e1b140d"
+      }
+    ],
+    "blockNumber": 57445589,
+    "cumulativeGasUsed": "555630",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "84b8e5ded567685db023088c6797acd1",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"AccessGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"AccessRevoked\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"allow\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"allowedAddresses\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"disallow\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"isAllowed\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/mocks/MockPermissions.sol\":\"MockPermissions\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"contracts/Permissions.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.20;\\n\\nabstract contract Permissions {\\n    event AccessGranted(address indexed _account);\\n    event AccessRevoked(address indexed _account);\\n\\n    function isAllowed(address _address) virtual external view returns (bool);\\n}\",\"keccak256\":\"0x8bdcc615d9e779530079fd83978ffa0b420dc5b1ed2d0c0f4e9e28b94fc72139\",\"license\":\"MIT\"},\"contracts/mocks/MockPermissions.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.20;\\n\\nimport \\\"../Permissions.sol\\\";\\n\\ncontract MockPermissions is Permissions {\\n    mapping(address => bool) public allowedAddresses;\\n\\n    function isAllowed(address _address) external view override returns (bool) {\\n        return allowedAddresses[_address];\\n    }\\n\\n    function allow(address _address) public {\\n        allowedAddresses[_address] = true;\\n    }\\n\\n    function disallow(address _address) public {\\n        allowedAddresses[_address] = false;\\n    }\\n}\",\"keccak256\":\"0x3b85f12c000a279f0153a9e4f5b78005372ae7f7c13e0fcd8c49d6bf40b5f679\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608080604052346100165761017e908161001b8239f35b5f80fdfe608060408181526004361015610013575f80fd5b5f91823560e01c9081634120657a1461010857508063a9ed9cb8146100ce578063babcc5391461008f5763ff9913e81461004b575f80fd5b3461008b57602036600319011261008b576004356001600160a01b03811690819003610087578252816020528120600160ff1982541617905580f35b8280fd5b5080fd5b503461008b57602036600319011261008b576004356001600160a01b0381169081900361008757818360ff926020955280855220541690519015158152f35b503461008b57602036600319011261008b576004356001600160a01b0381169081900361008757825281602052812060ff19815416905580f35b91905034610087576020366003190112610087576004356001600160a01b03811690819003610144578352602083815292205460ff1615158152f35b8380fdfea26469706673582212206521734dd78b025a143b49ba591ca2906bb2fec4b5c3761b29d1bcddedfda6f964736f6c63430008140033",
+  "deployedBytecode": "0x608060408181526004361015610013575f80fd5b5f91823560e01c9081634120657a1461010857508063a9ed9cb8146100ce578063babcc5391461008f5763ff9913e81461004b575f80fd5b3461008b57602036600319011261008b576004356001600160a01b03811690819003610087578252816020528120600160ff1982541617905580f35b8280fd5b5080fd5b503461008b57602036600319011261008b576004356001600160a01b0381169081900361008757818360ff926020955280855220541690519015158152f35b503461008b57602036600319011261008b576004356001600160a01b0381169081900361008757825281602052812060ff19815416905580f35b91905034610087576020366003190112610087576004356001600160a01b03811690819003610144578352602083815292205460ff1615158152f35b8380fdfea26469706673582212206521734dd78b025a143b49ba591ca2906bb2fec4b5c3761b29d1bcddedfda6f964736f6c63430008140033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 9897,
+        "contract": "contracts/mocks/MockPermissions.sol:MockPermissions",
+        "label": "allowedAddresses",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_mapping(t_address,t_bool)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_address,t_bool)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => bool)",
+        "numberOfBytes": "32",
+        "value": "t_bool"
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/mocks/MockFactoringPermissions.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\nimport \"../Permissions.sol\";\n\ncontract MockFactoringPermissions is Permissions {\n    mapping(address => bool) public allowedAddresses;\n\n    function isAllowed(address _address) external view override returns (bool) {\n        return allowedAddresses[_address];\n    }\n\n    function allow(address _address) public {\n        allowedAddresses[_address] = true;\n    }\n\n    function disallow(address _address) public {\n        allowedAddresses[_address] = false;\n    }\n}"
+    },
+    "contracts/Permissions.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\nabstract contract Permissions {\n    event AccessGranted(address indexed _account);\n    event AccessRevoked(address indexed _account);\n\n    function isAllowed(address _address) virtual external view returns (bool);\n}"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true,
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
