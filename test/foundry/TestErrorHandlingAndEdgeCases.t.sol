@@ -396,7 +396,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         dueBy = block.timestamp + 30 days;
         assertEq(dueBy, block.timestamp + minDays * 1 days);
 
-        upfrontBps = 8000;
+        upfrontBps = 8000; // 80% of invoice amount factored
 
         uint256 initialDeposit = 1000000000000000;
         vm.startPrank(alice);
@@ -414,14 +414,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
         // Simulate invoice is paid exactly on time
         vm.warp(dueBy - 1);
-
-        uint totalAssetsBefore = bullaFactoring.totalAssets();
-        uint availableAssetsBefore = bullaFactoring.availableAssets();
 
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
@@ -433,8 +431,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint availableAssetsAfter = bullaFactoring.availableAssets();
         uint totalAssetsAfter = bullaFactoring.totalAssets();
 
-        uint targetFees = totalAssetsBefore - availableAssetsBefore;
-        uint realizedFees = totalAssetsAfter - availableAssetsAfter ;
+        uint targetFees = adminFee + targetInterest + targetProtocolFee;
+        uint realizedFees = totalAssetsAfter - availableAssetsAfter;
         assertEq(realizedFees + uint(bullaFactoring.calculateRealizedGainLoss()), targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
 
