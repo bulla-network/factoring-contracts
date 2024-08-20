@@ -517,8 +517,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             }
 
             InvoiceApproval memory approval = approvedInvoices[invoiceId];
-            uint256 totalPayout = kickbackAmount + approval.fundedAmountNet;
-            emit InvoiceReconciled(invoiceId, totalPayout, originalCreditor);
+            emit InvoicePaid(invoiceId, trueInterest, trueProtocolFee, approval.adminFee, approval.fundedAmountNet, kickbackAmount, originalCreditor);
         }
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
     }
