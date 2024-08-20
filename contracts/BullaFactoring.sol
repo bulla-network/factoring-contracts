@@ -321,7 +321,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    /// @notice Calculates the true fees and net funded amount for a given invoice and factorer's upfront bps
+    /// @notice Calculates the true fees and net funded amount for a given invoice and factorer's upfront bps, annualised
     /// @param invoiceId The ID of the invoice for which to calculate the fees
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
     /// @return fundedAmountGross The gross amount to be funded to the factorer
@@ -339,12 +339,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 trueFaceValue = approval.trueFaceValue;
 
         fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
-        adminFee = Math.mulDiv(trueFaceValue, adminFeeBps, 10000);
 
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
-        /// @notice add 1 to daysUntilDue to account for the fact that the invoice is due tomorrow
-        /// @dev minDays is the minimum number of days the invoice can be funded for, set by the underwriter during approval
+        /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
+
+        uint256 adminFeeRate = Math.mulDiv(trueFaceValue, adminFeeBps, 10000);
+        adminFee = Math.mulDiv(adminFeeRate, daysUntilDue, 365);
 
         uint256 targetInterestRate = Math.mulDiv(approval.interestApr, daysUntilDue, 365);
         targetInterest = Math.mulDiv(fundedAmountGross, targetInterestRate, 10000);
@@ -549,8 +550,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Calculate the number of days since funding
         uint256 daysSinceFunding = (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24;
         uint256 daysOfInterestToCharge = daysSinceFunding + 1;
-
-        uint256 targetInterestAndProtocolFees = approval.fundedAmountGross - approval.fundedAmountNet - approval.adminFee;
         
         (uint256 trueInterest, uint256 trueProtocolFee) = calculateInterestAndProtocolFee(approval, daysOfInterestToCharge);
         uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee + approval.adminFee;
