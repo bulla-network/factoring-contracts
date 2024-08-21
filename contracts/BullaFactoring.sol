@@ -268,12 +268,32 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
     }
 
-    /// @notice Converts an asset amount into shares based on the current price per share
+    /// @notice Converts a given amount of assets to the equivalent amount of shares
     /// @param assets The amount of assets to convert
     /// @return The equivalent amount of shares
     function convertToShares(uint256 assets) public view override returns (uint256) {
-        uint256 currentPricePerShare = pricePerShare();
-        return Math.mulDiv(assets, SCALING_FACTOR, currentPricePerShare);
+        uint256 supply = totalSupply();
+        if (supply == 0) {
+            return assets;
+        }
+        uint256 capitalAccount = calculateCapitalAccount();
+        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+        return Math.mulDiv(assets * SCALING_FACTOR, supply, scaledCapitalAccount);
+    }
+
+    /// @notice Converts a given amount of shares to the equivalent amount of assets
+    /// @param shares The amount of shares to convert
+    /// @return The equivalent amount of assets
+    function convertToAssets(uint256 shares) public view override returns (uint256) {
+        uint256 supply = totalSupply();
+        if (supply == 0) {
+            return 0;
+        }
+        uint256 scaledShares = shares * SCALING_FACTOR;
+        uint256 capitalAccount = calculateCapitalAccount();
+        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
+        uint256 assetsScaled = Math.mulDiv(scaledShares, scaledCapitalAccount, supply);
+        return assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
     }
 
     /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
@@ -624,10 +644,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             return 0;
         }
 
-        uint256 scaledAvailableAssets = availableAssetAmount * SCALING_FACTOR;
-        uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
-
-        uint256 maxWithdrawableShares = Math.mulDiv(scaledAvailableAssets, totalSupply(), scaledCapitalAccount);
+        uint256 maxWithdrawableShares = convertToShares(availableAssetAmount);
         return maxWithdrawableShares;
     }
 
@@ -645,11 +662,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             _withdraw(from, receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
             assets = maxWithdrawableAmount;
         } else {
-            uint256 scaledShares = shares * SCALING_FACTOR;
-            uint256 capitalAccount = calculateCapitalAccount();
-            uint256 scaledCapitalAccount = capitalAccount * SCALING_FACTOR;
-            uint assetsScaled = Math.mulDiv(scaledShares , scaledCapitalAccount , totalSupply());
-            assets = assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
+            assets = convertToAssets(shares);
             _withdraw(from, receiver, owner, assets, shares);
         }
         totalWithdrawals += assets;
@@ -769,8 +782,27 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit TaxBpsChanged(taxBps, _newTaxBps);
     }
 
-    function withdraw(uint256, address, address) public pure override returns (uint256) {
-        revert FunctionNotSupported();
+    /// @notice Allows withdrawal of assets from the fund
+    /// @param assets The amount of assets to withdraw
+    /// @param receiver The address to receive the withdrawn assets
+    /// @param owner The owner of the shares being burned
+    /// @return The amount of assets withdrawn
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
+        uint256 availableAssetAmount = availableAssets();
+        uint256 shares;
+        if (assets > availableAssetAmount) {
+            uint256 maxWithdrawableShares = convertToShares(availableAssetAmount);
+            _withdraw(msg.sender, receiver, owner, availableAssetAmount, maxWithdrawableShares);
+            assets = availableAssetAmount;
+            shares = maxWithdrawableShares;
+        } else {
+            shares = convertToShares(assets);
+            _withdraw(msg.sender, receiver, owner, assets, shares);
+        }
+        totalWithdrawals += assets;
+        emit AssetsWithdrawn(_msgSender(), receiver, owner, assets, shares);
+
+        return assets;
     }
 
     function mint(uint256, address) public pure override returns (uint256){
