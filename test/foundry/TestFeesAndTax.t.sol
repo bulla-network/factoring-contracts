@@ -192,4 +192,66 @@ contract TestFeesAndTax is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("NoTaxBalanceToWithdraw()"));
         bullaFactoring.withdrawTaxBalance();
     }
+
+    function testPoolFeesRemainSameRegardlessOfUpfrontBps() public {
+        uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000000000; // 100,000 USDC
+        uint256 dueDate = block.timestamp + 30 days;
+
+        // Create and fund first invoice with 100% upfront
+        uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, 10000, minDays); // 100% upfront
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        bullaFactoring.fundInvoice(invoiceId1, 10000);
+        vm.stopPrank();
+
+        // Create and fund second invoice with 50% upfront
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, 5000, minDays); // 50% upfront
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        bullaFactoring.fundInvoice(invoiceId2, 5000);
+        vm.stopPrank();
+
+        // Assert that target interest and protocol fees are the same for both invoices
+        assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
+        assertEq(targetProtocolFee1, targetProtocolFee2, "Target protocol fee should be the same regardless of upfront percentage");
+        assertEq(adminFee1, adminFee2, "Admin fee should be the same");
+
+        // Simulate invoices being paid on time
+        vm.warp(dueDate - 1);
+
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId1, invoiceAmount);
+        bullaClaim.payClaim(invoiceId2, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint256 availableAssetsAfter = bullaFactoring.availableAssets();
+        uint256 totalAssetsAfter = bullaFactoring.totalAssets();
+
+        // Calculate realized fees
+        uint realizedFees = totalAssetsAfter - availableAssetsAfter;
+
+        // Calculate expected fees
+        uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetProtocolFee2);
+
+        // Assert that realized fees match expected fees
+        assertEq(realizedFees + uint256(bullaFactoring.calculateRealizedGainLoss()), expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
+    }
 }

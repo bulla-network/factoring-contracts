@@ -60,6 +60,7 @@ interface IBullaFactoring {
     event ApprovalDurationChanged(uint256 newDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 adminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
     event KickbackPercentageChanged(uint256 newKickbackPercentageBps);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, uint256 totalRefundAmount, uint interestToCharge);
     event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
