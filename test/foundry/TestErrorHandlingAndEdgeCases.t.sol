@@ -520,5 +520,15 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint ppsAfterFullRedemption = bullaFactoring.pricePerShare();
         assertEq(initialPps, ppsAfterFullRedemption, "Price per share should be equal to initial price per share");
     }
+
+    function testConvertToSharesWithZeroSupply() public {
+        // Ensure no deposits have been made
+        assertEq(bullaFactoring.totalSupply(), 0, "Total supply should be zero");
+        uint initialPricePerShare = bullaFactoring.pricePerShare();
+        uint256 assetsToConvert = 1000000;
+        uint256 sharesConverted = bullaFactoring.convertToShares(assetsToConvert);
+
+        assertEq(sharesConverted, assetsToConvert * initialPricePerShare, "Converted shares should equal assets * SCALING_FACTOR when supply is zero");
+    }
 }
 
