@@ -85,7 +85,7 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.totalAssets(), bullaFactoring.availableAssets() + feesAndTax, "Available Assets should be lower than total assets by the sum of fees and tax");
     }
 
-    function testInvestorWithdrawAllFunds() public {
+    function testInvestorRedeemsAllFunds() public {
         assertEq(bullaFactoring.totalSupply(), 0, "Total supply should be 0");
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should start at 0");
 
@@ -267,8 +267,6 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
-
-
 
     function testBalanceOfFundShouldBeZeroAfterAllFeeWithdrawals() public {
         dueBy = block.timestamp + 60 days; // Invoice due in 60 days
