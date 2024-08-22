@@ -256,8 +256,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
 
-    /// @notice Calculates the current price per share of the fund
-    /// @return The current price per share
+    /// @notice Calculates the current price per share of the fund, 
+    /// @return The current price per share, scaled to the underlying asset's decimal places
     function pricePerShare() public view returns (uint256) {
         uint256 sharesOutstanding = totalSupply();
         if (sharesOutstanding == 0) {
