@@ -54,6 +54,48 @@ The core scope of the audit would be the BullaFactoring pool and the InvoiceProv
 - The current underlying invoice provider contracts are the Bulla Claim V1 contracts and we do not anticipate any other invoice types for this audit.
 
 # Functional requirements
-- Invoices must be approved by underwriter only. 
-- An invoice must be approved by underwriter before being funded.
-- To Be continued.
+- deposit
+    - deposits funds into the pool in exchange for pool shares
+    - must be allowed via depositPermissions
+    - gets the equivalent amount of shares are per the capital account / total number of shares
+    - an attachment can be associated with the deposit for legal reasons.
+
+- redeem
+    - redeem shares from the pool
+    - capital that is deployed (via funding invoices) and fees are considered removed liquidity from the pool, therefore there is a cap of shares that can be redeemed
+    - an attachment can be associated with the redemption for legal reasons.
+
+- approveInvoice
+    - an underwriter can approve an invoice to be funded and assigned it an interest rate per annum and a max upfront % it can borrow upfront
+    - approval is only valid for a certain amount of time.
+
+- fundInvoice
+    - Prior to being funded extra checks occur in the pool
+        - Factorer must be permitted by factoringPermissions
+        - Invoice must be approved by underwriter before being funded.
+        - Upfront percentage must be lower or equal to permitted percentage assigned by underwriter
+        - Underwriter approval lasts for an hour max
+        - Invoice must not be canceled (rejected or rescinded)
+        - paid amount on the invoice must equal to its paid amount at the time of underwriter approval
+        - creditor must be the same creditor as at the time of approval
+        - Invoice must not be paid off at the time of approval
+    
+    - if approved, funds are send to the creditor and the invoice is transfered to the pool (becoming the new creditor)
+        - an admin fee (% of invoice value), an interest fee (% of invoice value) and a protocol fee (% of interest fee) are withheld prior to sending out the funding.
+
+- unfactor invoice
+    - an invoice can be unfactored by the original creditor to remove it from the pool
+    - the original creditor must pay back the principal amount + any fees accrued
+    - the invoice is transfered back to the original creditor
+
+- impair invoice
+    - after the due date has past + a defined grace period, the fund may decide to impair an invoice, thereby realizing a loss on it
+    - if an impaired invoice gets repaid, it behaves as if it was simply a late invoice
+
+- reconcile active paid invoices
+    - In order to update the pnl and other balances upon paid invoices, a Gelato Network function is executed on every ClaimPayment event (from Bulla Claim event)
+    - paid invoices are marked as such, balances are incremented, tax is incremented
+    - if upfront % was less than 100% and there is a leftover amount after fees, the amount is kickedback to the original creditor
+
+# Non functional requirements
+- Security of funds
