@@ -1,12 +1,12 @@
 ### Bulla Factoring Pool Contracts
 
-The **Bulla Factoring Pool Contracts** represent the latest advancement in the Bulla Network's ecosystem, designed to integrate seamlessly with the existing **Bulla Claim Protocol V1**. The Bulla Claim Protocol is a robust framework of smart contracts that facilitates the representation of on-chain credit relationships, such as IOUs, between parties. These claims can encapsulate various types of on-chain assets, including invoices, payments, loans, bonds, and more.
+The **Bulla Factoring Pool Contracts** represent the latest advancement in the Bulla Network's ecosystem, designed to integrate seamlessly with the existing **Bulla Claim Protocol V1**. The Bulla Claim Protocol is a robust framework of smart contracts that facilitates the representation of on-chain credit relationships, such as IOUs (a signed document acknowledging a debt), between parties. These claims can encapsulate various types of on-chain assets, including invoices, payments, loans, bonds and more.
 
 The Bulla Factoring Pool Contracts specifically enable the creation of credit pools for invoice factoring, adhering to the **ERC4626** specification. Through these contracts, invoice issuers can factor their receivables, allowing them to receive early payments in exchange for a premium. This integration not only broadens the utility of the Bulla Claim Protocol but also provides a new financial mechanism for liquidity and credit management on-chain.
 
 # Design decisions.
 
-For design scope for factoring contract V1 is to be permissioned and trusted.
+The design scope for factoring contract V1 is to be permissioned and trusted.
 
 A whitelist defines who can deposit into the pool (ensuring KYC/Compliance).
 A whitelist defines who can factor invoices to get financing.
@@ -15,7 +15,9 @@ However, the logic of these is outscoped from the core contracts and called via 
 
 The owner of the contracts is trusted.
 
-The asset token will be USDC or another stablecoin (USDC is all forseeable use cases).
+The underwriter is trusted.
+
+The asset token will be USDC or another stablecoin (USDC in all forseeable use cases).
 
 Out scoped from this audit are the Bulla Claim V1 contracts
 
@@ -43,30 +45,30 @@ The core scope of the audit would be the BullaFactoring pool and the InvoiceProv
 - Pool depositors:
     - This is also Bulla, however, in the near future, we want to expand this to be KYC'ed third parties, so trusted to an extent but still not permissionless.
 - People who can factor:
-    - These are whitelisted addresses, via the factoringPermissions contract.
+    - These are whitelisted addresses, via the FactoringPermissions contract.
 -Applications:
     - Users will be interacting with the contracts via the Bulla dApp.
 
 # Assumptions:
 - We really on USDC mostly. We do not anticipate deploying pools with other stablecoins as the underlying asset.
 - We have a backend for the underwriter process and our underwriter PK is stored in our cloud provider vault.
-- We use Gelato Network to listen on ClaimPayment events in Bulla Claim Protocol to check if any active invoices are paid. If paid, it calls the `reconcileActivePaidInvoices` function which wraps up the accounting and send the kickback amount if applicable.
+- We use Gelato Network to listen on ClaimPayment events in Bulla Claim Protocol to check if any active invoices are paid (via the viewPoolStatus function). If paid, it calls the `reconcileActivePaidInvoices` function which wraps up the accounting and send the kickback amount if applicable.
 - The current underlying invoice provider contracts are the Bulla Claim V1 contracts and we do not anticipate any other invoice types for this audit.
 
 # Functional requirements
 - deposit
     - deposits funds into the pool in exchange for pool shares
     - must be allowed via depositPermissions
-    - gets the equivalent amount of shares are per the capital account / total number of shares
-    - an attachment can be associated with the deposit for legal reasons.
+    - gets the equivalent amount of shares per the capital account / total number of shares
+    - an attachment can be associated with the deposit for legal compliance reasons.
 
 - redeem
-    - redeem shares from the pool
+    - redeem shares from the pool in exchange for the underlying token that was deposited.
     - capital that is deployed (via funding invoices) and fees are considered removed liquidity from the pool, therefore there is a cap of shares that can be redeemed
-    - an attachment can be associated with the redemption for legal reasons.
+    - an attachment can be associated with the redemption for legal compliance reasons.
 
 - approveInvoice
-    - an underwriter can approve an invoice to be funded and assigned it an interest rate per annum and a max upfront % it can borrow upfront
+    - an underwriter must approve an invoice to be funded and assigned it an interest rate per annum and a max upfront % it can borrow upfront
     - approval is only valid for a certain amount of time.
 
 - fundInvoice
@@ -91,6 +93,7 @@ The core scope of the audit would be the BullaFactoring pool and the InvoiceProv
 - impair invoice
     - after the due date has past + a defined grace period, the fund may decide to impair an invoice, thereby realizing a loss on it
     - if an impaired invoice gets repaid, it behaves as if it was simply a late invoice
+    - we are aware of a risk that if an impaired invoice gets repaid when there are no longer any depositors in the pool, the funds from the invoice will essentially be lost. A workaround would be to leave 1 wei in the pool.
 
 - reconcile active paid invoices
     - In order to update the pnl and other balances upon paid invoices, a Gelato Network function is executed on every ClaimPayment event (from Bulla Claim event)
