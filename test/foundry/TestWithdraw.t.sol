@@ -266,5 +266,13 @@ contract TestWithdraw is CommonSetup {
 
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
+
+    function testConvertToAssetsReturns0WhenNoSupply() public {
+        vm.startPrank(alice);
+        uint assetsShouldBe0 = bullaFactoring.convertToAssets(1000);
+        vm.stopPrank();
+
+        assertEq(assetsShouldBe0, 0, "Assets should be 0 if no shares/no capital deposited");
+    }
 }
 

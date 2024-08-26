@@ -530,5 +530,42 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         assertEq(sharesConverted, assetsToConvert * initialPricePerShare, "Converted shares should equal assets * SCALING_FACTOR when supply is zero");
     }
+
+    function testUpfrontBpsFailsIf0or1000() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, 0, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, 10001, minDays);
+        vm.stopPrank();
+    }
+
+    function testOnlyUnderwriterCanApprove() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("CallerNotUnderwriter()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+    }
 }
 
