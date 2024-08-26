@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./IInvoiceProviderAdapter.sol";
 
+/// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoring {
     // Structs
     struct InvoiceApproval {
