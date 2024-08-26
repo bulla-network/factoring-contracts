@@ -325,7 +325,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param receiver The address to receive the fund shares
     /// @param attachment The attachment data for the deposit
     /// @return The number of shares issued for the deposit
-    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) public returns (uint256) {
+    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) external returns (uint256) {
         uint256 shares = _deposit(_msgSender(), receiver, assets);
         emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
         return shares;
@@ -381,7 +381,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @param invoiceId The ID of the invoice to fund
     /// @param factorerUpfrontBps factorer specified upfront bps
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) public returns(uint256) {
+    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
@@ -506,7 +506,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
-    function reconcileActivePaidInvoices() public {
+    function reconcileActivePaidInvoices() external {
         (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
@@ -545,7 +545,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the tax amount based on a specified payment amount and the current tax basis points (bps).
     /// @param amount The amount of the payment on which tax is to be calculated.
     /// @return The calculated tax amount.
-    function calculateTax(uint256 amount) public view returns (uint256) {
+    function calculateTax(uint256 amount) internal view returns (uint256) {
         return Math.mulDiv(amount, taxBps * 1000, 1_000_000);
     }
 
@@ -561,7 +561,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
     /// @notice Unfactors an invoice, returning the invoice NFT to the original creditor and refunding the funded amount
     /// @param invoiceId The ID of the invoice to unfactor
-    function unfactorInvoice(uint256 invoiceId) public {
+    function unfactorInvoice(uint256 invoiceId) external {
         if (isInvoicePaid(invoiceId)) revert InvoiceAlreadyPaid();
         address originalCreditor = originalCreditors[invoiceId];
         if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
@@ -675,7 +675,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param owner The owner of the shares being redeemed
     /// @param attachment The attachment data for the redemption
     /// @return The amount of assets redeemed
-    function redeemWithAttachment(uint256 shares, address receiver, address owner, Multihash calldata attachment) public returns (uint256) {
+    function redeemWithAttachment(uint256 shares, address receiver, address owner, Multihash calldata attachment) external returns (uint256) {
         uint256 assets = _redeem(_msgSender(), receiver, owner, shares);
         emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
         return assets;
@@ -718,7 +718,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Allows the Bulla DAO to withdraw accumulated protocol fees.
-    function withdrawProtocolFees() public {
+    function withdrawProtocolFees() external {
         if (msg.sender != bullaDao) revert CallerNotBullaDao();
         uint256 feeAmount = protocolFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
@@ -849,7 +849,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit InvoiceProviderAdapterChanged(_newInvoiceProviderAdapter);
     }
 
-    function getFundInfo() public view returns (FundInfo memory) {
+    function getFundInfo() external view returns (FundInfo memory) {
         uint256 fundBalance = availableAssets();
         uint256 deployedCapital = totalFundedAmountForActiveInvoices();
         int256 realizedGain = calculateRealizedGainLoss();
