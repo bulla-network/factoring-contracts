@@ -89,6 +89,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error TransferFailed();
     error InvoiceCreditorChanged();
     error ImpairReserveNotSet();
+    error InvoiceCannotBePaid();
 
 
     /// @param _asset underlying supported stablecoin asset for deposit 
@@ -140,6 +141,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
         IInvoiceProviderAdapter.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        if (invoiceSnapshot.faceValue - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
 
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,

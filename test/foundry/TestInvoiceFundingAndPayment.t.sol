@@ -378,5 +378,29 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertLt(kickbackAmount01, kickbackAmount02, "Kickback amount for partially paid invoice should be less than kickback amount for fully unpaid invoice");
     }
 
+    function testFullyPaidInvoice() public {
+        upfrontBps = 8000;
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+
+
+        // alice pays half of the first outstanding invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+
+
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceCannotBePaid()"));
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+    }
 
 }
