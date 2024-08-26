@@ -12,29 +12,47 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
+/// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
 contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     using Math for uint256;
 
+    /// @notice Address of the Bulla DAO, a trusted multisig
     address public bullaDao;
+    /// @notice Protocol fee in basis points
     uint16 public protocolFeeBps;
+    /// @notice Admin fee in basis points
     uint16 public adminFeeBps;
+    /// @notice Accumulated protocol fee balance
     uint256 public protocolFeeBalance;
+    /// @notice Accumulated admin fee balance
     uint256 public adminFeeBalance;
+    /// @notice Address of the underlying asset token (e.g., USDC)
     IERC20 public assetAddress;
+    /// @notice Address of the invoice provider contract adapter
     IInvoiceProviderAdapter public invoiceProviderAdapter;
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
+    /// @notice Address of the underwriter, trusted to approve invoices
     address public underwriter;
+    /// @notice Timestamp of the fund's creation
     uint256 public creationTimestamp;
+    /// @notice Reserve amount for impairment
     uint256 public impairReserve;
+    /// @notice Name of the factoring pool
     string public poolName;
+    /// @notice Tax rate in basis points
     uint16 public taxBps;
+    /// @notice Accumulated tax balance
     uint256 public taxBalance;
+    /// @notice Target yield in basis points
     uint16 public targetYieldBps;
 
+    /// @notice Scaling factor for the token
     uint256 public SCALING_FACTOR;
+    /// @notice Grace period for invoices
     uint256 public gracePeriodDays = 60;
 
+    /// @notice Permissions contracts for deposit and factoring
     Permissions public depositPermissions;
     Permissions public factoringPermissions;
 
@@ -44,7 +62,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
 
+    /// Mapping from invoice ID to invoice approval details
     mapping(uint256 => InvoiceApproval) public approvedInvoices;
+    /// @notice The duration of invoice approval before it expires
     uint256 public approvalDuration = 1 hours;
 
     /// Array to hold the IDs of all active invoices
@@ -63,7 +83,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     mapping(uint256 => uint256) public paidInvoiceTax;
 
     /// Errors
-    // error IncorrectValue(uint256 value, uint256 expectedValue);
     error CallerNotUnderwriter();
     error DeductionsExceedsRealisedGains();
     error InvoiceNotApproved();
@@ -89,7 +108,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error TransferFailed();
     error InvoiceCreditorChanged();
     error ImpairReserveNotSet();
-
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -849,6 +867,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit InvoiceProviderAdapterChanged(_newInvoiceProviderAdapter);
     }
 
+    /// @notice Retrieves the fund information
+    /// @return FundInfo The fund information
     function getFundInfo() external view returns (FundInfo memory) {
         uint256 fundBalance = availableAssets();
         uint256 deployedCapital = totalFundedAmountForActiveInvoices();
@@ -872,6 +892,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         });
     }
 
+    /// @notice Impairs an invoice, using the impairment reserve to cover the loss
+    /// @param invoiceId The ID of the invoice to impair
     function impairInvoice(uint256 invoiceId) public onlyOwner {
         if (impairReserve == 0) revert ImpairReserveNotSet();
         if (!isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
