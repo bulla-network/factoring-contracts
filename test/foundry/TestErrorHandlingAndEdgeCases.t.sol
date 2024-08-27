@@ -567,5 +567,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
         vm.stopPrank();
     }
+
+    function testUnderwriterCantBeAddressZero() public {
+        vm.startPrank(address(this));
+        vm.expectRevert(abi.encodeWithSignature("InvalidAddress()"));
+        bullaFactoring.setUnderwriter(address(0));
+        vm.stopPrank();
+    }
 }
 
