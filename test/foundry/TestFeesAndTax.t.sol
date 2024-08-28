@@ -254,4 +254,219 @@ contract TestFeesAndTax is CommonSetup {
         // Assert that realized fees match expected fees
         assertEq(realizedFees + uint256(bullaFactoring.calculateRealizedGainLoss()), expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
     }
+
+    function testSetBullaDao() public {
+        uint256 initialDeposit = 1 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Simulate funding an invoice to generate fees
+        vm.startPrank(bob);
+        uint256 invoiceAmount = 0.01 ether;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        // Check initial balances
+        uint256 initialAliceBalance = asset.balanceOf(alice);
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Change bulla dao address to Alice
+        vm.startPrank(address(this));
+        bullaFactoring.setBullaDaoAddress(alice);
+        vm.stopPrank();
+
+        // Withdraw protocol fees
+        vm.startPrank(alice);
+        bullaFactoring.withdrawProtocolFees();
+        vm.stopPrank();
+
+        // Check final balances
+        uint256 finalAliceBalance = asset.balanceOf(alice);
+
+        // Check that the new Bulla DAO balance has increased by the expected fee amounts
+        assertTrue(finalAliceBalance > initialAliceBalance, "Bulla DAO should receive protocol fees");
+    }
+
+    function testSetProtocolFees() public {
+        uint256 initialDeposit = 1 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set protocol fee to 0
+        vm.startPrank(address(this)); 
+        bullaFactoring.setProtocolFeeBps(0);
+        vm.stopPrank();
+
+        // Simulate funding an invoice to generate fees
+        vm.startPrank(bob);
+        uint256 invoiceAmount = 0.5 ether;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Withdraw protocol fees
+        vm.startPrank(bullaDao);
+        vm.expectRevert(abi.encodeWithSignature("NoFeesToWithdraw()"));
+        bullaFactoring.withdrawProtocolFees();
+        vm.stopPrank();
+
+    }
+
+    function testSetAdminFees() public {
+        uint256 initialDeposit = 1 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set admin fee to 0
+        vm.startPrank(address(this)); 
+        bullaFactoring.setAdminFeeBps(0);
+        vm.stopPrank();
+
+        // Simulate funding an invoice to generate fees
+        vm.startPrank(bob);
+        uint256 invoiceAmount = 0.5 ether;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Withdraw admin fees but aren't none since fee = 0
+        vm.startPrank(address(this));
+        vm.expectRevert(abi.encodeWithSignature("NoFeesToWithdraw()"));
+        bullaFactoring.withdrawAdminFees();
+        vm.stopPrank();
+    }
+
+    function testSetTaxBalance() public {
+        uint256 initialDeposit = 1 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set tax bps to 0
+        vm.startPrank(address(this)); 
+        bullaFactoring.setTaxBps(0);
+        vm.stopPrank();
+
+        // Simulate funding an invoice to generate taxes
+        vm.startPrank(bob);
+        uint256 invoiceAmount = 0.5 ether;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Withdraw tax but aren't none since taxBps = 0
+        vm.startPrank(address(this));
+        vm.expectRevert(abi.encodeWithSignature("NoTaxBalanceToWithdraw()"));
+        bullaFactoring.withdrawTaxBalance();
+        vm.stopPrank();
+    }
+
+    function testSetTargetYield() public {
+        uint256 initialDeposit = 1 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set target yield to 0
+        vm.startPrank(address(this)); 
+        bullaFactoring.setTargetYield(0);
+        vm.stopPrank();
+
+        uint pricePerShareBefore = bullaFactoring.pricePerShare();
+
+        // Simulate funding an invoice to generate taxes
+        vm.startPrank(bob);
+        uint256 invoiceAmount = 0.5 ether;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, bullaFactoring.targetYieldBps(), upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint pricePerShareAfter = bullaFactoring.pricePerShare();
+
+        assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be the same if pnl = 0");
+
+        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+
+        uint amountToRedeem = bullaFactoring.maxRedeem();
+
+        // Alice redeems all her shares
+        vm.prank(alice);
+        bullaFactoring.redeem(amountToRedeem, alice, alice);
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vm.stopPrank();
+
+    }
 }

@@ -201,7 +201,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 trueInterestAndProtocolFee = Math.min(capInterest, Math.mulDiv(approval.trueFaceValue, trueInterestAndProtocolFeeMbps, 1000_0000));
         
         // Calculate the true interest
-        trueInterest = Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
+        trueInterest = trueInterestAndProtocolFeeMbps == 0 ? 0 : Math.mulDiv(trueInterestAndProtocolFee, trueInterestRateMbps, trueInterestAndProtocolFeeMbps);
 
         // Calculate true protocol fee
         trueProtocolFee = trueInterestAndProtocolFee - trueInterest;
@@ -780,7 +780,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Updates the protocol fee in basis points (bps)
     /// @param _newProtocolFeeBps The new protocol fee in basis points
     function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyOwner {
-        if (_newProtocolFeeBps <= 0 || _newProtocolFeeBps > 10000) revert InvalidPercentage();
+        if (_newProtocolFeeBps > 10000) revert InvalidPercentage();
         protocolFeeBps = _newProtocolFeeBps;
         emit ProtocolFeeBpsChanged(protocolFeeBps, _newProtocolFeeBps);
     }
@@ -788,7 +788,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Sets the admin fee in basis points
     /// @param _newAdminFeeBps The new admin fee in basis points
     function setAdminFeeBps(uint16 _newAdminFeeBps) public onlyOwner {
-        if (_newAdminFeeBps <= 0 || _newAdminFeeBps > 10000) revert InvalidPercentage();
+        if (_newAdminFeeBps > 10000) revert InvalidPercentage();
         adminFeeBps = _newAdminFeeBps;
         emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
     }
@@ -797,7 +797,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param _newTaxBps The new tax rate in basis points
     /// @dev This function can only be called by the contract owner
     function setTaxBps(uint16 _newTaxBps) public onlyOwner {
-        if (_newTaxBps < 0 || _newTaxBps > 10000) revert InvalidPercentage();
+        if (_newTaxBps > 10000) revert InvalidPercentage();
         taxBps = _newTaxBps;
         emit TaxBpsChanged(taxBps, _newTaxBps);
     }
@@ -857,16 +857,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Sets the target yield in basis points
     /// @param _targetYieldBps The new target yield in basis points
     function setTargetYield(uint16 _targetYieldBps) public onlyOwner {
-        if (_targetYieldBps < 0 || _targetYieldBps > 10000) revert InvalidPercentage();
+        if (_targetYieldBps > 10000) revert InvalidPercentage();
         targetYieldBps = _targetYieldBps;
         emit TargetYieldChanged(_targetYieldBps);
-    }
-
-    /// @notice Sets a new invoice provider adapter
-    /// @param _newInvoiceProviderAdapter The address of the new invoice provider adapter
-    function setInvoiceProviderAdapter(IInvoiceProviderAdapter _newInvoiceProviderAdapter) public onlyOwner {
-        invoiceProviderAdapter = _newInvoiceProviderAdapter;
-        emit InvoiceProviderAdapterChanged(_newInvoiceProviderAdapter);
     }
 
     /// @notice Retrieves the fund information

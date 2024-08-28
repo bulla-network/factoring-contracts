@@ -127,7 +127,7 @@ contract TestInvoiceImpairment is CommonSetup {
         assertTrue(fundInfoAfterImpairmentyFund.realizedGain < fundInfoAfterRepayment.realizedGain, "Realized gain increases when invoice impaired by fund gets paid");
     }
 
-    function testErrorIfImparedReserveNotSet() public {
+    function testChangingGracePeriodChangesAbilityToImpairInvoice() public {
         interestApr = 3000;
         upfrontBps = 8000;
 
@@ -150,14 +150,17 @@ contract TestInvoiceImpairment is CommonSetup {
         vm.stopPrank();
 
 
-        // Fast forward time by 100 days to simulate the invoice becoming impaired
-        vm.warp(block.timestamp + 100 days);
+        // Fast forward 5 days after due date
+        vm.warp(block.timestamp + 35 days);
 
-        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
-        assertEq(impairedInvoices.length, 1);
+        (, uint256[] memory impairedInvoicesBefore) = bullaFactoring.viewPoolStatus();
+        assertEq(impairedInvoicesBefore.length, 0);
 
-        // fund impares the third invoice
-        vm.expectRevert(abi.encodeWithSignature("ImpairReserveNotSet()"));
-        bullaFactoring.impairInvoice(invoiceId03);
+        vm.startPrank(address(this));
+        bullaFactoring.setGracePeriodDays(0);
+        vm.stopPrank();
+
+        (, uint256[] memory impairedInvoicesAfter) = bullaFactoring.viewPoolStatus();
+        assertEq(impairedInvoicesAfter.length, 1);
        }
 }
