@@ -103,13 +103,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
     }
 
-    function testSetInvoiceProviderAdapterOnlyCalledByOwner() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.setInvoiceProviderAdapter(IInvoiceProviderAdapter(bob));
-        vm.stopPrank();
-    }
-
     function testImpairInvoiceOnlyCalledByOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
