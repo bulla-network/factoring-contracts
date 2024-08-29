@@ -403,4 +403,33 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
     }
 
+    function testSetApprovalDuration() public {
+        upfrontBps = 8000;
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.stopPrank();
+
+        vm.startPrank(address(this));
+        bullaFactoring.setApprovalDuration(0); // 1 minute 
+        vm.stopPrank();
+
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 10 minutes);
+
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSignature("ApprovalExpired()"));
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+    }
+
 }

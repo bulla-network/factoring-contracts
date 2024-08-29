@@ -17,5 +17,6 @@ constructor-args :=
 
 build  :; forge build --via-ir
 test   :; forge test -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
-test-s   :; forge test --match-path test/foundry/TestWithdraw.t.sol -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
+test-s   :; forge test --match-path test/foundry/TestFeesAndTax.t.sol -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
+coverage   :; forge coverage -vv --fork-url ${SEPOLIA_RPC_URL} --ir-minimum --report lcov

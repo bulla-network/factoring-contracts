@@ -530,5 +530,122 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         assertEq(sharesConverted, assetsToConvert * initialPricePerShare, "Converted shares should equal assets * SCALING_FACTOR when supply is zero");
     }
+
+    function testUpfrontBpsFailsIf0or1000() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, 0, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, 10001, minDays);
+        vm.stopPrank();
+    }
+
+    function testOnlyUnderwriterCanApprove() public {
+        uint256 initialDeposit = 900;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceIdAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("CallerNotUnderwriter()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(address(this));
+        bullaFactoring.setUnderwriter(alice);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+    }
+
+    function testUnderwriterCantBeAddressZero() public {
+        vm.startPrank(address(this));
+        vm.expectRevert(abi.encodeWithSignature("InvalidAddress()"));
+        bullaFactoring.setUnderwriter(address(0));
+        vm.stopPrank();
+    }
+
+    function testSetDepositPermissions() public {
+        uint256 initialDeposit = 900;
+
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(address(this));
+        bullaFactoring.setDepositPermissions(address(new MockPermissions()));
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", alice));
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+    }
+
+    function testSetFactoringPermissions() public {
+        uint256 invoiceAmount = 100000; // Invoice amount is $100000
+
+        uint256 initialDeposit = 2000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        bullaFactoring.fundInvoice(invoiceId1, upfrontBps);
+        vm.stopPrank();
+
+        vm.startPrank(address(this));
+        bullaFactoring.setFactoringPermissions(address(new MockPermissions()));
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", bob));
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
+        vm.stopPrank();
+
+        
+    }
 }
 
