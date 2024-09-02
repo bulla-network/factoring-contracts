@@ -337,9 +337,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             uint256 invoiceId = activeInvoices[i];
             InvoiceApproval memory approval = approvedInvoices[invoiceId];
 
-            uint256 daysSinceFunding = (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24;
+            uint256 daysSinceFunded = (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24;
+            uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
 
-            (uint256 grossAccruedInterest,,) = calculateFees(approval, daysSinceFunding);
+            (uint256 grossAccruedInterest,,) = calculateFees(approval, daysOfInterest);
 
             // Deduct tax from the accrued interest
             uint256 taxAmount = calculateTax(grossAccruedInterest);
