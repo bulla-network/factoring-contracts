@@ -329,5 +329,43 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
+
+    function testDepositPriceDeclinesWhenAccruedProfits() public {
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 100000;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 8000; // 80% upfront
+
+        uint256 initialDeposit = 10000000;
+        vm.startPrank(alice);
+        uint shares1 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate 30 days pass, hence some accrued interest in the pool
+        vm.warp(block.timestamp + 30 days);
+
+        // Alice deposits again
+        vm.startPrank(alice);
+        uint shares2 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        assertGt(shares1, shares2, "Shares issued should be reduced when there is accrued interest in the pool");
+    }
 }
 
