@@ -255,6 +255,61 @@ contract TestFeesAndTax is CommonSetup {
         assertEq(realizedFees + uint256(bullaFactoring.calculateRealizedGainLoss()), expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
     }
 
+    function testAdminFeeAccruesOvertime() public {
+        uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000000000; // 100,000 USDC
+        uint256 dueDate = block.timestamp + 30 days;
+
+        // Create and fund first invoice
+        uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, 10000, minDays); // 100% upfront
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        (, uint256 targetAdminFee1,,,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        bullaFactoring.fundInvoice(invoiceId1, 10000);
+        vm.stopPrank();
+
+
+        // Simulate first invoice being paid after 15 days
+        vm.warp(dueDate - 14 days);
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        (,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        bullaClaim.payClaim(invoiceId1, invoiceAmount);
+        vm.stopPrank();
+
+        dueDate = block.timestamp + 30 days;
+
+                // Create and fund second invoice
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, 10000, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        (, uint256 targetAdminFee2,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, 10000);
+        bullaFactoring.fundInvoice(invoiceId2, 10000);
+        vm.stopPrank();
+
+        assertEq(targetAdminFee2, targetAdminFee1, "Admin fee should be the same");
+
+        // Simulate first invoice being paid after 30 days
+        vm.warp(dueDate - 1 days);
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        (,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+
+        assertGt(trueAdminFee2, trueAdminFee1, "Admin fee should increase overtime");
+    }
+
     function testSetBullaDao() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
