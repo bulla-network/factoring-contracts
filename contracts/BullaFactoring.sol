@@ -418,7 +418,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].invoiceSnapshot.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, uint256 targetAdminFee, , , uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
+        (uint256 fundedAmountGross,,,, uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
