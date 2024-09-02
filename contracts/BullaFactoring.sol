@@ -329,6 +329,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
     }
 
+    /// @notice Calculates the total accrued profits from all active invoices
+    /// @dev Iterates through all active invoices, calculates interest for each, deducts taxes, and sums the net accrued interest
+    /// @return accruedProfits The total net accrued profits across all active invoices
     function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
