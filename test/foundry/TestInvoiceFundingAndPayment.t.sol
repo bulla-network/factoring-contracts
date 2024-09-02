@@ -244,7 +244,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Check if the kickback and funded amount were correctly transferred
         uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId01);
-        (uint256 kickbackAmount,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
 
@@ -287,7 +287,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        (uint256 kickbackAmount,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint balanceAfterReconciliation = asset.balanceOf(bob);
 
@@ -373,8 +373,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Simulate debtor paying on time
         vm.warp(dueBy - 1);
 
-        (uint256 kickbackAmount01,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
-        (uint256 kickbackAmount02,,) = bullaFactoring.calculateKickbackAmount(invoiceId02);
+        (uint256 kickbackAmount01,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount02,,,) = bullaFactoring.calculateKickbackAmount(invoiceId02);
         assertLt(kickbackAmount01, kickbackAmount02, "Kickback amount for partially paid invoice should be less than kickback amount for fully unpaid invoice");
     }
 

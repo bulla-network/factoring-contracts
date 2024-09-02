@@ -19,7 +19,6 @@ interface IBullaFactoring {
         uint16 upfrontBps;
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
-        uint256 adminFee;
         uint16 minDaysInterestApplied;
         uint256 trueFaceValue;
     }
