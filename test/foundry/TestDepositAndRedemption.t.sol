@@ -329,5 +329,96 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
+
+    function testDepositPriceDeclinesWhenAccruedProfits() public {
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 100000;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 8000; // 80% upfront
+
+        uint256 initialDeposit = 10000000;
+        vm.startPrank(alice);
+        uint shares1 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate 30 days pass, hence some accrued interest in the pool
+        vm.warp(block.timestamp + 30 days);
+
+        // Alice deposits again
+        vm.startPrank(alice);
+        uint shares2 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        assertGt(shares1, shares2, "Shares issued should be reduced when there is accrued interest in the pool");
+    }
+
+    function testEmptyVaultStillAbleToDeposit() public {
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 100000000000;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 10000; // 100% upfront
+
+        uint256 initialDeposit = 100000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
+
+        // Simulate impairment
+        vm.warp(block.timestamp + 100 days);
+
+        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+
+        assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
+
+        assertEq(asset.balanceOf(address(bullaFactoring)), adminFee + targetInterest + targetProtocolFee, "There should be no assets left in the pool, net of fees");
+
+        // Alice never pays the invoices
+        // fund owner impaires both invoices
+        uint initialImpairReserve = 50000; 
+        asset.approve(address(bullaFactoring), initialImpairReserve);
+        bullaFactoring.setImpairReserve(initialImpairReserve);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        // Alice deposits again
+        vm.startPrank(alice);
+        uint shares = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        assertGt(shares, 0, "Shares still get issued if there are no profits and all depositors money is lost");
+    }
 }
 

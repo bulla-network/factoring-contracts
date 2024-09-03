@@ -329,6 +329,29 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
     }
 
+    /// @notice Calculates the total accrued profits from all active invoices
+    /// @dev Iterates through all active invoices, calculates interest for each, deducts taxes, and sums the net accrued interest
+    /// @return accruedProfits The total net accrued profits across all active invoices
+    function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            uint256 invoiceId = activeInvoices[i];
+            InvoiceApproval memory approval = approvedInvoices[invoiceId];
+
+            uint256 daysSinceFunded = (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24;
+            uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
+
+            (uint256 grossAccruedInterest,,) = calculateFees(approval, daysOfInterest);
+
+            // Deduct tax from the accrued interest
+            uint256 taxAmount = calculateTax(grossAccruedInterest);
+            uint256 netAccruedInterest = grossAccruedInterest - taxAmount;
+
+            accruedProfits += netAccruedInterest;
+        }
+
+        return accruedProfits;
+    }
+
     /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
     /// @param from The address making the deposit
     /// @param receiver The address to receive the fund shares
@@ -344,7 +367,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if(sharesOutstanding == 0) {
             shares = assets;
         } else {
-            shares = Math.mulDiv(assets * SCALING_FACTOR, sharesOutstanding, capitalAccount) / SCALING_FACTOR;
+            uint256 accruedProfits = calculateAccruedProfits();
+            shares = Math.mulDiv(assets * SCALING_FACTOR, sharesOutstanding, capitalAccount + accruedProfits) / SCALING_FACTOR;
         }
 
         _mint(receiver, shares);
