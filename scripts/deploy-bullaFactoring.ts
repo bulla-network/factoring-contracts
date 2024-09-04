@@ -222,7 +222,7 @@ const sepoliaConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    bullaFactoringAddress: '0x23406d0Af351923D9845C5A726c21315Cbf36915',
+    bullaFactoringAddress: '0x7B3776dcCDb3965Ab9d414F5c9Db5a07177Ea449',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
