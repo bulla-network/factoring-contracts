@@ -420,5 +420,148 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertGt(shares, 0, "Shares still get issued if there are no profits and all depositors money is lost");
     }
+
+    function testPreviewRedeemReturnsSameAsActualRedeem() public {
+        dueBy = block.timestamp + 30 days;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 10000; // 100% upfront
+
+        uint256 initialDeposit = 100000000000;
+        uint256 invoiceAmount =   50000000000;
+
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Preview redeem before funding invoice
+        uint256 previewRedeem1 = bullaFactoring.previewRedeem(bullaFactoring.balanceOf(alice) / 2);
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Preview redeem after funding invoice
+        uint256 previewRedeem2 = bullaFactoring.previewRedeem(bullaFactoring.balanceOf(alice) / 2);
+
+        assertEq(previewRedeem1, previewRedeem2, "previewed redemption amounts should be the same after invoice funded");
+
+        // Alice redeems all her funds
+        vm.startPrank(alice);
+        uint256 redemption = bullaFactoring.redeem(bullaFactoring.balanceOf(alice) / 2, alice, alice);
+        vm.stopPrank();
+
+        assertEq(previewRedeem2, redemption, "previewed redemption amount is the same as actual redemption amount");
+    }
+
+    function testPreviewWithdrawReturnsSameAsActualWithdraw() public {
+        dueBy = block.timestamp + 30 days;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 10000; // 100% upfront
+
+        uint256 initialDeposit = 100000000000;
+        uint256 invoiceAmount =   50000000000;
+
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Preview withdraw before funding invoice
+        uint256 previewWithdraw1 = bullaFactoring.previewWithdraw(initialDeposit / 2);
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Preview withdraw after funding invoice
+        uint256 previewWithdraw2 = bullaFactoring.previewWithdraw(initialDeposit / 2);
+
+        assertEq(previewWithdraw1, previewWithdraw2, "previewed withdrawal amounts should be the same after invoice funded");
+
+        // Alice withdraws all her funds
+        vm.startPrank(alice);
+        uint256 withdrawal = bullaFactoring.withdraw(initialDeposit / 2, alice, alice);
+        vm.stopPrank();
+
+        assertEq(previewWithdraw2, withdrawal, "previewed withdrawal amount is the same as actual withdrawal amount");
+    }
+
+    function testPreviewdepositReturnsSameAsActualdeposit() public {
+        dueBy = block.timestamp + 30 days;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 10000; // 100% upfront
+
+        uint256 initialDeposit = 100000000000;
+        uint256 invoiceAmount =   50000000000;
+
+        // Preview deposit before everything
+        uint256 previewDeposit0 = bullaFactoring.previewDeposit(initialDeposit);
+
+        vm.startPrank(alice);
+        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        assertEq(previewDeposit0, deposit0, "previewed deposit amount is the same as actual deposit amount");
+
+        // Preview deposit before funding invoice
+        uint256 previewDeposit1 = bullaFactoring.previewDeposit(initialDeposit);
+
+        vm.startPrank(alice);
+        uint256 deposit1 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        assertEq(previewDeposit1, deposit1, "previewed deposit amount is the same as actual deposit amount");
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Preview deposit after funding invoice
+        uint256 previewDeposit2 = bullaFactoring.previewDeposit(initialDeposit);
+
+        assertLt(previewDeposit2, previewDeposit1, "depositing after an invoice is funded should grant less shares than before");
+
+        // Alice deposits again
+        vm.startPrank(alice);
+        uint256 deposit2 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        assertEq(previewDeposit2, deposit2, "previewed deposit amount is the same as actual deposit amount");
+    }
 }
 

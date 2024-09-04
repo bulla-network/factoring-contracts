@@ -352,6 +352,22 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return accruedProfits;
     }
 
+    /** @dev See {IERC4626-previewDeposit}. */
+    function previewDeposit(uint256 assets) public view override returns (uint256) {
+        uint256 capitalAccount = calculateCapitalAccount();
+        uint256 sharesOutstanding = totalSupply();
+        uint256 shares;
+
+        if(sharesOutstanding == 0) {
+            shares = assets;
+        } else {
+            uint256 accruedProfits = calculateAccruedProfits();
+            shares = Math.mulDiv(assets * SCALING_FACTOR, sharesOutstanding, capitalAccount + accruedProfits) / SCALING_FACTOR;
+        }
+
+        return shares;
+    }
+
     /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
     /// @param from The address making the deposit
     /// @param receiver The address to receive the fund shares
@@ -359,17 +375,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
         if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
-        uint256 capitalAccount = calculateCapitalAccount();
-        uint256 sharesOutstanding = totalSupply();
+        
         assetAddress.transferFrom(from, address(this), assets);
 
-        uint256 shares;
-        if(sharesOutstanding == 0) {
-            shares = assets;
-        } else {
-            uint256 accruedProfits = calculateAccruedProfits();
-            shares = Math.mulDiv(assets * SCALING_FACTOR, sharesOutstanding, capitalAccount + accruedProfits) / SCALING_FACTOR;
-        }
+        uint256 shares = previewDeposit(assets);
 
         _mint(receiver, shares);
 
@@ -699,6 +708,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return maxWithdrawableShares;
     }
 
+    /** @dev See {IERC4626-previewRedeem}. */
+    function previewRedeem(uint256 shares) public view override returns (uint256) {
+        return convertToAssets(shares);
+    }
+
     /// @notice Helper function to handle the logic of redeeming shares for underlying assets
     /// @param from The address initiating the redemption
     /// @param receiver The address to receive the redeemed assets
@@ -709,13 +723,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 maxWithdrawableShares = maxRedeem();
         uint256 assets;
         if (shares > maxWithdrawableShares) {
-            uint256 maxWithdrawableAmount = availableAssets();   
-            _withdraw(from, receiver, owner, maxWithdrawableAmount, maxWithdrawableShares);
-            assets = maxWithdrawableAmount;
+            assets = availableAssets();
+            shares = maxWithdrawableShares;
         } else {
             assets = convertToAssets(shares);
-            _withdraw(from, receiver, owner, assets, shares);
         }
+        _withdraw(from, receiver, owner, assets, shares);
         totalWithdrawals += assets;
         return assets;
     }
@@ -833,6 +846,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         emit TaxBpsChanged(taxBps, _newTaxBps);
     }
 
+    /** @dev See {IERC4626-previewWithdraw}. */
+    function previewWithdraw(uint256 assets) public view override returns (uint256) {
+        return convertToShares(assets);
+    }
+
     /// @notice Allows withdrawal of assets from the fund
     /// @param assets The amount of assets to withdraw
     /// @param receiver The address to receive the withdrawn assets
@@ -842,14 +860,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 availableAssetAmount = availableAssets();
         uint256 shares;
         if (assets > availableAssetAmount) {
-            uint256 maxWithdrawableShares = convertToShares(availableAssetAmount);
-            _withdraw(msg.sender, receiver, owner, availableAssetAmount, maxWithdrawableShares);
             assets = availableAssetAmount;
-            shares = maxWithdrawableShares;
+            shares = convertToShares(availableAssetAmount);
         } else {
             shares = convertToShares(assets);
-            _withdraw(msg.sender, receiver, owner, assets, shares);
         }
+        _withdraw(msg.sender, receiver, owner, assets, shares);
         totalWithdrawals += assets;
         emit AssetsWithdrawn(_msgSender(), receiver, owner, assets, shares);
 
