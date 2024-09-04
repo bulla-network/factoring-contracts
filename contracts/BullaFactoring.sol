@@ -411,11 +411,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param invoiceId The ID of the invoice for which to calculate the fees
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
     /// @return fundedAmountGross The gross amount to be funded to the factorer
-    /// @return targetAdminFee The calculated admin fee
+    /// @return adminFee The target calculated admin fee
     /// @return targetInterest The calculated interest fee
     /// @return targetProtocolFee The calculated protocol fee
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
-    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 targetAdminFee, uint256 targetInterest, uint256 targetProtocolFee, uint256 netFundedAmount) {
+    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee, uint256 netFundedAmount) {
         IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
 
@@ -430,12 +430,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
-        (targetInterest, targetProtocolFee, targetAdminFee) = calculateFees(approval, daysUntilDue);
+        (targetInterest, targetProtocolFee, adminFee) = calculateFees(approval, daysUntilDue);
 
-        uint256 totalFees = targetAdminFee + targetInterest + targetProtocolFee;
+        uint256 totalFees = adminFee + targetInterest + targetProtocolFee;
         netFundedAmount = fundedAmountGross - totalFees;
 
-        return (fundedAmountGross, targetAdminFee, targetInterest, targetProtocolFee, netFundedAmount);
+        return (fundedAmountGross, adminFee, targetInterest, targetProtocolFee, netFundedAmount);
     }
 
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
