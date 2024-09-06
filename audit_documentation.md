@@ -60,6 +60,7 @@ The core scope of the audit would be the BullaFactoring pool and the InvoiceProv
     - deposits funds into the pool in exchange for pool shares
     - must be allowed via depositPermissions
     - gets the equivalent amount of shares per the capital account / total number of shares
+    - the accrued interest of active invoices is added to the capital account for deposits, but not for redemptions. So this interest is priced in to deposits, but not realized until invoices are paid. This is to prevent gamification.
     - an attachment can be associated with the deposit for legal compliance reasons.
 
 - redeem
