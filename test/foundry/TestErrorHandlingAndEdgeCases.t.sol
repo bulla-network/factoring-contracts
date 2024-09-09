@@ -528,7 +528,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 assetsToConvert = 120922222;
         uint256 sharesConverted = bullaFactoring.convertToShares(assetsToConvert);
 
-        assertEq(sharesConverted, assetsToConvert * initialPricePerShare, "Converted shares should equal assets * SCALING_FACTOR when supply is zero");
+        assertEq(sharesConverted, assetsToConvert, "Converted shares should equal assets when supply is zero");
     }
 
     function testUpfrontBpsFailsIf0or1000() public {
