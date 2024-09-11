@@ -524,4 +524,47 @@ contract TestFeesAndTax is CommonSetup {
         vm.stopPrank();
 
     }
+
+    function testTaxRateIsAccurate() public {
+        uint256 initialDeposit = 10 ether;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set tax to 100%
+        vm.startPrank(address(this)); 
+        bullaFactoring.setTaxBps(10_000);
+        vm.stopPrank();
+
+        // if tax is 100%, there should be no profit from this
+        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+
+        // Simulate funding an invoice to generate taxes
+        vm.startPrank(bob);
+        uint256 invoiceAmount = 0.5 ether;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // if tax is 100%, there should be no profit from this
+        uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+
+        assertEq(capitalAccountAfter, capitalAccountBefore, "Profitless invoice should have not changed capital account");
+        vm.stopPrank();
+
+    }
 }

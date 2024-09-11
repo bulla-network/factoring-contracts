@@ -206,11 +206,11 @@ contract TestWithdraw is CommonSetup {
 
     function testBalanceOfFundShouldBeZeroAfterAllFeeWithdrawals() public {
         dueBy = block.timestamp + 60 days; // Invoice due in 60 days
-        uint256 invoiceAmount = 100000; // Invoice amount is $100000
+        uint256 invoiceAmount = 10000000; // Invoice amount is $10000000
         interestApr = 1000; // 10% APR
         upfrontBps = 8000; // 80% upfront
 
-        uint256 initialDeposit = 200000;
+        uint256 initialDeposit = 20000000;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
