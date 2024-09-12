@@ -52,13 +52,13 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         uint256 actualDaysUntilPayment = 30;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
+        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+
         // Debtor pays the invoice
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceAmount);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
-
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
 
         bullaFactoring.reconcileActivePaidInvoices();
 
@@ -94,13 +94,14 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
+        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+
         // Debtor pays the invoice
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceAmount);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
 
         bullaFactoring.reconcileActivePaidInvoices();
 

@@ -60,6 +60,8 @@ contract TestPricePerShareCalculations is CommonSetup {
         // Simulate debtor paying in 30 days
         vm.warp(block.timestamp + 30 days);
 
+        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+
         // alice pays both invoices
         vm.startPrank(alice);
         // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
@@ -72,7 +74,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoices.length, 2);
 
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
         // owner will reconcile paid invoices to account for any realized gains or losses
         bullaFactoring.reconcileActivePaidInvoices();
 

@@ -30,8 +30,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     IERC20 public assetAddress;
     /// @notice Address of the invoice provider contract adapter
     IInvoiceProviderAdapter public invoiceProviderAdapter;
-    uint256 private totalDeposits; 
-    uint256 private totalWithdrawals;
     /// @notice Address of the underwriter, trusted to approve invoices
     address public underwriter;
     /// @notice Timestamp of the fund's creation
@@ -281,12 +279,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-        int256 realizedGainLoss = calculateRealizedGainLoss();
-
-        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
-        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
-
-        return capitalAccount > 0 ? uint(capitalAccount) : 0;
+        uint256 impairedInvoiceFundsAtRisk = deployedCapitalForActiveInvoices(true);
+        uint256 allAssetsInCapitalAccount = availableAssets() + deployedCapitalForActiveInvoices(false) + sumTargetFeesForActiveInvoices();
+        return impairedInvoiceFundsAtRisk > allAssetsInCapitalAccount ? 0 : allAssetsInCapitalAccount - impairedInvoiceFundsAtRisk;
     }
 
     /// @notice Calculates the current price per share of the fund, 
@@ -376,13 +371,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function _deposit(address from, address receiver, uint256 assets) private returns (uint256) {
         if (!depositPermissions.isAllowed(from)) revert UnauthorizedDeposit(from);
         
+        uint256 shares = previewDeposit(assets);
         assetAddress.transferFrom(from, address(this), assets);
 
-        uint256 shares = previewDeposit(assets);
-
         _mint(receiver, shares);
-
-        totalDeposits += assets;
         return shares;
     }
 
@@ -664,15 +656,24 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             }
         }
     }
-    /// @notice Calculates the total funded amount for all active invoices
+
+    function getDeployedCapitalForInvoice(uint256 invoiceId) private view returns (uint256) {
+        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        uint256 paymentSinceFunding = invoice.paidAmount - approvedInvoices[invoiceId].invoiceSnapshot.paidAmount;
+        uint256 fundedAmount = getFundedAmount(invoiceId);
+        return (paymentSinceFunding >= fundedAmount ? 0 : fundedAmount - paymentSinceFunding);
+    }
+
+    /// @notice Calculates the total funded amount for all active invoices. Deducts payments since funding
     /// @return The total funded amount for all active invoices
-    function totalFundedAmountForActiveInvoices() public view returns (uint256) {
-        uint256 totalFunded = 0;
+    function deployedCapitalForActiveInvoices(bool onlyForImpairedInvoices) public view returns (uint256) {
+        uint256 deployedCapital = 0;
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
-            totalFunded += getFundedAmount(invoiceId);
+            uint256 deployedCapitalOfInvoice = (!onlyForImpairedInvoices || isInvoiceImpaired(invoiceId)) ? getDeployedCapitalForInvoice(invoiceId) : 0;
+            deployedCapital += deployedCapitalOfInvoice;
         }
-        return totalFunded;
+        return deployedCapital;
     }
 
     /// @notice Sums the target fees for all active invoices
@@ -729,7 +730,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             assets = convertToAssets(shares);
         }
         _withdraw(from, receiver, owner, assets, shares);
-        totalWithdrawals += assets;
         return assets;
     }
 
@@ -866,7 +866,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             shares = convertToShares(assets);
         }
         _withdraw(msg.sender, receiver, owner, assets, shares);
-        totalWithdrawals += assets;
         emit AssetsWithdrawn(_msgSender(), receiver, owner, assets, shares);
 
         return assets;
@@ -913,7 +912,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return FundInfo The fund information
     function getFundInfo() external view returns (FundInfo memory) {
         uint256 fundBalance = availableAssets();
-        uint256 deployedCapital = totalFundedAmountForActiveInvoices();
+        uint256 deployedCapital = deployedCapitalForActiveInvoices(false);
         int256 realizedGain = calculateRealizedGainLoss();
         uint256 capitalAccount = calculateCapitalAccount();
         uint256 price = pricePerShare();
