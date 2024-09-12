@@ -432,4 +432,31 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
     }
 
+    function testOnlyCreditorCanFundInvoice() public {
+        // 100% upfront bps to simulate TCS
+        upfrontBps = 10000;
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // alice is allowed to factor
+        factoringPermissions.allow(alice);
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.startPrank(underwriter);
+
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert();
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+    }
 }
