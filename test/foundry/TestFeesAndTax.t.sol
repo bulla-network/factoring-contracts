@@ -226,6 +226,8 @@ contract TestFeesAndTax is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId2, 5000);
         vm.stopPrank();
 
+        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+
         // Assert that target interest and protocol fees are the same for both invoices
         assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
         assertEq(targetProtocolFee1, targetProtocolFee2, "Target protocol fee should be the same regardless of upfront percentage");
@@ -251,8 +253,9 @@ contract TestFeesAndTax is CommonSetup {
         // Calculate expected fees
         uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetProtocolFee2);
 
+        uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees
-        assertEq(realizedFees + uint256(bullaFactoring.calculateRealizedGainLoss()), expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
+        assertEq(realizedFees + gainLoss, expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
     }
 
     function testAdminFeeAccruesOvertime() public {
