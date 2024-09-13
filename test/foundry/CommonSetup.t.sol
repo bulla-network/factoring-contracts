@@ -43,7 +43,7 @@ contract CommonSetup is Test {
     address bullaDao = address(this);
     uint16 protocolFeeBps = 25;
     uint16 adminFeeBps = 50;
-    uint16 taxBps = 10;
+    uint16 taxBps = 1_000;
     uint16 targetYield = 730;
 
     string poolName = 'Test Pool';
