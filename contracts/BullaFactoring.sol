@@ -239,13 +239,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return (kickbackAmount, trueInterest, trueProtocolFee, trueAdminFee);
     }
 
-    /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
+    /// @notice Calculates the capital account balance, including deposits, withdrawals, and unrealized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         return availableAssets()
             + sumTargetFeesForActiveInvoices() // adding back since it's withheld in availableAssets
             + deployedCapitalForActiveInvoicesExcludingImpaired()
-            + getNetRealizedProfitFromActiveInvoices();
+            + getNetUnrealizedProfitFromActiveInvoices();
     }
 
     /// @notice Calculates the current price per share of the fund, 
@@ -288,10 +288,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return assetsScaled / SCALING_FACTOR / SCALING_FACTOR;
     }
 
-    /// @notice Calculates gross realized profit for an active invoice 
+    /// @notice Calculates gross unrealized profit for an active invoice 
     /// @param invoiceId The invoice id
-    /// @return trueInterest the interest due on the invoice at the current date, grossRealizedProfit the realized profit on this invoice to date.
-    function getGrossRealizedProfitOnActiveInvoice(uint256 invoiceId) private view returns (uint256, uint256) {
+    /// @return trueInterest the interest due on the invoice at the current date, grossUnrealizedProfit the unrealized profit on this invoice to date.
+    function getGrossUnrealizedProfitOnActiveInvoice(uint256 invoiceId) private view returns (uint256, uint256) {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
         (,uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateKickbackAmount(invoiceId);
         uint256 paymentSinceFunding = getPaymentsOnInvoiceSinceFunding(invoiceId);
@@ -300,8 +300,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         // Any amount paid lower than this amount is not proft 
         uint256 profitFloor = approval.fundedAmountNet + trueProtocolFee + trueAdminFee;
 
-        uint256 grossRealizedProfit = profitFloor >= paymentSinceFunding ? 0 : Math.min(trueInterest, paymentSinceFunding - profitFloor);
-        return (trueInterest, grossRealizedProfit);
+        uint256 grossUnrealizedProfit = profitFloor >= paymentSinceFunding ? 0 : Math.min(trueInterest, paymentSinceFunding - profitFloor);
+        return (trueInterest, grossUnrealizedProfit);
     }
 
     /// @notice Calculates the total accrued profits from all active invoices
@@ -311,8 +311,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
 
-            (uint256 trueInterest, uint256 grossRealizedProfit) = getGrossRealizedProfitOnActiveInvoice(invoiceId);
-            uint256 grossAccruedInterestOnRemainingInvoiceAmount = grossRealizedProfit >= trueInterest ? 0 : trueInterest - grossRealizedProfit;
+            (uint256 trueInterest, uint256 grossUnrealizedProfit) = getGrossUnrealizedProfitOnActiveInvoice(invoiceId);
+            uint256 grossAccruedInterestOnRemainingInvoiceAmount = grossUnrealizedProfit >= trueInterest ? 0 : trueInterest - grossUnrealizedProfit;
 
             // Deduct tax from the accrued interest
             uint256 taxAmount = calculateTax(grossAccruedInterestOnRemainingInvoiceAmount);
@@ -663,20 +663,20 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return incomingFunds;
     }
 
-    /// @notice Calculates the net realized profits of active invoices, excludes impaired invoices
-    /// @return The sum of all net realized profits of active invoices
-    function getNetRealizedProfitFromActiveInvoices() private view returns (uint256) {
-        uint256 capitalAccountAcc = 0;
+    /// @notice Calculates the net unrealized profits of active invoices, excludes impaired invoices
+    /// @return The sum of all net unrealized profits of active invoices
+    function getNetUnrealizedProfitFromActiveInvoices() private view returns (uint256) {
+        uint256 netUnrealizedProfit = 0;
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
 
             if(!isInvoiceImpaired(invoiceId))  {
-                (,uint256 grossRealizedProfit) = getGrossRealizedProfitOnActiveInvoice(invoiceId);
-                capitalAccountAcc += grossRealizedProfit == 0 ? 0 : grossRealizedProfit - calculateTax(grossRealizedProfit);
+                (,uint256 grossUnrealizedProfit) = getGrossUnrealizedProfitOnActiveInvoice(invoiceId);
+                netUnrealizedProfit += grossUnrealizedProfit == 0 ? 0 : grossUnrealizedProfit - calculateTax(grossUnrealizedProfit);
             }
         }
 
-        return capitalAccountAcc;
+        return netUnrealizedProfit;
     }
 
     /// @notice Sums the target fees for all active invoices
