@@ -365,7 +365,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint256 maxRedeemAmountAfterGraceImpairment = bullaFactoring.maxRedeem();
 
-        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as availableAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
+        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as totalAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
@@ -379,7 +379,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should be zero");
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.totalAssets(), 0, "totalAssets should be zero");
     }
 
     function testTargetAndRealisedFeeMatchIfPaidOnTime() public {
@@ -420,16 +420,16 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint availableAssetsAfter = bullaFactoring.totalAssets();
+        uint totalAssetsAfter = bullaFactoring.totalAssets();
         uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         uint targetFees = adminFee + targetInterest + targetProtocolFee;
-        uint realizedFees = totalAssetsAfter - availableAssetsAfter;
+        uint realizedFees = totalAssetsAfter - totalAssetsAfter;
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
 
-    function testAvailableAssetsDeclineWhenCapitalIsAtRisk() public {
+    function testTotalAssetsDeclineWhenCapitalIsAtRisk() public {
         interestApr = 2000;
         upfrontBps = 8000;
 
