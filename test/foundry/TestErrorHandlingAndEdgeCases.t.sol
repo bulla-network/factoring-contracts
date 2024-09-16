@@ -316,10 +316,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.impairInvoice(invoiceId01);
         bullaFactoring.impairInvoice(invoiceId02);
 
-        // Check that the realized gain/loss is negative
-        int256 realizedGainLoss = bullaFactoring.calculateRealizedGainLoss();
-        assertLt(realizedGainLoss, 0);
-
         // Check that the capital account is not negative
         uint256 capitalAccount = bullaFactoring.calculateCapitalAccount();
         assertGt(capitalAccount, 0);
@@ -418,6 +414,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
+        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+
         // Simulate invoice is paid exactly on time
         vm.warp(dueBy - 1);
 
@@ -433,7 +431,9 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint targetFees = adminFee + targetInterest + targetProtocolFee;
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
-        assertEq(realizedFees + uint(bullaFactoring.calculateRealizedGainLoss()), targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
+
+        uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
+        assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
 
     function testAvailableAssetsDeclineWhenCapitalIsAtRisk() public {

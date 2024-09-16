@@ -563,5 +563,73 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(previewDeposit2, deposit2, "previewed deposit amount is the same as actual deposit amount");
     }
+
+    function testDeductRealizedProfitInAccruedInterest() public {
+        dueBy = block.timestamp + 30 days;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 8000; // 80% upfront
+
+        uint256 initialDeposit = 100000000000;
+        uint256 invoiceAmount =   50000000000;
+
+        vm.startPrank(alice);
+        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, 0);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // After days of interest is not 0
+        vm.warp(block.timestamp + 1 days);
+
+        // Preview deposit after funded invoice but before partial claim payment
+        uint256 previewDepositBefore = bullaFactoring.previewDeposit(initialDeposit);
+
+        uint256 halfOfInvoiceAmount = invoiceAmount / 2;
+        // Debtor pays half of the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), halfOfInvoiceAmount);
+        bullaClaim.payClaim(invoiceId, halfOfInvoiceAmount);
+        vm.stopPrank();
+        
+        // Preview deposit after funded invoice but before partial claim payment
+        uint256 previewDepositAfterHalfPay = bullaFactoring.previewDeposit(initialDeposit);
+        
+        assertEq(previewDepositAfterHalfPay, previewDepositBefore, "payments that have not generated profit should not change accrued interest");
+
+        uint256 invoiceRemainder = invoiceAmount - halfOfInvoiceAmount;
+
+        // Debtor pays remainder before reconciliation
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceRemainder);
+        bullaClaim.payClaim(invoiceId, invoiceRemainder);
+        vm.stopPrank();
+
+        // Preview deposit after claim payment
+        uint256 previewDepositAfterFullPay = bullaFactoring.previewDeposit(initialDeposit);
+        
+        assertEq(previewDepositAfterFullPay, previewDepositAfterHalfPay, "Should get equal shares after full invoice payment");
+
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Preview deposit after reconciliation
+        uint256 previewDepositAfterReconciliation = bullaFactoring.previewDeposit(initialDeposit);
+        
+        assertEq(previewDepositAfterFullPay, previewDepositAfterReconciliation, "Reconciliation should not change deposit value");
+
+    }
 }
 

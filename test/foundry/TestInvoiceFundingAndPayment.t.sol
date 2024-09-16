@@ -52,13 +52,13 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         uint256 actualDaysUntilPayment = 30;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
+        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+
         // Debtor pays the invoice
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceAmount);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
-
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
 
         bullaFactoring.reconcileActivePaidInvoices();
 
@@ -94,13 +94,14 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
+        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+
         // Debtor pays the invoice
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceAmount);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
 
         bullaFactoring.reconcileActivePaidInvoices();
 
@@ -185,6 +186,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         assertEq(targetInterest02, targetInterest01, "Target interest should be the same for both invoices as min days for interest to be charged is 30 days");
 
+        uint capitalAccountAfterInvoice0 = bullaFactoring.calculateCapitalAccount();
+
         // alice pays both invoices, at different times
         vm.startPrank(alice);
         // bullaClaim is the contract executing the transferFrom method when paying, so it needs to be approved
@@ -192,17 +195,19 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Simulate debtor paying in 1 days
         vm.warp(block.timestamp + 1 days);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        
+        uint capitalAccountAfterInvoice1 = bullaFactoring.calculateCapitalAccount();
+
         // Simulate debtor paying second invoice in 30 days
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(block.timestamp + 28 days);
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
         bullaFactoring.reconcileActivePaidInvoices();
+        
+        uint capitalAccountAfterInvoice2 = bullaFactoring.calculateCapitalAccount();
 
-        uint factoringGain01 = bullaFactoring.paidInvoicesGain(invoiceId01);
-        uint factoringGain02 = bullaFactoring.paidInvoicesGain(invoiceId02);
-
-        assertEq(factoringGain01, factoringGain02, "Factoring gain should be the same for both invoices as min days for interest to be charged is 30 days");
+        assertEq(capitalAccountAfterInvoice2 - capitalAccountAfterInvoice1, capitalAccountAfterInvoice1 - capitalAccountAfterInvoice0, "Factoring gain should be the same for both invoices as min days for interest to be charged is 30 days");
     }
 
     function testDisperseKickbackAmount() public {

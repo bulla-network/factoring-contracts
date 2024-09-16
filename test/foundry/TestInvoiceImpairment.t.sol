@@ -82,6 +82,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
         IBullaFactoring.FundInfo memory fundInfoBefore = bullaFactoring.getFundInfo();
+        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
         // fund cannot impair an active invoice which is not classified as impaired
         vm.expectRevert(abi.encodeWithSignature("InvoiceNotImpaired()"));
@@ -102,8 +103,9 @@ contract TestInvoiceImpairment is CommonSetup {
         // reconcile redeemed invoice to make accounting adjustments
         bullaFactoring.reconcileActivePaidInvoices();
         IBullaFactoring.FundInfo memory fundInfoAfterImpairmentyFund = bullaFactoring.getFundInfo();
+        uint256 capitalAccountAfterImpair = bullaFactoring.calculateCapitalAccount();
 
-        assertTrue(fundInfoBefore.realizedGain > fundInfoAfterImpairmentyFund.realizedGain, "Realized gain increases if invoice is impaired by fund");
+        assertTrue(capitalAccountBefore > capitalAccountAfterImpair, "Realized gain decreases if invoice is impaired by fund");
         assertTrue(fundInfoBefore.impairReserve > fundInfoAfterImpairmentyFund.impairReserve, "Impair reserve should decline after the fund has impaired an invoice");
         assertTrue(fundInfoBefore.fundBalance < fundInfoAfterImpairmentyFund.fundBalance, "Fund balance should rise after fund impaired an invoice");
 
@@ -123,8 +125,9 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         IBullaFactoring.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
+        uint256 capitalAccountAfterPayment = bullaFactoring.calculateCapitalAccount();
         
-        assertTrue(fundInfoAfterImpairmentyFund.realizedGain < fundInfoAfterRepayment.realizedGain, "Realized gain increases when invoice impaired by fund gets paid");
+        assertTrue(capitalAccountAfterImpair < capitalAccountAfterPayment, "Realized gain increases when invoice impaired by fund gets paid");
     }
 
     function testChangingGracePeriodChangesAbilityToImpairInvoice() public {
