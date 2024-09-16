@@ -49,8 +49,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.deposit(initialDepositBob, bob);
         vm.stopPrank();
 
-        uint256 pricePerShareAfterNewDeposit = bullaFactoring.pricePerShare();
-        assertEq(pricePerShareAfterNewDeposit, bullaFactoring.SCALING_FACTOR(), "Price should go back to the scaling factor for new depositor in empty asset vault");
+        assertEq(1000, bullaFactoring.previewRedeem(1000), "Price should go back to the scaling factor for new depositor in empty asset vault");
     }
     
     function testAvailableAssetsLessThanTotal() public {
@@ -82,7 +81,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint feesAndTax =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve() + bullaFactoring.taxBalance();
 
-        assertEq(bullaFactoring.totalAssets(), bullaFactoring.availableAssets() + feesAndTax, "Available Assets should be lower than total assets by the sum of fees and tax");
+        assertEq(asset.balanceOf(address(bullaFactoring)), bullaFactoring.totalAssets() + feesAndTax, "Available Assets should be lower than total assets by the sum of fees and tax");
     }
 
     function testInvestorRedeemsAllFunds() public {
@@ -190,7 +189,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
     }
 
     function testDepositAndRedemptionWithImpairReserve() public {
@@ -243,7 +242,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
        
-        assertEq(bullaFactoring.availableAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
+        assertEq(bullaFactoring.totalAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
         assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
         uint amountToRedeem = bullaFactoring.maxRedeem();
@@ -313,7 +312,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
 
         // withdraw all fess
