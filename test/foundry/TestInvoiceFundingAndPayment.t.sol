@@ -464,4 +464,39 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
     }
+
+    function testOnlyFactoringPossibleWithSameToken() public {
+        // 100% upfront bps to simulate TCS
+        upfrontBps = 10000;
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // alice is allowed to factor
+        factoringPermissions.allow(alice);
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+
+        // create claim with different token than one in pool
+        uint256 invoiceId01 = bullaClaim.createClaim(
+            bob,
+            alice,
+            '',
+            invoiceId01Amount,
+            dueBy,
+            address(bullaFactoring),
+            Multihash({
+            hash: 0x0,
+            hashFunction: 0x12, 
+            size: 32 
+            })
+        );
+
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceTokenMismatch()"));
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+    }
 }
