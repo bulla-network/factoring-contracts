@@ -49,8 +49,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.deposit(initialDepositBob, bob);
         vm.stopPrank();
 
-        uint256 pricePerShareAfterNewDeposit = bullaFactoring.pricePerShare();
-        assertEq(pricePerShareAfterNewDeposit, bullaFactoring.SCALING_FACTOR(), "Price should go back to the scaling factor for new depositor in empty asset vault");
+        assertEq(1000, bullaFactoring.previewRedeem(1000), "Price should go back to the scaling factor for new depositor in empty asset vault");
     }
     
     function testAvailableAssetsLessThanTotal() public {

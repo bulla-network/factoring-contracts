@@ -45,8 +45,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Target yield in basis points
     uint16 public targetYieldBps;
 
-    /// @notice Scaling factor for the token
-    uint256 public SCALING_FACTOR;
     /// @notice Grace period for invoices
     uint256 public gracePeriodDays = 60;
 
@@ -128,7 +126,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
 
         assetAddress = _asset;
-        SCALING_FACTOR = 10**uint256(ERC20(address(assetAddress)).decimals());
         invoiceProviderAdapter = _invoiceProviderAdapter;
         underwriter = _underwriter;
         depositPermissions = _depositPermissions;
@@ -255,13 +252,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the current price per share of the fund, 
     /// @return The current price per share, scaled to the underlying asset's decimal places
     function pricePerShare() public view returns (uint256) {
-        uint256 sharesOutstanding = totalSupply();
-        if (sharesOutstanding == 0) {
-            return SCALING_FACTOR;
-        }
-
-        uint256 capitalAccount = calculateCapitalAccount();
-        return Math.mulDiv(capitalAccount, SCALING_FACTOR, sharesOutstanding);
+        return previewRedeem(10**decimals());
     }
 
     /// @notice Converts a given amount of assets to the equivalent amount of shares

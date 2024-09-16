@@ -109,10 +109,4 @@ contract CommonSetup is Test {
             attachment
         );
     }
-
-    function calculatePricePerShare(uint256 capitalAccount, uint256 sharesOutstanding, uint SCALING_FACTOR) public pure returns (uint256) {
-        if (sharesOutstanding == 0) return 0;
-        return (capitalAccount * SCALING_FACTOR) / sharesOutstanding;
-    }
-
 }

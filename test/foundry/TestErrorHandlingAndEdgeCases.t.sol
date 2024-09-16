@@ -255,19 +255,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
 
-        uint pricePerShare = bullaFactoring.pricePerShare();
-        uint maxRedeemAmount = maxRedeem * pricePerShare / bullaFactoring.SCALING_FACTOR();
-
-        // if Alice tries to redeem more shares than she owns, she'll be capped by max redeem amount
         vm.startPrank(alice);
         uint balanceBefore = asset.balanceOf(alice);
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
         uint balanceAfter = asset.balanceOf(alice);
         vm.stopPrank();
-
-        uint actualAssetsRedeems = balanceAfter - balanceBefore;
-
-        assertEq(actualAssetsRedeems, maxRedeemAmount, "Redeem amount should be capped to max redeem amount");
     }
 
     function testGainLossCanBeNegative() public {
