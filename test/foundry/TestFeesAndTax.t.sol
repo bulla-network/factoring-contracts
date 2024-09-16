@@ -244,8 +244,8 @@ contract TestFeesAndTax is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint256 availableAssetsAfter = bullaFactoring.availableAssets();
-        uint256 totalAssetsAfter = bullaFactoring.totalAssets();
+        uint256 availableAssetsAfter = bullaFactoring.totalAssets();
+        uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         // Calculate realized fees
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;

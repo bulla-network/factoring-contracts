@@ -255,8 +255,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
 
+        // if Alice tries to redeem more shares than she owns, it will revert
         vm.startPrank(alice);
         uint balanceBefore = asset.balanceOf(alice);
+        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", alice, sharesToRedeemIncludingKickback, bullaFactoring.balanceOf(alice)));
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
         uint balanceAfter = asset.balanceOf(alice);
         vm.stopPrank();
@@ -377,7 +379,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should be zero");
 
         assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
     }
 
     function testTargetAndRealisedFeeMatchIfPaidOnTime() public {
@@ -418,12 +420,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint availableAssetsAfter = bullaFactoring.availableAssets();
-        uint totalAssetsAfter = bullaFactoring.totalAssets();
+        uint availableAssetsAfter = bullaFactoring.totalAssets();
+        uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         uint targetFees = adminFee + targetInterest + targetProtocolFee;
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
-
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }

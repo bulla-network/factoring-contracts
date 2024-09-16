@@ -69,12 +69,12 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         uint aliceBalance = bullaFactoring.balanceOf(alice);
         uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
-        uint withdrawnAmount = bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
         uint aliceBalanceAfterRedemption = asset.balanceOf(alice);
 
-        assertTrue(withdrawnAmount > initialDeposit, "Alice's withdraw amount should be greater than her initial deposit after withdrawal");
+        assertTrue(assetsToWithdraw > initialDeposit, "Alice's withdraw amount should be greater than her initial deposit after withdrawal");
 
         assertGt(aliceBalanceAfterRedemption + invoiceAmount, aliceInitialBalance , "Alice's balance should be greater than her initial deposit after redemption");
 
@@ -118,11 +118,13 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         uint assetsRedeemed = bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
         vm.stopPrank();
+        
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice redeem all her shares");
                 
         dueDate = block.timestamp + 30 days;
         // second identical deposit
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        uint256 initialShares = bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create and fund second invoice, identical to the first
@@ -148,11 +150,12 @@ contract TestWithdraw is CommonSetup {
         // Alice withdraws all her funds
         vm.startPrank(alice);
         uint aliceBalance = bullaFactoring.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
-        uint assetsWithdrawn = bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint sharesWithdrawn = bullaFactoring.withdraw(bullaFactoring.totalAssets(), alice, alice);
         vm.stopPrank();
-
-        assertEq(assetsWithdrawn, assetsRedeemed, "Assets withdrawn should be equal to assets redeemed in identical scenario");
+        
+        assertEq(aliceBalance, sharesWithdrawn, "shares withdrawn equals alice's balance");
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice redeem all her shares");
+        assertEq(sharesWithdrawn, initialShares, "Assets withdrawn should be equal to assets redeemed in identical scenario");
     }
 
     function testAvailableAssetIsZeroAfterAllWithdrawals() public {
@@ -198,10 +201,13 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         uint aliceBalance = bullaFactoring.balanceOf(alice);
         uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
+
+        assertEq(bullaFactoring.maxWithdraw(alice), assetsToWithdraw, "Alice is about to withdraw the most that she can");
+
         bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
-        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
     }
 
     function testBalanceOfFundShouldBeZeroAfterAllFeeWithdrawals() public {
@@ -250,7 +256,7 @@ contract TestWithdraw is CommonSetup {
         bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
-        assertEq(bullaFactoring.availableAssets(), 0, "availableAssets should be zero");
+        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
 
         // withdraw all fess
@@ -267,12 +273,11 @@ contract TestWithdraw is CommonSetup {
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
 
-    function testConvertToAssetsReturns0WhenNoSupply() public {
+    function testConvertToAssetsReturnsSharesWhenNoSupply() public {
         vm.startPrank(alice);
-        uint assetsShouldBe0 = bullaFactoring.convertToAssets(1000);
+        assertEq(bullaFactoring.convertToAssets(1000), 1000, "Assets should be equal to shares if no shares/no capital deposited");
         vm.stopPrank();
 
-        assertEq(assetsShouldBe0, 0, "Assets should be 0 if no shares/no capital deposited");
     }
 }
 
