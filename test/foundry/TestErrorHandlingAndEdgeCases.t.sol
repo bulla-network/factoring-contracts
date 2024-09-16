@@ -420,11 +420,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint totalAssetsAfter = bullaFactoring.totalAssets();
+        uint availableAssetsAfter = bullaFactoring.totalAssets();
         uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         uint targetFees = adminFee + targetInterest + targetProtocolFee;
-        uint realizedFees = totalAssetsAfter - totalAssetsAfter;
+        uint realizedFees = totalAssetsAfter - availableAssetsAfter;
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
