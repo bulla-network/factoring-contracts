@@ -239,7 +239,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return (kickbackAmount, trueInterest, trueProtocolFee, trueAdminFee);
     }
 
-    /// @notice Calculates the capital account balance, including deposits, withdrawals, and unrealized gains/losses
+    /// @notice Calculates the capital account, which represents the total value of the fund, including both liquid and deployed assets, as well as expected future earnings
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
         return availableAssets()
@@ -695,8 +695,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function availableAssets() public view returns (uint256) {
         uint256 totalAssetsInFund = totalAssets();
         return totalAssetsInFund
-                - getAllIncomingPaymentsForActiveInvoices()
-                - sumTargetFeesForActiveInvoices()
+                - getAllIncomingPaymentsForActiveInvoices() // payments assigned to unpaid invoices, accounted for in total assets but not available for profit distribution
+                - sumTargetFeesForActiveInvoices() // withheld projected fees, accounted for in total assets but not available for profit distribution
                 - impairReserve
                 - taxBalance
                 - protocolFeeBalance
