@@ -84,4 +84,38 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         bullaFactoringSafe.deposit(initialDeposit, bob);
         vm.stopPrank();
     }
+
+    function testApproveDoesNotOverrideStorage() public {
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 100000000000;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 10000; // 100% upfront
+
+        uint256 initialDeposit = 100000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice again
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyFunded()"));
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+    }
 }
