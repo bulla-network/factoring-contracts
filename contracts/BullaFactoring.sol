@@ -581,10 +581,16 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 daysOfInterestToCharge = daysSinceFunding + 1;
         
         (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysOfInterestToCharge);
-        uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee + trueAdminFee;
+        int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueProtocolFee + trueAdminFee) - int256(getPaymentsOnInvoiceSinceFunding(invoiceId));
 
-        // Refund the funded amount to the fund from the original creditor
-        assetAddress.safeTransferFrom(originalCreditor, address(this), totalRefundAmount);
+        // positive number means the original creditor owes us the amount
+        if(totalRefundOrPaymentAmount > 0) {
+            // Refund the funded amount to the fund from the original creditor
+            assetAddress.safeTransferFrom(originalCreditor, address(this), uint256(totalRefundOrPaymentAmount));
+        } else if (totalRefundOrPaymentAmount < 0) {
+            // negative number means we owe them
+            assetAddress.safeTransfer(originalCreditor, uint256(-totalRefundOrPaymentAmount));
+        }
 
         // Transfer the invoice NFT back to the original creditor
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
@@ -596,7 +602,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         delete originalCreditors[invoiceId];
 
-        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundAmount, trueInterest);
+        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
