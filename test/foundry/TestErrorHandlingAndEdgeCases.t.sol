@@ -637,8 +637,62 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", bob));
         bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
         vm.stopPrank();
+    }
 
+    function testChangingFeesDoesNotAffectActiveInvoices() public {
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint initialProtocolFeeBps = bullaFactoring.protocolFeeBps();
+        assertEq(initialProtocolFeeBps, 25, "Protocol fee bps should be equal to initial protocol fee bps");
+        uint initialAdminFeeBps = bullaFactoring.adminFeeBps();
+        assertEq(initialAdminFeeBps, 50, "Admin fee bps should be equal to initial admin fee bps");
+        uint initialTargetYield = targetYield;
+        assertEq(initialTargetYield, 730, "Target yield should be equal to initial target yield");
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // change fees
+        bullaFactoring.setProtocolFeeBps(50);
+        bullaFactoring.setAdminFeeBps(100);
+        bullaFactoring.setTargetYield(1200);
+
+        (
+            ,
+            ,
+            ,
+            ,
+            uint16 _interestApr,
+            ,
+            ,
+            ,
+            ,
+            ,
+            uint16 _protocolFeeBps,
+            uint16 _adminFeeBps
+        ) = bullaFactoring.approvedInvoices(invoiceId01);
         
+
+        assertEq(_interestApr, initialTargetYield, "Interest apr should be equal to target yield");
+        assertEq(_protocolFeeBps, initialProtocolFeeBps, "Protocol fee bps should be equal to initial protocol fee bps");
+        assertEq(_adminFeeBps, initialAdminFeeBps, "Admin fee bps should be equal to initial admin fee bps");
     }
 }
 
