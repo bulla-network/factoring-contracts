@@ -229,7 +229,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function calculateKickbackAmount(uint256 invoiceId) public view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
     
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24 : 0;
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 1 days : 0;
         uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
 
         (trueInterest, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest);
@@ -378,7 +378,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
 
-        uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
+        uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 1 days;
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
@@ -432,42 +432,37 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function viewPoolStatus() public view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
         uint256 activeCount = activeInvoices.length;
         uint256 impairedByFundCount = impairedByFundInvoicesIds.length;
-        uint256[] memory tempPaidInvoices = new uint256[](activeCount + impairedByFundCount);
-        uint256[] memory tempImpairedInvoices = new uint256[](activeCount);
+        
+        paidInvoices = new uint256[](activeCount + impairedByFundCount);
+        impairedInvoices = new uint256[](activeCount);
+        
         uint256 paidCount = 0;
         uint256 impairedCount = 0;
 
+        // Check active invoices
         for (uint256 i = 0; i < activeCount; i++) {
             uint256 invoiceId = activeInvoices[i];
- 
+            
             if (isInvoicePaid(invoiceId)) {
-                tempPaidInvoices[paidCount] = invoiceId;
-                paidCount++;
+                paidInvoices[paidCount++] = invoiceId;
             } else if (isInvoiceImpaired(invoiceId)) {
-                tempImpairedInvoices[impairedCount] = invoiceId;
-                impairedCount++;
+                impairedInvoices[impairedCount++] = invoiceId;
             }
         }
 
-        // check if any of the impaired invoices by the fund got paid
+        // Check impaired invoices by the fund
         for (uint256 i = 0; i < impairedByFundCount; i++) {
             uint256 invoiceId = impairedByFundInvoicesIds[i];
- 
+            
             if (isInvoicePaid(invoiceId)) {
-                tempPaidInvoices[paidCount] = invoiceId;
-                paidCount++;
-            } 
-        }
-    
-        paidInvoices = new uint256[](paidCount);
-        impairedInvoices = new uint256[](impairedCount);
-
-        for (uint256 i = 0; i < paidCount; i++) {
-            paidInvoices[i] = tempPaidInvoices[i];
+                paidInvoices[paidCount++] = invoiceId;
+            }
         }
 
-        for (uint256 i = 0; i < impairedCount; i++) {
-            impairedInvoices[i] = tempImpairedInvoices[i];
+        // Overwrite the length of the arrays
+        assembly {
+            mstore(paidInvoices, paidCount)
+            mstore(impairedInvoices, impairedCount)
         }
 
         return (paidInvoices, impairedInvoices);
@@ -582,7 +577,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 fundedAmount = approval.fundedAmountNet;
 
         // Calculate the number of days since funding
-        uint256 daysSinceFunding = (block.timestamp - approval.fundedTimestamp) / 60 / 60 / 24;
+        uint256 daysSinceFunding = (block.timestamp - approval.fundedTimestamp) / 1 days;
         uint256 daysOfInterestToCharge = daysSinceFunding + 1;
         
         (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysOfInterestToCharge);
