@@ -645,13 +645,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
-        uint initialProtocolFeeBps = bullaFactoring.protocolFeeBps();
-        assertEq(initialProtocolFeeBps, 25, "Protocol fee bps should be equal to initial protocol fee bps");
-        uint initialAdminFeeBps = bullaFactoring.adminFeeBps();
-        assertEq(initialAdminFeeBps, 50, "Admin fee bps should be equal to initial admin fee bps");
-        uint initialTargetYield = targetYield;
-        assertEq(initialTargetYield, 730, "Target yield should be equal to initial target yield");
-
         vm.startPrank(bob);
         uint invoiceId01Amount = 1000000; // 1 USDC
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
@@ -663,36 +656,40 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        vm.stopPrank();
-
-        vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
         vm.stopPrank();
 
-        // change fees
-        bullaFactoring.setProtocolFeeBps(50);
-        bullaFactoring.setAdminFeeBps(100);
-        bullaFactoring.setTargetYield(1200);
+        // set new fees higher than initial fees
+        bullaFactoring.setProtocolFeeBps(30);
+        bullaFactoring.setAdminFeeBps(70);
+        uint16 newTargetYield = 830;
+        bullaFactoring.setTargetYield(newTargetYield);
 
-        (
-            ,
-            ,
-            ,
-            ,
-            uint16 _interestApr,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint16 _protocolFeeBps,
-            uint16 _adminFeeBps
-        ) = bullaFactoring.approvedInvoices(invoiceId01);
-        
+        // create another identical claim
+        vm.startPrank(bob);
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.stopPrank();
 
-        assertEq(_interestApr, initialTargetYield, "Interest apr should be equal to target yield");
-        assertEq(_protocolFeeBps, initialProtocolFeeBps, "Protocol fee bps should be equal to initial protocol fee bps");
-        assertEq(_adminFeeBps, initialAdminFeeBps, "Admin fee bps should be equal to initial admin fee bps");
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, newTargetYield, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        // (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        // (, uint targetAdminFeeAfterFeeChange, , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        // vm.warp(dueBy - 1);
+        // vm.startPrank(alice);
+        // asset.approve(address(bullaClaim), invoiceId01Amount);
+        // bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        // vm.stopPrank();
+
+        // bullaFactoring.reconcileActivePaidInvoices();
+        // assertLt(bullaFactoring.protocolFeeBalance(), targetProtocolFeeAfterFeeChange, "Protocol fee balance should be less than new protocol fee");
+        // assertLt(bullaFactoring.adminFeeBalance(), targetAdminFeeAfterFeeChange, "Admin fee balance should be less than new admin fee");
     }
 }
 

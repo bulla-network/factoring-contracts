@@ -380,7 +380,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
 
+        console.log("beforeDaysUntilDue");
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
+        console.log("afterDaysUntilDue");
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
