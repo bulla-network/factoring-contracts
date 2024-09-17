@@ -628,7 +628,13 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 previewDepositAfterReconciliation = bullaFactoring.previewDeposit(initialDeposit);
         
         assertEq(previewDepositAfterFullPay, previewDepositAfterReconciliation, "Reconciliation should not change deposit value");
+    }
 
+    function testOnlyAuthorizedDepositorsCanRedeem() public {
+        vm.startPrank(userWithoutPermissions);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        bullaFactoring.redeem(1 ether, userWithoutPermissions, alice);
+        vm.stopPrank();
     }
 }
 
