@@ -630,6 +630,54 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(previewDepositAfterFullPay, previewDepositAfterReconciliation, "Reconciliation should not change deposit value");
     }
 
+    function testAccuredInterestAfterImpairmentDecreases() public {
+        dueBy = block.timestamp + 30 days;
+        interestApr = 1000; // 10% APR
+        upfrontBps = 8000; // 80% upfront
+
+        uint256 initialDeposit = 100000000000;
+        uint256 invoiceAmount =   50000000000;
+
+        vm.startPrank(alice);
+        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Creditor creates the invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, 0);
+        vm.stopPrank();
+
+        // creditor funds the invoice
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        // Preview deposit before impairment
+        uint256 previewDepositAtFunding = bullaFactoring.previewDeposit(initialDeposit);
+
+        // Around due date
+        vm.warp(block.timestamp + 30 days);
+
+        // Preview deposit before impairment
+        uint256 previewDepositBeforeImpairment = bullaFactoring.previewDeposit(initialDeposit);
+
+        assertGt(previewDepositAtFunding, previewDepositBeforeImpairment, "Accrued interest should increase therefore a depositor gets less shares");
+
+        // Around once invoice is impaired
+        vm.warp(block.timestamp + 120 days);
+
+        // Preview deposit after impairment
+        uint256 previewDepositAfterImpairment = bullaFactoring.previewDeposit(initialDeposit);
+        
+        assertGt(previewDepositAfterImpairment, previewDepositBeforeImpairment, "Accrued interest should have decreased therefore a depositor gets more shares");
+    }
+
     function testOnlyAuthorizedDepositorsCanRedeem() public {
         vm.startPrank(userWithoutPermissions);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));

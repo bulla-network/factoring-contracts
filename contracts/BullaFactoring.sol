@@ -308,15 +308,17 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
+            
+            if(!isInvoiceImpaired(invoiceId)) {
+                (uint256 trueInterest, uint256 grossUnrealizedProfit) = getGrossUnrealizedProfitOnActiveInvoice(invoiceId);
+                uint256 grossAccruedInterestOnRemainingInvoiceAmount = grossUnrealizedProfit >= trueInterest ? 0 : trueInterest - grossUnrealizedProfit;
 
-            (uint256 trueInterest, uint256 grossUnrealizedProfit) = getGrossUnrealizedProfitOnActiveInvoice(invoiceId);
-            uint256 grossAccruedInterestOnRemainingInvoiceAmount = grossUnrealizedProfit >= trueInterest ? 0 : trueInterest - grossUnrealizedProfit;
+                // Deduct tax from the accrued interest
+                uint256 taxAmount = calculateTax(grossAccruedInterestOnRemainingInvoiceAmount);
+                uint256 netAccruedInterest = grossAccruedInterestOnRemainingInvoiceAmount - taxAmount;
 
-            // Deduct tax from the accrued interest
-            uint256 taxAmount = calculateTax(grossAccruedInterestOnRemainingInvoiceAmount);
-            uint256 netAccruedInterest = grossAccruedInterestOnRemainingInvoiceAmount - taxAmount;
-
-            accruedProfits += netAccruedInterest;
+                accruedProfits += netAccruedInterest;
+            }
         }
 
         return accruedProfits;
