@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
@@ -15,6 +16,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
 contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     using Math for uint256;
+    using SafeERC20 for IERC20;
 
     /// @notice Address of the Bulla DAO, a trusted multisig
     address public bullaDao;
@@ -93,12 +95,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     error InvalidPercentage();
     error CallerNotBullaDao();
     error NoFeesToWithdraw();
-    error FeeWithdrawalFailed();
     error InvalidAddress();
     error NoTaxBalanceToWithdraw();
-    error TaxWithdrawalFailed();
     error ImpairReserveMustBeGreater();
-    error TransferFailed();
     error InvoiceCreditorChanged();
     error ImpairReserveNotSet();
     error InvoiceCannotBePaid();
@@ -392,6 +391,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
+    /// @dev No checks needed for the creditor, as transferFrom will revert unless it gets executed by the nft owner (i.e. claim creditor)
     /// @param invoiceId The ID of the invoice to fund
     /// @param factorerUpfrontBps factorer specified upfront bps
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns(uint256) {
@@ -414,7 +414,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
 
         // transfer net funded amount to caller
-        assetAddress.transfer(msg.sender, fundedAmountNet);
+        assetAddress.safeTransfer(msg.sender, fundedAmountNet);
 
         // transfer invoice nft ownership to vault
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
@@ -530,7 +530,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             // Disperse kickback amount to the original creditor
             address originalCreditor = originalCreditors[invoiceId];            
             if (kickbackAmount != 0) {
-                require(assetAddress.transfer(originalCreditor, kickbackAmount), "Kickback transfer failed");
+                assetAddress.safeTransfer(originalCreditor, kickbackAmount);
                 emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, originalCreditor);
             }
 
@@ -589,7 +589,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee + trueAdminFee;
 
         // Refund the funded amount to the fund from the original creditor
-        require(assetAddress.transferFrom(originalCreditor, address(this), totalRefundAmount), "Refund transfer failed");
+        assetAddress.safeTransferFrom(originalCreditor, address(this), totalRefundAmount);
 
         // Transfer the invoice NFT back to the original creditor
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
@@ -780,8 +780,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 feeAmount = protocolFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
         protocolFeeBalance = 0;
-        bool success = assetAddress.transfer(bullaDao, feeAmount);
-        if (!success) revert FeeWithdrawalFailed();
+        assetAddress.safeTransfer(bullaDao, feeAmount);
         emit ProtocolFeesWithdrawn(bullaDao, feeAmount);
     }
 
@@ -790,8 +789,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 feeAmount = adminFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
         adminFeeBalance = 0;
-        bool success = assetAddress.transfer(msg.sender, feeAmount);
-        if (!success) revert FeeWithdrawalFailed();
+        assetAddress.safeTransfer(msg.sender, feeAmount);
         emit AdminFeesWithdrawn(msg.sender, feeAmount);
     }
 
@@ -801,8 +799,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (taxBalance == 0) revert NoTaxBalanceToWithdraw();
         uint256 amountToWithdraw = taxBalance;
         taxBalance = 0;
-        bool success = assetAddress.transfer(msg.sender, amountToWithdraw);
-        if (!success) revert TaxWithdrawalFailed();
+        assetAddress.safeTransfer(msg.sender, amountToWithdraw);
         emit TaxBalanceWithdrawn(msg.sender, amountToWithdraw);
     }
 
@@ -862,8 +859,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function setImpairReserve(uint256 _impairReserve) public onlyOwner {
         if (_impairReserve < impairReserve) revert ImpairReserveMustBeGreater();
         uint256 amountToAdd = _impairReserve - impairReserve;
-        bool success = assetAddress.transferFrom(msg.sender, address(this), amountToAdd);
-        if (!success) revert TransferFailed();
+        assetAddress.safeTransferFrom(msg.sender, address(this), amountToAdd);
         impairReserve = _impairReserve;
         emit ImpairReserveChanged(_impairReserve);
     }
