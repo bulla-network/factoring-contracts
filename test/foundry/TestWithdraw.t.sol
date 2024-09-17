@@ -279,5 +279,13 @@ contract TestWithdraw is CommonSetup {
         vm.stopPrank();
 
     }
+
+    function testOnlyAuthorizedDepositorsCanWithdraw() public {
+        vm.startPrank(userWithoutPermissions);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        bullaFactoring.withdraw(1 ether, userWithoutPermissions, alice);
+        vm.stopPrank();
+
+    }
 }
 
