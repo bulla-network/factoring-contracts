@@ -231,8 +231,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function calculateKickbackAmount(uint256 invoiceId) public view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
     
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) / 1 days : 0;
-        uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded + 1, approval.minDaysInterestApplied);
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
+        
+        uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.minDaysInterestApplied);
 
         (trueInterest, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest);
 
@@ -382,7 +383,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
 
-        uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 1 days;
+        uint256 daysUntilDue =  Math.mulDiv(invoice.dueDate - block.timestamp, 1, 1 days, Math.Rounding.Ceil);
+
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
@@ -581,10 +583,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 fundedAmount = approval.fundedAmountNet;
 
         // Calculate the number of days since funding
-        uint256 daysSinceFunding = (block.timestamp - approval.fundedTimestamp) / 1 days;
-        uint256 daysOfInterestToCharge = daysSinceFunding + 1;
-        
-        (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysOfInterestToCharge);
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
+        (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysSinceFunded);
+
         uint256 totalRefundAmount = fundedAmount + trueInterest + trueProtocolFee + trueAdminFee;
 
         // Refund the funded amount to the fund from the original creditor

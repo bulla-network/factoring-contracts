@@ -487,7 +487,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         uint priceAfterRedeem = bullaFactoring.pricePerShare();
-        assertEq(priceBeforeRedeem, priceAfterRedeem, "Price per share should remain the same after redemption");
+        assertApproxEqAbs(priceBeforeRedeem, priceAfterRedeem, 1, "Price per share should remain the same after redemption");
 
         // Fast forward time by 30 days
         vm.warp(block.timestamp + 30 days);
