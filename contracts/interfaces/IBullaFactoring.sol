@@ -21,6 +21,8 @@ interface IBullaFactoring {
         uint256 fundedAmountNet;
         uint16 minDaysInterestApplied;
         uint256 trueFaceValue;
+        uint16 protocolFeeBps;
+        uint16 adminFeeBps;
     }
 
     struct Multihash {
@@ -52,15 +54,11 @@ interface IBullaFactoring {
     event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil, uint16 minDays);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
-    event DepositMade(address indexed depositor, uint256 assets, uint256 sharesIssued);
-    event SharesRedeemed(address indexed redeemer, uint256 shares, uint256 assets);
-    event FundingPercentageChanged(uint256 newFundingPercentage);
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 adminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
-    event KickbackPercentageChanged(uint256 newKickbackPercentageBps);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint interestToCharge);
     event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
     event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
@@ -76,8 +74,6 @@ interface IBullaFactoring {
     event TaxBpsChanged(uint16 indexed oldTaxBps, uint256 indexed newTaxBps);
     event ImpairReserveChanged(uint256 newImpairReserve);
     event TargetYieldChanged(uint16 newTargetYield);
-    event InvoiceProviderAdapterChanged(IInvoiceProviderAdapter newInvoiceProviderAdapter);
-    event AssetsWithdrawn(address indexed withdrawer, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;

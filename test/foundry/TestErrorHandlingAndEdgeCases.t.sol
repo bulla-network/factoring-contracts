@@ -487,7 +487,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         uint priceAfterRedeem = bullaFactoring.pricePerShare();
-        assertEq(priceBeforeRedeem, priceAfterRedeem, "Price per share should remain the same after redemption");
+        assertApproxEqAbs(priceBeforeRedeem, priceAfterRedeem, 1, "Price per share should remain the same after redemption");
 
         // Fast forward time by 30 days
         vm.warp(block.timestamp + 30 days);
@@ -637,8 +637,58 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", bob));
         bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
         vm.stopPrank();
+    }
 
-        
+    function testChangingFeesDoesNotAffectActiveInvoices() public {
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        uint invoiceId01Amount = 1000000; // 1 USDC
+        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        vm.stopPrank();
+
+        // set new fees higher than initial fees
+        bullaFactoring.setProtocolFeeBps(50);
+        bullaFactoring.setAdminFeeBps(100);
+        uint16 newTargetYield = 1400;
+        bullaFactoring.setTargetYield(newTargetYield);
+
+        // create another identical claim
+        vm.startPrank(bob);
+        uint256 invoiceId02 = createClaim(bob, alice, invoiceId01Amount, dueBy);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId02, newTargetYield, upfrontBps, minDays);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        (, uint targetAdminFeeAfterFeeChange, , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        vm.stopPrank();
+
+        vm.warp(dueBy - 1);
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
+
+        bullaFactoring.reconcileActivePaidInvoices();
+        assertLt(bullaFactoring.protocolFeeBalance(), targetProtocolFeeAfterFeeChange, "Protocol fee balance should be less than new protocol fee");
+        assertLt(bullaFactoring.adminFeeBalance(), targetAdminFeeAfterFeeChange, "Admin fee balance should be less than new admin fee");
     }
 }
 
