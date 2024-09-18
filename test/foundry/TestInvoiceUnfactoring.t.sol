@@ -224,5 +224,87 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // If the unfactoring is delayed, the will be more interest to be paid BY Bob, therefore, his refund payment should be bigger than the low interest unfactor.
         assertTrue(refundedUnfactoringInterest < refundedDelayedUnfactoringInterest, "Interest should accrue when unfactoring invoices");
+    }
+
+    function testUnfactorWhenInvoiceIsPartiallyPaid() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        vm.stopPrank();
+
+        uint256 assetBalanceBefore = asset.balanceOf(bob);
+        // Bob unfactors the invoice with no payment
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId);
+        vm.stopPrank();
+        uint256 assetBalanceAfter = asset.balanceOf(bob);
+
+        uint256 repayment = assetBalanceBefore - assetBalanceAfter;
+
+        // mint new identical invoice
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
+        vm.stopPrank();
+
+        // alice makes a small payment
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId2, 5);
+        vm.stopPrank();
+
+        uint256 assetBalanceBefore2 = asset.balanceOf(bob);
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId2);
+        vm.stopPrank();
+        uint256 assetBalanceAfter2 = asset.balanceOf(bob);
+
+        uint256 repayment2 = assetBalanceBefore2 - assetBalanceAfter2;
+
+        assertEq(repayment, repayment2 + 5, "The payment made by alice reduced the required repayment by the payment amount");
+
+        // mint new identical invoice
+        uint256 invoiceId3 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId3, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId3);
+        bullaFactoring.fundInvoice(invoiceId3, upfrontBps);
+        vm.stopPrank();
+
+        // alice pays almost all of it
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        uint256 alicePaymentAmount = invoiceAmount - 1;
+        bullaClaim.payClaim(invoiceId3, alicePaymentAmount);
+        vm.stopPrank();
+
+        uint256 assetBalanceBefore3 = asset.balanceOf(bob);
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId3);
+        vm.stopPrank();
+        uint256 assetBalanceAfter3 = asset.balanceOf(bob);
+
+        uint256 refund3 = assetBalanceAfter3 - assetBalanceBefore3;
+
+        assertEq(repayment, alicePaymentAmount - refund3, "Bob receives money from the pool if the invoice is mostly paid");
     } 
 }
