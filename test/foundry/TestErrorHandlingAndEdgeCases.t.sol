@@ -660,8 +660,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         // set new fees higher than initial fees
-        bullaFactoring.setProtocolFeeBps(100);
-        bullaFactoring.setAdminFeeBps(120);
+        bullaFactoring.setProtocolFeeBps(50);
+        bullaFactoring.setAdminFeeBps(100);
         uint16 newTargetYield = 1400;
         bullaFactoring.setTargetYield(newTargetYield);
 

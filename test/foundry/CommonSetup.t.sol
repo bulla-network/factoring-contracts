@@ -41,10 +41,10 @@ contract CommonSetup is Test {
     uint16 minDays = 30;
 
     address bullaDao = address(this);
-    uint16 protocolFeeBps = 50;
-    uint16 adminFeeBps = 80;
+    uint16 protocolFeeBps = 25;
+    uint16 adminFeeBps = 50;
     uint16 taxBps = 1_000;
-    uint16 targetYield = 1200;
+    uint16 targetYield = 730;
 
     string poolName = 'Test Pool';
     string poolTokenName = 'Test Bulla Factoring Pool Token';
