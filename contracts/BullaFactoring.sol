@@ -170,7 +170,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             fundedAmountGross: 0,
             fundedAmountNet: 0,
             minDaysInterestApplied: minDaysInterestApplied,
-            trueFaceValue: invoiceSnapshot.faceValue - invoiceSnapshot.paidAmount
+            trueFaceValue: invoiceSnapshot.faceValue - invoiceSnapshot.paidAmount,
+            protocolFeeBps: protocolFeeBps,
+            adminFeeBps: adminFeeBps
         });
         emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDaysInterestApplied);
     }
@@ -181,7 +183,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return interest The calculated interest amount
     /// @return protocolFee The calculated protocol fee amount
     /// @return adminFee The calculated admin fee amount
-    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest) private view returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
+    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest) private pure returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
 
@@ -191,10 +193,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // calculate the APR discount with protocols fee
         // millibips used due to the small nature of the fees
-        uint256 interestAndProtocolFeeMbps = Math.mulDiv(interestRateMbps, (10000 + protocolFeeBps), 10000);
+        uint256 interestAndProtocolFeeMbps = Math.mulDiv(interestRateMbps, (10000 + uint256(approval.protocolFeeBps)), 10000);
         
         // Calculate the admin fee rate
-        uint256 adminFeeRateMbps = Math.mulDiv(adminFeeBps * 1000, daysOfInterest, 365);
+        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.adminFeeBps) * 1000, daysOfInterest, 365);
         
         // Calculate the total fee rate Mbps (interest + protocol fee + admin fee)
         uint256 totalFeeRateMbps = interestAndProtocolFeeMbps + adminFeeRateMbps;
@@ -553,8 +555,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param amount The amount of the payment on which tax is to be calculated.
     /// @return The calculated tax amount.
     function calculateTax(uint256 amount) internal view returns (uint256) {
-        uint256 taxMbps = taxBps;
-        return Math.mulDiv(amount, taxMbps * 1000, 10_000_000);
+        uint256 taxMbps = uint256(taxBps)* 1000;
+        return Math.mulDiv(amount, taxMbps, 10_000_000);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
