@@ -193,10 +193,10 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         // calculate the APR discount with protocols fee
         // millibips used due to the small nature of the fees
-        uint256 interestAndProtocolFeeMbps = Math.mulDiv(interestRateMbps, (10000 + approval.protocolFeeBps), 10000);
+        uint256 interestAndProtocolFeeMbps = Math.mulDiv(interestRateMbps, (10000 + uint256(approval.protocolFeeBps)), 10000);
         
         // Calculate the admin fee rate
-        uint256 adminFeeRateMbps = Math.mulDiv(approval.adminFeeBps * 1000, daysOfInterest, 365);
+        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.adminFeeBps) * 1000, daysOfInterest, 365);
         
         // Calculate the total fee rate Mbps (interest + protocol fee + admin fee)
         uint256 totalFeeRateMbps = interestAndProtocolFeeMbps + adminFeeRateMbps;
@@ -380,9 +380,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
 
         fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
 
-        console.log("beforeDaysUntilDue");
         uint256 daysUntilDue = (invoice.dueDate - block.timestamp) / 60 / 60 / 24;
-        console.log("afterDaysUntilDue");
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 

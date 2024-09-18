@@ -660,9 +660,9 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         // set new fees higher than initial fees
-        bullaFactoring.setProtocolFeeBps(30);
-        bullaFactoring.setAdminFeeBps(70);
-        uint16 newTargetYield = 830;
+        bullaFactoring.setProtocolFeeBps(100);
+        bullaFactoring.setAdminFeeBps(120);
+        uint16 newTargetYield = 1400;
         bullaFactoring.setTargetYield(newTargetYield);
 
         // create another identical claim
@@ -677,19 +677,18 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
-        // (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
-        // (, uint targetAdminFeeAfterFeeChange, , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, uint targetAdminFeeAfterFeeChange, , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
-        // vm.warp(dueBy - 1);
-        // vm.startPrank(alice);
-        // asset.approve(address(bullaClaim), invoiceId01Amount);
-        // bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
-        // vm.stopPrank();
+        vm.warp(dueBy - 1);
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
 
-        // bullaFactoring.reconcileActivePaidInvoices();
-        // assertLt(bullaFactoring.protocolFeeBalance(), targetProtocolFeeAfterFeeChange, "Protocol fee balance should be less than new protocol fee");
-        // assertLt(bullaFactoring.adminFeeBalance(), targetAdminFeeAfterFeeChange, "Admin fee balance should be less than new admin fee");
+        bullaFactoring.reconcileActivePaidInvoices();
+        assertLt(bullaFactoring.protocolFeeBalance(), targetProtocolFeeAfterFeeChange, "Protocol fee balance should be less than new protocol fee");
+        assertLt(bullaFactoring.adminFeeBalance(), targetAdminFeeAfterFeeChange, "Admin fee balance should be less than new admin fee");
     }
 }
 
