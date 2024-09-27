@@ -195,6 +195,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Simulate debtor paying in 1 days
         vm.warp(block.timestamp + 1 days);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+
+        bullaFactoring.reconcileActivePaidInvoices();
         
         uint capitalAccountAfterInvoice1 = bullaFactoring.calculateCapitalAccount();
 
@@ -337,7 +339,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         assertTrue(fullyUnpaidFundedAmount > partiallyPaidFundedAmount, "Funded amount for partially paid invoice should be less than fully unpaid invoice");
-        assertApproxEqAbs((fullyUnpaidFundedAmount / 2), partiallyPaidFundedAmount, 1, "Funded amount for partially paid invoice should be half than fully unpaid invoice");
+        assertEq((fullyUnpaidFundedAmount / 2), partiallyPaidFundedAmount, "Funded amount for partially paid invoice should be half than fully unpaid invoice");
     }
 
     function testPartiallyPaidInvoice() public {
