@@ -290,23 +290,23 @@ contract TestWithdraw is CommonSetup {
     function testOnlyAuthorizedOwnersCanWithdraw() public {
         uint256 initialDeposit = 20000000;
 
+         // Alice deposits
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
 
-        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxWithdraw(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
-        bullaFactoring.withdraw(initialDeposit, alice, userWithoutPermissions);
-    
-        vm.stopPrank();
+        // Alice sends BFTs to unauthorized user
+        uint sharesBalance = bullaFactoring.balanceOf(alice);
+        IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
 
-        asset.transfer(userWithoutPermissions, initialDeposit);
-
+        // unauthorized user permits Alice
         vm.startPrank(userWithoutPermissions);
-        asset.transfer(address(bullaFactoring), initialDeposit);
+        IERC20(address(bullaFactoring)).approve(alice, initialDeposit);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxWithdraw(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
-        bullaFactoring.withdraw(initialDeposit, alice, userWithoutPermissions);
+        // Alice calls redeem/withdraw for unauthorized user
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        bullaFactoring.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
 }

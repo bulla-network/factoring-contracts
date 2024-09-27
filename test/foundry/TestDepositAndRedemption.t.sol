@@ -687,25 +687,24 @@ contract TestDepositAndRedemption is CommonSetup {
 
     function testOnlyAuthorizedOwnersCanRedeem() public {
         uint256 initialDeposit = 20000000;
-
+        
+        // Alice deposits
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
 
-        uint sharesToRedeem = bullaFactoring.balanceOf(alice);
-        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
-        bullaFactoring.redeem(sharesToRedeem, alice, userWithoutPermissions);
-    
-        vm.stopPrank();
+        // Alice sends BFTs to unauthorized user
+        uint sharesBalance = bullaFactoring.balanceOf(alice);
+        IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
 
-        asset.transfer(userWithoutPermissions, initialDeposit);
-
+        // unauthorized user permits Alice
         vm.startPrank(userWithoutPermissions);
-        asset.transfer(address(bullaFactoring), initialDeposit);
+        IERC20(address(bullaFactoring)).approve(alice, initialDeposit);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
-        bullaFactoring.redeem(sharesToRedeem, alice, userWithoutPermissions);
+        // Alice calls redeem/withdraw for unauthorized user
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        bullaFactoring.redeem(sharesBalance, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
 }
