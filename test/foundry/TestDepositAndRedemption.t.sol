@@ -707,5 +707,36 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.redeem(sharesBalance, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
+
+    /*
+    @dev this test passes, showing how inflations by traditional stealth deposits don't work since those funds aren't taken into consideration
+    when calculating depositor shares.
+    */
+    function testDepositInflationAttack() public {
+        address firstDepositor = makeAddr("firstDepositor");
+        address secondDepositor = makeAddr("secondDepositor");
+
+        uint256 firstDepositAmount = 1;
+        uint256 secondDepositAmount = 1e18;
+        uint256 inflationAmount = 100e18;
+
+        permitUser(firstDepositor, true, firstDepositAmount + inflationAmount);
+        permitUser(secondDepositor, true, secondDepositAmount);
+
+        vm.startPrank(firstDepositor);
+        uint256 firstDepositorShares = bullaFactoring.deposit(firstDepositAmount, firstDepositor);
+        vm.stopPrank();
+
+        // Inflation isn't tracked due to internal accounting logic
+        vm.prank(address(firstDepositor));
+        asset.transfer(address(bullaFactoring), inflationAmount);
+
+        vm.startPrank(secondDepositor);
+        uint256 secondDepositorShares = bullaFactoring.deposit(secondDepositAmount, secondDepositor);
+        vm.stopPrank();
+
+        assertEq(firstDepositorShares, 1, "First depositor should have 1 share");
+        assertEq(secondDepositorShares, 1e18, "Second depositor should have 1e18 shares");
+    }
 }
 

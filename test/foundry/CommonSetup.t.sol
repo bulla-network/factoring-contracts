@@ -84,6 +84,18 @@ contract CommonSetup is Test {
         vm.stopPrank();
     }
 
+    function permitUser(address user, bool canFactor, uint256 fundingAmount) internal {
+        depositPermissions.allow(user);
+        if (canFactor) {
+            factoringPermissions.allow(user);
+        }
+        if (fundingAmount > 0) {
+            asset.mint(user, fundingAmount);
+            vm.startPrank(user);
+            asset.approve(address(bullaFactoring), fundingAmount);
+            vm.stopPrank();
+        }
+    }
 
     function createClaim(
         address creditor, 

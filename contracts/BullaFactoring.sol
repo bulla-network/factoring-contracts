@@ -32,6 +32,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     IERC20 public assetAddress;
     /// @notice Address of the invoice provider contract adapter
     IInvoiceProviderAdapter public invoiceProviderAdapter;
+    uint256 private totalDeposits; 
+    uint256 private totalWithdrawals;
     /// @notice Address of the underwriter, trusted to approve invoices
     address public underwriter;
     /// @notice Timestamp of the fund's creation
@@ -53,6 +55,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Permissions contracts for deposit and factoring
     Permissions public depositPermissions;
     Permissions public factoringPermissions;
+
+    /// Mapping of paid invoices ID to track gains/losses
+    mapping(uint256 => uint256) public paidInvoicesGain;
 
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
@@ -246,13 +251,44 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return (kickbackAmount, trueInterest, trueProtocolFee, trueAdminFee);
     }
 
-    /// @notice Calculates the capital account, which represents the total value of the fund, including both liquid and deployed assets, as well as expected future earnings
+    /// @notice Calculates the total realized gain or loss from paid and impaired invoices
+    /// @return The total realized gain adjusted for losses
+    function calculateRealizedGainLoss() public view returns (int256) {
+        int256 realizedGains = 0;
+        // Consider gains from paid invoices
+        for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
+            uint256 invoiceId = paidInvoicesIds[i];
+            realizedGains += int256(paidInvoicesGain[invoiceId]);
+        }
+
+        // Consider losses from impaired invoices by fund
+        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
+            uint256 invoiceId = impairedByFundInvoicesIds[i];
+            realizedGains += int256(impairments[invoiceId].gainAmount);
+            realizedGains -= int256(impairments[invoiceId].lossAmount);
+        }
+
+        // Consider losses from impaired invoices in activeInvoices
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            uint256 invoiceId = activeInvoices[i];
+            if (isInvoiceImpaired(invoiceId)) {
+                uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
+                realizedGains -= int256(fundedAmount);
+            }
+        }
+
+        return realizedGains;
+    }
+
+    /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-        return totalAssets()
-            + sumTargetFeesForActiveInvoices() // adding back since it's withheld in availableAssets
-            + deployedCapitalForActiveInvoicesExcludingImpaired()
-            + getNetUnrealizedProfitFromActiveInvoices();
+        int256 realizedGainLoss = calculateRealizedGainLoss();
+
+        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
+        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
+
+        return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
 
     /// @notice Calculates the current price per share of the fund, 
@@ -287,24 +323,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return shares.mulDiv(calculateCapitalAccount(), _totalSupply, rounding);
     }
 
-
-    
-    /// @notice Calculates gross unrealized profit for an active invoice 
-    /// @param invoiceId The invoice id
-    /// @return trueInterest the interest due on the invoice at the current date, grossUnrealizedProfit the unrealized profit on this invoice to date.
-    function getGrossUnrealizedProfitOnActiveInvoice(uint256 invoiceId) private view returns (uint256, uint256) {
-        InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        (,uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateKickbackAmount(invoiceId);
-        uint256 paymentSinceFunding = getPaymentsOnInvoiceSinceFunding(invoiceId);
-        
-        
-        // Any amount paid lower than this amount is not proft 
-        uint256 profitFloor = approval.fundedAmountNet + trueProtocolFee + trueAdminFee;
-
-        uint256 grossUnrealizedProfit = profitFloor >= paymentSinceFunding ? 0 : Math.min(trueInterest, paymentSinceFunding - profitFloor);
-        return (trueInterest, grossUnrealizedProfit);
-    }
-
     /// @notice Calculates the total accrued profits from all active invoices
     /// @dev Iterates through all active invoices, calculates interest for each, deducts taxes, and sums the net accrued interest
     /// @return accruedProfits The total net accrued profits across all active invoices
@@ -313,8 +331,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             uint256 invoiceId = activeInvoices[i];
             
             if(!isInvoiceImpaired(invoiceId)) {
-                (uint256 trueInterest, uint256 grossUnrealizedProfit) = getGrossUnrealizedProfitOnActiveInvoice(invoiceId);
-                uint256 grossAccruedInterestOnRemainingInvoiceAmount = grossUnrealizedProfit >= trueInterest ? 0 : trueInterest - grossUnrealizedProfit;
+                (,uint256 trueInterest,,) = calculateKickbackAmount(invoiceId);
+                uint256 grossAccruedInterestOnRemainingInvoiceAmount = trueInterest;
 
                 // Deduct tax from the accrued interest
                 uint256 taxAmount = calculateTax(grossAccruedInterestOnRemainingInvoiceAmount);
@@ -350,7 +368,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function deposit(uint256 assets,address receiver) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         
-        return super.deposit(assets, receiver);
+        uint256 shares = super.deposit(assets, receiver);
+        totalDeposits += assets;
+        return shares;
     }
 
     /// @notice Allows for the deposit of assets in exchange for fund shares with an attachment
@@ -506,6 +526,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         
         uint256 taxAmount = calculateTax(trueInterest);
 
+        // store factoring gain
+        paidInvoicesGain[invoiceId] = trueInterest - taxAmount;
+
         // Update storage variables
         paidInvoiceTax[invoiceId] = taxAmount;
         taxBalance += taxAmount;
@@ -653,22 +676,6 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         return incomingFunds;
     }
 
-    /// @notice Calculates the net unrealized profits of active invoices, excludes impaired invoices
-    /// @return The sum of all net unrealized profits of active invoices
-    function getNetUnrealizedProfitFromActiveInvoices() private view returns (uint256) {
-        uint256 netUnrealizedProfit = 0;
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-
-            if(!isInvoiceImpaired(invoiceId))  {
-                (,uint256 grossUnrealizedProfit) = getGrossUnrealizedProfitOnActiveInvoice(invoiceId);
-                netUnrealizedProfit += grossUnrealizedProfit == 0 ? 0 : grossUnrealizedProfit - calculateTax(grossUnrealizedProfit);
-            }
-        }
-
-        return netUnrealizedProfit;
-    }
-
     /// @notice Sums the target fees for all active invoices
     /// @return targetFees The total fees for all active invoices
     function sumTargetFeesForActiveInvoices() private view returns (uint256 targetFees) {
@@ -683,13 +690,9 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Calculates the available assets in the fund net of fees, impair reserve and tax
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
-        return assetAddress.balanceOf(address(this))
-                - getAllIncomingPaymentsForActiveInvoices() // payments assigned to unpaid invoices, accounted for in total assets but not available for profit distribution
-                - sumTargetFeesForActiveInvoices() // withheld projected fees, accounted for in total assets but not available for profit distribution
-                - impairReserve
-                - taxBalance
-                - protocolFeeBalance
-                - adminFeeBalance;
+        return calculateCapitalAccount()
+                - deployedCapitalForActiveInvoicesExcludingImpaired()
+                - sumTargetFeesForActiveInvoices(); // withheld projected fees, accounted for in total assets but not available for profit distribution;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
@@ -728,8 +731,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+ 
+        uint256 shares = super.withdraw(assets, receiver, _owner);
 
-        return super.withdraw(assets, receiver, _owner);
+        totalWithdrawals += assets;
+        return shares;
     }
 
     /// @notice Helper function to handle the logic of redeeming shares in exchange for assets
@@ -741,7 +747,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!depositPermissions.isAllowed(owner)) revert UnauthorizedDeposit(owner);
         
-        return super.redeem(shares, receiver, owner);
+        uint256 assets = super.redeem(shares, receiver, owner);
+
+        totalWithdrawals += assets;
+
+        return assets;
     }
 
     /// @notice Redeems shares for underlying assets with an attachment, transferring the assets to the specified receiver
