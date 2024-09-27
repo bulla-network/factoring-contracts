@@ -285,7 +285,29 @@ contract TestWithdraw is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
         bullaFactoring.withdraw(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
+    }
 
+    function testOnlyAuthorizedOwnersCanWithdraw() public {
+        uint256 initialDeposit = 20000000;
+
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+
+        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxWithdraw(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
+        bullaFactoring.withdraw(initialDeposit, alice, userWithoutPermissions);
+    
+        vm.stopPrank();
+
+        asset.transfer(userWithoutPermissions, initialDeposit);
+
+        vm.startPrank(userWithoutPermissions);
+        asset.transfer(address(bullaFactoring), initialDeposit);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxWithdraw(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
+        bullaFactoring.withdraw(initialDeposit, alice, userWithoutPermissions);
+        vm.stopPrank();
     }
 }
 

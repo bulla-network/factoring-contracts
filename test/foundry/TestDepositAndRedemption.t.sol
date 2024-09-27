@@ -684,5 +684,29 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.redeem(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
     }
+
+    function testOnlyAuthorizedOwnersCanRedeem() public {
+        uint256 initialDeposit = 20000000;
+
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+
+        uint sharesToRedeem = bullaFactoring.balanceOf(alice);
+        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
+        bullaFactoring.redeem(sharesToRedeem, alice, userWithoutPermissions);
+    
+        vm.stopPrank();
+
+        asset.transfer(userWithoutPermissions, initialDeposit);
+
+        vm.startPrank(userWithoutPermissions);
+        asset.transfer(address(bullaFactoring), initialDeposit);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", userWithoutPermissions, initialDeposit, 0));
+        bullaFactoring.redeem(sharesToRedeem, alice, userWithoutPermissions);
+        vm.stopPrank();
+    }
 }
 
