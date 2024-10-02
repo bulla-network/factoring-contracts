@@ -743,11 +743,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param receiver The address to receive the assets
     /// @param owner The owner of the shares being redeemed
     /// @return The number of shares redeemed
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
+    function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!depositPermissions.isAllowed(owner)) revert UnauthorizedDeposit(owner);
+        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
         
-        uint256 assets = super.redeem(shares, receiver, owner);
+        uint256 assets = super.redeem(shares, receiver, _owner);
 
         totalWithdrawals += assets;
 
