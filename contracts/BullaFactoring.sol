@@ -210,7 +210,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 capTotalFees = approval.trueFaceValue - approval.fundedAmountNet;
 
         // Calculate total fees
-        uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(approval.trueFaceValue, totalFeeRateMbps, 1000_0000));
+        uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(approval.trueFaceValue, totalFeeRateMbps, 10_000_000));
         
         // Calculate the interest and protocol fee
         uint256 interestAndProtocolFee = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, interestAndProtocolFeeMbps, totalFeeRateMbps);
