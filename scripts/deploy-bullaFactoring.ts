@@ -213,7 +213,7 @@ const sepoliaConfig = {
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
     protocolFeeBps: 25,
     adminFeeBps: 50,
-    poolName: 'Bulla TCS Factoring Pool Sepolia v0.3',
+    poolName: 'Bulla TCS Factoring Pool Sepolia Test v2',
     taxBps: 10,
     targetYieldBps: 730,
     poolTokenName: 'Bulla TCS Factoring Pool',
@@ -222,7 +222,7 @@ const sepoliaConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    bullaFactoringAddress: '0xc1ED377bEC081d3ac9898dF715e63D9cB97262cd',
+    bullaFactoringAddress: '0xDF0fCe31285dcAB9124bF763AB9E5466723BeF35',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
@@ -234,7 +234,7 @@ const polygonConfig = {
     bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
     protocolFeeBps: 100,
     adminFeeBps: 50,
-    poolName: 'Bulla TCS Factoring Pool - Polygon V1',
+    poolName: 'Bulla TCS Factoring Pool - Polygon V2',
     taxBps: 10,
     targetYieldBps: 1030, // 10.3%
     poolTokenName: 'Bulla TCS Factoring Pool Token',
@@ -243,7 +243,7 @@ const polygonConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
     depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-    bullaFactoringAddress: '0x71956A4478c2f4Bd459Eb96572e4489300405891',
+    bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
     writeNewAddresses: true,
     setImpairReserve: false,
 };
