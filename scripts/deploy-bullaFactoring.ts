@@ -245,7 +245,7 @@ const polygonConfig = {
     depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
     bullaFactoringAddress: '0x71956A4478c2f4Bd459Eb96572e4489300405891',
     writeNewAddresses: true,
-    setImpairReserve: true,
+    setImpairReserve: false,
 };
 
 const config = network === 'sepolia' ? sepoliaConfig : polygonConfig;
