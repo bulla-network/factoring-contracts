@@ -243,9 +243,9 @@ const polygonConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
     depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-    // bullaFactoringAddress: '',
-    writeNewAddresses: false,
-    setImpairReserve: false,
+    bullaFactoringAddress: '0x71956A4478c2f4Bd459Eb96572e4489300405891',
+    writeNewAddresses: true,
+    setImpairReserve: true,
 };
 
 const config = network === 'sepolia' ? sepoliaConfig : polygonConfig;
