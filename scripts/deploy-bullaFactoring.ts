@@ -222,7 +222,7 @@ const sepoliaConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    bullaFactoringAddress: '0xe15B3B9f9E239aaF0438a18248F36FFe73baf488',
+    bullaFactoringAddress: '0xc1ED377bEC081d3ac9898dF715e63D9cB97262cd',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
@@ -243,9 +243,9 @@ const polygonConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
     depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-    bullaFactoringAddress: '0x573119CF113281270F21cFE6537482E84D0300eF',
-    writeNewAddresses: true,
-    setImpairReserve: true,
+    // bullaFactoringAddress: '',
+    writeNewAddresses: false,
+    setImpairReserve: false,
 };
 
 const config = network === 'sepolia' ? sepoliaConfig : polygonConfig;
