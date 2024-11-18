@@ -84,5 +84,4 @@ interface IBullaFactoring {
     function setGracePeriodDays(uint256 _days) external;
     function setApprovalDuration(uint256 _duration) external;
     function assetAddress() external view returns (IERC20);
-    function owner() external view returns (address);
 }
