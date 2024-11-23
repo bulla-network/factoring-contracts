@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IBullaFactoring, Ownable} from "./interfaces/IBullaFactoring.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 ///
 interface IBullaFactoringFundManager {
@@ -10,6 +11,7 @@ interface IBullaFactoringFundManager {
     //// ERRORS
     error Unauthorized();
     error BadERC20Allowance(uint256 actual);
+    error BadInvestorParams();
     error CallTooHigh();
 
     //
@@ -17,6 +19,7 @@ interface IBullaFactoringFundManager {
     event InvestorAllowlisted(address indexed investor, address indexed owner);
     event InvestorCommitment(address indexed investor, uint144 amount);
     event InvestorInsolvent(address indexed investor, uint256 amountRequested);
+    event CapitalCallComplete(address[] investors, uint256 callAmount);
 
     //
     //// STUCTS
@@ -34,22 +37,24 @@ interface IBullaFactoringFundManager {
 /// @title A contract used to manage the `BullaFactoring` fund
 /// @author @colinnielsen
 /// @notice INVARIANTS
-///     I1: totalComitted === ∑ capitalCommitments.commitment
+///     I1: totalCommitted === ∑ capitalCommitments.commitment
 contract BullaFactoringFundManager is IBullaFactoringFundManager {
     //
     //// IMMUTABLES
-    IBullaFactoring public immutable factoringPool;
+    IERC4626 public immutable factoringPool;
     IERC20 public immutable asset;
+    uint256 public immutable minInvestment;
 
     //
     //// STATE
-    uint256 public totalComitted;
+    uint224 public totalCommitted;
+    uint32 public investorCount;
     mapping(address => CapitalCommitment) public capitalCommitments;
-    address[] public investors;
 
-    constructor(IBullaFactoring _factoringPool) {
+    constructor(IERC4626 _factoringPool, uint256 _minInvestment) {
         factoringPool = _factoringPool;
-        asset = _factoringPool.assetAddress();
+        asset = IERC20(_factoringPool.asset());
+        minInvestment = _minInvestment;
     }
 
     /*
@@ -63,7 +68,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     /// lets the fund manager mark an investor address as allowlisted
     /// This function will:
     ///     RES1: set the `isAllowed` flag on the `capitalCommitments` mapping to true
-    ///     RES2: add `investor` to the `investors` array
+    ///     RES2: `investorCount` is incremented
     ///     RES3: emit an `InvestorAllowlisted` event with the investor address and the current owner
     /// GIVEN:
     ///     S1: the `msg.sender` is the current owner on the `factoringPool` contract
@@ -71,7 +76,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         _onlyOwner(); // S1
 
         capitalCommitments[investor].isAllowed = true; // RES1
-        investors.push(investor); // RES2
+        ++investorCount; // RES2
 
         emit InvestorAllowlisted({investor: investor, owner: msg.sender}); // RES3
     }
@@ -93,7 +98,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         if (allowance != amount) revert BadERC20Allowance({actual: allowance}); // S2
 
         capitalCommitments[msg.sender].commitment = uint144(amount); // RES1 // S3
-        totalComitted += amount; // RES2
+        totalCommitted += uint224(amount); // RES2
 
         emit InvestorCommitment({investor: msg.sender, amount: uint144(amount)}); // RES3
     }
@@ -107,50 +112,47 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     ///     RES4: emit a `CapitalCall` event with the total of amount sent to the pool
     /// GIVEN:
     ///     S1: the `msg.sender` is the current owner on the `factoringPool` contract
-    ///     S2: the `amount` param is <= the `totalComitted`
-    ///     S3: an investor's `asset` aproval >= `callee[i]`'s stored `commitment` in the `capitalCommitments` mapping
-    ///         --> otherwise:
-    ///         S3.R1: their commitment is zeroed
-    ///         S3.R2: `totalCommitments` is decremented by their commitment amount
-    ///         S3.R3: a `InvestorInsolvent()` event is emitted with the address of the investor
-    function capitalCall(uint256 amount) public {
+    ///     S2: the `amount` param is <= the `totalCommitted`
+    /// TODO
+    function capitalCall(uint256 callAmount, address[] memory investors) public {
         _onlyOwner(); // S1
-        uint256 _totalComitted = totalComitted;
-        uint256 amountToBeDeducted;
-        if (amount > _totalComitted) revert CallTooHigh();
-        uint256 relativePercentageBPS = amount * 10_000 / _totalComitted;
 
-        address[] memory investorsList = investors;
+        uint256 _totalCommitted = totalCommitted;
+        uint256 _investorCount = investorCount;
+        uint256 actualCallAmount = 0;
+        uint256 insolventAmount = 0;
 
-        for (uint256 i; i < investorsList.length; i++) {
-            address investor = investorsList[i];
-            CapitalCommitment memory commitment = capitalCommitments[investor];
-            uint256 relativeAmount = uint256(commitment.commitment) * relativePercentageBPS / 10_000;
-            bool success;
-            try asset.transferFrom({from: investor, to: address(this), value: relativeAmount}) returns (bool) {
-                success = true;
-            } catch Error(string memory) /*reason*/ {
-                // This is executed in case
-                // revert was called inside getData
-                // and a reason string was provided.
-            } catch Panic(uint256) /*errorCode*/ {
-                // This is executed in case of a panic,
-                // i.e. a serious error like division by zero
-                // or overflow. The error code can be used
-                // to determine the kind of error.
-            } catch (bytes memory) /*lowLevelData*/ {
-                // This is executed in case revert() was used.
-            }
+        if (callAmount > _totalCommitted) revert CallTooHigh();
+        if (investors.length != _investorCount) revert BadInvestorParams();
 
-            if (!success) {
-                delete capitalCommitments[investor];
-                amountToBeDeducted -= relativeAmount;
+        uint256 relativePercentageBPS = callAmount * 10_000 / _totalCommitted;
 
-                emit InvestorInsolvent({investor: investor, amountRequested: relativeAmount});
+        asset.approve({spender: address(factoringPool), value: callAmount});
+
+        for (uint256 i; i < investors.length; i++) {
+            address investor = investors[i];
+
+            CapitalCommitment memory cc = capitalCommitments[investor];
+            if (!cc.isAllowed) revert BadInvestorParams();
+
+            uint256 amountDue = uint256(cc.commitment) * relativePercentageBPS / 10_000;
+
+            /// @dev will NOT revert
+            bool success = _attemptERC20Transfer({from: investor, amount: amountDue});
+
+            if (success) {
+                factoringPool.deposit({assets: amountDue, receiver: investor});
+                actualCallAmount += amountDue;
             } else {
-                // factoringPool.deposit
+                delete capitalCommitments[investor];
+                insolventAmount += amountDue;
+
+                emit InvestorInsolvent({investor: investor, amountRequested: amountDue});
             }
         }
+
+        totalCommitted -= uint224(insolventAmount + callAmount);
+        emit CapitalCallComplete({investors: investors, callAmount: actualCallAmount});
     }
 
     function blocklistInvestor(address _investor) public {
@@ -180,5 +182,15 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
 
     function _onlyOwner() internal view {
         if (Ownable(address(factoringPool)).owner() != msg.sender) revert Unauthorized();
+    }
+
+    /**
+     * @dev will attempt to execute a transferfrom and use the parsed success bool return var as the return
+     * @dev will NOT revert, on external call, will simply return false
+     */
+    function _attemptERC20Transfer(address from, uint256 amount) internal returns (bool success) {
+        try asset.transferFrom({from: from, to: address(this), value: amount}) returns (bool xferSuccess) {
+            success = xferSuccess;
+        } catch (bytes memory) {}
     }
 }
