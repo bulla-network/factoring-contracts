@@ -6,6 +6,7 @@ libs = [
     'node_modules',
 ]
 solc = "0.8.20"
+via_ir = true
 remappings = [
     'contracts/=contracts/',
     '@ensdomains/=node_modules/@ensdomains/',

@@ -37,16 +37,11 @@ contract FundManagerTest is CommonSetup {
         fundManager.commit({amount: 2 ether});
         vm.stopPrank();
 
-        address[] memory investors = new address[](2);
-        investors[0] = alice;
-        investors[1] = bob;
-
         assertEq(fundManager.totalCommitted(), 3 ether);
 
         // a capital call is executed
-
         vm.prank(owner);
-        fundManager.capitalCall({investors: investors, callAmount: 2 ether});
+        fundManager.capitalCall({callAmount: 2 ether});
 
         assertEq(fundManager.investorCount(), 2);
         assertEq(fundManager.totalCommitted(), 1 ether);

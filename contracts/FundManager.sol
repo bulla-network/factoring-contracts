@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IBullaFactoring, Ownable} from "./interfaces/IBullaFactoring.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 ///
@@ -44,17 +44,23 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     IERC4626 public immutable factoringPool;
     IERC20 public immutable asset;
     uint256 public immutable minInvestment;
+    /// @dev represents "one" of whatever `asset` is:
+    ///      example: `1e6` for USDC = 1 USDC
+    ///      example: `1e18` for WETH = 1 WETH
+    uint256 immutable ONE_ASSET_WAD;
 
     //
     //// STATE
     uint224 public totalCommitted;
     uint32 public investorCount;
     mapping(address => CapitalCommitment) public capitalCommitments;
+    address[] public investors;
 
     constructor(IERC4626 _factoringPool, uint256 _minInvestment) {
         factoringPool = _factoringPool;
         asset = IERC20(_factoringPool.asset());
         minInvestment = _minInvestment;
+        ONE_ASSET_WAD = 10 ** uint256(asset.decimals());
     }
 
     /*
@@ -86,7 +92,8 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     /// This function will:
     ///     RES1: set the `msg.sender`'s `capitalCommitments` struct to `amount`
     ///     RES2: increment the `totalCommited` storage by `amount`
-    ///     RES3: emit an `InvestorCommitment` event with the commitment amount
+    ///     RES3: push the `msg.sender` to the `investors` array
+    ///     RES4: emit an `InvestorCommitment` event with the commitment amount
     /// GIVEN:
     ///     S1: the `msg.sender` is marked as `allowed` on their capital commitment struct - as marked by the admin
     ///     S2: the `msg.sender`'s ERC20 allowance of this contract is >= their commitment `amount`
@@ -99,8 +106,9 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
 
         capitalCommitments[msg.sender].commitment = uint144(amount); // RES1 // S3
         totalCommitted += uint224(amount); // RES2
+        investors.push(msg.sender); // RES3
 
-        emit InvestorCommitment({investor: msg.sender, amount: uint144(amount)}); // RES3
+        emit InvestorCommitment({investor: msg.sender, amount: uint144(amount)}); // RES4
     }
 
     /// @notice allows the fund manager to pull funds from investors and send their tokens to the pool
@@ -114,37 +122,47 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     ///     S1: the `msg.sender` is the current owner on the `factoringPool` contract
     ///     S2: the `amount` param is <= the `totalCommitted`
     /// TODO
-    function capitalCall(uint256 callAmount, address[] memory investors) public {
+    function capitalCall(uint256 callAmount) public {
         _onlyOwner(); // S1
 
+        // load both the totalCommitted amount and investors array into memory
         uint256 _totalCommitted = totalCommitted;
-        uint256 _investorCount = investorCount;
-        uint256 actualCallAmount = 0;
+        address[] memory _investors = investors;
+        if (callAmount > _totalCommitted) revert CallTooHigh();
+
+        // keep track of a total call amount as the actual amount pulled into the pool
+        // _may_ be less than `callAmount` due to rounding errors
+        uint256 totalAmountCalled = 0;
         uint256 insolventAmount = 0;
 
-        if (callAmount > _totalCommitted) revert CallTooHigh();
-        if (investors.length != _investorCount) revert BadInvestorParams();
+        // the relative amount is the amount of USDC to be pulled from the investor relative to the total committed amount
+        // e.g. if the total committed is $100, and I capital call $50, that means I'm doing a 50% call
+        //      so given alice's commitment of $30, and bob's of $70, they will both contribute $15 and $35 respectively
+        uint256 relativeAmountWAD = callAmount * ONE_ASSET_WAD / _totalCommitted;
 
-        uint256 relativePercentageBPS = callAmount * 10_000 / _totalCommitted;
+        // approve the factoring pool to pull `callAmount` worth of `asset` from `this` contract's balance
+        asset.approve({spender: address(factoringPool), amount: callAmount});
 
-        asset.approve({spender: address(factoringPool), value: callAmount});
+        for (uint256 i; i < _investors.length; i++) {
+            address investor = _investors[i];
 
-        for (uint256 i; i < investors.length; i++) {
-            address investor = investors[i];
+            // if an investor was at one point insolvent, they will be deleted, leaving a gap in the array
+            if (investor == address(0)) continue;
 
             CapitalCommitment memory cc = capitalCommitments[investor];
             if (!cc.isAllowed) revert BadInvestorParams();
 
-            uint256 amountDue = uint256(cc.commitment) * relativePercentageBPS / 10_000;
+            uint256 amountDue = uint256(cc.commitment) * relativeAmountWAD / ONE_ASSET_WAD;
 
             /// @dev will NOT revert
             bool success = _attemptERC20Transfer({from: investor, amount: amountDue});
 
             if (success) {
                 factoringPool.deposit({assets: amountDue, receiver: investor});
-                actualCallAmount += amountDue;
+                totalAmountCalled += amountDue;
             } else {
                 delete capitalCommitments[investor];
+                delete investors[i];
                 insolventAmount += amountDue;
 
                 emit InvestorInsolvent({investor: investor, amountRequested: amountDue});
@@ -152,7 +170,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         }
 
         totalCommitted -= uint224(insolventAmount + callAmount);
-        emit CapitalCallComplete({investors: investors, callAmount: actualCallAmount});
+        emit CapitalCallComplete({investors: investors, callAmount: totalAmountCalled});
     }
 
     function blocklistInvestor(address _investor) public {
@@ -189,7 +207,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
      * @dev will NOT revert, on external call, will simply return false
      */
     function _attemptERC20Transfer(address from, uint256 amount) internal returns (bool success) {
-        try asset.transferFrom({from: from, to: address(this), value: amount}) returns (bool xferSuccess) {
+        try asset.transferFrom({from: from, to: address(this), amount: amount}) returns (bool xferSuccess) {
             success = xferSuccess;
         } catch (bytes memory) {}
     }
