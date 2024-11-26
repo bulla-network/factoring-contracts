@@ -413,6 +413,12 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 totalFees = adminFee + targetInterest + targetProtocolFee;
         netFundedAmount = fundedAmountGross - totalFees;
 
+        console.log("fundedAmountGross", fundedAmountGross);
+        console.log("adminFee", adminFee);
+        console.log("targetInterest", targetInterest);
+        console.log("targetProtocolFee", targetProtocolFee);
+        console.log("netFundedAmount", netFundedAmount);
+
         return (fundedAmountGross, adminFee, targetInterest, targetProtocolFee, netFundedAmount);
     }
 
