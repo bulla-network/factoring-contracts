@@ -5,19 +5,23 @@ import {IBullaFactoring, Ownable} from "./interfaces/IBullaFactoring.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-///
+/// INTERFACE
+////
 interface IBullaFactoringFundManager {
     //
     //// ERRORS
     error Unauthorized();
     error BadERC20Allowance(uint256 actual);
+    error BadERC20Balance(uint256 actual);
     error BadInvestorParams();
     error CallTooHigh();
+    error CommitmentTooLow();
+    error CommitmentTooHigh();
 
     //
     //// EVENTS
     event InvestorAllowlisted(address indexed investor, address indexed owner);
-    event InvestorCommitment(address indexed investor, uint144 amount);
+    event InvestorCommitment(address indexed investor, uint256 amount);
     event InvestorInsolvent(address indexed investor, uint256 amountRequested);
     event CapitalCallComplete(address[] investors, uint256 callAmount);
 
@@ -36,14 +40,16 @@ interface IBullaFactoringFundManager {
 
 /// @title A contract used to manage the `BullaFactoring` fund
 /// @author @colinnielsen
+/// @dev IMPORTANT!: This contract uses ERC20 allowances for it's internal accounting
+///      This allows for investors to keep their assets, and potentially more capital efficiency.
+///      !! This means that this contract will _not_ work with "fee on transfer" tokens, as the amount finally transferred should equal the allowance !!
 /// @notice INVARIANTS
-///     I1: totalCommitted === ∑ capitalCommitments.commitment
+///     I1: totalCommitted === ( ∑ capitalCommitments.commitment - ∑ capitalCall's `callAmount` parameter )
 contract BullaFactoringFundManager is IBullaFactoringFundManager {
     //
     //// IMMUTABLES
     IERC4626 public immutable factoringPool;
     IERC20 public immutable asset;
-    uint256 public immutable minInvestment;
     /// @dev represents "one" of whatever `asset` is:
     ///      example: `1e6` for USDC = 1 USDC
     ///      example: `1e18` for WETH = 1 WETH
@@ -51,16 +57,26 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
 
     //
     //// STATE
-    uint224 public totalCommitted;
-    uint32 public investorCount;
+    ///
+
+    /// @notice the mininum amount of `asset` - ideally denominated in `ONE_ASSET_WAD` - that an investor need to commit to
+    uint256 public minInvestment;
+    /// @notice the total amount of committed `asset` committed to the pool
+    /// @dev will be decremented as capital calls occur
+    uint256 public totalCommitted;
+    // TODO @bengobeil: discuss if the following two storage slots are using an inefficient data structure. Why not use an array of CapitalCommitment structs?
+    /// @notice a mapping of investor addresses to their capital commitment struct
     mapping(address => CapitalCommitment) public capitalCommitments;
+    /// @notice an array of investor addresses
     address[] public investors;
 
     constructor(IERC4626 _factoringPool, uint256 _minInvestment) {
+        // Set immutables
         factoringPool = _factoringPool;
         asset = IERC20(_factoringPool.asset());
-        minInvestment = _minInvestment;
         ONE_ASSET_WAD = 10 ** uint256(asset.decimals());
+        // Set the state variable
+        minInvestment = _minInvestment;
     }
 
     /*
@@ -71,59 +87,86 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
 
     /// @notice allows the fund manager to allow an investor to call the `invest` function at their own discretion
     /// @dev SPEC:
-    /// lets the fund manager mark an investor address as allowlisted
     /// This function will:
-    ///     RES1: set the `isAllowed` flag on the `capitalCommitments` mapping to true
-    ///     RES2: `investorCount` is incremented
-    ///     RES3: emit an `InvestorAllowlisted` event with the investor address and the current owner
+    ///     E1: set the `isAllowed` flag on the `capitalCommitments` mapping to true
+    ///     E2: emit an `InvestorAllowlisted` event with the investor address and the current owner
     /// GIVEN:
-    ///     S1: the `msg.sender` is the current owner on the `factoringPool` contract
+    ///     C1: the `msg.sender` is the current owner on the `factoringPool` contract
     function allowlistInvestor(address investor) public {
-        _onlyOwner(); // S1
+        _onlyOwner(); // C1
 
-        capitalCommitments[investor].isAllowed = true; // RES1
-        ++investorCount; // RES2
+        capitalCommitments[investor].isAllowed = true; // E1
 
-        emit InvestorAllowlisted({investor: investor, owner: msg.sender}); // RES3
+        emit InvestorAllowlisted({investor: investor, owner: msg.sender}); // E2
     }
 
-    /// @notice allows an investor to commit to a certain `amount` of capital to a fund
+    /// @notice allows an investor to set their commitment to `amount` in the fund
+    /// @notice allows active investors to update their commitment amount
     /// @dev SPEC:
     /// This function will:
-    ///     RES1: set the `msg.sender`'s `capitalCommitments` struct to `amount`
-    ///     RES2: increment the `totalCommited` storage by `amount`
-    ///     RES3: push the `msg.sender` to the `investors` array
-    ///     RES4: emit an `InvestorCommitment` event with the commitment amount
+    ///     E1: set the `msg.sender`'s `capitalCommitments` struct to `amount`
+    ///     E2: increment the `totalCommited` storage by `amount`
+    ///     E3: push the `msg.sender` to the `investors` array
+    ///         IF: they have not committed before
+    ///         OTHERWISE: update their commitment to `amount`, allowing investors to update their commitment
+    ///     E4: emit an `InvestorCommitment` event with the commitment amount and investor
     /// GIVEN:
-    ///     S1: the `msg.sender` is marked as `allowed` on their capital commitment struct - as marked by the admin
-    ///     S2: the `msg.sender`'s ERC20 allowance of this contract is >= their commitment `amount`
-    ///     S3: `amount` <= type(uint144).max
+    ///     C1: the `msg.sender` is marked as `isAllowed` on their capital commitment struct - as marked by the admin in `allowlistInvestor`
+    ///     C2: `amount` <= type(uint144).max
+    ///     C3: their investment at least meets the mininum investment requirements
+    ///     C4: the `msg.sender`'s ERC20 allowance of this contract is >= their commitment `amount`
+    ///     C5: the `msg.sender` has a balance of `asset` >= their commitment `amount`
     function commit(uint256 amount) public {
-        if (!capitalCommitments[msg.sender].isAllowed) revert Unauthorized(); // S1
-
+        CapitalCommitment memory cc = capitalCommitments[msg.sender];
+        uint256 totalCommittedBefore = totalCommitted;
+        //// CHECKS:
+        ///
+        // C1
+        if (cc.isAllowed == false) revert Unauthorized();
+        // C2
+        if (amount > type(uint144).max) revert CommitmentTooHigh();
+        // C3
+        if (amount < minInvestment) revert CommitmentTooLow();
+        // C4
         uint256 allowance = asset.allowance(msg.sender, address(this));
-        if (allowance != amount) revert BadERC20Allowance({actual: allowance}); // S2
+        if (allowance < amount) revert BadERC20Allowance({actual: allowance});
+        // C5
+        uint256 balance = asset.balanceOf(msg.sender);
+        if (balance < amount) revert BadERC20Balance({actual: balance});
 
-        capitalCommitments[msg.sender].commitment = uint144(amount); // RES1 // S3
-        totalCommitted += uint224(amount); // RES2
-        investors.push(msg.sender); // RES3
+        //// EFFECTS:
+        ///
 
-        emit InvestorCommitment({investor: msg.sender, amount: uint144(amount)}); // RES4
+        // E3
+        //  NEW INVESTOR FLOW: Add them to the investors array if they're a new investor
+        if (cc.commitment == 0) investors.push(msg.sender);
+        //  COMMITMENT MODIFICATION FLOW: decrement total committed, essentally "undoing" their commitment until E2
+        //      TODO: add tests and remove gas inefficiencies
+        else totalCommitted = totalCommittedBefore - cc.commitment;
+
+        // E1
+        capitalCommitments[msg.sender].commitment = uint144(amount);
+        // E2
+        totalCommitted = totalCommittedBefore + uint224(amount);
+
+        // E4
+        emit InvestorCommitment({investor: msg.sender, amount: amount});
     }
 
     /// @notice allows the fund manager to pull funds from investors and send their tokens to the pool
+
+    // TODO: IGNORE THIS!
     /// @dev SPEC:
     /// This function will:
-    ///     RES1: `deposit()` an amount of an investor's `commitment` of `asset` relative to `totalCommitted` into the `factoringPool`
-    ///     RES2: decrement an investors `commitmentAmount` by their `amount` sent to the pool
-    ///     RES3: decrement `totalCommitted` by the total amount of USDC sent to the pool
-    ///     RES4: emit a `CapitalCall` event with the total of amount sent to the pool
+    ///     E1: `deposit()` an amount of an investor's `commitment` of `asset` relative to `totalCommitted` into the `factoringPool`
+    ///     E2: decrement an investors `commitmentAmount` by their `amount` sent to the pool
+    ///     E3: decrement `totalCommitted` by the total amount of USDC sent to the pool
+    ///     E4: emit a `CapitalCall` event with the total of amount sent to the pool
     /// GIVEN:
-    ///     S1: the `msg.sender` is the current owner on the `factoringPool` contract
-    ///     S2: the `amount` param is <= the `totalCommitted`
-    /// TODO
+    ///     C1: the `msg.sender` is the current owner on the `factoringPool` contract
+    ///     C2: the `amount` param is <= the `totalCommitted`
     function capitalCall(uint256 callAmount) public {
-        _onlyOwner(); // S1
+        _onlyOwner(); // C1
 
         // load both the totalCommitted amount and investors array into memory
         uint256 _totalCommitted = totalCommitted;
@@ -140,46 +183,65 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         //      so given alice's commitment of $30, and bob's of $70, they will both contribute $15 and $35 respectively
         uint256 relativeAmountWAD = callAmount * ONE_ASSET_WAD / _totalCommitted;
 
+        uint256[] memory insolventInvestorsIndexes = new uint256[](_investors.length);
+        uint256 insolventInvestorsCount = 0;
+
         // approve the factoring pool to pull `callAmount` worth of `asset` from `this` contract's balance
         asset.approve({spender: address(factoringPool), amount: callAmount});
 
         for (uint256 i; i < _investors.length; i++) {
             address investor = _investors[i];
 
-            // if an investor was at one point insolvent, they will be deleted, leaving a gap in the array
-            if (investor == address(0)) continue;
-
             CapitalCommitment memory cc = capitalCommitments[investor];
-            if (!cc.isAllowed) revert BadInvestorParams();
+            if (!cc.isAllowed) continue;
 
             uint256 amountDue = uint256(cc.commitment) * relativeAmountWAD / ONE_ASSET_WAD;
 
             /// @dev will NOT revert
-            bool success = _attemptERC20Transfer({from: investor, amount: amountDue});
+            bool withdrawalFailed = _attemptERC20Transfer({from: investor, amount: amountDue});
 
-            if (success) {
-                factoringPool.deposit({assets: amountDue, receiver: investor});
-                totalAmountCalled += amountDue;
-            } else {
-                delete capitalCommitments[investor];
-                delete investors[i];
+            // if the withdrawal fails, delete the investor from this contract, and emit an event marking them solvent
+            if (withdrawalFailed) {
                 insolventAmount += amountDue;
-
+                insolventInvestorsIndexes[insolventInvestorsCount++] = i;
                 emit InvestorInsolvent({investor: investor, amountRequested: amountDue});
+
+                continue;
             }
+
+            factoringPool.deposit({assets: amountDue, receiver: investor});
+            capitalCommitments[investor].commitment -= uint144(amountDue);
+            totalAmountCalled += amountDue;
+        }
+
+        // delete the insolvent investors from the investors array
+        for (uint256 i; i < insolventInvestorsCount; i++) {
+            _deleteInvestor({investor: _investors[insolventInvestorsIndexes[i]], index: insolventInvestorsIndexes[i]});
         }
 
         totalCommitted -= uint224(insolventAmount + callAmount);
         emit CapitalCallComplete({investors: investors, callAmount: totalAmountCalled});
     }
 
+    /// @notice allows the fund manager to blocklist an investor, preventing them from commiting
     function blocklistInvestor(address _investor) public {
-        // _onlyOwner();
-    }
+        _onlyOwner();
 
+        for (uint256 i; i < investors.length; i++) {
+            if (investors[i] == _investor) {
+                _deleteInvestor({investor: _investor, index: i});
+                break;
+            }
+        }
+    }
     ///
     ////// UTILITY / VIEW FUNCTIONS
     ///
+
+    /// @notice the amount of investors
+    function investorCount() public view returns (uint256) {
+        return investors.length;
+    }
 
     function getMaxCapitalCall(address[] memory callees) public view returns (uint256 withdrawable) {
         for (uint256 i; i < callees.length; i++) {
@@ -194,6 +256,16 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         return withdrawable;
     }
 
+    /// @dev deletes an investor from the capital commitment mapping.
+    ///      also removes them from the investors array, leaving a gap
+    ///      but replaces that investor with the last investor in the array
+    ///      and calling `.pop()` to remove the now duplicate data, and decrement investors.length by 1
+    function _deleteInvestor(address investor, uint256 index) internal {
+        delete capitalCommitments[investor];
+        investors[index] = investors[investors.length - 1];
+        investors.pop();
+    }
+
     function _mathMin(uint256 a, uint256 b) internal pure returns (uint256) {
         return a < b ? a : b;
     }
@@ -206,9 +278,23 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
      * @dev will attempt to execute a transferfrom and use the parsed success bool return var as the return
      * @dev will NOT revert, on external call, will simply return false
      */
-    function _attemptERC20Transfer(address from, uint256 amount) internal returns (bool success) {
+    function _attemptERC20Transfer(address from, uint256 amount) internal returns (bool failed) {
         try asset.transferFrom({from: from, to: address(this), amount: amount}) returns (bool xferSuccess) {
-            success = xferSuccess;
-        } catch (bytes memory) {}
+            return xferSuccess;
+        } catch (bytes memory) {
+            return true;
+        }
+    }
+
+    ///
+    ////// OWNER FUNCTIONS
+    ///
+
+    /// @notice Allows the owner to update the minimum investment amount
+    /// @dev Only callable by the owner of the factoringPool
+    /// @param _minInvestment The new minimum investment amount
+    function setMinInvestment(uint256 _minInvestment) external {
+        _onlyOwner();
+        minInvestment = _minInvestment;
     }
 }
