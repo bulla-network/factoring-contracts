@@ -53,13 +53,15 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     /// @dev represents "one" of whatever `asset` is:
     ///      example: `1e6` for USDC = 1 USDC
     ///      example: `1e18` for WETH = 1 WETH
-    uint256 immutable ONE_ASSET_WAD;
+    uint256 immutable ASSET_DENOMINATION;
 
     //
     //// STATE
     ///
 
-    /// @notice the mininum amount of `asset` - ideally denominated in `ONE_ASSET_WAD` - that an investor need to commit to
+    /// @notice a privileged address that can call the _capitalCall() function
+    address public capitalCaller;
+    /// @notice the mininum amount of `asset` - ideally denominated in `ASSET_DENOMINATION` - that an investor need to commit to
     uint256 public minInvestment;
     /// @notice the total amount of committed `asset` committed to the pool
     /// @dev will be decremented as capital calls occur
@@ -70,12 +72,13 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     /// @notice an array of investor addresses
     address[] public investors;
 
-    constructor(IERC4626 _factoringPool, uint256 _minInvestment) {
+    constructor(IERC4626 _factoringPool, uint256 _minInvestment, address _capitalCaller) {
         // Set immutables
         factoringPool = _factoringPool;
         asset = IERC20(_factoringPool.asset());
-        ONE_ASSET_WAD = 10 ** uint256(asset.decimals());
-        // Set the state variable
+        ASSET_DENOMINATION = 10 ** uint256(asset.decimals());
+        // Set the state variables
+        capitalCaller = _capitalCaller;
         minInvestment = _minInvestment;
     }
 
@@ -163,10 +166,11 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     ///     E3: decrement `totalCommitted` by the total amount of USDC sent to the pool
     ///     E4: emit a `CapitalCall` event with the total of amount sent to the pool
     /// GIVEN:
-    ///     C1: the `msg.sender` is the current owner on the `factoringPool` contract
+    ///     C1: the `msg.sender` is marked as the `capitalCaller`
+    ///         C1.A: OR: msg.sender is the current owner on the `factoringPool` contract
     ///     C2: the `amount` param is <= the `totalCommitted`
     function capitalCall(uint256 callAmount) public {
-        _onlyOwner(); // C1
+        _onlyCapitalCaller(); // C1 // C1.A
 
         // load both the totalCommitted amount and investors array into memory
         uint256 _totalCommitted = totalCommitted;
@@ -181,7 +185,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         // the relative amount is the amount of USDC to be pulled from the investor relative to the total committed amount
         // e.g. if the total committed is $100, and I capital call $50, that means I'm doing a 50% call
         //      so given alice's commitment of $30, and bob's of $70, they will both contribute $15 and $35 respectively
-        uint256 relativeAmountWAD = callAmount * ONE_ASSET_WAD / _totalCommitted;
+        uint256 relativeAmount_scaled = callAmount * ASSET_DENOMINATION / _totalCommitted;
 
         uint256[] memory insolventInvestorsIndexes = new uint256[](_investors.length);
         uint256 insolventInvestorsCount = 0;
@@ -195,7 +199,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
             CapitalCommitment memory cc = capitalCommitments[investor];
             if (!cc.isAllowed) continue;
 
-            uint256 amountDue = uint256(cc.commitment) * relativeAmountWAD / ONE_ASSET_WAD;
+            uint256 amountDue = uint256(cc.commitment) * relativeAmount_scaled / ASSET_DENOMINATION;
 
             /// @dev will NOT revert
             bool withdrawalFailed = _attemptERC20Transfer({from: investor, amount: amountDue});
@@ -205,17 +209,16 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
                 insolventAmount += amountDue;
                 insolventInvestorsIndexes[insolventInvestorsCount++] = i;
                 emit InvestorInsolvent({investor: investor, amountRequested: amountDue});
-
-                continue;
+            } else {
+                factoringPool.deposit({assets: amountDue, receiver: investor});
+                capitalCommitments[investor].commitment -= uint144(amountDue);
+                totalAmountCalled += amountDue;
             }
-
-            factoringPool.deposit({assets: amountDue, receiver: investor});
-            capitalCommitments[investor].commitment -= uint144(amountDue);
-            totalAmountCalled += amountDue;
         }
 
         // delete the insolvent investors from the investors array
-        for (uint256 i; i < insolventInvestorsCount; i++) {
+        for (uint256 i = insolventInvestorsCount - 1; i >= 0; i--) {
+            // TODO: fix investor deletion
             _deleteInvestor({investor: _investors[insolventInvestorsIndexes[i]], index: insolventInvestorsIndexes[i]});
         }
 
@@ -243,14 +246,13 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         return investors.length;
     }
 
-    function getMaxCapitalCall(address[] memory callees) public view returns (uint256 withdrawable) {
-        for (uint256 i; i < callees.length; i++) {
-            address investor = callees[i];
+    function getMaxCapitalCall() public view returns (uint256 withdrawable) {
+        for (uint256 i; i < investors.length; i++) {
+            address investor = investors[i];
             uint256 commitment = uint256(capitalCommitments[investor].commitment);
             uint256 allowance = asset.allowance(investor, address(this));
-
-            if (allowance < commitment) continue;
-            else withdrawable += commitment;
+            // check to see they've allowed their commitment amount
+            if (allowance >= commitment) withdrawable += commitment;
         }
 
         return withdrawable;
@@ -270,8 +272,19 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
         return a < b ? a : b;
     }
 
+    /// @dev checks if the caller is the owner of the factoring pool
+    function _isOwner() internal view returns (bool) {
+        return Ownable(address(factoringPool)).owner() == msg.sender;
+    }
+
+    /// @dev checks if the caller is the capital caller or the owner of the factoring pool
+    function _onlyCapitalCaller() internal view {
+        if (msg.sender != capitalCaller && !_isOwner()) revert Unauthorized();
+    }
+
+    /// @dev checks if the caller is the owner of the factoring pool
     function _onlyOwner() internal view {
-        if (Ownable(address(factoringPool)).owner() != msg.sender) revert Unauthorized();
+        if (!_isOwner()) revert Unauthorized();
     }
 
     /**

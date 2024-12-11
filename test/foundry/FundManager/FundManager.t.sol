@@ -16,7 +16,11 @@ contract FundManagerTest is CommonSetup {
         super.setUp();
 
         vm.startPrank(owner);
-        fundManager = new BullaFactoringFundManager({_factoringPool: IERC4626(bullaFactoring), _minInvestment: 10e6});
+        fundManager = new BullaFactoringFundManager({
+            _factoringPool: IERC4626(bullaFactoring),
+            _minInvestment: 10e6,
+            _capitalCaller: address(this)
+        });
         depositPermissions.allow(address(fundManager));
     }
 
@@ -46,4 +50,7 @@ contract FundManagerTest is CommonSetup {
         assertEq(fundManager.investorCount(), 2);
         assertEq(fundManager.totalCommitted(), 1 ether);
     }
+
+    // TODO: test investor[0] && investor[last] are both insolvent
+    //    https://github.com/bulla-network/factoring-contracts/pull/99#discussion_r1871662429
 }
