@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {IBullaFactoring, Ownable} from "./interfaces/IBullaFactoring.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// INTERFACE
 ////
@@ -41,11 +42,11 @@ interface IBullaFactoringFundManager {
 /// @title A contract used to manage the `BullaFactoring` fund
 /// @author @colinnielsen
 /// @dev IMPORTANT!: This contract uses ERC20 allowances for it's internal accounting
-///      This allows for investors to keep their assets, and potentially more capital efficiency.
-///      !! This means that this contract will _not_ work with "fee on transfer" tokens, as the amount finally transferred should equal the allowance !!
+///      This allows for investors to hold their assets, allowing for more capital efficiency.
+///      !! This means that this contract will _not_ work with "fee on transfer"-type tokens, as the amount finally transferred should equal the allowance !!
 /// @notice INVARIANTS
 ///     I1: totalCommitted === ( ∑ capitalCommitments.commitment - ∑ capitalCall's `callAmount` parameter )
-contract BullaFactoringFundManager is IBullaFactoringFundManager {
+contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
     //
     //// IMMUTABLES
     IERC4626 public immutable factoringPool;
@@ -72,7 +73,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     /// @notice an array of investor addresses
     address[] public investors;
 
-    constructor(IERC4626 _factoringPool, uint256 _minInvestment, address _capitalCaller) {
+    constructor(IERC4626 _factoringPool, uint256 _minInvestment, address _capitalCaller) Ownable(msg.sender) {
         // Set immutables
         factoringPool = _factoringPool;
         asset = IERC20(_factoringPool.asset());
@@ -108,7 +109,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
     /// @dev SPEC:
     /// This function will:
     ///     E1: set the `msg.sender`'s `capitalCommitments` struct to `amount`
-    ///     E2: increment the `totalCommited` storage by `amount`
+    ///     E2: increment the `totalCommitted` storage by `amount`
     ///     E3: push the `msg.sender` to the `investors` array
     ///         IF: they have not committed before
     ///         OTHERWISE: update their commitment to `amount`, allowing investors to update their commitment
@@ -237,6 +238,11 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
             }
         }
     }
+
+    /// @dev we do not allow the owner to renounce ownership
+    function renounceOwnership() public override {
+        revert();
+    }
     ///
     ////// UTILITY / VIEW FUNCTIONS
     ///
@@ -274,7 +280,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager {
 
     /// @dev checks if the caller is the owner of the factoring pool
     function _isOwner() internal view returns (bool) {
-        return Ownable(address(factoringPool)).owner() == msg.sender;
+        return owner() == msg.sender;
     }
 
     /// @dev checks if the caller is the capital caller or the owner of the factoring pool
