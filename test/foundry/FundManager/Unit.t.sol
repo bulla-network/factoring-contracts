@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.13;
 
-import {console} from "forge-std/console.sol";
 import {Test} from "forge-std/Test.sol";
 import {BullaFactoringFundManager} from "contracts/FundManager.sol";
 import {CommonSetup} from "../CommonSetup.t.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-contract FundManagerTest is CommonSetup {
+contract FactoringFundManagerUnitTest is CommonSetup {
     BullaFactoringFundManager public fundManager;
 
     // Test accounts
@@ -62,7 +61,7 @@ contract FundManagerTest is CommonSetup {
     }
 
     // Helper function to perform a capital call
-    function _capitalCall(uint256 amount) internal returns (uint256) {
+    function _capitalCall(uint256 amount) internal returns (uint256, uint256) {
         vm.prank(owner);
         return fundManager.capitalCall(amount);
     }
@@ -72,33 +71,42 @@ contract FundManagerTest is CommonSetup {
     //
     function test_happyPath() public {
         // Arrange
+        uint256 aliceBalanceBefore = asset.balanceOf(alice);
+        uint256 bobBalanceBefore = asset.balanceOf(bob);
         address[] memory investorsToAllow = new address[](2);
         investorsToAllow[0] = alice;
         investorsToAllow[1] = bob;
         _allowlistInvestors(investorsToAllow);
 
         // Act
-        _commitInvestments(alice, 1 ether);
+        _commitInvestments(alice, 2 ether);
         _commitInvestments(bob, 2 ether);
 
         // Assert
-        assertEq(fundManager.totalCommitted(), 3 ether, "Total committed should be 3 ether");
+        assertEq(fundManager.totalCommitted(), 4 ether, "Total committed should be 3 ether");
         assertEq(fundManager.investorCount(), 2, "There should be 2 investors");
 
         // Capital Call
-        uint256 totalAmountCalled = _capitalCall(2 ether);
+        (uint256 totalAmountCalled,) = _capitalCall(2 ether);
 
-        // Final Assertions
+        assertEq(totalAmountCalled, 2 ether, "2 ether should've been called");
+        assertEq(asset.balanceOf(address(alice)), aliceBalanceBefore - 1 ether, "Alice should have 1 ether less");
+        assertEq(asset.balanceOf(address(bob)), bobBalanceBefore - 1 ether, "Bob should have 1 ether less");
+        assertEq(
+            asset.balanceOf(address(fundManager.factoringPool())), 2 ether, "The factoring pool should now have 2 ether"
+        );
+        assertEq(bullaFactoring.totalSupply(), 2 ether, "The factoring pool should have minted 2 ether of shares");
+
         assertEq(
             fundManager.totalCommitted(),
-            3 ether - totalAmountCalled,
+            4 ether - totalAmountCalled,
             "Total committed should be 1 ether after capital call"
         );
         assertEq(fundManager.investorCount(), 2, "Investor count should remain 2 after capital call");
 
         // Clear out the fund
         uint256 targetAmount = fundManager.totalCommitted();
-        totalAmountCalled = _capitalCall(targetAmount);
+        ( totalAmountCalled,) = _capitalCall(targetAmount);
         assertEq(fundManager.totalCommitted(), 0, "Total committed should be 0 after capital call");
 
         uint256 individualAdditiveCommitment;
@@ -169,7 +177,7 @@ contract FundManagerTest is CommonSetup {
         _commitInvestments(alice, 2 ether); // Update commitment from 1 ether to 2 ether
 
         // Destructure the capital commitment struct for Alice
-        (bool isAllowed, uint144 commitment) = fundManager.capitalCommitments(alice);
+        (, uint144 commitment) = fundManager.capitalCommitments(alice);
 
         // Assert
         assertEq(commitment, 2 ether, "Alice's commitment should be updated to 2 ether");
@@ -212,7 +220,7 @@ contract FundManagerTest is CommonSetup {
 
         // Act
         uint256 targetCallAmount = 2 ether;
-        uint256 totalAmountCalled = _capitalCall(targetCallAmount);
+        (uint256 totalAmountCalled,) = _capitalCall(targetCallAmount);
 
         // Assert
         assertLt(totalAmountCalled, targetCallAmount, "Total called should be less than target call amount");
@@ -246,7 +254,7 @@ contract FundManagerTest is CommonSetup {
         _commitInvestments(bob, 2 ether);
 
         // Act
-        uint256 maxCapitalCall = fundManager.getMaxCapitalCall();
+        uint256 maxCapitalCall = fundManager.totalCommitted();
 
         // Assert
         assertEq(maxCapitalCall, 3 ether, "Max capital call should be 3 ether");
@@ -287,9 +295,12 @@ contract FundManagerTest is CommonSetup {
         _allowlistInvestors(investorsToAllow);
 
         // Act
+
         _commitInvestments(alice, 1 ether);
         _commitInvestments(bob, 2 ether);
         _commitInvestments(charlie, 3 ether);
+
+        uint256 totalAmountCommitted = 6 ether;
 
         // both alice and charlie go insolvent
         _goInsolvent(alice);
@@ -299,9 +310,11 @@ contract FundManagerTest is CommonSetup {
         uint256 amountToCall = 3 ether;
         uint256 expectedInsolventAmount = 4 ether;
 
-        uint256 totalAmountCalled = _capitalCall(amountToCall);
+        (uint256 totalAmountCalled,) = _capitalCall(amountToCall);
         // Assert
-        assertEq(totalAmountCalled, amountToCall - expectedInsolventAmount, "Total called should be 1 ether");
+        assertEq(
+            totalAmountCalled, (totalAmountCommitted - expectedInsolventAmount) / 2, "Total called should be 1 ether"
+        );
         assertEq(fundManager.investorCount(), 1, "Investor count should be 1 after capital call");
         assertEq(fundManager.investors(0), bob, "Bob should be the only investor after capital call");
         assertEq(
@@ -311,7 +324,7 @@ contract FundManagerTest is CommonSetup {
         );
 
         // clear out the fund
-        totalAmountCalled = _capitalCall(fundManager.totalCommitted());
+        (totalAmountCalled,) = _capitalCall(fundManager.totalCommitted());
         assertEq(fundManager.totalCommitted(), 0, "Total committed should be 0 after capital call");
         assertEq(totalAmountCalled, 1 ether, "Bob's last 1 eth should be called");
     }

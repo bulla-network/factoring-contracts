@@ -169,7 +169,10 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
     ///     C1: the `msg.sender` is marked as the `capitalCaller`
     ///         C1.A: OR: msg.sender is the current owner on the `factoringPool` contract
     ///     C2: the `amount` param is <= the `totalCommitted`
-    function capitalCall(uint256 targetCallAmount) public returns (uint256) {
+    function capitalCall(uint256 targetCallAmount)
+        public
+        returns (uint256 totalAmountCalled, uint256 insolventInvestorsCount)
+    {
         _onlyCapitalCaller(); // C1 // C1.A
 
         // load both the totalCommitted amount and investors array into memory
@@ -178,9 +181,8 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
         if (targetCallAmount > _totalCommitted) revert CallTooHigh();
 
         // keep track of a total call amount as the actual amount pulled into the pool
-        // _may_ be less than `targetCallAmount` due to rounding errors
-        uint256 totalAmountCalled = 0;
-        uint256 insolventAmount = 0;
+        // _may_ be less than `targetCallAmount` due to division roudning down
+        totalAmountCalled = 0;
 
         // the relative amount is the amount of USDC to be pulled from the investor relative to the total committed amount
         // e.g. if the total committed is $100, and I capital call $50, that means I'm doing a 50% call
@@ -189,7 +191,6 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
         uint256 amountDueRatio = targetCallAmount * ASSET_DENOMINATION / _totalCommitted;
 
         uint256[] memory insolventInvestorsIndexes = new uint256[](_investors.length);
-        uint256 insolventInvestorsCount = 0;
 
         // approve the factoring pool to pull `targetCallAmount` worth of `asset` from `this` contract's balance
         asset.approve({spender: address(factoringPool), amount: targetCallAmount});
@@ -211,7 +212,6 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
                 totalAmountCalled += amountDue;
             } else {
                 // if the withdrawal fails, delete the investor from this contract, and emit an event marking them solvent
-                // insolventAmount += amountDue;
                 insolventInvestorsIndexes[insolventInvestorsCount++] = i;
                 emit InvestorInsolvent({investor: investor, amountRequested: amountDue});
             }
@@ -225,18 +225,17 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
             });
         }
 
-        totalCommitted -= (totalAmountCalled + insolventAmount);
+        totalCommitted -= totalAmountCalled;
         emit CapitalCallComplete({investors: _investors, callAmount: totalAmountCalled});
 
-        return totalAmountCalled;
+        return (totalAmountCalled, insolventInvestorsCount);
     }
 
     /// @notice allows the fund manager to blocklist an investor, preventing them from commiting
     function blocklistInvestor(address _investor) public {
         _onlyOwner();
 
-        uint256 investorCount = investors.length;
-        for (uint256 i; i < investorCount; i++) {
+        for (uint256 i; i < investorCount(); i++) {
             if (investors[i] == _investor) {
                 _deleteInvestor({investor: _investor, index: i});
                 break;
@@ -254,6 +253,13 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
     function setMinInvestment(uint256 _minInvestment) external {
         _onlyOwner();
         minInvestment = _minInvestment;
+    }
+
+    /// @notice Allows the owner to update the capital caller
+    /// @param _capitalCaller The new capital caller
+    function setCapitalCaller(address _capitalCaller) external {
+        _onlyOwner();
+        capitalCaller = _capitalCaller;
     }
 
     /// @dev we do not allow the owner to renounce ownership
