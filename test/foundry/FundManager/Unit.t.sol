@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {BullaFactoringFundManager} from "contracts/FundManager.sol";
+import {BullaFactoringFundManager} from "contracts/FactoringFundManager.sol";
 import {CommonSetup} from "../CommonSetup.t.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 

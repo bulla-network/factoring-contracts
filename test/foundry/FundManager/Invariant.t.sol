@@ -6,7 +6,7 @@ import {CommonBase, Vm} from "forge-std/Base.sol";
 import {console} from "forge-std/console.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
-import {BullaFactoringFundManager, IBullaFactoringFundManager} from "contracts/FundManager.sol";
+import {BullaFactoringFundManager, IBullaFactoringFundManager} from "contracts/FactoringFundManager.sol";
 import {CommonSetup, MockUSDC} from "../CommonSetup.t.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
@@ -30,6 +30,7 @@ contract Handler is StdCheats, CommonBase, StdUtils {
     address public ghost_owner;
     address public ghost_capitalCaller;
     uint256 public ghost_minInvestment;
+    bool public ghost_isPaused;
 
     //// SET UP
     //
@@ -70,6 +71,7 @@ contract Handler is StdCheats, CommonBase, StdUtils {
     ////      - any capital calls
     ////      - any ownership transfer
     ////      - any investor insolvency
+    ////      - any min investment changes
     ////      THAT:
     ////      - I1: the total amount of capital committed is equal to the amount committed by `n` investor
     ////      - non-related variables stay consistent
@@ -79,6 +81,9 @@ contract Handler is StdCheats, CommonBase, StdUtils {
         // if the investor has been blocklisted, ignore
         (bool isAllowed,) = target.capitalCommitments(currentInvestor);
         if (!isAllowed) return;
+
+        // if the fund manager is paused, ignore
+        if (ghost_isPaused) return;
 
         uint256 amount = bound(_amount, target.minInvestment(), MAX_DEPOSIT);
         // get some asset
@@ -141,6 +146,16 @@ contract Handler is StdCheats, CommonBase, StdUtils {
 
         // update ghost vars
         ghost_minInvestment = minInvestment;
+        ghost_isPaused = false;
+    }
+
+    function ownerPausesCommitments() public {
+        vm.prank(target.owner());
+        target.pauseCommitments();
+
+        ghost_minInvestment = target.minInvestment();
+        // update ghost vars
+        ghost_isPaused = true;
     }
 
     function ownerBlocklistsInvestor(uint256 investorSeed) public {
@@ -181,6 +196,7 @@ contract FactoringFundManagerInvariantTest is CommonSetup {
     }
 
     /// forge-config: default.fuzz.show-logs = false
+    /// forge-config: default.fuzz.fail-on-revert = true
     function invariant_I1() public view {
         uint256 currentCommitments;
         for (uint256 i; i < fundManager.investorCount(); ++i) {
@@ -188,11 +204,28 @@ contract FactoringFundManagerInvariantTest is CommonSetup {
             currentCommitments += uint256(commitment);
         }
 
-        // I1 (actual): ensure the total committed on the manager is equal to the addition of all the capital commitments = the total amount capital called
+        // I1: ensure the total committed on the manager is equal to the addition of all the capital commitments = the total amount capital called
         assertEq(fundManager.totalCommitted(), currentCommitments, "Total commitment invariant failed");
     }
 
-    /// forge-config: default.fuzz.show-logs = false
+    // function invariant_I2() public {
+    //     // I2: BullaFactoringFundManager.totalCommitted amount of tokens can always be sent to the pool
+    //     uint256 totalCommitted = fundManager.totalCommitted();
+    //     uint256 poolBalanceBefore = asset.balanceOf(address(bullaFactoring));
+    //     // snapshot evm state
+    //     uint256 snapid = vm.snapshotState();
+
+    //     vm.prank(fundManager.owner());
+    //     fundManager.capitalCall({targetCallAmount: totalCommitted});
+
+    //     uint256 poolBalanceAfter = asset.balanceOf(address(bullaFactoring));
+    //     assertEq(poolBalanceAfter, totalCommitted, "Pool balance invariant failed");
+
+    //     // revert the state
+    //     vm.revertToStateAndDelete(snapid);
+    // }
+
+    /// forge-config: default.fuzz.fail-on-revert = true
     function invariant_variableConsistency() public view {
         assertEq(fundManager.investorCount(), handler.ghost_totalInvestors(), "Investor count should be equal");
 
@@ -206,5 +239,10 @@ contract FactoringFundManagerInvariantTest is CommonSetup {
         assertEq(fundManager.minInvestment(), handler.ghost_minInvestment(), "Min investment should be consistent");
         assertEq(fundManager.capitalCaller(), handler.ghost_capitalCaller(), "Capital caller should be consistent");
         assertEq(fundManager.owner(), handler.ghost_owner(), "Owner should be consistent");
+    }
+
+    /// forge-config: default.fuzz.fail-on-revert = true
+    function invariant_envConsistency() public view {
+        assertEq(asset.balanceOf(address(fundManager)), 0, "FundManager should have no balance");
     }
 }
