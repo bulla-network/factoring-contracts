@@ -13,12 +13,14 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
           node-version: 18
 
       - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: 6b07c77eb1c1d1c4b56ffa7f79240254b73236d2
+          version: stable
 
       - name: Install dependencies
         run: |
