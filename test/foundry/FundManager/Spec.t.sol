@@ -212,7 +212,7 @@ contract CommitSpecTest is BaseFactoringFundManagerSpecTestSetup {
     /// forge-config: default.fuzz.runs = 1024
     function testFuzz_Commit_AccessControl(address nonInvestor, uint256 amount) public {
         // Assume nonInvestor is not allowlisted
-        vm.assume(nonInvestor != address(this) && nonInvestor != owner);
+        vm.assume(nonInvestor != address(this) && nonInvestor != owner && nonInvestor != address(0));
         vm.assume(amount >= fundManager.minInvestment());
         vm.assume(amount <= type(uint144).max);
 
@@ -537,7 +537,11 @@ contract CapitalCallSpecTest is BaseFactoringFundManagerSpecTestSetup {
         assertFalse(isAllowed3, "Investor3 should be blocklisted"); // SPEC: E1.a
 
         assertEq(commitment1, 0, "Investor1's commitment should be reset"); // SPEC: E2
-        assertEq(commitment2, investor2Commitment - uint144(amountDue2), "Investor2's commitment should be decremented correctly"); // SPEC: E2
+        assertEq(
+            commitment2,
+            investor2Commitment - uint144(amountDue2),
+            "Investor2's commitment should be decremented correctly"
+        ); // SPEC: E2
         assertEq(commitment3, 0, "Investor3's commitment should be reset"); // SPEC: E2
     }
 
