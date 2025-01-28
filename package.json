@@ -19,6 +19,8 @@
         "apply-permissions:sepolia": "npx hardhat run --network sepolia scripts/apply-permissions.ts",
         "deploy:automation:sepolia": "npx hardhat run --network sepolia scripts/deploy-bullaFactoringAutomationChecker.ts",
         "deploy:automation:polygon": "npx hardhat run --network polygon scripts/deploy-bullaFactoringAutomationChecker.ts",
+        "deploy:fundmanager:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/deploy-bullaFactoringFundManager.ts",
+        "deploy:fundmanager:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/deploy-bullaFactoringFundManager.ts",
         "change-underwriter:sepolia": "npx hardhat run --network sepolia scripts/change-underwriter.ts",
         "verify": "hardhat etherscan-verify"
     },

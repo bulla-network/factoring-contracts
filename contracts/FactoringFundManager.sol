@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IBullaFactoring, Ownable} from "./interfaces/IBullaFactoring.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {IERC20} from "./interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -24,6 +24,7 @@ interface IBullaFactoringFundManager {
     error MinInvestmentTooLow();
     //
     //// EVENTS
+
     event InvestorAllowlisted(address indexed investor, address indexed owner);
     event InvestorCommitment(address indexed investor, uint256 amount);
     event InvestorInsolvent(address indexed investor, uint256 amountRequested);
