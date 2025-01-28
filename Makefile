@@ -16,7 +16,7 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 constructor-args := 
 
 build  :; forge build --via-ir
-test   :; forge test -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
+test   :; forge test -vvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 test-s   :; forge test --match-path test/foundry/TestErrorHandlingAndEdgeCases.t.sol -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 coverage   :; forge coverage -vv --fork-url ${SEPOLIA_RPC_URL} --ir-minimum --report lcov

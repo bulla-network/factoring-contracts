@@ -1,0 +1,751 @@
+{
+  "address": "0x20DABE32675864E652485b8C3ad42b8c93d9CFEF",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract IERC4626",
+          "name": "_factoringPool",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_minInvestment",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_capitalCaller",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyAllowlisted",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "actual",
+          "type": "uint256"
+        }
+      ],
+      "name": "BadERC20Allowance",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "actual",
+          "type": "uint256"
+        }
+      ],
+      "name": "BadERC20Balance",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BadInvestorParams",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CallTooHigh",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CallTooLow",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CannotRenounceOwnership",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CommitmentTooHigh",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CommitmentTooLow",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MinInvestmentTooLow",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "Unauthorized",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address[]",
+          "name": "investors",
+          "type": "address[]"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "callAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "CapitalCallComplete",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "investor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "InvestorAllowlisted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "investor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "InvestorCommitment",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "investor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountRequested",
+          "type": "uint256"
+        }
+      ],
+      "name": "InvestorInsolvent",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "investor",
+          "type": "address"
+        }
+      ],
+      "name": "allowlistInvestor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "asset",
+      "outputs": [
+        {
+          "internalType": "contract IERC20",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_investor",
+          "type": "address"
+        }
+      ],
+      "name": "blocklistInvestor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "targetCallAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "capitalCall",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "capitalCaller",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "capitalCommitments",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "isAllowed",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint144",
+          "name": "commitment",
+          "type": "uint144"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "commit",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "factoringPool",
+      "outputs": [
+        {
+          "internalType": "contract IERC4626",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getInvestors",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "investorCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "investors",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "minInvestment",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pauseCommitments",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_capitalCaller",
+          "type": "address"
+        }
+      ],
+      "name": "setCapitalCaller",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_minInvestment",
+          "type": "uint256"
+        }
+      ],
+      "name": "setMinInvestment",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalCommitted",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xf5ae66aaefc86f84fb3ccf568c08141b47eb868ee3a5c5958845b5916fc66ae9",
+  "receipt": {
+    "to": null,
+    "from": "0xe2B28b58cc5d34872794E861fd1ba1982122B907",
+    "contractAddress": "0x20DABE32675864E652485b8C3ad42b8c93d9CFEF",
+    "transactionIndex": 1,
+    "gasUsed": "1035493",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000800000000000000000000400000000000000000000000000008000000000000000000000000000000000000000000000000000000000800001000000000000000100000000000000004000020000000000000000000800020000000000000080000000000000400040000000060000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000004000000000000000000001000000000000000000008000000000120000000020000000000000000000000000000000000000000000000000000000000000100000",
+    "blockHash": "0x3e93852711a4d8ef17b578465b6cf7dd6de574c5cb8c9181340d9ba307dc4b0f",
+    "transactionHash": "0xf5ae66aaefc86f84fb3ccf568c08141b47eb868ee3a5c5958845b5916fc66ae9",
+    "logs": [
+      {
+        "transactionIndex": 1,
+        "blockNumber": 67231484,
+        "transactionHash": "0xf5ae66aaefc86f84fb3ccf568c08141b47eb868ee3a5c5958845b5916fc66ae9",
+        "address": "0x20DABE32675864E652485b8C3ad42b8c93d9CFEF",
+        "topics": [
+          "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x000000000000000000000000e2b28b58cc5d34872794e861fd1ba1982122b907"
+        ],
+        "data": "0x",
+        "logIndex": 2,
+        "blockHash": "0x3e93852711a4d8ef17b578465b6cf7dd6de574c5cb8c9181340d9ba307dc4b0f"
+      },
+      {
+        "transactionIndex": 1,
+        "blockNumber": 67231484,
+        "transactionHash": "0xf5ae66aaefc86f84fb3ccf568c08141b47eb868ee3a5c5958845b5916fc66ae9",
+        "address": "0x0000000000000000000000000000000000001010",
+        "topics": [
+          "0x4dfe1bbbcf077ddc3e01291eea2d5c70c2b422b415d95645b9adcfd678cb1d63",
+          "0x0000000000000000000000000000000000000000000000000000000000001010",
+          "0x000000000000000000000000e2b28b58cc5d34872794e861fd1ba1982122b907",
+          "0x0000000000000000000000009ead03f7136fc6b4bdb0780b00a1c14ae5a8b6d0"
+        ],
+        "data": "0x00000000000000000000000000000000000000000000000001264e081fa135100000000000000000000000000000000000000000000000000c5686ccb32f0c050000000000000000000000000000000000000000000015876e4d3aabd42493f30000000000000000000000000000000000000000000000000b3038c4938dd6f50000000000000000000000000000000000000000000015876f7388b3f3c5c903",
+        "logIndex": 3,
+        "blockHash": "0x3e93852711a4d8ef17b578465b6cf7dd6de574c5cb8c9181340d9ba307dc4b0f"
+      }
+    ],
+    "blockNumber": 67231484,
+    "cumulativeGasUsed": "1092251",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
+    1000000000,
+    "0x89e03E7980C92fd81Ed3A9b72F5c73fDf57E5e6D"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "2e007ccf6013008facceab69a2ea8eae",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.20+commit.a1b79de6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"contract IERC4626\",\"name\":\"_factoringPool\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_minInvestment\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_capitalCaller\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"AlreadyAllowlisted\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"actual\",\"type\":\"uint256\"}],\"name\":\"BadERC20Allowance\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"actual\",\"type\":\"uint256\"}],\"name\":\"BadERC20Balance\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"BadInvestorParams\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"CallTooHigh\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"CallTooLow\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"CannotRenounceOwnership\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"CommitmentTooHigh\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"CommitmentTooLow\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"MinInvestmentTooLow\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"OwnableInvalidOwner\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"OwnableUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"Unauthorized\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address[]\",\"name\":\"investors\",\"type\":\"address[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"callAmount\",\"type\":\"uint256\"}],\"name\":\"CapitalCallComplete\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"investor\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"InvestorAllowlisted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"investor\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"InvestorCommitment\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"investor\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amountRequested\",\"type\":\"uint256\"}],\"name\":\"InvestorInsolvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"investor\",\"type\":\"address\"}],\"name\":\"allowlistInvestor\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"asset\",\"outputs\":[{\"internalType\":\"contract IERC20\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_investor\",\"type\":\"address\"}],\"name\":\"blocklistInvestor\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"targetCallAmount\",\"type\":\"uint256\"}],\"name\":\"capitalCall\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"capitalCaller\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"capitalCommitments\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"isAllowed\",\"type\":\"bool\"},{\"internalType\":\"uint144\",\"name\":\"commitment\",\"type\":\"uint144\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"commit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"factoringPool\",\"outputs\":[{\"internalType\":\"contract IERC4626\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInvestors\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"\",\"type\":\"address[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"investorCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"investors\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minInvestment\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseCommitments\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_capitalCaller\",\"type\":\"address\"}],\"name\":\"setCapitalCaller\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_minInvestment\",\"type\":\"uint256\"}],\"name\":\"setMinInvestment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"totalCommitted\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"author\":\"@colinnielsen\",\"details\":\"IMPORTANT!: This contract uses ERC20 allowances for it's internal accounting      This allows for investors to hold their assets, allowing for more capital efficiency.      !! This means that this contract will _not_ work with \\\"fee on transfer\\\"-type tokens, as the amount finally transferred should equal the allowance !!\",\"errors\":{\"OwnableInvalidOwner(address)\":[{\"details\":\"The owner is not a valid owner account. (eg. `address(0)`)\"}],\"OwnableUnauthorizedAccount(address)\":[{\"details\":\"The caller account is not authorized to perform an operation.\"}]},\"kind\":\"dev\",\"methods\":{\"allowlistInvestor(address)\":{\"details\":\"SPEC: This function will:     E1: set the `isAllowed` flag on the `capitalCommitments` mapping to true     E2: push the `investor` to the `investors` array if not already present     E3: emit an `InvestorAllowlisted` event with the investor address and the current owner GIVEN:     C1: the `msg.sender` is the current owner on the `factoringPool` contract     C2: the investor is not already allowlisted\"},\"blocklistInvestor(address)\":{\"params\":{\"_investor\":\"the address of the investor to blocklist\"}},\"capitalCall(uint256)\":{\"details\":\"SPEC: This function will:     E1: `deposit()` an amount of an investor's `commitment` of `asset` relative to `totalCommitted` (known as `amountDue`) into the `factoringPool` and mint the share tokens to their account         IF: they are solvent: meaning token transfer does not fail         OTHERWISE: E1.a: they are deleted as investors (blocklisted) and their commitment decremented from the `totalCommitted` variable                    E1.b: a `InvestorInsolvent` event is emitted     E2: decrement an investor's `capitalCommitment.commitment` struct by their `amountDue` sent to the pool     E3: decrement `totalCommitted` by the total amount of USDC sent to the pool     E4: emit a `CapitalCall` event with the total of amount sent to the pool RETURNS:     R1: the `totalAmountCalled` - as it will most likely be less in the case of fractional capital calls     R2: the `insolventInvestorsCount` GIVEN:     C1: the `msg.sender` is marked as the `capitalCaller`         C1.A: OR: msg.sender is the current `owner`     C2: the `targetCallAmount` param is <= the `totalCommitted`     C3: the `targetCallAmount` param is > 0\"},\"commit(uint256)\":{\"details\":\"SPEC: This function will:     E1: set the `msg.sender`'s `capitalCommitments.commitment` to `amount`     E2: increment the `totalCommitted` storage by `amount`     E3: emit an `InvestorCommitment` event with the commitment amount and investor GIVEN:     C1: the `msg.sender` is marked as `isAllowed` on their capital commitment struct - as marked by the admin in `allowlistInvestor`     C2: `amount` <= type(uint144).max     C3: their investment at least meets the mininum investment requirements     C4: the `msg.sender`'s ERC20 allowance of this contract is >= their commitment `amount`     C5: the `msg.sender` has a balance of `asset` >= their commitment `amount`\"},\"owner()\":{\"details\":\"Returns the address of the current owner.\"},\"renounceOwnership()\":{\"details\":\"we do not allow the owner to renounce ownership\"},\"setCapitalCaller(address)\":{\"params\":{\"_capitalCaller\":\"The new capital caller\"}},\"setMinInvestment(uint256)\":{\"details\":\"Only callable by the owner of the factoringPool\",\"params\":{\"_minInvestment\":\"The new minimum investment amount\"}},\"transferOwnership(address)\":{\"details\":\"Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.\"}},\"stateVariables\":{\"ASSET_DENOMINATION\":{\"details\":\"represents \\\"one\\\" of whatever `asset` is:      example: `1e6` for USDC = 1 USDC      example: `1e18` for WETH = 1 WETH\"},\"totalCommitted\":{\"details\":\"will be decremented as capital calls occur or as users are marked insolvent\"}},\"title\":\"A contract used to manage the `BullaFactoring` fund\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"allowlistInvestor(address)\":{\"notice\":\"allows the fund manager to allow an investor to call the `invest` function at their own discretion\"},\"blocklistInvestor(address)\":{\"notice\":\"allows the fund manager to blocklist an investor, preventing them from commiting\"},\"capitalCall(uint256)\":{\"notice\":\"allows the fund manager to pull funds from investors and send their tokens to the pool\"},\"capitalCaller()\":{\"notice\":\"a privileged address that can call the _capitalCall() function\"},\"capitalCommitments(address)\":{\"notice\":\"a mapping of investor addresses to their capital commitment struct\"},\"commit(uint256)\":{\"notice\":\"allows an investor to set their commitment to `amount` in the fundallows active investors to update their commitment amount\"},\"getInvestors()\":{\"notice\":\"reads the investor array\"},\"investorCount()\":{\"notice\":\"reads the amount of investors\"},\"investors(uint256)\":{\"notice\":\"a list of all investors\"},\"minInvestment()\":{\"notice\":\"the mininum amount of `asset` - denominated in `ASSET_DENOMINATION` - that an investor can commit to\"},\"pauseCommitments()\":{\"notice\":\"Allows the owner to halt any commitments into this contract by making the `commit` functione execution impossibleDeposits can be resumed by calling `setMinInvestment` with reasonable params\"},\"setCapitalCaller(address)\":{\"notice\":\"Allows the owner to update the capital caller\"},\"setMinInvestment(uint256)\":{\"notice\":\"Allows the owner to update the minimum investment amount\"},\"totalCommitted()\":{\"notice\":\"the total amount of committed `asset` committed to the pool\"}},\"notice\":\"INVARIANTS     I1: totalCommitted === ( \\u2211 capitalCommitments.commitment - \\u2211 capitalCall's `callAmount` parameter )\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/FactoringFundManager.sol\":\"BullaFactoringFundManager\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[],\"viaIR\":true},\"sources\":{\"@openzeppelin/contracts/access/Ownable.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (access/Ownable.sol)\\n\\npragma solidity ^0.8.20;\\n\\nimport {Context} from \\\"../utils/Context.sol\\\";\\n\\n/**\\n * @dev Contract module which provides a basic access control mechanism, where\\n * there is an account (an owner) that can be granted exclusive access to\\n * specific functions.\\n *\\n * The initial owner is set to the address provided by the deployer. This can\\n * later be changed with {transferOwnership}.\\n *\\n * This module is used through inheritance. It will make available the modifier\\n * `onlyOwner`, which can be applied to your functions to restrict their use to\\n * the owner.\\n */\\nabstract contract Ownable is Context {\\n    address private _owner;\\n\\n    /**\\n     * @dev The caller account is not authorized to perform an operation.\\n     */\\n    error OwnableUnauthorizedAccount(address account);\\n\\n    /**\\n     * @dev The owner is not a valid owner account. (eg. `address(0)`)\\n     */\\n    error OwnableInvalidOwner(address owner);\\n\\n    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);\\n\\n    /**\\n     * @dev Initializes the contract setting the address provided by the deployer as the initial owner.\\n     */\\n    constructor(address initialOwner) {\\n        if (initialOwner == address(0)) {\\n            revert OwnableInvalidOwner(address(0));\\n        }\\n        _transferOwnership(initialOwner);\\n    }\\n\\n    /**\\n     * @dev Throws if called by any account other than the owner.\\n     */\\n    modifier onlyOwner() {\\n        _checkOwner();\\n        _;\\n    }\\n\\n    /**\\n     * @dev Returns the address of the current owner.\\n     */\\n    function owner() public view virtual returns (address) {\\n        return _owner;\\n    }\\n\\n    /**\\n     * @dev Throws if the sender is not the owner.\\n     */\\n    function _checkOwner() internal view virtual {\\n        if (owner() != _msgSender()) {\\n            revert OwnableUnauthorizedAccount(_msgSender());\\n        }\\n    }\\n\\n    /**\\n     * @dev Leaves the contract without owner. It will not be possible to call\\n     * `onlyOwner` functions. Can only be called by the current owner.\\n     *\\n     * NOTE: Renouncing ownership will leave the contract without an owner,\\n     * thereby disabling any functionality that is only available to the owner.\\n     */\\n    function renounceOwnership() public virtual onlyOwner {\\n        _transferOwnership(address(0));\\n    }\\n\\n    /**\\n     * @dev Transfers ownership of the contract to a new account (`newOwner`).\\n     * Can only be called by the current owner.\\n     */\\n    function transferOwnership(address newOwner) public virtual onlyOwner {\\n        if (newOwner == address(0)) {\\n            revert OwnableInvalidOwner(address(0));\\n        }\\n        _transferOwnership(newOwner);\\n    }\\n\\n    /**\\n     * @dev Transfers ownership of the contract to a new account (`newOwner`).\\n     * Internal function without access restriction.\\n     */\\n    function _transferOwnership(address newOwner) internal virtual {\\n        address oldOwner = _owner;\\n        _owner = newOwner;\\n        emit OwnershipTransferred(oldOwner, newOwner);\\n    }\\n}\\n\",\"keccak256\":\"0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb\",\"license\":\"MIT\"},\"@openzeppelin/contracts/interfaces/IERC4626.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (interfaces/IERC4626.sol)\\n\\npragma solidity ^0.8.20;\\n\\nimport {IERC20} from \\\"../token/ERC20/IERC20.sol\\\";\\nimport {IERC20Metadata} from \\\"../token/ERC20/extensions/IERC20Metadata.sol\\\";\\n\\n/**\\n * @dev Interface of the ERC4626 \\\"Tokenized Vault Standard\\\", as defined in\\n * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].\\n */\\ninterface IERC4626 is IERC20, IERC20Metadata {\\n    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);\\n\\n    event Withdraw(\\n        address indexed sender,\\n        address indexed receiver,\\n        address indexed owner,\\n        uint256 assets,\\n        uint256 shares\\n    );\\n\\n    /**\\n     * @dev Returns the address of the underlying token used for the Vault for accounting, depositing, and withdrawing.\\n     *\\n     * - MUST be an ERC-20 token contract.\\n     * - MUST NOT revert.\\n     */\\n    function asset() external view returns (address assetTokenAddress);\\n\\n    /**\\n     * @dev Returns the total amount of the underlying asset that is \\u201cmanaged\\u201d by Vault.\\n     *\\n     * - SHOULD include any compounding that occurs from yield.\\n     * - MUST be inclusive of any fees that are charged against assets in the Vault.\\n     * - MUST NOT revert.\\n     */\\n    function totalAssets() external view returns (uint256 totalManagedAssets);\\n\\n    /**\\n     * @dev Returns the amount of shares that the Vault would exchange for the amount of assets provided, in an ideal\\n     * scenario where all the conditions are met.\\n     *\\n     * - MUST NOT be inclusive of any fees that are charged against assets in the Vault.\\n     * - MUST NOT show any variations depending on the caller.\\n     * - MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange.\\n     * - MUST NOT revert.\\n     *\\n     * NOTE: This calculation MAY NOT reflect the \\u201cper-user\\u201d price-per-share, and instead should reflect the\\n     * \\u201caverage-user\\u2019s\\u201d price-per-share, meaning what the average user should expect to see when exchanging to and\\n     * from.\\n     */\\n    function convertToShares(uint256 assets) external view returns (uint256 shares);\\n\\n    /**\\n     * @dev Returns the amount of assets that the Vault would exchange for the amount of shares provided, in an ideal\\n     * scenario where all the conditions are met.\\n     *\\n     * - MUST NOT be inclusive of any fees that are charged against assets in the Vault.\\n     * - MUST NOT show any variations depending on the caller.\\n     * - MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange.\\n     * - MUST NOT revert.\\n     *\\n     * NOTE: This calculation MAY NOT reflect the \\u201cper-user\\u201d price-per-share, and instead should reflect the\\n     * \\u201caverage-user\\u2019s\\u201d price-per-share, meaning what the average user should expect to see when exchanging to and\\n     * from.\\n     */\\n    function convertToAssets(uint256 shares) external view returns (uint256 assets);\\n\\n    /**\\n     * @dev Returns the maximum amount of the underlying asset that can be deposited into the Vault for the receiver,\\n     * through a deposit call.\\n     *\\n     * - MUST return a limited value if receiver is subject to some deposit limit.\\n     * - MUST return 2 ** 256 - 1 if there is no limit on the maximum amount of assets that may be deposited.\\n     * - MUST NOT revert.\\n     */\\n    function maxDeposit(address receiver) external view returns (uint256 maxAssets);\\n\\n    /**\\n     * @dev Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given\\n     * current on-chain conditions.\\n     *\\n     * - MUST return as close to and no more than the exact amount of Vault shares that would be minted in a deposit\\n     *   call in the same transaction. I.e. deposit should return the same or more shares as previewDeposit if called\\n     *   in the same transaction.\\n     * - MUST NOT account for deposit limits like those returned from maxDeposit and should always act as though the\\n     *   deposit would be accepted, regardless if the user has enough tokens approved, etc.\\n     * - MUST be inclusive of deposit fees. Integrators should be aware of the existence of deposit fees.\\n     * - MUST NOT revert.\\n     *\\n     * NOTE: any unfavorable discrepancy between convertToShares and previewDeposit SHOULD be considered slippage in\\n     * share price or some other type of condition, meaning the depositor will lose assets by depositing.\\n     */\\n    function previewDeposit(uint256 assets) external view returns (uint256 shares);\\n\\n    /**\\n     * @dev Mints shares Vault shares to receiver by depositing exactly amount of underlying tokens.\\n     *\\n     * - MUST emit the Deposit event.\\n     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the\\n     *   deposit execution, and are accounted for during deposit.\\n     * - MUST revert if all of assets cannot be deposited (due to deposit limit being reached, slippage, the user not\\n     *   approving enough underlying tokens to the Vault contract, etc).\\n     *\\n     * NOTE: most implementations will require pre-approval of the Vault with the Vault\\u2019s underlying asset token.\\n     */\\n    function deposit(uint256 assets, address receiver) external returns (uint256 shares);\\n\\n    /**\\n     * @dev Returns the maximum amount of the Vault shares that can be minted for the receiver, through a mint call.\\n     * - MUST return a limited value if receiver is subject to some mint limit.\\n     * - MUST return 2 ** 256 - 1 if there is no limit on the maximum amount of shares that may be minted.\\n     * - MUST NOT revert.\\n     */\\n    function maxMint(address receiver) external view returns (uint256 maxShares);\\n\\n    /**\\n     * @dev Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given\\n     * current on-chain conditions.\\n     *\\n     * - MUST return as close to and no fewer than the exact amount of assets that would be deposited in a mint call\\n     *   in the same transaction. I.e. mint should return the same or fewer assets as previewMint if called in the\\n     *   same transaction.\\n     * - MUST NOT account for mint limits like those returned from maxMint and should always act as though the mint\\n     *   would be accepted, regardless if the user has enough tokens approved, etc.\\n     * - MUST be inclusive of deposit fees. Integrators should be aware of the existence of deposit fees.\\n     * - MUST NOT revert.\\n     *\\n     * NOTE: any unfavorable discrepancy between convertToAssets and previewMint SHOULD be considered slippage in\\n     * share price or some other type of condition, meaning the depositor will lose assets by minting.\\n     */\\n    function previewMint(uint256 shares) external view returns (uint256 assets);\\n\\n    /**\\n     * @dev Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.\\n     *\\n     * - MUST emit the Deposit event.\\n     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the mint\\n     *   execution, and are accounted for during mint.\\n     * - MUST revert if all of shares cannot be minted (due to deposit limit being reached, slippage, the user not\\n     *   approving enough underlying tokens to the Vault contract, etc).\\n     *\\n     * NOTE: most implementations will require pre-approval of the Vault with the Vault\\u2019s underlying asset token.\\n     */\\n    function mint(uint256 shares, address receiver) external returns (uint256 assets);\\n\\n    /**\\n     * @dev Returns the maximum amount of the underlying asset that can be withdrawn from the owner balance in the\\n     * Vault, through a withdraw call.\\n     *\\n     * - MUST return a limited value if owner is subject to some withdrawal limit or timelock.\\n     * - MUST NOT revert.\\n     */\\n    function maxWithdraw(address owner) external view returns (uint256 maxAssets);\\n\\n    /**\\n     * @dev Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block,\\n     * given current on-chain conditions.\\n     *\\n     * - MUST return as close to and no fewer than the exact amount of Vault shares that would be burned in a withdraw\\n     *   call in the same transaction. I.e. withdraw should return the same or fewer shares as previewWithdraw if\\n     *   called\\n     *   in the same transaction.\\n     * - MUST NOT account for withdrawal limits like those returned from maxWithdraw and should always act as though\\n     *   the withdrawal would be accepted, regardless if the user has enough shares, etc.\\n     * - MUST be inclusive of withdrawal fees. Integrators should be aware of the existence of withdrawal fees.\\n     * - MUST NOT revert.\\n     *\\n     * NOTE: any unfavorable discrepancy between convertToShares and previewWithdraw SHOULD be considered slippage in\\n     * share price or some other type of condition, meaning the depositor will lose assets by depositing.\\n     */\\n    function previewWithdraw(uint256 assets) external view returns (uint256 shares);\\n\\n    /**\\n     * @dev Burns shares from owner and sends exactly assets of underlying tokens to receiver.\\n     *\\n     * - MUST emit the Withdraw event.\\n     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the\\n     *   withdraw execution, and are accounted for during withdraw.\\n     * - MUST revert if all of assets cannot be withdrawn (due to withdrawal limit being reached, slippage, the owner\\n     *   not having enough shares, etc).\\n     *\\n     * Note that some implementations will require pre-requesting to the Vault before a withdrawal may be performed.\\n     * Those methods should be performed separately.\\n     */\\n    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares);\\n\\n    /**\\n     * @dev Returns the maximum amount of Vault shares that can be redeemed from the owner balance in the Vault,\\n     * through a redeem call.\\n     *\\n     * - MUST return a limited value if owner is subject to some withdrawal limit or timelock.\\n     * - MUST return balanceOf(owner) if owner is not subject to any withdrawal limit or timelock.\\n     * - MUST NOT revert.\\n     */\\n    function maxRedeem(address owner) external view returns (uint256 maxShares);\\n\\n    /**\\n     * @dev Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block,\\n     * given current on-chain conditions.\\n     *\\n     * - MUST return as close to and no more than the exact amount of assets that would be withdrawn in a redeem call\\n     *   in the same transaction. I.e. redeem should return the same or more assets as previewRedeem if called in the\\n     *   same transaction.\\n     * - MUST NOT account for redemption limits like those returned from maxRedeem and should always act as though the\\n     *   redemption would be accepted, regardless if the user has enough shares, etc.\\n     * - MUST be inclusive of withdrawal fees. Integrators should be aware of the existence of withdrawal fees.\\n     * - MUST NOT revert.\\n     *\\n     * NOTE: any unfavorable discrepancy between convertToAssets and previewRedeem SHOULD be considered slippage in\\n     * share price or some other type of condition, meaning the depositor will lose assets by redeeming.\\n     */\\n    function previewRedeem(uint256 shares) external view returns (uint256 assets);\\n\\n    /**\\n     * @dev Burns exactly shares from owner and sends assets of underlying tokens to receiver.\\n     *\\n     * - MUST emit the Withdraw event.\\n     * - MAY support an additional flow in which the underlying tokens are owned by the Vault contract before the\\n     *   redeem execution, and are accounted for during redeem.\\n     * - MUST revert if all of shares cannot be redeemed (due to withdrawal limit being reached, slippage, the owner\\n     *   not having enough shares, etc).\\n     *\\n     * NOTE: some implementations will require pre-requesting to the Vault before a withdrawal may be performed.\\n     * Those methods should be performed separately.\\n     */\\n    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets);\\n}\\n\",\"keccak256\":\"0x207f64371bc0fcc5be86713aa5da109a870cc3a6da50e93b64ee881e369b593d\",\"license\":\"MIT\"},\"@openzeppelin/contracts/token/ERC20/IERC20.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (token/ERC20/IERC20.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev Interface of the ERC20 standard as defined in the EIP.\\n */\\ninterface IERC20 {\\n    /**\\n     * @dev Emitted when `value` tokens are moved from one account (`from`) to\\n     * another (`to`).\\n     *\\n     * Note that `value` may be zero.\\n     */\\n    event Transfer(address indexed from, address indexed to, uint256 value);\\n\\n    /**\\n     * @dev Emitted when the allowance of a `spender` for an `owner` is set by\\n     * a call to {approve}. `value` is the new allowance.\\n     */\\n    event Approval(address indexed owner, address indexed spender, uint256 value);\\n\\n    /**\\n     * @dev Returns the value of tokens in existence.\\n     */\\n    function totalSupply() external view returns (uint256);\\n\\n    /**\\n     * @dev Returns the value of tokens owned by `account`.\\n     */\\n    function balanceOf(address account) external view returns (uint256);\\n\\n    /**\\n     * @dev Moves a `value` amount of tokens from the caller's account to `to`.\\n     *\\n     * Returns a boolean value indicating whether the operation succeeded.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function transfer(address to, uint256 value) external returns (bool);\\n\\n    /**\\n     * @dev Returns the remaining number of tokens that `spender` will be\\n     * allowed to spend on behalf of `owner` through {transferFrom}. This is\\n     * zero by default.\\n     *\\n     * This value changes when {approve} or {transferFrom} are called.\\n     */\\n    function allowance(address owner, address spender) external view returns (uint256);\\n\\n    /**\\n     * @dev Sets a `value` amount of tokens as the allowance of `spender` over the\\n     * caller's tokens.\\n     *\\n     * Returns a boolean value indicating whether the operation succeeded.\\n     *\\n     * IMPORTANT: Beware that changing an allowance with this method brings the risk\\n     * that someone may use both the old and the new allowance by unfortunate\\n     * transaction ordering. One possible solution to mitigate this race\\n     * condition is to first reduce the spender's allowance to 0 and set the\\n     * desired value afterwards:\\n     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729\\n     *\\n     * Emits an {Approval} event.\\n     */\\n    function approve(address spender, uint256 value) external returns (bool);\\n\\n    /**\\n     * @dev Moves a `value` amount of tokens from `from` to `to` using the\\n     * allowance mechanism. `value` is then deducted from the caller's\\n     * allowance.\\n     *\\n     * Returns a boolean value indicating whether the operation succeeded.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function transferFrom(address from, address to, uint256 value) external returns (bool);\\n}\\n\",\"keccak256\":\"0xc6a8ff0ea489379b61faa647490411b80102578440ab9d84e9a957cc12164e70\",\"license\":\"MIT\"},\"@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (token/ERC20/extensions/IERC20Metadata.sol)\\n\\npragma solidity ^0.8.20;\\n\\nimport {IERC20} from \\\"../IERC20.sol\\\";\\n\\n/**\\n * @dev Interface for the optional metadata functions from the ERC20 standard.\\n */\\ninterface IERC20Metadata is IERC20 {\\n    /**\\n     * @dev Returns the name of the token.\\n     */\\n    function name() external view returns (string memory);\\n\\n    /**\\n     * @dev Returns the symbol of the token.\\n     */\\n    function symbol() external view returns (string memory);\\n\\n    /**\\n     * @dev Returns the decimals places of the token.\\n     */\\n    function decimals() external view returns (uint8);\\n}\\n\",\"keccak256\":\"0xaa761817f6cd7892fcf158b3c776b34551cde36f48ff9703d53898bc45a94ea2\",\"license\":\"MIT\"},\"@openzeppelin/contracts/token/ERC721/IERC721.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (token/ERC721/IERC721.sol)\\n\\npragma solidity ^0.8.20;\\n\\nimport {IERC165} from \\\"../../utils/introspection/IERC165.sol\\\";\\n\\n/**\\n * @dev Required interface of an ERC721 compliant contract.\\n */\\ninterface IERC721 is IERC165 {\\n    /**\\n     * @dev Emitted when `tokenId` token is transferred from `from` to `to`.\\n     */\\n    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);\\n\\n    /**\\n     * @dev Emitted when `owner` enables `approved` to manage the `tokenId` token.\\n     */\\n    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);\\n\\n    /**\\n     * @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.\\n     */\\n    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);\\n\\n    /**\\n     * @dev Returns the number of tokens in ``owner``'s account.\\n     */\\n    function balanceOf(address owner) external view returns (uint256 balance);\\n\\n    /**\\n     * @dev Returns the owner of the `tokenId` token.\\n     *\\n     * Requirements:\\n     *\\n     * - `tokenId` must exist.\\n     */\\n    function ownerOf(uint256 tokenId) external view returns (address owner);\\n\\n    /**\\n     * @dev Safely transfers `tokenId` token from `from` to `to`.\\n     *\\n     * Requirements:\\n     *\\n     * - `from` cannot be the zero address.\\n     * - `to` cannot be the zero address.\\n     * - `tokenId` token must exist and be owned by `from`.\\n     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.\\n     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon\\n     *   a safe transfer.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;\\n\\n    /**\\n     * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients\\n     * are aware of the ERC721 protocol to prevent tokens from being forever locked.\\n     *\\n     * Requirements:\\n     *\\n     * - `from` cannot be the zero address.\\n     * - `to` cannot be the zero address.\\n     * - `tokenId` token must exist and be owned by `from`.\\n     * - If the caller is not `from`, it must have been allowed to move this token by either {approve} or\\n     *   {setApprovalForAll}.\\n     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon\\n     *   a safe transfer.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function safeTransferFrom(address from, address to, uint256 tokenId) external;\\n\\n    /**\\n     * @dev Transfers `tokenId` token from `from` to `to`.\\n     *\\n     * WARNING: Note that the caller is responsible to confirm that the recipient is capable of receiving ERC721\\n     * or else they may be permanently lost. Usage of {safeTransferFrom} prevents loss, though the caller must\\n     * understand this adds an external call which potentially creates a reentrancy vulnerability.\\n     *\\n     * Requirements:\\n     *\\n     * - `from` cannot be the zero address.\\n     * - `to` cannot be the zero address.\\n     * - `tokenId` token must be owned by `from`.\\n     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.\\n     *\\n     * Emits a {Transfer} event.\\n     */\\n    function transferFrom(address from, address to, uint256 tokenId) external;\\n\\n    /**\\n     * @dev Gives permission to `to` to transfer `tokenId` token to another account.\\n     * The approval is cleared when the token is transferred.\\n     *\\n     * Only a single account can be approved at a time, so approving the zero address clears previous approvals.\\n     *\\n     * Requirements:\\n     *\\n     * - The caller must own the token or be an approved operator.\\n     * - `tokenId` must exist.\\n     *\\n     * Emits an {Approval} event.\\n     */\\n    function approve(address to, uint256 tokenId) external;\\n\\n    /**\\n     * @dev Approve or remove `operator` as an operator for the caller.\\n     * Operators can call {transferFrom} or {safeTransferFrom} for any token owned by the caller.\\n     *\\n     * Requirements:\\n     *\\n     * - The `operator` cannot be the address zero.\\n     *\\n     * Emits an {ApprovalForAll} event.\\n     */\\n    function setApprovalForAll(address operator, bool approved) external;\\n\\n    /**\\n     * @dev Returns the account approved for `tokenId` token.\\n     *\\n     * Requirements:\\n     *\\n     * - `tokenId` must exist.\\n     */\\n    function getApproved(uint256 tokenId) external view returns (address operator);\\n\\n    /**\\n     * @dev Returns if the `operator` is allowed to manage all of the assets of `owner`.\\n     *\\n     * See {setApprovalForAll}\\n     */\\n    function isApprovedForAll(address owner, address operator) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x5ef46daa3b58ef2702279d514780316efaa952915ee1aa3396f041ee2982b0b4\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/Context.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.1) (utils/Context.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev Provides information about the current execution context, including the\\n * sender of the transaction and its data. While these are generally available\\n * via msg.sender and msg.data, they should not be accessed in such a direct\\n * manner, since when dealing with meta-transactions the account sending and\\n * paying for execution may not be the actual sender (as far as an application\\n * is concerned).\\n *\\n * This contract is only required for intermediate, library-like contracts.\\n */\\nabstract contract Context {\\n    function _msgSender() internal view virtual returns (address) {\\n        return msg.sender;\\n    }\\n\\n    function _msgData() internal view virtual returns (bytes calldata) {\\n        return msg.data;\\n    }\\n\\n    function _contextSuffixLength() internal view virtual returns (uint256) {\\n        return 0;\\n    }\\n}\\n\",\"keccak256\":\"0x493033a8d1b176a037b2cc6a04dad01a5c157722049bbecf632ca876224dd4b2\",\"license\":\"MIT\"},\"@openzeppelin/contracts/utils/introspection/IERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.0.0) (utils/introspection/IERC165.sol)\\n\\npragma solidity ^0.8.20;\\n\\n/**\\n * @dev Interface of the ERC165 standard, as defined in the\\n * https://eips.ethereum.org/EIPS/eip-165[EIP].\\n *\\n * Implementers can declare support of contract interfaces, which can then be\\n * queried by others ({ERC165Checker}).\\n *\\n * For an implementation, see {ERC165}.\\n */\\ninterface IERC165 {\\n    /**\\n     * @dev Returns true if this contract implements the interface defined by\\n     * `interfaceId`. See the corresponding\\n     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]\\n     * to learn more about how these ids are created.\\n     *\\n     * This function call must use less than 30 000 gas.\\n     */\\n    function supportsInterface(bytes4 interfaceId) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x4296879f55019b23e135000eb36896057e7101fb7fb859c5ef690cf14643757b\",\"license\":\"MIT\"},\"contracts/FactoringFundManager.sol\":{\"content\":\"// SPDX-License-Identifier: BUSL-1.1\\npragma solidity ^0.8.20;\\n\\nimport {IBullaFactoring, Ownable} from \\\"./interfaces/IBullaFactoring.sol\\\";\\nimport {IERC20} from \\\"./interfaces/IERC20.sol\\\";\\nimport {IERC4626} from \\\"@openzeppelin/contracts/interfaces/IERC4626.sol\\\";\\nimport {Ownable} from \\\"@openzeppelin/contracts/access/Ownable.sol\\\";\\n\\n/// INTERFACE\\n////\\ninterface IBullaFactoringFundManager {\\n    //\\n    //// ERRORS\\n    error AlreadyAllowlisted();\\n    error BadERC20Allowance(uint256 actual);\\n    error BadERC20Balance(uint256 actual);\\n    error BadInvestorParams();\\n    error CallTooHigh();\\n    error CallTooLow();\\n    error CommitmentTooLow();\\n    error CommitmentTooHigh();\\n    error CannotRenounceOwnership();\\n    error Unauthorized();\\n    error MinInvestmentTooLow();\\n    //\\n    //// EVENTS\\n\\n    event InvestorAllowlisted(address indexed investor, address indexed owner);\\n    event InvestorCommitment(address indexed investor, uint256 amount);\\n    event InvestorInsolvent(address indexed investor, uint256 amountRequested);\\n    event CapitalCallComplete(address[] investors, uint256 callAmount);\\n\\n    //\\n    //// STUCTS\\n    struct CapitalCommitment {\\n        bool isAllowed;\\n        uint144 commitment;\\n    }\\n\\n    struct CapitalCall {\\n        address investor;\\n        uint256 amount;\\n    }\\n}\\n\\n/// @title A contract used to manage the `BullaFactoring` fund\\n/// @author @colinnielsen\\n/// @dev IMPORTANT!: This contract uses ERC20 allowances for it's internal accounting\\n///      This allows for investors to hold their assets, allowing for more capital efficiency.\\n///      !! This means that this contract will _not_ work with \\\"fee on transfer\\\"-type tokens, as the amount finally transferred should equal the allowance !!\\n/// @notice INVARIANTS\\n///     I1: totalCommitted === ( \\u2211 capitalCommitments.commitment - \\u2211 capitalCall's `callAmount` parameter )\\ncontract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {\\n    //\\n    //// IMMUTABLES\\n    IERC4626 public immutable factoringPool;\\n    IERC20 public immutable asset;\\n    /// @dev represents \\\"one\\\" of whatever `asset` is:\\n    ///      example: `1e6` for USDC = 1 USDC\\n    ///      example: `1e18` for WETH = 1 WETH\\n    uint256 immutable ASSET_DENOMINATION;\\n\\n    //\\n    //// STATE\\n    ///\\n\\n    /// @notice a privileged address that can call the _capitalCall() function\\n    address public capitalCaller;\\n    /// @notice the mininum amount of `asset` - denominated in `ASSET_DENOMINATION` - that an investor can commit to\\n    uint256 public minInvestment;\\n    /// @notice the total amount of committed `asset` committed to the pool\\n    /// @dev will be decremented as capital calls occur or as users are marked insolvent\\n    uint256 public totalCommitted;\\n    /// @notice a list of all investors\\n    address[] public investors;\\n    /// @notice a mapping of investor addresses to their capital commitment struct\\n    mapping(address => CapitalCommitment) public capitalCommitments;\\n\\n    constructor(IERC4626 _factoringPool, uint256 _minInvestment, address _capitalCaller) Ownable(msg.sender) {\\n        // Set immutables\\n        factoringPool = _factoringPool;\\n        asset = IERC20(_factoringPool.asset());\\n        ASSET_DENOMINATION = 10 ** uint256(asset.decimals());\\n        // Set initial state variables\\n        capitalCaller = _capitalCaller;\\n        minInvestment = _minInvestment;\\n    }\\n\\n    /*\\n     **\\n     *** CONTACT METHODS BY LIFECYCLE **\\n     **\\n     */\\n\\n    /// @notice allows the fund manager to allow an investor to call the `invest` function at their own discretion\\n    /// @dev SPEC:\\n    /// This function will:\\n    ///     E1: set the `isAllowed` flag on the `capitalCommitments` mapping to true\\n    ///     E2: push the `investor` to the `investors` array if not already present\\n    ///     E3: emit an `InvestorAllowlisted` event with the investor address and the current owner\\n    /// GIVEN:\\n    ///     C1: the `msg.sender` is the current owner on the `factoringPool` contract\\n    ///     C2: the investor is not already allowlisted\\n    function allowlistInvestor(address investor) public {\\n        _onlyOwner(); // C1\\n\\n        if (capitalCommitments[investor].isAllowed) revert AlreadyAllowlisted(); // C2\\n\\n        capitalCommitments[investor].isAllowed = true; // E1\\n        investors.push(investor); // E2\\n        emit InvestorAllowlisted({investor: investor, owner: msg.sender}); // E3\\n    }\\n\\n    /// @notice allows an investor to set their commitment to `amount` in the fund\\n    /// @notice allows active investors to update their commitment amount\\n    /// @dev SPEC:\\n    /// This function will:\\n    ///     E1: set the `msg.sender`'s `capitalCommitments.commitment` to `amount`\\n    ///     E2: increment the `totalCommitted` storage by `amount`\\n    ///     E3: emit an `InvestorCommitment` event with the commitment amount and investor\\n    /// GIVEN:\\n    ///     C1: the `msg.sender` is marked as `isAllowed` on their capital commitment struct - as marked by the admin in `allowlistInvestor`\\n    ///     C2: `amount` <= type(uint144).max\\n    ///     C3: their investment at least meets the mininum investment requirements\\n    ///     C4: the `msg.sender`'s ERC20 allowance of this contract is >= their commitment `amount`\\n    ///     C5: the `msg.sender` has a balance of `asset` >= their commitment `amount`\\n    function commit(uint256 amount) public {\\n        CapitalCommitment memory prevCC = capitalCommitments[msg.sender];\\n        uint256 totalCommittedBefore = totalCommitted;\\n\\n        //// CHECKS:\\n        ///\\n        if (prevCC.isAllowed == false) revert Unauthorized(); // C1\\n        if (amount > type(uint144).max) revert CommitmentTooHigh(); // C2\\n        if (amount < minInvestment) revert CommitmentTooLow(); // C3\\n\\n        uint256 allowance = asset.allowance(msg.sender, address(this));\\n        if (allowance < amount) revert BadERC20Allowance({actual: allowance}); // C4\\n\\n        uint256 balance = asset.balanceOf(msg.sender);\\n        if (balance < amount) revert BadERC20Balance({actual: balance}); // C5\\n\\n        //// EFFECTS:\\n        ///\\n\\n        /// @dev this is required for commitment modification: we decrement totalCommittedBefore,\\n        ///      \\\"undoing\\\" their previous commitment from global commitments until E2\\n        /// @note this should not underflow because an individual's commitment will never be more than `totalCommitment` (see: I1)\\n        if (prevCC.commitment > 0) totalCommittedBefore -= prevCC.commitment;\\n\\n        // E1\\n        capitalCommitments[msg.sender].commitment = uint144(amount);\\n        // E2\\n        totalCommitted = totalCommittedBefore + amount;\\n\\n        // E3\\n        emit InvestorCommitment({investor: msg.sender, amount: amount});\\n    }\\n\\n    /// @notice allows the fund manager to pull funds from investors and send their tokens to the pool\\n    /// @dev SPEC:\\n    /// This function will:\\n    ///     E1: `deposit()` an amount of an investor's `commitment` of `asset` relative to `totalCommitted` (known as `amountDue`) into the `factoringPool` and mint the share tokens to their account\\n    ///         IF: they are solvent: meaning token transfer does not fail\\n    ///         OTHERWISE: E1.a: they are deleted as investors (blocklisted) and their commitment decremented from the `totalCommitted` variable\\n    ///                    E1.b: a `InvestorInsolvent` event is emitted\\n    ///     E2: decrement an investor's `capitalCommitment.commitment` struct by their `amountDue` sent to the pool\\n    ///     E3: decrement `totalCommitted` by the total amount of USDC sent to the pool\\n    ///     E4: emit a `CapitalCall` event with the total of amount sent to the pool\\n    /// RETURNS:\\n    ///     R1: the `totalAmountCalled` - as it will most likely be less in the case of fractional capital calls\\n    ///     R2: the `insolventInvestorsCount`\\n    /// GIVEN:\\n    ///     C1: the `msg.sender` is marked as the `capitalCaller`\\n    ///         C1.A: OR: msg.sender is the current `owner`\\n    ///     C2: the `targetCallAmount` param is <= the `totalCommitted`\\n    ///     C3: the `targetCallAmount` param is > 0\\n    function capitalCall(uint256 targetCallAmount) public returns (uint256, uint256) {\\n        _onlyCapitalCaller(); // C1 // C1.A\\n\\n        // load both the totalCommitted amount and investors array into memory\\n        uint256 _totalCommitted = totalCommitted;\\n        address[] memory _investors = investors;\\n        if (targetCallAmount > _totalCommitted) revert CallTooHigh(); // C2\\n        if (targetCallAmount == 0) revert CallTooLow(); // C3\\n\\n        // this keeps track of a total call amount as the actual amount pulled into the pool\\n        //      _may_ be less than `targetCallAmount` due to the division operation rounding down\\n        uint256 totalAmountCalled;\\n\\n        // this keeps track of the count of investors that were missing either funds or token approval\\n        uint256 insolventInvestorsCount;\\n\\n        // this keeps track of the indexes of the insolvent inevstors in the above `investors` storage array\\n        uint256[] memory insolventInvestorsIndexes = new uint256[](_investors.length);\\n\\n        // `amountDueRatio` is the amount of USDC to be pulled from the investor relative to the total committed amount\\n        // e.g: if the total committed is $100, and I capital call $50, that means I'm doing a 50% call\\n        //      so given Alice's commitment of $30, and Bob's of $70, they will both contribute $15 and $35 respectively\\n        //      this number would represent \\\"50%\\\" but in ASSET_DENOMINATION to help with rounding\\n        uint256 amountDueRatio = targetCallAmount * ASSET_DENOMINATION / _totalCommitted;\\n\\n        // approve the factoring pool to pull `targetCallAmount` worth of `asset` from `this` contract's balance\\n        asset.approve({spender: address(factoringPool), amount: targetCallAmount});\\n\\n        for (uint256 i; i < _investors.length; ++i) {\\n            address investor = _investors[i];\\n\\n            CapitalCommitment memory cc = capitalCommitments[investor];\\n            if (!cc.isAllowed) continue;\\n\\n            uint256 amountDue = uint256(cc.commitment) * amountDueRatio / ASSET_DENOMINATION;\\n\\n            /// @dev will NOT revert\\n            bool withdrawalSuccess = _attemptERC20Transfer({from: investor, amount: amountDue});\\n\\n            if (withdrawalSuccess) {\\n                // if this contract pulled funds successfully: deposit into the vault, with the receiver being the investor\\n                factoringPool.deposit({assets: amountDue, receiver: investor}); // E1\\n                // decrement their commitment by how much they paid\\n                capitalCommitments[investor].commitment -= uint144(amountDue); // E2\\n                // incrememnt the total amount called\\n                totalAmountCalled += amountDue;\\n            } else {\\n                // if the withdrawal fails, keep track to later delete the investor, and emit an event marking them solvent\\n                insolventInvestorsIndexes[insolventInvestorsCount++] = i;\\n                emit InvestorInsolvent({investor: investor, amountRequested: amountDue}); // E1.b\\n            }\\n        }\\n\\n        // delete the insolvent investors from the investors array\\n        for (uint256 i; i < insolventInvestorsCount; ++i) {\\n            uint256 idx = insolventInvestorsCount - 1 - i;\\n            // E1.a\\n            _deleteInvestor({\\n                investor: _investors[insolventInvestorsIndexes[idx]],\\n                index: insolventInvestorsIndexes[idx]\\n            });\\n        }\\n\\n        totalCommitted -= totalAmountCalled; // E3\\n        emit CapitalCallComplete({investors: _investors, callAmount: totalAmountCalled}); // E4\\n\\n        return (\\n            totalAmountCalled, // R1\\n            insolventInvestorsCount // R2\\n        );\\n    }\\n\\n    //\\n    //// OWNER FUNCTIONS\\n    //\\n\\n    /// @notice Allows the owner to update the minimum investment amount\\n    /// @dev Only callable by the owner of the factoringPool\\n    /// @param _minInvestment The new minimum investment amount\\n    function setMinInvestment(uint256 _minInvestment) public {\\n        _onlyOwner();\\n\\n        if (_minInvestment == 0) revert MinInvestmentTooLow();\\n        minInvestment = _minInvestment;\\n    }\\n\\n    /// @notice Allows the owner to halt any commitments into this contract by making the `commit` functione execution impossible\\n    /// @notice Deposits can be resumed by calling `setMinInvestment` with reasonable params\\n    function pauseCommitments() external {\\n        _onlyOwner();\\n        setMinInvestment(type(uint256).max);\\n    }\\n\\n    /// @notice Allows the owner to update the capital caller\\n    /// @param _capitalCaller The new capital caller\\n    function setCapitalCaller(address _capitalCaller) external {\\n        _onlyOwner();\\n        capitalCaller = _capitalCaller;\\n    }\\n\\n    /// @dev we do not allow the owner to renounce ownership\\n    function renounceOwnership() public pure override {\\n        revert CannotRenounceOwnership();\\n    }\\n\\n    /// @notice allows the fund manager to blocklist an investor, preventing them from commiting\\n    /// @param _investor the address of the investor to blocklist\\n    function blocklistInvestor(address _investor) public {\\n        _onlyOwner();\\n\\n        for (uint256 i; i < investorCount(); i++) {\\n            if (investors[i] == _investor) {\\n                _deleteInvestor({investor: _investor, index: i});\\n                break;\\n            }\\n        }\\n    }\\n\\n    ///\\n    ////// VIEW FUNCTIONS\\n    ///\\n\\n    /// @notice reads the investor array\\n    function getInvestors() public view returns (address[] memory) {\\n        return investors;\\n    }\\n\\n    /// @notice reads the amount of investors\\n    function investorCount() public view returns (uint256) {\\n        return investors.length;\\n    }\\n\\n    ///\\n    ////// INTERNAL UTILITY FUNCTIONS\\n    ///\\n\\n    /// @dev deletes an investor from the capital commitment mapping and decrements the `totalCommitted` by their `commitmentAmount`\\n    ///      also removes them from the investors array, leaving a gap\\n    ///      but replaces that investor with the last investor in the array\\n    ///      and calling `.pop()` to remove the now duplicate data, and decrement investors.length by 1\\n    function _deleteInvestor(address investor, uint256 index) internal {\\n        uint256 commitmentAmount = capitalCommitments[investor].commitment;\\n\\n        delete capitalCommitments[investor];\\n        investors[index] = investors[investors.length - 1];\\n        investors.pop();\\n\\n        totalCommitted -= commitmentAmount;\\n    }\\n\\n    /// @dev checks if the caller is the owner of the factoring pool\\n    function _isOwner() internal view returns (bool) {\\n        return owner() == msg.sender;\\n    }\\n\\n    /// @dev checks if the caller is the capital caller or the owner of the factoring pool\\n    function _onlyCapitalCaller() internal view {\\n        if (msg.sender != capitalCaller && !_isOwner()) revert Unauthorized();\\n    }\\n\\n    /// @dev checks if the caller is the owner of the factoring pool\\n    function _onlyOwner() internal view {\\n        if (!_isOwner()) revert Unauthorized();\\n    }\\n\\n    /// @notice will attempt to execute a `transferFrom` and use the parsed success bool return var as the return\\n    /// @dev will NOT revert, on external call, will simply return false\\n    function _attemptERC20Transfer(address from, uint256 amount) internal returns (bool succeeded) {\\n        try asset.transferFrom({from: from, to: address(this), amount: amount}) returns (bool xferSuccess) {\\n            return xferSuccess;\\n        } catch (bytes memory) {\\n            return false;\\n        }\\n    }\\n}\\n\",\"keccak256\":\"0x5a88904ea83b262e1b1e7fdc201fff395e38d86846b39ecb2f610535a72b93f0\",\"license\":\"BUSL-1.1\"},\"contracts/interfaces/IBullaFactoring.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.20;\\n\\nimport \\\"@openzeppelin/contracts/interfaces/IERC4626.sol\\\";\\nimport \\\"@openzeppelin/contracts/token/ERC20/IERC20.sol\\\";\\nimport \\\"@openzeppelin/contracts/access/Ownable.sol\\\";\\nimport \\\"@openzeppelin/contracts/token/ERC721/IERC721.sol\\\";\\nimport \\\"./IInvoiceProviderAdapter.sol\\\";\\n\\n/// @notice Interface for the Bulla Factoring contract\\ninterface IBullaFactoring {\\n    // Structs\\n    struct InvoiceApproval {\\n        bool approved;\\n        IInvoiceProviderAdapter.Invoice invoiceSnapshot;\\n        uint256 validUntil;\\n        uint256 fundedTimestamp;\\n        uint16 interestApr;\\n        uint16 upfrontBps;\\n        uint256 fundedAmountGross;\\n        uint256 fundedAmountNet;\\n        uint16 minDaysInterestApplied;\\n        uint256 trueFaceValue;\\n        uint16 protocolFeeBps;\\n        uint16 adminFeeBps;\\n    }\\n\\n    struct Multihash {\\n        bytes32 hash;\\n        uint8 hashFunction;\\n        uint8 size;\\n    }\\n\\n    struct FundInfo {\\n        string name;\\n        uint256 creationTimestamp;\\n        uint256 fundBalance;\\n        uint256 deployedCapital;\\n        uint256 capitalAccount;\\n        uint256 price;\\n        uint256 tokensAvailableForRedemption;\\n        uint16 adminFeeBps;\\n        uint256 impairReserve;\\n        uint256 targetYieldBps;\\n    }\\n\\n    struct ImpairmentDetails {\\n        uint256 gainAmount;\\n        uint256 lossAmount;\\n        bool isImpaired;\\n    }\\n\\n    // Events\\n    event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil, uint16 minDays);\\n    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);\\n    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);\\n    event GracePeriodDaysChanged(uint256 newGracePeriodDays);\\n    event ApprovalDurationChanged(uint256 newDuration);\\n    event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);\\n    event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);\\n    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 adminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);\\n    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint interestToCharge);\\n    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);\\n    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);\\n    event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);\\n    event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);\\n    event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);\\n    event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);\\n    event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);\\n    event DepositPermissionsChanged(address newAddress);\\n    event FactoringPermissionsChanged(address newAddress);\\n    event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);\\n    event TaxBalanceWithdrawn(address indexed receiver, uint256 amount);\\n    event TaxBpsChanged(uint16 indexed oldTaxBps, uint256 indexed newTaxBps);\\n    event ImpairReserveChanged(uint256 newImpairReserve);\\n    event TargetYieldChanged(uint16 newTargetYield);\\n\\n    // Functions\\n    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;\\n    function pricePerShare() external view returns (uint256);\\n    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns (uint256);\\n    function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);\\n    function reconcileActivePaidInvoices() external;\\n    function setGracePeriodDays(uint256 _days) external;\\n    function setApprovalDuration(uint256 _duration) external;\\n    function assetAddress() external view returns (IERC20);\\n}\",\"keccak256\":\"0x6257c098789a2d6889c46e2f91735d7884254909dee1a0522655b6e89fddb408\",\"license\":\"MIT\"},\"contracts/interfaces/IERC20.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity >=0.6.2;\\n\\n/// @dev Interface of the ERC20 standard as defined in the EIP.\\n/// @dev This includes the optional name, symbol, and decimals metadata.\\ninterface IERC20 {\\n    /// @dev Emitted when `value` tokens are moved from one account (`from`) to another (`to`).\\n    event Transfer(address indexed from, address indexed to, uint256 value);\\n\\n    /// @dev Emitted when the allowance of a `spender` for an `owner` is set, where `value`\\n    /// is the new allowance.\\n    event Approval(address indexed owner, address indexed spender, uint256 value);\\n\\n    /// @notice Returns the amount of tokens in existence.\\n    function totalSupply() external view returns (uint256);\\n\\n    /// @notice Returns the amount of tokens owned by `account`.\\n    function balanceOf(address account) external view returns (uint256);\\n\\n    /// @notice Moves `amount` tokens from the caller's account to `to`.\\n    function transfer(address to, uint256 amount) external returns (bool);\\n\\n    /// @notice Returns the remaining number of tokens that `spender` is allowed\\n    /// to spend on behalf of `owner`\\n    function allowance(address owner, address spender) external view returns (uint256);\\n\\n    /// @notice Sets `amount` as the allowance of `spender` over the caller's tokens.\\n    /// @dev Be aware of front-running risks: https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729\\n    function approve(address spender, uint256 amount) external returns (bool);\\n\\n    /// @notice Moves `amount` tokens from `from` to `to` using the allowance mechanism.\\n    /// `amount` is then deducted from the caller's allowance.\\n    function transferFrom(address from, address to, uint256 amount) external returns (bool);\\n\\n    /// @notice Returns the name of the token.\\n    function name() external view returns (string memory);\\n\\n    /// @notice Returns the symbol of the token.\\n    function symbol() external view returns (string memory);\\n\\n    /// @notice Returns the decimals places of the token.\\n    function decimals() external view returns (uint8);\\n}\\n\",\"keccak256\":\"0x4cab887298790f908c27de107e4e2907ca5413aee482ef776f8d2f353c5ef947\",\"license\":\"MIT\"},\"contracts/interfaces/IInvoiceProviderAdapter.sol\":{\"content\":\"// SPDX-License-Identifier: BUSL-1.1\\npragma solidity ^0.8.20;\\n\\n/// @notice Interface for the invoice provider adapter contract\\ninterface IInvoiceProviderAdapter {\\n\\n    struct Invoice {\\n        uint256 faceValue;\\n        address creditor;\\n        address debtor;\\n        uint256 dueDate;\\n        address tokenAddress;\\n        uint256 paidAmount;\\n        bool isCanceled;\\n    }\\n\\n    function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory);\\n    function getInvoiceContractAddress() external view returns (address);\\n}\",\"keccak256\":\"0x4608b6a361f38617c411be0737fd013fef71e014738e80b5f071cc70a0f57d05\",\"license\":\"BUSL-1.1\"}},\"version\":1}",
+  "bytecode": "0x60e06040908082523462000233576060816200129c803803809162000025828562000237565b833981010312620002335780516001600160a01b03808216808303620002335760209062000059868387015196016200026f565b9133156200021c575f9181835496600460018060a01b031998338a82161787558b5194859384928b3391167f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e08b80a36080526338d52e0f60e01b82525afa908115620001c7579085918491620001d1575b50918091600493168060a05289519384809263313ce56760e01b82525afa908115620001c757839162000183575b5060ff91501690604d82116200016f5750600a0a60c0521690600154161760015560025551611017908162000285823960805181818161052d015281816106590152610bcc015260a0518181816101da0152818161056b01528181610b6b0152610f3b015260c0518181816104ec01526106000152f35b634e487b7160e01b81526011600452602490fd5b905081813d8311620001bf575b6200019c818362000237565b81010312620001bb575160ff81168103620001bb5760ff905f620000f8565b5080fd5b503d62000190565b88513d85823e3d90fd5b809250838092503d831162000214575b620001ed818362000237565b810103126200021057908085620002066004946200026f565b91509192620000ca565b8280fd5b503d620001e1565b8651631e4fbdf760e01b81525f6004820152602490fd5b5f80fd5b601f909101601f19168101906001600160401b038211908210176200025b57604052565b634e487b7160e01b5f52604160045260245ffd5b51906001600160a01b0382168203620002335756fe60806040526004361015610011575f80fd5b5f3560e01c806301e287c014610bfb57806309e375e914610bb75780631d3231d414610b9a57806338d52e0f14610b565780633feb5f2b14610b14578063715018a614610af257806376c012a714610a045780637d1f3c92146109b35780638ac2c680146109965780638da5cb5b1461096f578063a0089b9714610948578063b2f5a54c14610915578063ba7ed2ff146108dc578063d41c08cd146108b4578063d5ef873c1461046b578063d7e64c001461044e578063f2fde38b146103ae578063f4f98ad51461015c5763f51b669b146100ea575f80fd5b34610158576020366003190112610158576004356001600160a01b0380821680830361015857610118610ef4565b5f5b60045481101561015657818361012f83610c45565b90549060031b1c161461014a5761014590610df9565b61011a565b91505061015691610e1b565b005b5f80fd5b34610158576020806003193601126101585760043590335f526005815260405f206040519061018a82610cca565b548260ff8216159283158152016001600160901b03809260081c1681526003549261039d5781851161038b57600254851061037957604051636eb1769f60e11b81523360048201523060248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316908581604481855afa908115610329575f9161034c575b50868110610334575084602491604051928380926370a0823160e01b82523360048301525afa908115610329575f916102fc575b508581106102e457507fa5662f8ce6b88e3414116f804cc5c81df1491631d6b6da0ef042d25b682926c69392826102c19387935116806102cf575b506102bc90335f5260058652831660405f2090610100600160981b0382549160081b1690610100600160981b031916179055565b610d15565b6003556040519283523392a2005b6102dd906102bc9293610d08565b9190610288565b6024906040519063d70c18c560e01b82526004820152fd5b90508481813d8311610322575b6103138183610ce6565b8101031261015857518661024d565b503d610309565b6040513d5f823e3d90fd5b60249060405190633717b6a160e01b82526004820152fd5b90508581813d8311610372575b6103638183610ce6565b81010312610158575187610219565b503d610359565b604051636d62dd6160e11b8152600490fd5b60405163589487a560e11b8152600490fd5b6040516282b42960e81b8152600490fd5b34610158576020366003190112610158576004356001600160a01b0381811691829003610158575f549081169033820361043657821561041e576001600160a01b03191682175f9081557f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09080a3005b604051631e4fbdf760e01b81525f6004820152602490fd5b60405163118cdaa760e01b8152336004820152602490fd5b34610158575f366003190112610158576020600454604051908152f35b346101585760203660031901126101585760043560018060a01b0360015416331415806108a0575b61039d57600354906104a3610d22565b9082811161088e57801561087c575f905f6105168451956104c387610d98565b966104d16040519889610ce6565b8088526104e0601f1991610d98565b013660208901376105117f000000000000000000000000000000000000000000000000000000000000000085610db0565b610dc3565b60405163095ea7b360e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000008116600483015260248201949094529092602090829060449082905f907f0000000000000000000000000000000000000000000000000000000000000000165af180156103295761084d575b505f925b8451841015610794576001600160a01b036105b78587610e07565b511690815f526005602052602060405f20604051906105d582610cca565b54906001600160901b0360ff831615928315835260081c1692839101526107885761062590610511867f000000000000000000000000000000000000000000000000000000000000000092610db0565b916106308382610f07565b1561073c57604051636e553f6560e01b815260048101849052602481018290526020816044815f7f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03165af1801561032957610711575b505f52600560205260405f20916001600160901b0381166001600160901b03845460081c1603916001600160901b0383116106fd576102bc6106f0936106f79590610100600160981b0382549160081b1690610100600160981b031916179055565b935b610df9565b9261059c565b634e487b7160e01b5f52601160045260245ffd5b602090813d8311610735575b6107278183610ce6565b81010312610158578861068e565b503d61071d565b7ffb8a2b6efa27df1c7d3b06efbd4874a50a3a9bca80f6f0d9ae417a40275cd3ff60206106f7948861077b610774899b979b99610df9565b988d610e07565b52604051908152a2610df9565b50936106f79150610df9565b84865f5b8481106107fd57604084867f50ed9ba8471e986daea25eb4601f81b108ab0ea5060a51b224396e3b2f0fcd776107e8876107d485600354610d08565b600355855191829187835287830190610c8e565b8560208301520390a182519182526020820152f35b5f198501908582116106fd576106f26108198261084894610d08565b6108416001600160a01b036108386108318489610e07565b5189610e07565b51169186610e07565b5190610e1b565b610798565b61086e9060203d602011610875575b6108668183610ce6565b810190610de1565b5085610598565b503d61085c565b60405163aca9251160e01b8152600490fd5b604051633fda2f2360e11b8152600490fd5b505f546001600160a01b0316331415610493565b34610158575f366003190112610158576001546040516001600160a01b039091168152602090f35b34610158576020366003190112610158576004356108f8610ef4565b801561090357600255005b6040516324e7f60f60e21b8152600490fd5b34610158575f36600319011261015857610944610930610d22565b604051918291602083526020830190610c8e565b0390f35b34610158575f36600319011261015857610960610ef4565b610968610ef4565b5f19600255005b34610158575f366003190112610158575f546040516001600160a01b039091168152602090f35b34610158575f366003190112610158576020600254604051908152f35b34610158576020366003190112610158576004356001600160a01b03811690819003610158575f5260056020526040805f20546001600160901b0382519160ff81161515835260081c166020820152f35b34610158576020366003190112610158576004356001600160a01b0381169081810361015857610a32610ef4565b815f52600560205260ff60405f205416610ae057815f52600560205260405f20600160ff198254161790556004549068010000000000000000821015610acc57610a85826001610aa49401600455610c45565b90919082549060031b9160018060a01b03809116831b921b1916179055565b33907fb3f701caa918ec20384ffb64faa4c584a2b840391ca0bdbcb4e8311204e93f4f5f80a3005b634e487b7160e01b5f52604160045260245ffd5b60405163be05bbed60e01b8152600490fd5b34610158575f366003190112610158576040516377aeb0ad60e01b8152600490fd5b346101585760203660031901126101585760043560045481101561015857610b3d602091610c45565b905460405160039290921b1c6001600160a01b03168152f35b34610158575f366003190112610158576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b34610158575f366003190112610158576020600354604051908152f35b34610158575f366003190112610158576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b34610158576020366003190112610158576004356001600160a01b0381169081900361015857610c29610ef4565b6bffffffffffffffffffffffff60a01b60015416176001555f80f35b600454811015610c7a5760045f527f8a35acfbc15ff81a39ae7d344fd709f28e8600b4aa8c65c6b64bfe7fe36bd19b01905f90565b634e487b7160e01b5f52603260045260245ffd5b9081518082526020808093019301915f5b828110610cad575050505090565b83516001600160a01b031685529381019392810192600101610c9f565b6040810190811067ffffffffffffffff821117610acc57604052565b90601f8019910116810190811067ffffffffffffffff821117610acc57604052565b919082039182116106fd57565b919082018092116106fd57565b60405190600454808352826020918282019060045f527f8a35acfbc15ff81a39ae7d344fd709f28e8600b4aa8c65c6b64bfe7fe36bd19b935f905b828210610d7557505050610d7392500383610ce6565b565b85546001600160a01b031684526001958601958895509381019390910190610d5d565b67ffffffffffffffff8111610acc5760051b60200190565b818102929181159184041417156106fd57565b8115610dcd570490565b634e487b7160e01b5f52601260045260245ffd5b90816020910312610158575180151581036101585790565b5f1981146106fd5760010190565b8051821015610c7a5760209160051b010190565b919060018060a01b03805f9416845260056020526040842091846001600160901b03845460081c169355600454905f1991828101908111610ee057610e959184610e67610e7093610c45565b93905492610c45565b92909360031b1c169082549060031b9160018060a01b03809116831b921b1916179055565b6004548015610ecc57610ec79495500190610eaf82610c45565b909182549160031b1b19169055600455600354610d08565b600355565b634e487b7160e01b86526031600452602486fd5b634e487b7160e01b87526011600452602487fd5b5f546001600160a01b0316330361039d57565b90604051906323b872dd60e01b825260018060a01b03809316600483015230602483015260448201526020816064815f80967f0000000000000000000000000000000000000000000000000000000000000000165af1829181610fc1575b50610fbc57503d15610fb9573d67ffffffffffffffff8111610fa55760405190610f99601f8201601f191660200183610ce6565b81528160203d92013e90565b634e487b7160e01b82526041600452602482fd5b90565b905090565b610fda91925060203d8111610875576108668183610ce6565b905f610f6556fea26469706673582212205fb4c8f0ca6ba2a00152308109200105a0ed73a5d672a55978886498f338ef4e64736f6c63430008140033",
+  "deployedBytecode": "0x60806040526004361015610011575f80fd5b5f3560e01c806301e287c014610bfb57806309e375e914610bb75780631d3231d414610b9a57806338d52e0f14610b565780633feb5f2b14610b14578063715018a614610af257806376c012a714610a045780637d1f3c92146109b35780638ac2c680146109965780638da5cb5b1461096f578063a0089b9714610948578063b2f5a54c14610915578063ba7ed2ff146108dc578063d41c08cd146108b4578063d5ef873c1461046b578063d7e64c001461044e578063f2fde38b146103ae578063f4f98ad51461015c5763f51b669b146100ea575f80fd5b34610158576020366003190112610158576004356001600160a01b0380821680830361015857610118610ef4565b5f5b60045481101561015657818361012f83610c45565b90549060031b1c161461014a5761014590610df9565b61011a565b91505061015691610e1b565b005b5f80fd5b34610158576020806003193601126101585760043590335f526005815260405f206040519061018a82610cca565b548260ff8216159283158152016001600160901b03809260081c1681526003549261039d5781851161038b57600254851061037957604051636eb1769f60e11b81523360048201523060248201527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316908581604481855afa908115610329575f9161034c575b50868110610334575084602491604051928380926370a0823160e01b82523360048301525afa908115610329575f916102fc575b508581106102e457507fa5662f8ce6b88e3414116f804cc5c81df1491631d6b6da0ef042d25b682926c69392826102c19387935116806102cf575b506102bc90335f5260058652831660405f2090610100600160981b0382549160081b1690610100600160981b031916179055565b610d15565b6003556040519283523392a2005b6102dd906102bc9293610d08565b9190610288565b6024906040519063d70c18c560e01b82526004820152fd5b90508481813d8311610322575b6103138183610ce6565b8101031261015857518661024d565b503d610309565b6040513d5f823e3d90fd5b60249060405190633717b6a160e01b82526004820152fd5b90508581813d8311610372575b6103638183610ce6565b81010312610158575187610219565b503d610359565b604051636d62dd6160e11b8152600490fd5b60405163589487a560e11b8152600490fd5b6040516282b42960e81b8152600490fd5b34610158576020366003190112610158576004356001600160a01b0381811691829003610158575f549081169033820361043657821561041e576001600160a01b03191682175f9081557f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09080a3005b604051631e4fbdf760e01b81525f6004820152602490fd5b60405163118cdaa760e01b8152336004820152602490fd5b34610158575f366003190112610158576020600454604051908152f35b346101585760203660031901126101585760043560018060a01b0360015416331415806108a0575b61039d57600354906104a3610d22565b9082811161088e57801561087c575f905f6105168451956104c387610d98565b966104d16040519889610ce6565b8088526104e0601f1991610d98565b013660208901376105117f000000000000000000000000000000000000000000000000000000000000000085610db0565b610dc3565b60405163095ea7b360e01b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000008116600483015260248201949094529092602090829060449082905f907f0000000000000000000000000000000000000000000000000000000000000000165af180156103295761084d575b505f925b8451841015610794576001600160a01b036105b78587610e07565b511690815f526005602052602060405f20604051906105d582610cca565b54906001600160901b0360ff831615928315835260081c1692839101526107885761062590610511867f000000000000000000000000000000000000000000000000000000000000000092610db0565b916106308382610f07565b1561073c57604051636e553f6560e01b815260048101849052602481018290526020816044815f7f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03165af1801561032957610711575b505f52600560205260405f20916001600160901b0381166001600160901b03845460081c1603916001600160901b0383116106fd576102bc6106f0936106f79590610100600160981b0382549160081b1690610100600160981b031916179055565b935b610df9565b9261059c565b634e487b7160e01b5f52601160045260245ffd5b602090813d8311610735575b6107278183610ce6565b81010312610158578861068e565b503d61071d565b7ffb8a2b6efa27df1c7d3b06efbd4874a50a3a9bca80f6f0d9ae417a40275cd3ff60206106f7948861077b610774899b979b99610df9565b988d610e07565b52604051908152a2610df9565b50936106f79150610df9565b84865f5b8481106107fd57604084867f50ed9ba8471e986daea25eb4601f81b108ab0ea5060a51b224396e3b2f0fcd776107e8876107d485600354610d08565b600355855191829187835287830190610c8e565b8560208301520390a182519182526020820152f35b5f198501908582116106fd576106f26108198261084894610d08565b6108416001600160a01b036108386108318489610e07565b5189610e07565b51169186610e07565b5190610e1b565b610798565b61086e9060203d602011610875575b6108668183610ce6565b810190610de1565b5085610598565b503d61085c565b60405163aca9251160e01b8152600490fd5b604051633fda2f2360e11b8152600490fd5b505f546001600160a01b0316331415610493565b34610158575f366003190112610158576001546040516001600160a01b039091168152602090f35b34610158576020366003190112610158576004356108f8610ef4565b801561090357600255005b6040516324e7f60f60e21b8152600490fd5b34610158575f36600319011261015857610944610930610d22565b604051918291602083526020830190610c8e565b0390f35b34610158575f36600319011261015857610960610ef4565b610968610ef4565b5f19600255005b34610158575f366003190112610158575f546040516001600160a01b039091168152602090f35b34610158575f366003190112610158576020600254604051908152f35b34610158576020366003190112610158576004356001600160a01b03811690819003610158575f5260056020526040805f20546001600160901b0382519160ff81161515835260081c166020820152f35b34610158576020366003190112610158576004356001600160a01b0381169081810361015857610a32610ef4565b815f52600560205260ff60405f205416610ae057815f52600560205260405f20600160ff198254161790556004549068010000000000000000821015610acc57610a85826001610aa49401600455610c45565b90919082549060031b9160018060a01b03809116831b921b1916179055565b33907fb3f701caa918ec20384ffb64faa4c584a2b840391ca0bdbcb4e8311204e93f4f5f80a3005b634e487b7160e01b5f52604160045260245ffd5b60405163be05bbed60e01b8152600490fd5b34610158575f366003190112610158576040516377aeb0ad60e01b8152600490fd5b346101585760203660031901126101585760043560045481101561015857610b3d602091610c45565b905460405160039290921b1c6001600160a01b03168152f35b34610158575f366003190112610158576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b34610158575f366003190112610158576020600354604051908152f35b34610158575f366003190112610158576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b34610158576020366003190112610158576004356001600160a01b0381169081900361015857610c29610ef4565b6bffffffffffffffffffffffff60a01b60015416176001555f80f35b600454811015610c7a5760045f527f8a35acfbc15ff81a39ae7d344fd709f28e8600b4aa8c65c6b64bfe7fe36bd19b01905f90565b634e487b7160e01b5f52603260045260245ffd5b9081518082526020808093019301915f5b828110610cad575050505090565b83516001600160a01b031685529381019392810192600101610c9f565b6040810190811067ffffffffffffffff821117610acc57604052565b90601f8019910116810190811067ffffffffffffffff821117610acc57604052565b919082039182116106fd57565b919082018092116106fd57565b60405190600454808352826020918282019060045f527f8a35acfbc15ff81a39ae7d344fd709f28e8600b4aa8c65c6b64bfe7fe36bd19b935f905b828210610d7557505050610d7392500383610ce6565b565b85546001600160a01b031684526001958601958895509381019390910190610d5d565b67ffffffffffffffff8111610acc5760051b60200190565b818102929181159184041417156106fd57565b8115610dcd570490565b634e487b7160e01b5f52601260045260245ffd5b90816020910312610158575180151581036101585790565b5f1981146106fd5760010190565b8051821015610c7a5760209160051b010190565b919060018060a01b03805f9416845260056020526040842091846001600160901b03845460081c169355600454905f1991828101908111610ee057610e959184610e67610e7093610c45565b93905492610c45565b92909360031b1c169082549060031b9160018060a01b03809116831b921b1916179055565b6004548015610ecc57610ec79495500190610eaf82610c45565b909182549160031b1b19169055600455600354610d08565b600355565b634e487b7160e01b86526031600452602486fd5b634e487b7160e01b87526011600452602487fd5b5f546001600160a01b0316330361039d57565b90604051906323b872dd60e01b825260018060a01b03809316600483015230602483015260448201526020816064815f80967f0000000000000000000000000000000000000000000000000000000000000000165af1829181610fc1575b50610fbc57503d15610fb9573d67ffffffffffffffff8111610fa55760405190610f99601f8201601f191660200183610ce6565b81528160203d92013e90565b634e487b7160e01b82526041600452602482fd5b90565b905090565b610fda91925060203d8111610875576108668183610ce6565b905f610f6556fea26469706673582212205fb4c8f0ca6ba2a00152308109200105a0ed73a5d672a55978886498f338ef4e64736f6c63430008140033",
+  "devdoc": {
+    "author": "@colinnielsen",
+    "details": "IMPORTANT!: This contract uses ERC20 allowances for it's internal accounting      This allows for investors to hold their assets, allowing for more capital efficiency.      !! This means that this contract will _not_ work with \"fee on transfer\"-type tokens, as the amount finally transferred should equal the allowance !!",
+    "errors": {
+      "OwnableInvalidOwner(address)": [
+        {
+          "details": "The owner is not a valid owner account. (eg. `address(0)`)"
+        }
+      ],
+      "OwnableUnauthorizedAccount(address)": [
+        {
+          "details": "The caller account is not authorized to perform an operation."
+        }
+      ]
+    },
+    "kind": "dev",
+    "methods": {
+      "allowlistInvestor(address)": {
+        "details": "SPEC: This function will:     E1: set the `isAllowed` flag on the `capitalCommitments` mapping to true     E2: push the `investor` to the `investors` array if not already present     E3: emit an `InvestorAllowlisted` event with the investor address and the current owner GIVEN:     C1: the `msg.sender` is the current owner on the `factoringPool` contract     C2: the investor is not already allowlisted"
+      },
+      "blocklistInvestor(address)": {
+        "params": {
+          "_investor": "the address of the investor to blocklist"
+        }
+      },
+      "capitalCall(uint256)": {
+        "details": "SPEC: This function will:     E1: `deposit()` an amount of an investor's `commitment` of `asset` relative to `totalCommitted` (known as `amountDue`) into the `factoringPool` and mint the share tokens to their account         IF: they are solvent: meaning token transfer does not fail         OTHERWISE: E1.a: they are deleted as investors (blocklisted) and their commitment decremented from the `totalCommitted` variable                    E1.b: a `InvestorInsolvent` event is emitted     E2: decrement an investor's `capitalCommitment.commitment` struct by their `amountDue` sent to the pool     E3: decrement `totalCommitted` by the total amount of USDC sent to the pool     E4: emit a `CapitalCall` event with the total of amount sent to the pool RETURNS:     R1: the `totalAmountCalled` - as it will most likely be less in the case of fractional capital calls     R2: the `insolventInvestorsCount` GIVEN:     C1: the `msg.sender` is marked as the `capitalCaller`         C1.A: OR: msg.sender is the current `owner`     C2: the `targetCallAmount` param is <= the `totalCommitted`     C3: the `targetCallAmount` param is > 0"
+      },
+      "commit(uint256)": {
+        "details": "SPEC: This function will:     E1: set the `msg.sender`'s `capitalCommitments.commitment` to `amount`     E2: increment the `totalCommitted` storage by `amount`     E3: emit an `InvestorCommitment` event with the commitment amount and investor GIVEN:     C1: the `msg.sender` is marked as `isAllowed` on their capital commitment struct - as marked by the admin in `allowlistInvestor`     C2: `amount` <= type(uint144).max     C3: their investment at least meets the mininum investment requirements     C4: the `msg.sender`'s ERC20 allowance of this contract is >= their commitment `amount`     C5: the `msg.sender` has a balance of `asset` >= their commitment `amount`"
+      },
+      "owner()": {
+        "details": "Returns the address of the current owner."
+      },
+      "renounceOwnership()": {
+        "details": "we do not allow the owner to renounce ownership"
+      },
+      "setCapitalCaller(address)": {
+        "params": {
+          "_capitalCaller": "The new capital caller"
+        }
+      },
+      "setMinInvestment(uint256)": {
+        "details": "Only callable by the owner of the factoringPool",
+        "params": {
+          "_minInvestment": "The new minimum investment amount"
+        }
+      },
+      "transferOwnership(address)": {
+        "details": "Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner."
+      }
+    },
+    "stateVariables": {
+      "ASSET_DENOMINATION": {
+        "details": "represents \"one\" of whatever `asset` is:      example: `1e6` for USDC = 1 USDC      example: `1e18` for WETH = 1 WETH"
+      },
+      "totalCommitted": {
+        "details": "will be decremented as capital calls occur or as users are marked insolvent"
+      }
+    },
+    "title": "A contract used to manage the `BullaFactoring` fund",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "allowlistInvestor(address)": {
+        "notice": "allows the fund manager to allow an investor to call the `invest` function at their own discretion"
+      },
+      "blocklistInvestor(address)": {
+        "notice": "allows the fund manager to blocklist an investor, preventing them from commiting"
+      },
+      "capitalCall(uint256)": {
+        "notice": "allows the fund manager to pull funds from investors and send their tokens to the pool"
+      },
+      "capitalCaller()": {
+        "notice": "a privileged address that can call the _capitalCall() function"
+      },
+      "capitalCommitments(address)": {
+        "notice": "a mapping of investor addresses to their capital commitment struct"
+      },
+      "commit(uint256)": {
+        "notice": "allows an investor to set their commitment to `amount` in the fundallows active investors to update their commitment amount"
+      },
+      "getInvestors()": {
+        "notice": "reads the investor array"
+      },
+      "investorCount()": {
+        "notice": "reads the amount of investors"
+      },
+      "investors(uint256)": {
+        "notice": "a list of all investors"
+      },
+      "minInvestment()": {
+        "notice": "the mininum amount of `asset` - denominated in `ASSET_DENOMINATION` - that an investor can commit to"
+      },
+      "pauseCommitments()": {
+        "notice": "Allows the owner to halt any commitments into this contract by making the `commit` functione execution impossibleDeposits can be resumed by calling `setMinInvestment` with reasonable params"
+      },
+      "setCapitalCaller(address)": {
+        "notice": "Allows the owner to update the capital caller"
+      },
+      "setMinInvestment(uint256)": {
+        "notice": "Allows the owner to update the minimum investment amount"
+      },
+      "totalCommitted()": {
+        "notice": "the total amount of committed `asset` committed to the pool"
+      }
+    },
+    "notice": "INVARIANTS     I1: totalCommitted === ( ∑ capitalCommitments.commitment - ∑ capitalCall's `callAmount` parameter )",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 2746,
+        "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+        "label": "_owner",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_address"
+      },
+      {
+        "astId": 9589,
+        "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+        "label": "capitalCaller",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_address"
+      },
+      {
+        "astId": 9592,
+        "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+        "label": "minInvestment",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_uint256"
+      },
+      {
+        "astId": 9595,
+        "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+        "label": "totalCommitted",
+        "offset": 0,
+        "slot": "3",
+        "type": "t_uint256"
+      },
+      {
+        "astId": 9599,
+        "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+        "label": "investors",
+        "offset": 0,
+        "slot": "4",
+        "type": "t_array(t_address)dyn_storage"
+      },
+      {
+        "astId": 9605,
+        "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+        "label": "capitalCommitments",
+        "offset": 0,
+        "slot": "5",
+        "type": "t_mapping(t_address,t_struct(CapitalCommitment)9566_storage)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_array(t_address)dyn_storage": {
+        "base": "t_address",
+        "encoding": "dynamic_array",
+        "label": "address[]",
+        "numberOfBytes": "32"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_address,t_struct(CapitalCommitment)9566_storage)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => struct IBullaFactoringFundManager.CapitalCommitment)",
+        "numberOfBytes": "32",
+        "value": "t_struct(CapitalCommitment)9566_storage"
+      },
+      "t_struct(CapitalCommitment)9566_storage": {
+        "encoding": "inplace",
+        "label": "struct IBullaFactoringFundManager.CapitalCommitment",
+        "members": [
+          {
+            "astId": 9563,
+            "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+            "label": "isAllowed",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_bool"
+          },
+          {
+            "astId": 9565,
+            "contract": "contracts/FactoringFundManager.sol:BullaFactoringFundManager",
+            "label": "commitment",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_uint144"
+          }
+        ],
+        "numberOfBytes": "32"
+      },
+      "t_uint144": {
+        "encoding": "inplace",
+        "label": "uint144",
+        "numberOfBytes": "18"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}
