@@ -83,7 +83,7 @@ contract FactoringFundManagerUnitTest is CommonSetup {
         _commitInvestments(bob, 2 ether);
 
         // Assert
-        assertEq(fundManager.totalCommitted(), 4 ether, "Total committed should be 3 ether");
+        assertEq(fundManager.totalCommitted(), 4 ether, "Total committed should be 4 ether");
         assertEq(fundManager.investorCount(), 2, "There should be 2 investors");
 
         // Capital Call
@@ -100,7 +100,7 @@ contract FactoringFundManagerUnitTest is CommonSetup {
         assertEq(
             fundManager.totalCommitted(),
             4 ether - totalAmountCalled,
-            "Total committed should be 1 ether after capital call"
+            "Total committed should be 2 ether after capital call"
         );
         assertEq(fundManager.investorCount(), 2, "Investor count should remain 2 after capital call");
 
