@@ -2,10 +2,10 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoring } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -81,7 +81,7 @@ contract TestInvoiceImpairment is CommonSetup {
         vm.stopPrank();
 
         bullaFactoring.reconcileActivePaidInvoices();
-        IBullaFactoring.FundInfo memory fundInfoBefore = bullaFactoring.getFundInfo();
+        IBullaFactoringV2.FundInfo memory fundInfoBefore = bullaFactoring.getFundInfo();
         uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
         // fund cannot impair an active invoice which is not classified as impaired
@@ -102,7 +102,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         // reconcile redeemed invoice to make accounting adjustments
         bullaFactoring.reconcileActivePaidInvoices();
-        IBullaFactoring.FundInfo memory fundInfoAfterImpairmentyFund = bullaFactoring.getFundInfo();
+        IBullaFactoringV2.FundInfo memory fundInfoAfterImpairmentyFund = bullaFactoring.getFundInfo();
         uint256 capitalAccountAfterImpair = bullaFactoring.calculateCapitalAccount();
 
         assertTrue(capitalAccountBefore > capitalAccountAfterImpair, "Realized gain decreases if invoice is impaired by fund");
@@ -124,7 +124,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        IBullaFactoring.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
+        IBullaFactoringV2.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
         uint256 capitalAccountAfterPayment = bullaFactoring.calculateCapitalAccount();
         
         assertTrue(capitalAccountAfterImpair < capitalAccountAfterPayment, "Realized gain increases when invoice impaired by fund gets paid");

@@ -1,12 +1,11 @@
-
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoring } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -18,8 +17,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
 
 contract CommonSetup is Test {
-    BullaFactoring public bullaFactoring;
-    BullaClaimInvoiceProviderAdapter public invoiceAdapterBulla;
+    BullaFactoringV2 public bullaFactoring;
+    BullaClaimInvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
     MockPermissions public factoringPermissions;
@@ -52,7 +51,7 @@ contract CommonSetup is Test {
 
     function setUp() public {
         asset = new MockUSDC();
-        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
+        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
         daoMock = new DAOMock();
@@ -70,7 +69,7 @@ contract CommonSetup is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol);
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
