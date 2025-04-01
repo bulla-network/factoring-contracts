@@ -22,7 +22,7 @@ jobs:
             - name: Install Foundry
               uses: onbjerg/foundry-toolchain@v1
               with:
-                  version: 0.3.0
+                  version: v0.3.0
 
             - name: Install dependencies
               run: |
