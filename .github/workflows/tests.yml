@@ -30,10 +30,10 @@ jobs:
                   yarn
 
             - name: Run forge build
-              run: |
-                  forge --version
-                  forge build --sizes --via-ir
+              run: make build
               id: build
+              env:
+                  SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
 
             - name: Run tests with Sepolia fork
               run: make test
