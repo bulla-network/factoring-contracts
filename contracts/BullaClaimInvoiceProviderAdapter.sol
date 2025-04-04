@@ -6,7 +6,7 @@ import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
 
-contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
+contract BullaClaimInvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
     IBullaClaim private bullaClaim;
 
     error InexistentInvoice();
@@ -23,13 +23,14 @@ contract BullaClaimInvoiceProviderAdapter is IInvoiceProviderAdapter {
         address creditor = IERC721(invoiceContractAddress).ownerOf(invoiceId);
 
         Invoice memory invoice = Invoice({
-            faceValue: claim.claimAmount,
+            invoiceAmount: claim.claimAmount,
             creditor: creditor,
             debtor: claim.debtor,
             dueDate: claim.dueBy,
             tokenAddress: claim.claimToken,
             paidAmount: claim.paidAmount,
-            isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded
+            isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded,
+            isPaid: claim.status == Status.Paid
         });
 
         return invoice;

@@ -14,7 +14,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
+contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -31,7 +31,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @notice Address of the underlying asset token (e.g., USDC)
     IERC20 public assetAddress;
     /// @notice Address of the invoice provider contract adapter
-    IInvoiceProviderAdapter public invoiceProviderAdapter;
+    IInvoiceProviderAdapterV2 public invoiceProviderAdapter;
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
     /// @notice Address of the underwriter, trusted to approve invoices
@@ -114,7 +114,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param _underwriter address of the underwriter
     constructor(
         IERC20 _asset, 
-        IInvoiceProviderAdapter _invoiceProviderAdapter, 
+        IInvoiceProviderAdapterV2 _invoiceProviderAdapter, 
         address _underwriter,
         Permissions _depositPermissions,
         Permissions _factoringPermissions,
@@ -156,8 +156,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
-        IInvoiceProviderAdapter.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        if (invoiceSnapshot.faceValue - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
+        IInvoiceProviderAdapterV2.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        if (invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
         // if invoice already got approved and funded (creditor/owner of invoice is this contract), do not override storage
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
         if (IERC721(invoiceContractAddress).ownerOf(invoiceId) == address(this)) revert InvoiceAlreadyFunded();
@@ -175,7 +175,8 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
             fundedAmountGross: 0,
             fundedAmountNet: 0,
             minDaysInterestApplied: minDaysInterestApplied,
-            trueFaceValue: invoiceSnapshot.faceValue - invoiceSnapshot.paidAmount,
+            initialFullInvoiceAmount: invoiceSnapshot.invoiceAmount,
+            initialPaidAmount: invoiceSnapshot.paidAmount,
             protocolFeeBps: protocolFeeBps,
             adminFeeBps: adminFeeBps
         });
@@ -188,7 +189,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return interest The calculated interest amount
     /// @return protocolFee The calculated protocol fee amount
     /// @return adminFee The calculated admin fee amount
-    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest) private pure returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
+    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest, uint256 currentFullInvoiceAmount) private pure returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
         uint256 interestAprBps = approval.interestApr;
         uint256 interestAprMbps = interestAprBps * 1000;
 
@@ -207,10 +208,11 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         uint256 totalFeeRateMbps = interestAndProtocolFeeMbps + adminFeeRateMbps;
         
         // cap total fees to max available to distribute
-        uint256 capTotalFees = approval.trueFaceValue - approval.fundedAmountNet;
+        // V2 update: what is available to distribute now also includes potential interest on the underlying invoice
+        uint256 capTotalFees = currentFullInvoiceAmount - approval.initialPaidAmount - approval.fundedAmountNet;
 
         // Calculate total fees
-        uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(approval.trueFaceValue, totalFeeRateMbps, 10_000_000));
+        uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(currentFullInvoiceAmount - approval.initialPaidAmount, totalFeeRateMbps, 10_000_000));
         
         // Calculate the interest and protocol fee
         uint256 interestAndProtocolFee = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, interestAndProtocolFeeMbps, totalFeeRateMbps);
@@ -235,15 +237,16 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return trueAdminFee The true admin fee amount
     function calculateKickbackAmount(uint256 invoiceId) public view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
-    
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
         
         uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.minDaysInterestApplied);
 
-        (trueInterest, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest);
+        (trueInterest, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest, invoice.invoiceAmount);
 
         // Calculate the total amount that should have been paid to the original creditor
-        uint256 totalDueToCreditor = approval.trueFaceValue - trueAdminFee - trueInterest - trueProtocolFee;
+        uint256 totalDueToCreditor = invoice.invoiceAmount - approval.initialPaidAmount - trueAdminFee - trueInterest - trueProtocolFee;
 
         // Calculate the kickback amount
         kickbackAmount = totalDueToCreditor > approval.fundedAmountNet ? totalDueToCreditor - approval.fundedAmountNet : 0;
@@ -393,22 +396,22 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @return targetProtocolFee The calculated protocol fee
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
     function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee, uint256 netFundedAmount) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
 
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        uint256 trueFaceValue = approval.trueFaceValue;
+        uint256 trueInitialFaceValue = approval.initialFullInvoiceAmount - approval.initialPaidAmount;
 
-        fundedAmountGross = Math.mulDiv(trueFaceValue, factorerUpfrontBps, 10000);
+        fundedAmountGross = Math.mulDiv(trueInitialFaceValue, factorerUpfrontBps, 10000);
 
         uint256 daysUntilDue =  Math.mulDiv(invoice.dueDate - block.timestamp, 1, 1 days, Math.Rounding.Ceil);
 
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
-        (targetInterest, targetProtocolFee, adminFee) = calculateFees(approval, daysUntilDue);
+        (targetInterest, targetProtocolFee, adminFee) = calculateFees(approval, daysUntilDue, approval.initialFullInvoiceAmount);
 
         uint256 totalFees = adminFee + targetInterest + targetProtocolFee;
         netFundedAmount = fundedAmountGross - totalFees;
@@ -425,7 +428,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
-        IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].invoiceSnapshot.paidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].invoiceSnapshot.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
@@ -498,15 +501,15 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     /// @param invoiceId The ID of the invoice to check
     /// @return True if the invoice is fully paid, false otherwise
     function isInvoicePaid(uint256 invoiceId) private view returns (bool) {
-        IInvoiceProviderAdapter.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        return invoicesDetails.faceValue == invoicesDetails.paidAmount;
+        IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        return invoicesDetails.isPaid;
     }
 
     /// @notice Checks if an invoice is impaired, based on its due date and a grace period
     /// @param invoiceId The ID of the invoice to check
     /// @return True if the invoice is impaired, false otherwise
     function isInvoiceImpaired(uint256 invoiceId) private view returns (bool) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
         return block.timestamp > DaysAfterDueDate;
     }
@@ -602,12 +605,13 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
         if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
 
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         // Calculate the funded amount for the invoice
         uint256 fundedAmount = approval.fundedAmountNet;
 
         // Calculate the number of days since funding
          uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
-        (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysSinceFunded);
+        (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysSinceFunded, invoice.invoiceAmount);
         int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueProtocolFee + trueAdminFee) - int256(getPaymentsOnInvoiceSinceFunding(invoiceId));
 
         // positive number means the original creditor owes us the amount
@@ -645,7 +649,7 @@ contract BullaFactoring is IBullaFactoring, ERC20, ERC4626, Ownable {
     }
 
     function getPaymentsOnInvoiceSinceFunding(uint256 invoiceId) private view returns (uint256) {
-        IInvoiceProviderAdapter.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
         // Need to subtract payments since funding start
         uint256 paymentSinceFunding = invoice.paidAmount - approvedInvoices[invoiceId].invoiceSnapshot.paidAmount;
