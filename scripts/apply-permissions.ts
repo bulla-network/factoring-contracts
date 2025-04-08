@@ -1,21 +1,17 @@
 import hre, { ethers } from 'hardhat';
 import permissionsABI from '../artifacts/contracts/Permissions.sol/Permissions.json';
+import { getNetworkFromEnv } from './deploy-utils';
 import { getNetworkConfig } from './network-config';
 import { getLineReader } from './utils';
 
 export const updatePermissions = async function () {
-    const { getNamedAccounts } = hre;
+    const { getNamedAccounts, getChainId } = hre;
     const { deployer } = await getNamedAccounts();
     const lineReader = getLineReader();
     const signer = await ethers.getSigner(deployer);
 
     // Get the network from environment variable
-    const network = process.env.NETWORK;
-    if (!network) {
-        console.error('Please provide a network as an environment variable');
-        process.exit(1);
-    }
-
+    const network = getNetworkFromEnv();
     console.log(`Using network: ${network}`);
 
     // Get the configuration for the specified network
@@ -60,10 +56,12 @@ export const updatePermissions = async function () {
     console.log('Factoring Permissions granted to : \n', addressToApproveFactoring);
 };
 
-// uncomment this line to run the script individually
-updatePermissions()
-    .then(() => process.exit(0))
-    .catch(error => {
-        console.error(error);
-        process.exit(1);
-    });
+// Only run the function if this script is being executed directly
+if (require.main === module) {
+    updatePermissions()
+        .then(() => process.exit(0))
+        .catch(error => {
+            console.error(error);
+            process.exit(1);
+        });
+}

@@ -2,25 +2,8 @@ import { writeFileSync } from 'fs';
 import hre, { ethers } from 'hardhat';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
+import { getNetworkFromEnv, verifyContract } from './deploy-utils';
 import { ethereumConfig, polygonConfig, sepoliaConfig } from './network-config';
-
-export const verifyContract = async (address: string, constructorArguments: any[], network: string, contractName?: string) => {
-    try {
-        await hre.run('verify:verify', {
-            address,
-            constructorArguments,
-            network,
-            contract: contractName,
-        });
-        console.log(`Contract verified: ${address}`);
-    } catch (error: any) {
-        if (error.message.includes('already verified')) {
-            console.log(`Contract already verified: ${address}`);
-        } else {
-            throw error;
-        }
-    }
-};
 
 export type DeployBullaFactoringParams = {
     bullaClaim: string;
@@ -211,22 +194,20 @@ export const deployBullaFactoring = async ({
     return deployInfo;
 };
 
-const network = process.env.NETWORK;
+// Only run the function if this script is being executed directly
+if (require.main === module) {
+    const network = getNetworkFromEnv();
 
-if (!network) {
-    console.error('Please provide a network as an environment variable');
-    process.exit(1);
+    // Use the imported network configurations - no duplication
+    const config = network === 'sepolia' ? sepoliaConfig : network === 'polygon' ? polygonConfig : ethereumConfig;
+
+    deployBullaFactoring({
+        ...config,
+        network,
+    })
+        .then(() => process.exit(0))
+        .catch(error => {
+            console.error(error);
+            process.exit(1);
+        });
 }
-
-// Use the imported network configurations - no duplication
-const config = network === 'sepolia' ? sepoliaConfig : network === 'polygon' ? polygonConfig : ethereumConfig;
-
-deployBullaFactoring({
-    ...config,
-    network,
-})
-    .then(() => process.exit(0))
-    .catch(error => {
-        console.error(error);
-        process.exit(1);
-    });
