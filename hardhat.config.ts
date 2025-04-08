@@ -1,12 +1,12 @@
 require('dotenv').config({ path: './.env' });
-import { HardhatUserConfig } from 'hardhat/types';
 import '@nomiclabs/hardhat-ethers';
+import '@nomiclabs/hardhat-etherscan';
+import '@nomiclabs/hardhat-solhint';
+import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
 import 'hardhat-deploy';
-import '@nomiclabs/hardhat-waffle';
-import '@nomiclabs/hardhat-solhint';
 import 'hardhat-gas-reporter';
-import '@nomiclabs/hardhat-etherscan';
+import { HardhatUserConfig } from 'hardhat/types';
 // import "hardhat-ethernal"
 
 const INFURA_API_KEY = process.env.INFURA_API_KEY!;
@@ -147,6 +147,7 @@ const config: HardhatUserConfig = {
         apiKey: {
             sepolia: ETHERSCAN_API_KEY,
             polygon: POLYGONSCAN_API_KEY,
+            mainnet: ETHERSCAN_API_KEY,
         },
         customChains: [
             {
