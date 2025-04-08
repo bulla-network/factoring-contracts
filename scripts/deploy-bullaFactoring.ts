@@ -10,7 +10,7 @@ export const verifyContract = async (address: string, constructorArguments: any[
             address,
             constructorArguments,
             network,
-            contractName,
+            contract: contractName,
         });
         console.log(`Contract verified: ${address}`);
     } catch (error: any) {
@@ -77,41 +77,51 @@ export const deployBullaFactoring = async ({
 
     // Deploy invoice provider contract if not provided
     if (!BullaClaimInvoiceProviderAdapterAddress) {
+        console.log('Deploying BullaClaimInvoiceProviderAdapter...');
         const { address: BullaClaimInvoiceProviderAdapterAddress } = await deploy('BullaClaimInvoiceProviderAdapter', {
             from: deployer,
             args: [bullaClaim],
         });
-        await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], network);
         console.log(`BullaClaimInvoiceProviderAdapter deployed: ${BullaClaimInvoiceProviderAdapterAddress}`);
+        console.log('Verifying BullaClaimInvoiceProviderAdapter...');
+        await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], network);
+        console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
     } else {
         console.log(`Using provided BullaClaimInvoiceProviderAdapterAddress: ${BullaClaimInvoiceProviderAdapterAddress}`);
     }
 
     // Deploy mock permissions contracts if not provided
     if (!factoringPermissionsAddress) {
+        console.log('Deploying FactoringPermissions...');
         const { address: factoringPermissionsAddress } = await deploy('FactoringPermissions', {
             from: deployer,
             args: [],
         });
-        await verifyContract(factoringPermissionsAddress, [], network, 'contracts/FactoringPermissions.sol:FactoringPermissions');
         console.log(`FactoringPermissionsAddress deployed: ${factoringPermissionsAddress}`);
+        console.log('Verifying FactoringPermissions...');
+        await verifyContract(factoringPermissionsAddress, [], network, 'contracts/FactoringPermissions.sol:FactoringPermissions');
+        console.log(`FactoringPermissionsAddress verified: ${factoringPermissionsAddress}`);
     } else {
         console.log(`Using provided factoringPermissionsAddress: ${factoringPermissionsAddress}`);
     }
 
     if (!depositPermissionsAddress) {
+        console.log('Deploying DepositPermissions...');
         const { address: depositPermissionsAddress } = await deploy('DepositPermissions', {
             from: deployer,
             args: [],
         });
-        await verifyContract(depositPermissionsAddress, [], network, 'contracts/DepositPermissions.sol:DepositPermissions');
         console.log(`DepositPermissionsAddress deployed: ${depositPermissionsAddress}`);
+        console.log('Verifying DepositPermissions...');
+        await verifyContract(depositPermissionsAddress, [], network, 'contracts/DepositPermissions.sol:DepositPermissions');
+        console.log(`DepositPermissionsAddress verified: ${depositPermissionsAddress}`);
     } else {
         console.log(`Using provided depositPermissionsAddress: ${depositPermissionsAddress}`);
     }
 
     // Deploy bulla factoring contract if not provided
     if (!bullaFactoringAddress && factoringPermissionsAddress && depositPermissionsAddress) {
+        console.log('Deploying Bulla Factoring Contract...');
         const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
             from: deployer,
             args: [
@@ -131,6 +141,8 @@ export const deployBullaFactoring = async ({
             ],
         });
 
+        console.log(`Bulla Factoring Contract deployed: ${bullaFactoringAddress}`);
+        console.log('Verifying Bulla Factoring Contract...');
         await verifyContract(
             bullaFactoringAddress,
             [
@@ -150,7 +162,7 @@ export const deployBullaFactoring = async ({
             ],
             network,
         );
-        console.log(`Bulla Factoring Contract deployed: ${bullaFactoringAddress}`);
+        console.log(`Bulla Factoring Contract verified: ${bullaFactoringAddress}`);
     } else {
         console.log(`Using provided bullaFactoringAddress: ${bullaFactoringAddress}`);
     }
