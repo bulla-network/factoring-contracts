@@ -13,6 +13,7 @@ const INFURA_API_KEY = process.env.INFURA_API_KEY!;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY!;
 const GET_BLOCK_API_KEY = process.env.GET_BLOCK_API_KEY!;
+const MAINNET_GETBLOCK_API_KEY = process.env.MAINNET_GETBLOCK_API_KEY!;
 const DEPLOY_PK = process.env.DEPLOY_PK!;
 const COINMARKETCAP_API = process.env.COINMARKETCAP_API!;
 const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS!;
@@ -36,7 +37,7 @@ const config: HardhatUserConfig = {
         // },
         /** ^^^ */
         mainnet: {
-            url: `https://mainnet.infura.io/v3/${INFURA_API_KEY}`,
+            url: `https://go.getblock.io/${MAINNET_GETBLOCK_API_KEY}`,
             accounts: [DEPLOY_PK],
             chainId: 1,
         },
@@ -140,8 +141,12 @@ const config: HardhatUserConfig = {
     gasReporter: {
         enabled: true,
         currency: 'USD',
-        gasPrice: 100,
-        // coinmarketcap: COINMARKETCAP_API,
+        gasPrice: 1,
+        coinmarketcap: process.env.COINMARKETCAP_API,
+        outputFile: 'gas-report.txt',
+        noColors: true,
+        excludeContracts: [],
+        src: './contracts',
     },
     etherscan: {
         apiKey: {
