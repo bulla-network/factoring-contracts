@@ -2,6 +2,7 @@ import { writeFileSync } from 'fs';
 import hre, { ethers } from 'hardhat';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
+import { ethereumConfig, polygonConfig, sepoliaConfig } from './network-config';
 
 export const verifyContract = async (address: string, constructorArguments: any[], network: string, contractName?: string) => {
     try {
@@ -205,72 +206,13 @@ if (!network) {
     process.exit(1);
 }
 
-const sepoliaConfig = {
-    bullaClaim: '0x3702D060cbB102b6AebF40B40880F77BeF3d7225', // Sepolia Address
-    underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // Sepolia USDC
-    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-    bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
-    protocolFeeBps: 25,
-    adminFeeBps: 50,
-    poolName: 'Bulla TCS Factoring Pool Sepolia Test v2',
-    taxBps: 0,
-    targetYieldBps: 730,
-    poolTokenName: 'Bulla TCS Factoring Pool',
-    poolTokenSymbol: 'BFT-TCS',
-    network,
-    BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
-    factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
-    depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    bullaFactoringAddress: '0xDF0fCe31285dcAB9124bF763AB9E5466723BeF35',
-    writeNewAddresses: true,
-    setImpairReserve: true,
-};
-
-const polygonConfig = {
-    bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4', // Polygon Address
-    underlyingAsset: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359', // Polygon USDC
-    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-    bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
-    protocolFeeBps: 100,
-    adminFeeBps: 50,
-    poolName: 'Bulla TCS Factoring Pool - Polygon V2',
-    taxBps: 0,
-    targetYieldBps: 1100, // 11%
-    poolTokenName: 'Bulla TCS Factoring Pool Token',
-    poolTokenSymbol: 'BFT-TCS',
-    network,
-    BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
-    factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
-    depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-    bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
-    writeNewAddresses: true,
-    setImpairReserve: false,
-};
-
-const ethereumConfig = {
-    bullaClaim: '0x127948A4286A67A0A5Cb56a2D0d54881077A4889', // Mainnet Address
-    underlyingAsset: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // Mainnet USDC
-    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-    bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
-    protocolFeeBps: 100,
-    adminFeeBps: 50,
-    poolName: 'Bulla TCS Settlement Pool - Mainnet V2',
-    taxBps: 0,
-    targetYieldBps: 1100, // 11%
-    poolTokenName: 'Bulla TCS Settlement Pool Token',
-    poolTokenSymbol: 'BFT-TCS',
-    network,
-    // BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
-    // factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
-    // depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-    // bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
-    writeNewAddresses: true,
-    setImpairReserve: false,
-};
-
+// Use the imported network configurations - no duplication
 const config = network === 'sepolia' ? sepoliaConfig : network === 'polygon' ? polygonConfig : ethereumConfig;
 
-deployBullaFactoring(config)
+deployBullaFactoring({
+    ...config,
+    network,
+})
     .then(() => process.exit(0))
     .catch(error => {
         console.error(error);
