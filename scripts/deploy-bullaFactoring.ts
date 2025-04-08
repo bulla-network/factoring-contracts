@@ -1,6 +1,5 @@
 import { writeFileSync } from 'fs';
 import hre, { ethers } from 'hardhat';
-import addresses from '../addresses.json';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
 
@@ -214,7 +213,7 @@ const sepoliaConfig = {
     protocolFeeBps: 25,
     adminFeeBps: 50,
     poolName: 'Bulla TCS Factoring Pool Sepolia Test v2',
-    taxBps: 10,
+    taxBps: 0,
     targetYieldBps: 730,
     poolTokenName: 'Bulla TCS Factoring Pool',
     poolTokenSymbol: 'BFT-TCS',
@@ -235,8 +234,8 @@ const polygonConfig = {
     protocolFeeBps: 100,
     adminFeeBps: 50,
     poolName: 'Bulla TCS Factoring Pool - Polygon V2',
-    taxBps: 10,
-    targetYieldBps: 1030, // 10.3%
+    taxBps: 0,
+    targetYieldBps: 1100, // 11%
     poolTokenName: 'Bulla TCS Factoring Pool Token',
     poolTokenSymbol: 'BFT-TCS',
     network,
@@ -248,7 +247,28 @@ const polygonConfig = {
     setImpairReserve: false,
 };
 
-const config = network === 'sepolia' ? sepoliaConfig : polygonConfig;
+const ethereumConfig = {
+    bullaClaim: '0x127948A4286A67A0A5Cb56a2D0d54881077A4889', // Mainnet Address
+    underlyingAsset: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // Mainnet USDC
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+    bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+    protocolFeeBps: 100,
+    adminFeeBps: 50,
+    poolName: 'Bulla TCS Settlement Pool - Mainnet V2',
+    taxBps: 0,
+    targetYieldBps: 1100, // 11%
+    poolTokenName: 'Bulla TCS Settlement Pool Token',
+    poolTokenSymbol: 'BFT-TCS',
+    network,
+    // BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
+    // factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
+    // depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
+    // bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
+    writeNewAddresses: true,
+    setImpairReserve: false,
+};
+
+const config = network === 'sepolia' ? sepoliaConfig : network === 'polygon' ? polygonConfig : ethereumConfig;
 
 deployBullaFactoring(config)
     .then(() => process.exit(0))
