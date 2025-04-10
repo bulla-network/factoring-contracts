@@ -1,36 +1,42 @@
 on:
-  push:
-    branches:
-      - main
-  
-  pull_request:
+    push:
+        branches:
+            - main
+
+    pull_request:
 
 jobs:
-  check:
-    name: "Foundry Tests"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
+    check:
+        name: 'Foundry Tests'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  submodules: recursive
 
-      - name: Install Foundry
-        uses: onbjerg/foundry-toolchain@v1
-        with:
-          version: nightly
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 18
+                  cache: 'yarn'
 
-      - name: Install dependencies
-        run: |
-          forge install
-          yarn
+            - name: Install Foundry
+              uses: onbjerg/foundry-toolchain@v1
+              with:
+                  version: v0.3.0
 
-      - name: Run forge build
-        run: |
-          forge --version
-          forge build --sizes --via-ir
-        id: build
-        
-      - name: Run tests with Sepolia fork
-        run: make test
-        env:
-          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+            - name: Install dependencies
+              run: |
+                  forge install
+                  yarn
+
+            - name: Run forge build
+              run: |
+                  forge --version
+                  forge build --sizes --via-ir
+              id: build
+
+            - name: Run tests with Sepolia fork
+              run: make test
+              env:
+                  SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}

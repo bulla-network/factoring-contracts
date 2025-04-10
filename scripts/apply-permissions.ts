@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs';
 import hre, { ethers } from 'hardhat';
-import addresses from '../addresses.json';
 import permissionsABI from '../artifacts/contracts/Permissions.sol/Permissions.json';
+import { getNetworkFromEnv } from './deploy-utils';
+import { getNetworkConfig } from './network-config';
 import { getLineReader } from './utils';
 
 export const updatePermissions = async function () {
@@ -10,9 +10,19 @@ export const updatePermissions = async function () {
     const lineReader = getLineReader();
     const signer = await ethers.getSigner(deployer);
 
-    const bullaFactoringAddress = '0xE0C27578a2cd31e4Ea92a3b0BDB2873CCd763242';
-    const depositPermissionsAddress = '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8';
-    const factoringPermissionsAddress = '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e';
+    // Get the network from environment variable
+    const network = getNetworkFromEnv();
+    console.log(`Using network: ${network}`);
+
+    // Get the configuration for the specified network
+    const config = getNetworkConfig(network);
+
+    console.log(`Using addresses for ${network}:`);
+    console.log(`- Bulla Factoring: ${config.bullaFactoringAddress}`);
+    console.log(`- Deposit Permissions: ${config.depositPermissionsAddress}`);
+    console.log(`- Factoring Permissions: ${config.factoringPermissionsAddress}`);
+
+    const { bullaFactoringAddress, depositPermissionsAddress, factoringPermissionsAddress } = config;
 
     // Grant Deposit and Factoring Permissions
     const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, permissionsABI.abi, signer);
@@ -46,10 +56,12 @@ export const updatePermissions = async function () {
     console.log('Factoring Permissions granted to : \n', addressToApproveFactoring);
 };
 
-// uncomment this line to run the script individually
-updatePermissions()
-    .then(() => process.exit(0))
-    .catch(error => {
-        console.error(error);
-        process.exit(1);
-    });
+// Only run the function if this script is being executed directly
+if (require.main === module) {
+    updatePermissions()
+        .then(() => process.exit(0))
+        .catch(error => {
+            console.error(error);
+            process.exit(1);
+        });
+}
