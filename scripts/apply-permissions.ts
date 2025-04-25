@@ -1,5 +1,6 @@
 import hre, { ethers } from 'hardhat';
-import permissionsABI from '../artifacts/contracts/Permissions.sol/Permissions.json';
+import depositPermissionsABI from '../artifacts/contracts/DepositPermissions.sol/DepositPermissions.json';
+import factoringPermissionsABI from '../artifacts/contracts/FactoringPermissions.sol/FactoringPermissions.json';
 import { getNetworkFromEnv } from './deploy-utils';
 import { getNetworkConfig } from './network-config';
 import { getLineReader } from './utils';
@@ -25,8 +26,8 @@ export const updatePermissions = async function () {
     const { bullaFactoringAddress, depositPermissionsAddress, factoringPermissionsAddress } = config;
 
     // Grant Deposit and Factoring Permissions
-    const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, permissionsABI.abi, signer);
-    const factoringPermissionsContract = new ethers.Contract(factoringPermissionsAddress, permissionsABI.abi, signer);
+    const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, depositPermissionsABI.abi, signer);
+    const factoringPermissionsContract = new ethers.Contract(factoringPermissionsAddress, factoringPermissionsABI.abi, signer);
 
     let addressToApproveDeposit: string | undefined = await new Promise(resolve =>
         lineReader.question('deposit address to approve?: \n...\n', address => {

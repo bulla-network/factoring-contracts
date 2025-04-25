@@ -152,13 +152,18 @@ export const deployBullaFactoring = async ({
 
     // Set Impair Reserve and approve token
     if (setImpairReserve && bullaFactoringAddress) {
+        console.log('Setting Impair Reserve and approving token...');
         const signer = await ethers.getSigner(deployer);
         const initialImpairReserve = 50000;
         const underlyingTokenContract = new ethers.Contract(underlyingAsset, ERC20.abi, signer);
+        console.log('Approving token...');
         await underlyingTokenContract.approve(bullaFactoringAddress, initialImpairReserve);
+        console.log('Token approved');
 
         const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, signer);
+        console.log('Setting Impair Reserve...');
         await bullaFactoringContract.setImpairReserve(initialImpairReserve);
+        console.log('Impair Reserve set');
 
         const impairReserve = await bullaFactoringContract.impairReserve();
         console.log('Bulla Factoring Impair Reserve Set to: \n', impairReserve);
