@@ -71,8 +71,6 @@ interface IBullaFactoringV2 {
     event DepositPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
-    event TaxBalanceWithdrawn(address indexed receiver, uint256 amount);
-    event TaxBpsChanged(uint16 indexed oldTaxBps, uint256 indexed newTaxBps);
     event ImpairReserveChanged(uint256 newImpairReserve);
     event TargetYieldChanged(uint16 newTargetYield);
 

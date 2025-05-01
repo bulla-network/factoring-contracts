@@ -262,8 +262,6 @@ contract TestWithdraw is CommonSetup {
         // withdraw all fess
         bullaFactoring.withdrawAdminFees();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
-        bullaFactoring.withdrawTaxBalance();
-        assertEq(bullaFactoring.taxBalance(), 0, "Tax balance should be 0");
 
         vm.prank(bullaDao);
         bullaFactoring.withdrawProtocolFees();

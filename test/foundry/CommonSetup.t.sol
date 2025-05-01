@@ -42,7 +42,6 @@ contract CommonSetup is Test {
     address bullaDao = address(this);
     uint16 protocolFeeBps = 25;
     uint16 adminFeeBps = 50;
-    uint16 taxBps = 1_000;
     uint16 targetYield = 730;
 
     string poolName = 'Test Pool';
@@ -69,7 +68,7 @@ contract CommonSetup is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol);
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);

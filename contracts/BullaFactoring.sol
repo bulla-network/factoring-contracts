@@ -42,10 +42,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint256 public impairReserve;
     /// @notice Name of the factoring pool
     string public poolName;
-    /// @notice Tax rate in basis points
-    uint16 public taxBps;
-    /// @notice Accumulated tax balance
-    uint256 public taxBalance;
     /// @notice Target yield in basis points
     uint16 public targetYieldBps;
 
@@ -79,9 +75,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// Mapping from invoice ID to impairment details
     mapping(uint256 => ImpairmentDetails) public impairments;
 
-    /// Mapping from invoice ID to tax amount
-    mapping(uint256 => uint256) public paidInvoiceTax;
-
     /// Errors
     error CallerNotUnderwriter();
     error DeductionsExceedsRealisedGains();
@@ -101,7 +94,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error CallerNotBullaDao();
     error NoFeesToWithdraw();
     error InvalidAddress();
-    error NoTaxBalanceToWithdraw();
     error ImpairReserveMustBeGreater();
     error InvoiceCreditorChanged();
     error ImpairReserveNotSet();
@@ -122,7 +114,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint16 _protocolFeeBps,
         uint16 _adminFeeBps,
         string memory _poolName,
-        uint16 _taxBps,
         uint16 _targetYieldBps,
         string memory _tokenName, 
         string memory _tokenSymbol
@@ -140,7 +131,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         adminFeeBps = _adminFeeBps; 
         creationTimestamp = block.timestamp;
         poolName = _poolName;
-        taxBps = _taxBps;
         targetYieldBps = _targetYieldBps;
     }
 
@@ -327,7 +317,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Calculates the total accrued profits from all active invoices
-    /// @dev Iterates through all active invoices, calculates interest for each, deducts taxes, and sums the net accrued interest
+    /// @dev Iterates through all active invoices, calculates interest for each and sums the net accrued interest
     /// @return accruedProfits The total net accrued profits across all active invoices
     function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
@@ -335,13 +325,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             
             if(!isInvoiceImpaired(invoiceId)) {
                 (,uint256 trueInterest,,) = calculateKickbackAmount(invoiceId);
-                uint256 grossAccruedInterestOnRemainingInvoiceAmount = trueInterest;
-
-                // Deduct tax from the accrued interest
-                uint256 taxAmount = calculateTax(grossAccruedInterestOnRemainingInvoiceAmount);
-                uint256 netAccruedInterest = grossAccruedInterestOnRemainingInvoiceAmount - taxAmount;
-
-                accruedProfits += netAccruedInterest;
+                accruedProfits += trueInterest;
             }
         }
 
@@ -518,23 +502,19 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return approvedInvoices[invoiceId].fundedAmountNet;
     }
     
-    /// @notice Increments the profit, tax, and fee balances for a given invoice
+    /// @notice Increments the profit, and fee balances for a given invoice
     /// @param invoiceId The ID of the invoice
     /// @param trueInterest The true interest amount for the invoice
     /// @param trueProtocolFee The true protocol fee amount for the invoice
     /// @param trueAdminFee The true admin fee amount for the invoice
-    function incrementProfitTaxAndFeeBalances(uint256 invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) private {
+    function incrementProfitAndFeeBalances(uint256 invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) private {
         // Add the admin fee to the balance
         adminFeeBalance += trueAdminFee;
-        
-        uint256 taxAmount = calculateTax(trueInterest);
 
         // store factoring gain
-        paidInvoicesGain[invoiceId] = trueInterest - taxAmount;
+        paidInvoicesGain[invoiceId] = trueInterest;
 
         // Update storage variables
-        paidInvoiceTax[invoiceId] = taxAmount;
-        taxBalance += taxAmount;
         protocolFeeBalance += trueProtocolFee;
 
         // Add the invoice ID to the paidInvoicesIds array
@@ -552,7 +532,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             // calculate kickback amount adjusting for true interest, protocol and admin fees
             (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateKickbackAmount(invoiceId);
 
-            incrementProfitTaxAndFeeBalances(invoiceId, trueInterest, trueProtocolFee, trueAdminFee);   
+            incrementProfitAndFeeBalances(invoiceId, trueInterest, trueProtocolFee, trueAdminFee);   
 
             // Disperse kickback amount to the original creditor
             address originalCreditor = originalCreditors[invoiceId];            
@@ -577,14 +557,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             emit InvoicePaid(invoiceId, trueInterest, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, originalCreditor);
         }
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
-    }
-
-    /// @notice Calculates the tax amount based on a specified payment amount and the current tax basis points (bps).
-    /// @param amount The amount of the payment on which tax is to be calculated.
-    /// @return The calculated tax amount.
-    function calculateTax(uint256 amount) internal view returns (uint256) {
-        uint256 taxMbps = uint256(taxBps)* 1000;
-        return Math.mulDiv(amount, taxMbps, 10_000_000);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
@@ -629,7 +601,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Update the contract's state to reflect the unfactoring
         removeActivePaidInvoice(invoiceId);
-        incrementProfitTaxAndFeeBalances(invoiceId, trueInterest, trueProtocolFee, trueAdminFee);
+        incrementProfitAndFeeBalances(invoiceId, trueInterest, trueProtocolFee, trueAdminFee);
 
         delete originalCreditors[invoiceId];
 
@@ -691,7 +663,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return targetFees;
     }
 
-    /// @notice Calculates the available assets in the fund net of fees, impair reserve and tax
+    /// @notice Calculates the available assets in the fund net of fees and impair reserve
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
         return calculateCapitalAccount()
@@ -814,16 +786,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         emit AdminFeesWithdrawn(msg.sender, feeAmount);
     }
 
-    /// @notice Withdraws the accumulated tax balance to the pool owner
-    /// @dev This function can only be called by the contract owner
-    function withdrawTaxBalance() public onlyOwner {
-        if (taxBalance == 0) revert NoTaxBalanceToWithdraw();
-        uint256 amountToWithdraw = taxBalance;
-        taxBalance = 0;
-        assetAddress.safeTransfer(msg.sender, amountToWithdraw);
-        emit TaxBalanceWithdrawn(msg.sender, amountToWithdraw);
-    }
-
     /// @notice Updates the Bulla DAO address
     /// @param _newBullaDao The new address for the Bulla DAO
     function setBullaDaoAddress(address _newBullaDao) public onlyOwner {
@@ -846,15 +808,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (_newAdminFeeBps > 10000) revert InvalidPercentage();
         adminFeeBps = _newAdminFeeBps;
         emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
-    }
-
-    /// @notice Sets the tax basis points (bps)
-    /// @param _newTaxBps The new tax rate in basis points
-    /// @dev This function can only be called by the contract owner
-    function setTaxBps(uint16 _newTaxBps) public onlyOwner {
-        if (_newTaxBps > 10000) revert InvalidPercentage();
-        taxBps = _newTaxBps;
-        emit TaxBpsChanged(taxBps, _newTaxBps);
     }
 
     function mint(uint256, address) public pure override returns (uint256){

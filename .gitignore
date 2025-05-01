@@ -10,3 +10,4 @@ coverage/
 contracts/artifacts
 dist/
 .DS_Store
+typechain-types/

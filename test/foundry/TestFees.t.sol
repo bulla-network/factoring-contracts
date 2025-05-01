@@ -19,7 +19,7 @@ import "contracts/interfaces/IBullaFactoring.sol";
 import { CommonSetup } from './CommonSetup.t.sol';
 
 
-contract TestFeesAndTax is CommonSetup {
+contract TestFees is CommonSetup {
     function testWithdrawFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
@@ -132,65 +132,6 @@ contract TestFeesAndTax is CommonSetup {
         uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
 
         assertEq(capitalAccountAfter, capitalAccountBefore, "Capital Account should remain unchanged");
-    }
-
-    function testTaxAccrualAndWithdraw() public {
-        dueBy = block.timestamp + 60 days; 
-        uint256 invoiceAmount = 1000000000; 
-        interestApr = 1000; 
-        upfrontBps = 8000; 
-
-        uint256 initialDeposit = 20 ether;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        // Creditor creates the invoice
-        vm.startPrank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-
-        // Underwriter approves the invoice
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
-        vm.stopPrank();
-
-        // creditor funds the invoice
-        vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
-        vm.stopPrank();
-
-
-        // Simulate debtor paying in 30 days instead of 60
-        uint256 actualDaysUntilPayment = 60;
-        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
-
-        // Debtor pays the invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), invoiceAmount);
-        bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        bullaFactoring.reconcileActivePaidInvoices();
-
-        uint taxAmountBefore = bullaFactoring.taxBalance();
-    
-        assertTrue(taxAmountBefore > 0, "Tax accrues on invoice payment");
-
-        // Retrieve the tax amount paid for the specific invoice
-        uint256 expectedTaxAmount = bullaFactoring.paidInvoiceTax(invoiceId);
-        assertEq(taxAmountBefore, expectedTaxAmount, "Tax amount matches the expected value");
-
-        // owner withdraws tax
-        bullaFactoring.withdrawTaxBalance();
-        uint taxAmountAfter = bullaFactoring.taxBalance();
-
-        assertEq(taxAmountAfter, 0, "Tax balance should be 0 after withdrawal");
-
-        // cannot call when tax balance is 0
-        vm.expectRevert(abi.encodeWithSignature("NoTaxBalanceToWithdraw()"));
-        bullaFactoring.withdrawTaxBalance();
     }
 
     function testPoolFeesRemainSameRegardlessOfUpfrontBps() public {
@@ -439,45 +380,6 @@ contract TestFeesAndTax is CommonSetup {
         vm.stopPrank();
     }
 
-    function testSetTaxBalance() public {
-        uint256 initialDeposit = 1 ether;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        // Set tax bps to 0
-        vm.startPrank(address(this)); 
-        bullaFactoring.setTaxBps(0);
-        vm.stopPrank();
-
-        // Simulate funding an invoice to generate taxes
-        vm.startPrank(bob);
-        uint256 invoiceAmount = 0.5 ether;
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
-        vm.stopPrank();
-
-        // alice pays invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), 1000 ether);
-        bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        bullaFactoring.reconcileActivePaidInvoices();
-
-        // Withdraw tax but aren't none since taxBps = 0
-        vm.startPrank(address(this));
-        vm.expectRevert(abi.encodeWithSignature("NoTaxBalanceToWithdraw()"));
-        bullaFactoring.withdrawTaxBalance();
-        vm.stopPrank();
-    }
-
     function testSetTargetYield() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
@@ -491,7 +393,7 @@ contract TestFeesAndTax is CommonSetup {
 
         uint pricePerShareBefore = bullaFactoring.pricePerShare();
 
-        // Simulate funding an invoice to generate taxes
+        // Simulate funding an invoice
         vm.startPrank(bob);
         uint256 invoiceAmount = 0.5 ether;
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -524,49 +426,6 @@ contract TestFeesAndTax is CommonSetup {
         vm.prank(alice);
         bullaFactoring.redeem(amountToRedeem, alice, alice);
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
-        vm.stopPrank();
-
-    }
-
-    function testTaxRateIsAccurate() public {
-        uint256 initialDeposit = 10 ether;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        // Set tax to 100%
-        vm.startPrank(address(this)); 
-        bullaFactoring.setTaxBps(10_000);
-        vm.stopPrank();
-
-        // if tax is 100%, there should be no profit from this
-        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
-
-        // Simulate funding an invoice to generate taxes
-        vm.startPrank(bob);
-        uint256 invoiceAmount = 0.5 ether;
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
-        vm.stopPrank();
-
-        // alice pays invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), 1000 ether);
-        bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        bullaFactoring.reconcileActivePaidInvoices();
-
-        // if tax is 100%, there should be no profit from this
-        uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
-
-        assertEq(capitalAccountAfter, capitalAccountBefore, "Profitless invoice should have not changed capital account");
         vm.stopPrank();
 
     }

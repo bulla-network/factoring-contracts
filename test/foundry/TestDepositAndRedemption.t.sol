@@ -79,9 +79,9 @@ contract TestDepositAndRedemption is CommonSetup {
     
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint feesAndTax =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve() + bullaFactoring.taxBalance();
+        uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve();
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), bullaFactoring.totalAssets() + feesAndTax, "Available Assets should be lower than total assets by the sum of fees and tax");
+        assertEq(asset.balanceOf(address(bullaFactoring)), bullaFactoring.totalAssets() + fees, "Available Assets should be lower than total assets by the sum of fees");
     }
 
     function testInvestorRedeemsAllFunds() public {
@@ -256,8 +256,6 @@ contract TestDepositAndRedemption is CommonSetup {
         // withdraw all fess
         bullaFactoring.withdrawAdminFees();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
-        bullaFactoring.withdrawTaxBalance();
-        assertEq(bullaFactoring.taxBalance(), 0, "Tax balance should be 0");
 
         vm.prank(bullaDao);
         bullaFactoring.withdrawProtocolFees();
@@ -318,8 +316,6 @@ contract TestDepositAndRedemption is CommonSetup {
         // withdraw all fess
         bullaFactoring.withdrawAdminFees();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
-        bullaFactoring.withdrawTaxBalance();
-        assertEq(bullaFactoring.taxBalance(), 0, "Tax balance should be 0");
 
         vm.prank(bullaDao);
         bullaFactoring.withdrawProtocolFees();
