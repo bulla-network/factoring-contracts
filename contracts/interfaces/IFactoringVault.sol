@@ -7,8 +7,8 @@ pragma solidity ^0.8.20;
 interface IBullaFactoringVault {
     // withdraws the underlying asset from the vault for a given claim
     function fundClaim(uint256 claimId, uint256 amount) external;
-    // deposits the underlying asset into the vault for the given claim
-    function repayClaim(uint256 claimId, uint256 amount) external;
+    // marks a claim as paid
+    function markClaimAsPaid(uint256 claimId) external;
     // returns the total assets in the vault
     function totalAssets() external view returns (uint256);
     // returns the total at risk capital for a given fund
@@ -17,12 +17,4 @@ interface IBullaFactoringVault {
     function globalTotalAtRiskCapital() external view returns (uint256);
     // returns all authorized factoring funds
     function getAuthorizedFunds() external view returns (address[] memory);
-}
-
-// Factoring fund interface from the perspective of the vault
-interface IFactoringFund {
-    // returns the underlying asset of the fund
-    function underlyingAsset() external view returns (address);
-    // returns the accrued interest for the vault (the msg.sender)
-    function getAccruedInterestForVault() external view returns (uint256);
 }

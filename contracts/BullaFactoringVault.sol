@@ -13,11 +13,11 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
 
     error NotFactoringFund(address);
     error ClaimAlreadyFunded(uint256);
-    error ClaimNotFunded(uint256, address);
     error InvalidBps(uint16);
     error FundAlreadyAuthorized(address);
     error FundNotAuthorized(address);
     error NotFundRequester(address, uint256);
+    error InvalidAmount(uint256);
 
     /// @notice Mapping of authorized factoring funds
     mapping(address => bool) public authorizedFactoringFunds;
@@ -62,11 +62,12 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
     /// @notice Helper function to handle the logic of funding a claim
     /// @param claimId The ID of the claim to fund
     /// @param amount The amount of assets to fund
-    function fundClaim(uint256 claimId, uint256 amount) external onlyActiveFactoringFund {
+    function fundClaim(uint256 claimId, uint256 amount) external onlyAuthorizedFactoringFund {
         address fund = _msgSender();
         uint256 currentAtRiskCapitalForClaimId = _atRiskCapitalByClaimId[claimId];
 
         if (currentAtRiskCapitalForClaimId > 0) revert ClaimAlreadyFunded(claimId);
+        if (amount == 0) revert InvalidAmount(amount);
         
         underlyingAsset.safeTransfer(fund, amount);
 
@@ -76,17 +77,14 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
         _globalTotalAtRiskCapital += amount;
     }
 
-    /// @notice Helper function to handle the logic of repaying a claim
-    /// @param claimId The ID of the claim to repay
-    /// @param amount The amount of assets to repay
-    function repayClaim(uint256 claimId, uint256 amount) external onlyFundRequester(claimId) {
+    /// @notice Helper function to handle the logic of marking a claim as paid
+    /// @notice the fund requester is responsible for sending the underlying asset to the vault
+    /// @param claimId The ID of the claim to mark as paid
+    function markClaimAsPaid(uint256 claimId) external onlyFundRequester(claimId) {
         address fund = _msgSender();
         uint256 currentAtRiskCapitalForClaimId = _atRiskCapitalByClaimId[claimId];
 
-        if (currentAtRiskCapitalForClaimId == 0) revert ClaimNotFunded(claimId, fund);
-
-        underlyingAsset.safeTransferFrom(fund, address(this), amount);
-
+        _fundRequesterByClaimId[claimId] = address(0);
         _atRiskCapitalByClaimId[claimId] = 0;
         _totalAtRiskCapitalByFund[fund] -= currentAtRiskCapitalForClaimId;
         _globalTotalAtRiskCapital -= currentAtRiskCapitalForClaimId;
@@ -229,7 +227,7 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
     //////////////// MODIFIERS /////////////////
     ////////////////////////////////////////////
 
-    modifier onlyActiveFactoringFund() {
+    modifier onlyAuthorizedFactoringFund() {
         if (!authorizedFactoringFunds[_msgSender()]) revert NotFactoringFund(_msgSender());
         _;
     }
