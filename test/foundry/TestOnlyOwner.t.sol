@@ -47,13 +47,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
     }
 
-    function testWithdrawTaxBalanceOnlyCalledByOwner() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.withdrawTaxBalance();
-        vm.stopPrank();
-    }
-
     function testSetBullaDaoAddressOnlyCalledByOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
@@ -72,13 +65,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
         bullaFactoring.setAdminFeeBps(0);
-        vm.stopPrank();
-    }
-
-    function testSetTaxBpsOnlyCalledByOwner() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.setTaxBps(0);
         vm.stopPrank();
     }
 
