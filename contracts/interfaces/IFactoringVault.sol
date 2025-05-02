@@ -11,6 +11,12 @@ interface IBullaFactoringVault {
     function repayClaim(uint256 claimId, uint256 amount) external;
     // returns the total assets in the vault
     function totalAssets() external view returns (uint256);
+    // returns the total at risk capital for a given fund
+    function totalAtRiskCapitalByFund(address fund) external view returns (uint256);
+    // returns the total at risk capital across all funds
+    function globalTotalAtRiskCapital() external view returns (uint256);
+    // returns all authorized factoring funds
+    function getAuthorizedFunds() external view returns (address[] memory);
 }
 
 // Factoring fund interface from the perspective of the vault
