@@ -3,54 +3,92 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC4626.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IFactoringVault.sol";
 
 contract OwnedBullaFactoringVault is IOwnedBullaFactoringVault, Ownable, ERC4626 {
     using SafeERC20 for IERC20;
 
-    address public factoringFund;
-    address private _factoringUnderlyingAsset;
+    error NotFactoringFund(address);
+    error ClaimAlreadyFunded(uint256);
+    error ClaimNotFunded(uint256);
 
-    constructor(address _factoringFund, address __factoringUnderlyingAsset) Ownable(_factoringFund) ERC4626(__factoringUnderlyingAsset) {
+    IFactoringFund public factoringFund;
+    uint8 private __decimalsOffset;
+
+    /// @notice Permissions contract for deposit and withdrawals
+    Permissions public depositPermissions;
+
+    /// @notice Total shares that are locked in the vault by the factoring fund
+    mapping(uint256 => uint256) private _lockedSharesByClaimId;
+
+    /// @notice Total number of shares locked from redemption
+    uint256 private _totalLockedShares;
+
+    constructor(IFactoringFund _factoringFund, address _depositPermissions, string memory _tokenName, string memory _tokenSymbol, uint8 ___decimalsOffset) ERC20(_tokenName, _tokenSymbol)  Ownable(_factoringFund) ERC4626(_factoringFund.underlyingAsset()) {
         factoringFund = _factoringFund;
-        _factoringUnderlyingAsset = __factoringUnderlyingAsset;
+        depositPermissions = Permissions(_depositPermissions);
+        __decimalsOffset = ___decimalsOffset;
     }
 
-    /// @notice Returns the number of decimals the token uses, same as the underlying asset
-    /// @return The number of decimals for this token
-    function decimals() public view override(ERC20, ERC4626) returns (uint8) {
-        return ERC20(address(_factoringUnderlyingAsset)).decimals();
-    }
-    
-    function factoringUnderlyingAsset() external view returns (address) {
-        return _factoringUnderlyingAsset;
+    //////////////////////////////////////////////
+    ////////// FACTORING VAULT FUNCTIONS /////////
+    //////////////////////////////////////////////
+
+    function fundClaim(uint256 claimId, uint256 amount) external onlyFactoringFund {
+        uint256 currentSharesForClaimId = _lockedSharesByClaimId[claimId];
+
+        if (currentSharesForClaimId > 0) revert ClaimAlreadyFunded(claimId);
+        
+        IERC20(super.asset()).safeTransfer(msg.sender, amount);
+        
+        uint256 shares = previewRedeem(amount);
+
+        _lockedSharesByClaimId[claimId] = shares;
+        _totalLockedShares += shares;
     }
 
-    /// @notice Calculates the current price per share of the fund, 
-    /// @return The current price per share, scaled to the underlying asset's decimal places
-    function pricePerShare() public view returns (uint256) {
-        return previewRedeem(10**decimals());
+    function repayClaim(uint256 claimId, uint256 amount) external onlyFactoringFund {
+        uint256 sharesLocked = _lockedSharesByClaimId[claimId];
+
+        if (sharesLocked == 0) revert ClaimNotFunded(claimId);
+
+        IERC20(super.asset()).safeTransferFrom(msg.sender, address(this), amount);
+
+        _lockedSharesByClaimId[claimId] = 0;
+        _totalLockedShares -= sharesLocked;
+    }
+
+    function unlockedShareSupply() public view returns (uint256) {
+        return totalSupply() - _totalLockedShares;
+    }
+
+    //////////////////////////////////////////////
+    ////////// ERC4626 ACCOUNTING FUNCTIONS //////
+    //////////////////////////////////////////////
+
+    /// @notice Returns the total assets of the vault
+    /// @dev TODO: Will have to calculate the swap value of treasury assets to underlying asset
+    /// @return The total assets of the vault
+    function totalAssets() public view override returns (uint256) {
+        return super.totalAssets();
+    }
+
+    /* see ERC4626.sol */
+    function _decimalsOffset() internal view override returns (uint8) {
+        return __decimalsOffset;
     }
 
     ////////////////////////////////////////////////////
     //////////////// DEPOSIT FUNCTIONS /////////////////
     ////////////////////////////////////////////////////
     
-    /** @dev See {IERC4626-previewDeposit}. */
+    /** @dev See {IERC4626-previewDeposit}.
+     *  @dev override to account for accrued interest that is not yet reflected in the total assets
+     */
     function previewDeposit(uint256 assets) public view override returns (uint256) {
-        uint256 capitalAccount = calculateCapitalAccount();
-        uint256 sharesOutstanding = totalSupply();
-        uint256 shares;
-
-        if(sharesOutstanding == 0) {
-            shares = assets;
-        } else {
-            uint256 accruedProfits = calculateAccruedProfits();
-            shares = Math.mulDiv(assets, sharesOutstanding, (capitalAccount + accruedProfits), Math.Rounding.Floor);
-        }
-
-        return shares;
+        return assets.mulDiv(unlockedShareSupply()  + 10 ** _decimalsOffset(), totalAssets() + factoringFund.getAccruedInterestForVault() + 1, Math.Rounding.Floor);
     }
 
     /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
@@ -60,9 +98,7 @@ contract OwnedBullaFactoringVault is IOwnedBullaFactoringVault, Ownable, ERC4626
     function deposit(uint256 assets,address receiver) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         
-        uint256 shares = super.deposit(assets, receiver);
-        totalDeposits += assets;
-        return shares;
+        return super.deposit(assets, receiver);
     }
 
     /// @notice Allows for the deposit of assets in exchange for fund shares with an attachment
@@ -76,6 +112,56 @@ contract OwnedBullaFactoringVault is IOwnedBullaFactoringVault, Ownable, ERC4626
         return shares;
     }
 
+    //////////////////////////////////////////////////////
+    //////////////// REDEEM FUNCTIONS ////////////////////
+    //////////////////////////////////////////////////////
+    
+    /// @notice Helper function to handle the logic of redeeming shares in exchange for assets
+    /// @param shares The number of shares to redeem
+    /// @param receiver The address to receive the assets
+    /// @param _owner The owner of the shares being redeemed
+    /// @return The number of shares redeemed
+    function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
+        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
+        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+        
+        return super.redeem(shares, receiver, _owner);
+    }
+
+    /// @notice Redeems shares for underlying assets with an attachment, transferring the assets to the specified receiver
+    /// @param shares The number of shares to redeem
+    /// @param receiver The address to receive the redeemed assets
+    /// @param _owner The owner of the shares being redeemed
+    /// @param attachment The attachment data for the redemption
+    /// @return The amount of assets redeemed
+    function redeemWithAttachment(uint256 shares, address receiver, address _owner, Multihash calldata attachment) external returns (uint256) {
+        uint256 assets = redeem(shares, receiver, _owner);
+        emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
+        return assets;
+    }
+
+    /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
+    /// @param _owner The owner of the shares being redeemed
+    /// @return The maximum number of shares that can be redeemed
+    function maxRedeem(address _owner) public view override returns (uint256) {
+        return Math.min(super.maxRedeem(_owner), unlockedShareSupply());
+    }
+
+    //////////////////////////////////////////////////////
+    //////////////// WITHDRAW FUNCTIONS //////////////////
+    //////////////////////////////////////////////////////
+
+    /// @notice Helper function to handle the logic of withdrawing assets in exchange for fund shares
+    /// @param receiver The address to receive the assets
+    /// @param _owner The address who owns the shares to redeem
+    /// @param assets The amount of assets to withdraw
+    /// @return The number of shares redeemed
+    function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
+        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
+        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+ 
+        return super.withdraw(assets, receiver, _owner);
+    }
 
     //////////////////////////////////////////////////////
     //////////////// CONVERSION FUNCTIONS ////////////////
@@ -83,27 +169,37 @@ contract OwnedBullaFactoringVault is IOwnedBullaFactoringVault, Ownable, ERC4626
 
     /**
      * @dev Internal conversion function (from assets to shares) with support for rounding direction.
+     * @dev override to account for locked shares
      */
     function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
-        uint256 _totalSupply = totalSupply();
-        
-        if (_totalSupply == 0) {
-            return assets;
-        }
-
-        return assets.mulDiv(_totalSupply, calculateCapitalAccount(), rounding);
+        return assets.mulDiv(unlockedShareSupply() + 10 ** _decimalsOffset(), totalAssets() + 1, rounding);
     }
 
     /**
      * @dev Internal conversion function (from shares to assets) with support for rounding direction.
+     * @dev override to account for locked shares
      */
     function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
-        uint256 _totalSupply = totalSupply();
+        return shares.mulDiv(totalAssets() + 1, unlockedShareSupply() + 10 ** _decimalsOffset(), rounding);
+    }
 
-        if (_totalSupply == 0) {
-            return shares;
-        }
+    //////////////////////////////////////////////////////
+    //////////////// OWNER FUNCTIONS /////////////////////
+    //////////////////////////////////////////////////////
 
-        return shares.mulDiv(calculateCapitalAccount(), _totalSupply, rounding);
+    /// @notice Updates the deposit permissions contract
+    /// @param _newDepositPermissionsAddress The new deposit permissions contract address
+    function setDepositPermissions(address _newDepositPermissionsAddress) public onlyOwner {
+        depositPermissions = Permissions(_newDepositPermissionsAddress);
+        emit DepositPermissionsChanged(_newDepositPermissionsAddress);
+    }
+
+    //////////////////////////////////////////////////////
+    //////////////// MODIFIERS ///////////////////////////
+    //////////////////////////////////////////////////////
+
+    modifier onlyFactoringFund() {
+        if (_msgSender() != address(factoringFund)) revert NotFactoringFund(_msgSender());
+        _;
     }
 }

@@ -8,13 +8,14 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IBullaFactoring.sol";
+import "./interfaces/IFactoringVault.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
+contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -32,8 +33,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     IERC20 public assetAddress;
     /// @notice Address of the invoice provider contract adapter
     IInvoiceProviderAdapterV2 public invoiceProviderAdapter;
-    uint256 private totalDeposits; 
-    uint256 private totalWithdrawals;
     /// @notice Address of the underwriter, trusted to approve invoices
     address public underwriter;
     /// @notice Timestamp of the fund's creation
@@ -48,8 +47,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Grace period for invoices
     uint256 public gracePeriodDays = 60;
 
-    /// @notice Permissions contracts for deposit and factoring
-    Permissions public depositPermissions;
+    /// @notice Permissions contracts for factoring
     Permissions public factoringPermissions;
 
     /// Mapping of paid invoices ID to track gains/losses
@@ -108,7 +106,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IERC20 _asset, 
         IInvoiceProviderAdapterV2 _invoiceProviderAdapter, 
         address _underwriter,
-        Permissions _depositPermissions,
         Permissions _factoringPermissions,
         address _bullaDao,
         uint16 _protocolFeeBps,
@@ -117,14 +114,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint16 _targetYieldBps,
         string memory _tokenName, 
         string memory _tokenSymbol
-    ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(msg.sender) {
+    ) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
 
         assetAddress = _asset;
         invoiceProviderAdapter = _invoiceProviderAdapter;
         underwriter = _underwriter;
-        depositPermissions = _depositPermissions;
         factoringPermissions = _factoringPermissions;
         bullaDao = _bullaDao;
         protocolFeeBps = _protocolFeeBps;
@@ -132,12 +128,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
-    }
-
-    /// @notice Returns the number of decimals the token uses, same as the underlying asset
-    /// @return The number of decimals for this token
-    function decimals() public view override(ERC20, ERC4626) returns (uint8) {
-        return ERC20(address(assetAddress)).decimals();
     }
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
@@ -284,38 +274,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
 
-    /// @notice Calculates the current price per share of the fund, 
-    /// @return The current price per share, scaled to the underlying asset's decimal places
-    function pricePerShare() public view returns (uint256) {
-        return previewRedeem(10**decimals());
-    }
-
-    /**
-     * @dev Internal conversion function (from assets to shares) with support for rounding direction.
-     */
-    function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
-        uint256 _totalSupply = totalSupply();
-        
-        if (_totalSupply == 0) {
-            return assets;
-        }
-
-        return assets.mulDiv(_totalSupply, calculateCapitalAccount(), rounding);
-    }
-
-    /**
-     * @dev Internal conversion function (from shares to assets) with support for rounding direction.
-     */
-    function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
-        uint256 _totalSupply = totalSupply();
-
-        if (_totalSupply == 0) {
-            return shares;
-        }
-
-        return shares.mulDiv(calculateCapitalAccount(), _totalSupply, rounding);
-    }
-
     /// @notice Calculates the total accrued profits from all active invoices
     /// @dev Iterates through all active invoices, calculates interest for each and sums the net accrued interest
     /// @return accruedProfits The total net accrued profits across all active invoices
@@ -330,45 +288,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
 
         return accruedProfits;
-    }
-
-    /** @dev See {IERC4626-previewDeposit}. */
-    function previewDeposit(uint256 assets) public view override returns (uint256) {
-        uint256 capitalAccount = calculateCapitalAccount();
-        uint256 sharesOutstanding = totalSupply();
-        uint256 shares;
-
-        if(sharesOutstanding == 0) {
-            shares = assets;
-        } else {
-            uint256 accruedProfits = calculateAccruedProfits();
-            shares = Math.mulDiv(assets, sharesOutstanding, (capitalAccount + accruedProfits), Math.Rounding.Floor);
-        }
-
-        return shares;
-    }
-
-    /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
-    /// @param receiver The address to receive the fund shares
-    /// @param assets The amount of assets to deposit
-    /// @return The number of shares issued for the deposit
-    function deposit(uint256 assets,address receiver) public override returns (uint256) {
-        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        
-        uint256 shares = super.deposit(assets, receiver);
-        totalDeposits += assets;
-        return shares;
-    }
-
-    /// @notice Allows for the deposit of assets in exchange for fund shares with an attachment
-    /// @param assets The amount of assets to deposit
-    /// @param receiver The address to receive the fund shares
-    /// @param attachment The attachment data for the deposit
-    /// @return The number of shares issued for the deposit
-    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) external returns (uint256) {
-        uint256 shares = deposit(assets, receiver);
-        emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
-        return shares;
     }
 
     /// @notice Calculates the true fees and net funded amount for a given invoice and factorer's upfront bps, annualised
@@ -671,77 +590,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 - sumTargetFeesForActiveInvoices(); // withheld projected fees, accounted for in total assets but not available for profit distribution;
     }
 
-    /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
-    /// @return The maximum number of shares that can be redeemed
-    function maxRedeem() public view returns (uint256) {
-        uint256 _totalAssets = totalAssets();
-        uint256 capitalAccount = calculateCapitalAccount();
-
-        if (capitalAccount == 0) {
-            return 0;
-        }
-
-        uint256 maxWithdrawableShares = convertToShares(_totalAssets);
-        return maxWithdrawableShares;
-    }
-
-    /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
-    /// @param _owner The owner of the shares being redeemed
-    /// @return The maximum number of shares that can be redeemed
-    function maxRedeem(address _owner) public view override returns (uint256) {
-        return Math.min(super.maxRedeem(_owner), maxRedeem());
-    }
-
-    /// @notice Calculates the maximum amount of assets that can be withdrawn
-    /// @param _owner The owner of the assets to be withdrawn
-    /// @return The maximum number of assets that can be withdrawn
-    function maxWithdraw(address _owner) public view override returns (uint256) {
-        return Math.min(super.maxWithdraw(_owner), totalAssets());
-    }
-
-    /// @notice Helper function to handle the logic of withdrawing assets in exchange for fund shares
-    /// @param receiver The address to receive the assets
-    /// @param _owner The address who owns the shares to redeem
-    /// @param assets The amount of assets to withdraw
-    /// @return The number of shares redeemed
-    function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
-        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
- 
-        uint256 shares = super.withdraw(assets, receiver, _owner);
-
-        totalWithdrawals += assets;
-        return shares;
-    }
-
-    /// @notice Helper function to handle the logic of redeeming shares in exchange for assets
-    /// @param shares The number of shares to redeem
-    /// @param receiver The address to receive the assets
-    /// @param _owner The owner of the shares being redeemed
-    /// @return The number of shares redeemed
-    function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
-        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
-        
-        uint256 assets = super.redeem(shares, receiver, _owner);
-
-        totalWithdrawals += assets;
-
-        return assets;
-    }
-
-    /// @notice Redeems shares for underlying assets with an attachment, transferring the assets to the specified receiver
-    /// @param shares The number of shares to redeem
-    /// @param receiver The address to receive the redeemed assets
-    /// @param _owner The owner of the shares being redeemed
-    /// @param attachment The attachment data for the redemption
-    /// @return The amount of assets redeemed
-    function redeemWithAttachment(uint256 shares, address receiver, address _owner, Multihash calldata attachment) external returns (uint256) {
-        uint256 assets = redeem(shares, receiver, _owner);
-        emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
-        return assets;
-    }
-
+    
     /// @notice Sets the grace period in days for determining if an invoice is impaired
     /// @param _days The number of days for the grace period
     /// @dev This function can only be called by the contract owner
@@ -813,13 +662,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function mint(uint256, address) public pure override returns (uint256){
         revert FunctionNotSupported();
     }
-
-    /// @notice Updates the deposit permissions contract
-    /// @param _newDepositPermissionsAddress The new deposit permissions contract address
-    function setDepositPermissions(address _newDepositPermissionsAddress) public onlyOwner {
-        depositPermissions = Permissions(_newDepositPermissionsAddress);
-        emit DepositPermissionsChanged(_newDepositPermissionsAddress);
-    }
+    
 
     /// @notice Updates the factoring permissions contract
     /// @param _newFactoringPermissionsAddress The address of the new factoring permissions contract
