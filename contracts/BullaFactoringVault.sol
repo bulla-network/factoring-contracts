@@ -60,16 +60,17 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
     }
 
     /// @notice Helper function to handle the logic of funding a claim
+    /// @param receiver The address to receive the assets
     /// @param claimId The ID of the claim to fund
     /// @param amount The amount of assets to fund
-    function fundClaim(uint256 claimId, uint256 amount) external onlyAuthorizedFactoringFund {
+    function fundClaim(address receiver,uint256 claimId, uint256 amount) external onlyAuthorizedFactoringFund {
         address fund = _msgSender();
         uint256 currentAtRiskCapitalForClaimId = _atRiskCapitalByClaimId[claimId];
 
         if (currentAtRiskCapitalForClaimId > 0) revert ClaimAlreadyFunded(claimId);
         if (amount == 0) revert InvalidAmount(amount);
         
-        underlyingAsset.safeTransfer(fund, amount);
+        underlyingAsset.safeTransfer(receiver, amount);
 
         _fundRequesterByClaimId[claimId] = fund;
         _atRiskCapitalByClaimId[claimId] = amount;
@@ -80,14 +81,29 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
     /// @notice Helper function to handle the logic of marking a claim as paid
     /// @notice the fund requester is responsible for sending the underlying asset to the vault
     /// @param claimId The ID of the claim to mark as paid
-    function markClaimAsPaid(uint256 claimId) external onlyFundRequester(claimId) {
+    function markClaimAsPaid(uint256 claimId) external {
+        _removeAtRiskCapital(claimId);
+
+        // reset the fund requester to mark the claim as paid
+        _fundRequesterByClaimId[claimId] = address(0);
+    }
+
+    /// @notice Helper function to handle the logic of marking a claim as impaired
+    /// @notice this simply removes the at risk capital for the claim
+    /// @param claimId The ID of the claim to mark as impaired
+    function markClaimAsImpaired(uint256 claimId) external {
+        _removeAtRiskCapital(claimId);
+    }
+
+    function _removeAtRiskCapital(uint256 claimId) internal onlyFundRequester(claimId)   {
         address fund = _msgSender();
         uint256 currentAtRiskCapitalForClaimId = _atRiskCapitalByClaimId[claimId];
 
-        _fundRequesterByClaimId[claimId] = address(0);
-        _atRiskCapitalByClaimId[claimId] = 0;
-        _totalAtRiskCapitalByFund[fund] -= currentAtRiskCapitalForClaimId;
-        _globalTotalAtRiskCapital -= currentAtRiskCapitalForClaimId;
+        if (currentAtRiskCapitalForClaimId != 0) {
+            _atRiskCapitalByClaimId[claimId] = 0;
+            _totalAtRiskCapitalByFund[fund] -= currentAtRiskCapitalForClaimId;
+            _globalTotalAtRiskCapital -= currentAtRiskCapitalForClaimId;
+        }
     }
 
     /// @notice Returns the total amount of at-risk capital for a specific fund
@@ -137,14 +153,14 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
     /// @notice Helper function to handle the logic of redeeming assets
     /// @param bps The basis points of the total vault value to redeem
     /// @return The amount of assets to redeem
-    function previewRedeem(uint256 bps) public view returns (uint256) {
+    function previewRedeem(uint16 bps) public view returns (uint256) {
         return (bps * underlyingAsset.balanceOf(address(this))) / 10000;
     }
 
     /// @notice Helper function to handle the logic of redeeming assets
     /// @param bps The basis points of the total vault value to redeem
     /// @return The amount of assets redeemed
-    function redeem(uint256 bps) public onlyOwner returns (uint256) {
+    function redeem(uint16 bps) public onlyOwner returns (uint256) {
         return _redeemTo(_msgSender(), bps);
     }
 
@@ -152,7 +168,7 @@ contract BullaFactoringVault is IBullaFactoringVault, Ownable {
     /// @param to The address to receive the assets
     /// @param bps The basis points to redeem
     /// @return The amount of assets redeemed
-    function redeemTo(address to, uint256 bps) public onlyOwner returns (uint256) {
+    function redeemTo(address to, uint16 bps) public onlyOwner returns (uint256) {
         return _redeemTo(to, bps);
     }
 

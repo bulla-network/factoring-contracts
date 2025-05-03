@@ -6,9 +6,11 @@ pragma solidity ^0.8.20;
 // - The underlying asset is the asset used to fund the receivables, not the treasury asset
 interface IBullaFactoringVault {
     // withdraws the underlying asset from the vault for a given claim
-    function fundClaim(uint256 claimId, uint256 amount) external;
+    function fundClaim(address receiver, uint256 claimId, uint256 amount) external;
     // marks a claim as paid
     function markClaimAsPaid(uint256 claimId) external;
+    // marks a claim as impaired
+    function markClaimAsImpaired(uint256 claimId) external;
     // returns the total assets in the vault
     function totalAssets() external view returns (uint256);
     // returns the total at risk capital for a given fund

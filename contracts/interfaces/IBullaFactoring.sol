@@ -35,14 +35,11 @@ interface IBullaFactoringV2 {
     struct FundInfo {
         string name;
         uint256 creationTimestamp;
-        uint256 fundBalance;
         uint256 deployedCapital;
-        uint256 capitalAccount;
-        uint256 price;
-        uint256 tokensAvailableForRedemption;
         uint16 adminFeeBps;
         uint256 impairReserve;
         uint256 targetYieldBps;
+        int256 pnl;
     }
 
     struct ImpairmentDetails {
@@ -74,7 +71,6 @@ interface IBullaFactoringV2 {
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;
-    function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);
     function reconcileActivePaidInvoices() external;

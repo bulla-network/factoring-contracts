@@ -15,7 +15,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
+contract BullaFactoringV2 is IBullaFactoringV2, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -43,6 +43,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
     string public poolName;
     /// @notice Target yield in basis points
     uint16 public targetYieldBps;
+
+    /// @notice Address of the vault
+    IBullaFactoringVault public vault;
 
     /// @notice Grace period for invoices
     uint256 public gracePeriodDays = 60;
@@ -106,14 +109,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         IERC20 _asset, 
         IInvoiceProviderAdapterV2 _invoiceProviderAdapter, 
         address _underwriter,
+        IBullaFactoringVault _vault,
         Permissions _factoringPermissions,
         address _bullaDao,
         uint16 _protocolFeeBps,
         uint16 _adminFeeBps,
         string memory _poolName,
-        uint16 _targetYieldBps,
-        string memory _tokenName, 
-        string memory _tokenSymbol
+        uint16 _targetYieldBps
     ) Ownable(msg.sender) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -128,6 +130,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
+        vault = _vault;
     }
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
@@ -263,33 +266,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         return realizedGains;
     }
 
-    /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
-    /// @return The calculated capital account balance
-    function calculateCapitalAccount() public view returns (uint256) {
-        int256 realizedGainLoss = calculateRealizedGainLoss();
-
-        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
-        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
-
-        return capitalAccount > 0 ? uint(capitalAccount) : 0;
-    }
-
-    /// @notice Calculates the total accrued profits from all active invoices
-    /// @dev Iterates through all active invoices, calculates interest for each and sums the net accrued interest
-    /// @return accruedProfits The total net accrued profits across all active invoices
-    function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            
-            if(!isInvoiceImpaired(invoiceId)) {
-                (,uint256 trueInterest,,) = calculateKickbackAmount(invoiceId);
-                accruedProfits += trueInterest;
-            }
-        }
-
-        return accruedProfits;
-    }
-
     /// @notice Calculates the true fees and net funded amount for a given invoice and factorer's upfront bps, annualised
     /// @param invoiceId The ID of the invoice for which to calculate the fees
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
@@ -345,8 +321,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         // update upfrontBps with what was passed in the arg by the factorer
         approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
 
-        // transfer net funded amount to caller
-        assetAddress.safeTransfer(msg.sender, fundedAmountNet);
+        // fund the invoice from vault
+        vault.fundClaim(msg.sender, invoiceId, fundedAmountNet);
 
         // transfer invoice nft ownership to vault
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
@@ -447,9 +423,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
             uint256 invoiceId = paidInvoiceIds[i];
+            InvoiceApproval memory approval = approvedInvoices[invoiceId];
             
             // calculate kickback amount adjusting for true interest, protocol and admin fees
             (uint256 kickbackAmount, uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateKickbackAmount(invoiceId);
+
+            // payback the vault, principal + interest
+            assetAddress.safeTransfer(address(vault), trueInterest + approval.fundedAmountNet);
+
+            // mark the claim as paid
+            vault.markClaimAsPaid(invoiceId);
 
             incrementProfitAndFeeBalances(invoiceId, trueInterest, trueProtocolFee, trueAdminFee);   
 
@@ -472,7 +455,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
                 removeActivePaidInvoice(invoiceId);   
             }
 
-            InvoiceApproval memory approval = approvedInvoices[invoiceId];
             emit InvoicePaid(invoiceId, trueInterest, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, originalCreditor);
         }
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
@@ -513,6 +495,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
             // negative number means we owe them
             assetAddress.safeTransfer(originalCreditor, uint256(-totalRefundOrPaymentAmount));
         }
+
+        // pay back the vault, principal + interest
+        assetAddress.safeTransfer(address(vault), trueInterest + approval.fundedAmountNet);
+        vault.markClaimAsPaid(invoiceId);
 
         // Transfer the invoice NFT back to the original creditor
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
@@ -581,15 +567,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         }
         return targetFees;
     }
-
-    /// @notice Calculates the available assets in the fund net of fees and impair reserve
-    /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
-    function totalAssets() public view override returns (uint256) {
-        return calculateCapitalAccount()
-                - deployedCapitalForActiveInvoicesExcludingImpaired()
-                - sumTargetFeesForActiveInvoices(); // withheld projected fees, accounted for in total assets but not available for profit distribution;
-    }
-
     
     /// @notice Sets the grace period in days for determining if an invoice is impaired
     /// @param _days The number of days for the grace period
@@ -659,11 +636,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
     }
 
-    function mint(uint256, address) public pure override returns (uint256){
-        revert FunctionNotSupported();
-    }
-    
-
     /// @notice Updates the factoring permissions contract
     /// @param _newFactoringPermissionsAddress The address of the new factoring permissions contract
     function setFactoringPermissions(address _newFactoringPermissionsAddress) public onlyOwner {
@@ -692,23 +664,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
     /// @notice Retrieves the fund information
     /// @return FundInfo The fund information
     function getFundInfo() external view returns (FundInfo memory) {
-        uint256 fundBalance = totalAssets();
         uint256 deployedCapital = deployedCapitalForActiveInvoicesExcludingImpaired();
-        uint256 capitalAccount = calculateCapitalAccount();
-        uint256 price = pricePerShare();
-        uint256 tokensAvailableForRedemption = maxRedeem();
 
         return FundInfo({
             name: poolName,
             creationTimestamp: creationTimestamp,
-            fundBalance: fundBalance,
             deployedCapital: deployedCapital,
-            capitalAccount: capitalAccount,
-            price: price,
-            tokensAvailableForRedemption: tokensAvailableForRedemption,
             adminFeeBps: adminFeeBps,
             impairReserve: impairReserve,
-            targetYieldBps: targetYieldBps
+            targetYieldBps: targetYieldBps,
+            pnl: calculateRealizedGainLoss()
         });
     }
 
@@ -728,6 +693,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
 
         // deduct from capital at risk
         removeActivePaidInvoice(invoiceId);
+
+        // mark the claim as impaired in the vault
+        vault.markClaimAsImpaired(invoiceId);
 
         // add to impairedByFundInvoicesIds
         impairedByFundInvoicesIds.push(invoiceId);
