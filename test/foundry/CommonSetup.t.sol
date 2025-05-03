@@ -15,12 +15,13 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
+import "contracts/BullaFactoringVault.sol";
 
 contract CommonSetup is Test {
     BullaFactoringV2 public bullaFactoring;
+    BullaFactoringVault public vault;
     BullaClaimInvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
-    MockPermissions public depositPermissions;
     MockPermissions public factoringPermissions;
     PermissionsWithAragon public permissionsWithAragon;
     DAOMock public daoMock;
@@ -51,7 +52,6 @@ contract CommonSetup is Test {
     function setUp() public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
-        depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
         daoMock = new DAOMock();
         address[] memory safeOwners = new address[](2);
@@ -62,14 +62,14 @@ contract CommonSetup is Test {
         permissionsWithAragon = new PermissionsWithAragon(address(daoMock), ALLOW_PERMISSION_ID);
         permissionsWithSafe = new PermissionsWithSafe(address(testSafe));
 
-        // Allow alice and bob for deposits, and bob for factoring
-        depositPermissions.allow(alice);
-        depositPermissions.allow(bob);
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
+        vault = new BullaFactoringVault(address(alice), asset);
 
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault,factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
+
+        vault.authorizeFactoringFund(address(bullaFactoring));
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
 
@@ -83,14 +83,13 @@ contract CommonSetup is Test {
     }
 
     function permitUser(address user, bool canFactor, uint256 fundingAmount) internal {
-        depositPermissions.allow(user);
         if (canFactor) {
             factoringPermissions.allow(user);
         }
         if (fundingAmount > 0) {
             asset.mint(user, fundingAmount);
             vm.startPrank(user);
-            asset.approve(address(bullaFactoring), fundingAmount);
+            asset.approve(address(vault), fundingAmount);
             vm.stopPrank();
         }
     }

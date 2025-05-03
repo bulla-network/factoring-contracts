@@ -93,7 +93,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         uint256 initialDeposit = 100000000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.depositFrom(alice, initialDeposit);
         vm.stopPrank();
 
         // Creditor creates the invoice
