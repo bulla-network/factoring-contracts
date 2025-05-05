@@ -188,7 +188,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
 
-        assertEq(vault.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(vault.unlockedShareSupply(), 0, "maxRedeem should be zero");
         assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
     }
 
@@ -242,10 +242,10 @@ contract TestDepositAndRedemption is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
        
-        assertEq(vault.totalAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
-        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.totalAssets(), vault.calculateCapitalAccount(), "Available assets should be equal to capital account");
+        assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = vault.maxRedeem();
+        uint amountToRedeem = vault.unlockedShareSupply();
 
         // Alice redeems all her shares
         vm.prank(alice);
@@ -309,7 +309,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
 
-        assertEq(vault.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(vault.unlockedShareSupply(), 0, "maxRedeem should be zero");
         assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
         assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
 
@@ -473,7 +473,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview withdraw before funding invoice
-        uint256 previewWithdraw1 = bullaFactoring.previewWithdraw(initialDeposit / 2);
+        uint256 previewWithdraw1 = vault.previewWithdraw(initialDeposit / 2);
 
         // Creditor creates the invoice
         vm.startPrank(bob);
@@ -492,13 +492,13 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview withdraw after funding invoice
-        uint256 previewWithdraw2 = bullaFactoring.previewWithdraw(initialDeposit / 2);
+        uint256 previewWithdraw2 = vault.previewWithdraw(initialDeposit / 2);
 
         assertEq(previewWithdraw1, previewWithdraw2, "previewed withdrawal amounts should be the same after invoice funded");
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
-        uint256 withdrawal = bullaFactoring.withdraw(initialDeposit / 2, alice, alice);
+        uint256 withdrawal = vault.withdraw(initialDeposit / 2, alice, alice);
         vm.stopPrank();
 
         assertEq(previewWithdraw2, withdrawal, "previewed withdrawal amount is the same as actual withdrawal amount");
@@ -513,7 +513,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         // Preview deposit before everything
-        uint256 previewDeposit0 = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDeposit0 = vault.previewDeposit(initialDeposit);
 
         vm.startPrank(alice);
         uint256 deposit0 = vault.deposit(initialDeposit, alice);
@@ -522,7 +522,7 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(previewDeposit0, deposit0, "previewed deposit amount is the same as actual deposit amount");
 
         // Preview deposit before funding invoice
-        uint256 previewDeposit1 = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDeposit1 = vault.previewDeposit(initialDeposit);
 
         vm.startPrank(alice);
         uint256 deposit1 = vault.deposit(initialDeposit, alice);
@@ -547,7 +547,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview deposit after funding invoice
-        uint256 previewDeposit2 = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDeposit2 = vault.previewDeposit(initialDeposit);
 
         assertLt(previewDeposit2, previewDeposit1, "depositing after an invoice is funded should grant less shares than before");
 
@@ -568,7 +568,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        uint256 deposit0 = vault.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -591,7 +591,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.warp(block.timestamp + 1 days);
 
         // Preview deposit after funded invoice but before partial claim payment
-        uint256 previewDepositBefore = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositBefore = vault.previewDeposit(initialDeposit);
 
         uint256 halfOfInvoiceAmount = invoiceAmount / 2;
         // Debtor pays half of the invoice
@@ -601,7 +601,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
         
         // Preview deposit after funded invoice but before partial claim payment
-        uint256 previewDepositAfterHalfPay = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterHalfPay = vault.previewDeposit(initialDeposit);
         
         assertEq(previewDepositAfterHalfPay, previewDepositBefore, "payments that have not generated profit should not change accrued interest");
 
@@ -614,14 +614,14 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview deposit after claim payment
-        uint256 previewDepositAfterFullPay = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterFullPay = vault.previewDeposit(initialDeposit);
         
         assertEq(previewDepositAfterFullPay, previewDepositAfterHalfPay, "Should get equal shares after full invoice payment");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Preview deposit after reconciliation
-        uint256 previewDepositAfterReconciliation = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterReconciliation = vault.previewDeposit(initialDeposit);
         
         assertEq(previewDepositAfterFullPay, previewDepositAfterReconciliation, "Reconciliation should not change deposit value");
     }
@@ -635,7 +635,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        uint256 deposit0 = vault.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -655,13 +655,13 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview deposit before impairment
-        uint256 previewDepositAtFunding = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAtFunding = vault.previewDeposit(initialDeposit);
 
         // Around due date
         vm.warp(block.timestamp + 30 days);
 
         // Preview deposit before impairment
-        uint256 previewDepositBeforeImpairment = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositBeforeImpairment = vault.previewDeposit(initialDeposit);
 
         assertGt(previewDepositAtFunding, previewDepositBeforeImpairment, "Accrued interest should increase therefore a depositor gets less shares");
 
@@ -669,7 +669,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.warp(block.timestamp + 120 days);
 
         // Preview deposit after impairment
-        uint256 previewDepositAfterImpairment = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterImpairment = vault.previewDeposit(initialDeposit);
         
         assertGt(previewDepositAfterImpairment, previewDepositBeforeImpairment, "Accrued interest should have decreased therefore a depositor gets more shares");
     }

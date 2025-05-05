@@ -50,7 +50,7 @@ contract CommonSetup is Test {
     string poolTokenName = 'Test Bulla Factoring Pool Token';
     string poolTokenSymbol = 'BFT-Test';
 
-    function setUp() public {
+    function setUp() virtual public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();

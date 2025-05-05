@@ -71,7 +71,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     function testSetDepositPermissionsOnlyCalledByOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.setDepositPermissions(bob);
+        vault.setDepositPermissions(bob);
         vm.stopPrank();
     }
 

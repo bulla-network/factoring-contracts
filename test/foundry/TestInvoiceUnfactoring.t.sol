@@ -103,7 +103,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
-        uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
+        uint sharePriceBeforeUnfactoring = vault.previewRedeem(1);
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
@@ -112,12 +112,12 @@ contract TestInvoiceUnfactoring is CommonSetup {
   
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
+        uint256 sharePriceAfterUnfactoring = vault.previewRedeem(1);
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
-        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = vault.maxRedeem();
+        uint amountToRedeem = vault.unlockedShareSupply();
 
         // Alice redeems all her shares
         vm.prank(alice);
@@ -148,19 +148,19 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         vm.warp(block.timestamp + 1 days);
 
-        uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
+        uint sharePriceBeforeUnfactoring = vault.previewRedeem(1);
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
         bullaFactoring.unfactorInvoice(invoiceId01);
         vm.stopPrank();
 
-        uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
+        uint256 sharePriceAfterUnfactoring = vault.previewRedeem(1);
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored invoice");
-        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = vault.maxRedeem();
+        uint amountToRedeem = vault.unlockedShareSupply();
 
         // Alice redeems all her shares
         vm.prank(alice);

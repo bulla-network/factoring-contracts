@@ -68,8 +68,8 @@ contract TestWithdraw is CommonSetup {
         // Alice redeems all her funds
         vm.startPrank(alice);
         uint aliceBalance = vault.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint assetsToWithdraw = vault.convertToAssets(aliceBalance);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
         uint aliceBalanceAfterRedemption = asset.balanceOf(alice);
@@ -116,7 +116,7 @@ contract TestWithdraw is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        uint assetsRedeemed = vault.redeem(vault.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
         
         assertEq(vault.balanceOf(alice), 0, "Alice redeem all her shares");
@@ -150,7 +150,7 @@ contract TestWithdraw is CommonSetup {
         // Alice withdraws all her funds
         vm.startPrank(alice);
         uint aliceBalance = vault.balanceOf(alice);
-        uint sharesWithdrawn = bullaFactoring.withdraw(vault.totalAssets(), alice, alice);
+        uint sharesWithdrawn = vault.withdraw(vault.totalAssets(), alice, alice);
         vm.stopPrank();
         
         assertEq(aliceBalance, sharesWithdrawn, "shares withdrawn equals alice's balance");
@@ -200,11 +200,11 @@ contract TestWithdraw is CommonSetup {
         // Alice withdraws all her funds
         vm.startPrank(alice);
         uint aliceBalance = vault.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
+        uint assetsToWithdraw = vault.convertToAssets(aliceBalance);
 
-        assertEq(bullaFactoring.maxWithdraw(alice), assetsToWithdraw, "Alice is about to withdraw the most that she can");
+        assertEq(vault.maxWithdraw(alice), assetsToWithdraw, "Alice is about to withdraw the most that she can");
 
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
         assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
@@ -252,8 +252,8 @@ contract TestWithdraw is CommonSetup {
         // Alice withdraws all her funds
         vm.startPrank(alice);
         uint aliceBalance = vault.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint assetsToWithdraw = vault.convertToAssets(aliceBalance);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
         assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
@@ -273,7 +273,7 @@ contract TestWithdraw is CommonSetup {
 
     function testConvertToAssetsReturnsSharesWhenNoSupply() public {
         vm.startPrank(alice);
-        assertEq(bullaFactoring.convertToAssets(1000), 1000, "Assets should be equal to shares if no shares/no capital deposited");
+        assertEq(vault.convertToAssets(1000), 1000, "Assets should be equal to shares if no shares/no capital deposited");
         vm.stopPrank();
 
     }
@@ -281,7 +281,7 @@ contract TestWithdraw is CommonSetup {
     function testOnlyAuthorizedDepositorsCanWithdraw() public {
         vm.startPrank(userWithoutPermissions);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.withdraw(1 ether, userWithoutPermissions, alice);
+        vault.withdraw(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
     }
 
@@ -304,7 +304,7 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         // Alice calls redeem/withdraw for unauthorized user
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
+        vault.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
 }

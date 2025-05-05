@@ -61,6 +61,10 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     ////////// FACTORING VAULT FUNCTIONS /////////
     //////////////////////////////////////////////
 
+    function calculateCapitalAccount() public view returns (uint256) {
+        return previewRedeem(unlockedShareSupply());
+    }
+
     /// @notice Helper function to handle the logic of funding a claim
     /// @param receiver The address to receive the assets
     /// @param claimId The ID of the claim to fund

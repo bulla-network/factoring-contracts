@@ -250,17 +250,15 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
-        uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
-        uint maxRedeem = vault.maxRedeem();
+        uint256 sharesToRedeemIncludingKickback = vault.convertToShares(initialDepositAlice + kickbackAmount);
+        uint maxRedeem = vault.unlockedShareSupply();
 
         assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
 
         // if Alice tries to redeem more shares than she owns, it will revert
         vm.startPrank(alice);
-        uint balanceBefore = asset.balanceOf(alice);
         vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", alice, sharesToRedeemIncludingKickback, vault.balanceOf(alice)));
         vault.redeem(sharesToRedeemIncludingKickback, alice, alice);
-        uint balanceAfter = asset.balanceOf(alice);
         vm.stopPrank();
     }
 
@@ -299,7 +297,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
-        uint initialPricePerShare = bullaFactoring.pricePerShare();
+        uint initialPricePerShare = vault.previewRedeem(1);
 
         // due date is in 30 days, + 60 days grace period
         uint256 waitDaysToApplyImpairment = 100;
@@ -311,10 +309,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.impairInvoice(invoiceId02);
 
         // Check that the capital account is not negative
-        uint256 capitalAccount = bullaFactoring.calculateCapitalAccount();
+        uint256 capitalAccount = vault.calculateCapitalAccount();
         assertGt(capitalAccount, 0);
 
-        uint pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint pricePerShareAfter = vault.previewRedeem(1);
 
         assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
 
@@ -358,12 +356,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 gracePeriodDays = bullaFactoring.gracePeriodDays();
         vm.warp(dueBy + gracePeriodDays * 1 days + 1);
 
-        uint256 maxRedeemAmountAfterGracePeriod = vault.maxRedeem();
+        uint256 maxRedeemAmountAfterGracePeriod = vault.unlockedShareSupply();
 
         // Fund impairs the invoice
         bullaFactoring.impairInvoice(invoiceId);
 
-        uint256 maxRedeemAmountAfterGraceImpairment = vault.maxRedeem();
+        uint256 maxRedeemAmountAfterGraceImpairment = vault.unlockedShareSupply();
 
         assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as totalAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
 
@@ -378,7 +376,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // Verify that Alice's share balance is now zero, as there are no other pending invoices to be paid
         assertEq(vault.balanceOf(alice), 0, "Alice's share balance should be zero");
 
-        assertEq(vault.maxRedeem(), 0, "maxRedeem should be zero");
+        assertEq(vault.unlockedShareSupply(), 0, "maxRedeem should be zero");
         assertEq(vault.totalAssets(), 0, "totalAssets should be zero");
     }
 
@@ -408,7 +406,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
-        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Simulate invoice is paid exactly on time
         vm.warp(dueBy - 1);
@@ -425,7 +423,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         uint targetFees = adminFee + targetInterest + targetProtocolFee;
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
-        uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
+        uint gainLoss = vault.calculateCapitalAccount() - capitalAccountBefore;
         assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
 
@@ -439,7 +437,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
-        uint initialPps = bullaFactoring.pricePerShare();
+        uint initialPps = vault.previewRedeem(1);
 
         vm.startPrank(bob);
         uint invoiceId01Amount = 500000; // 0.5 USDC
@@ -462,7 +460,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
+        uint ppsAfterFirstRepayment = vault.previewRedeem(1);
 
         assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
 
@@ -477,16 +475,16 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
-        uint priceBeforeRedeem = bullaFactoring.pricePerShare();
+        uint priceBeforeRedeem = vault.previewRedeem(1);
 
         // alice maxRedeems
-        uint amountToRedeem = vault.maxRedeem();
+        uint amountToRedeem = vault.unlockedShareSupply();
         vm.prank(alice);
         vault.redeem(amountToRedeem, alice, alice);
         assertGt(vault.balanceOf(alice), 0, "Alice should have some balance left");
         vm.stopPrank();
 
-        uint priceAfterRedeem = bullaFactoring.pricePerShare();
+        uint priceAfterRedeem = vault.previewRedeem(1);
         assertApproxEqAbs(priceBeforeRedeem, priceAfterRedeem, 1, "Price per share should remain the same after redemption");
 
         // Fast forward time by 30 days
@@ -500,26 +498,25 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
+        uint ppsAfterSecondRepayment = vault.previewRedeem(1);
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");
 
         // alice maxRedeems
-        amountToRedeem = vault.maxRedeem();
+        amountToRedeem = vault.unlockedShareSupply();
         vm.prank(alice);
         vault.redeem(amountToRedeem, alice, alice);
         assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
 
-        uint ppsAfterFullRedemption = bullaFactoring.pricePerShare();
+        uint ppsAfterFullRedemption = vault.previewRedeem(1);
         assertEq(initialPps, ppsAfterFullRedemption, "Price per share should be equal to initial price per share");
     }
 
     function testConvertToSharesWithZeroSupply() public {
         // Ensure no deposits have been made
         assertEq(vault.totalSupply(), 0, "Total supply should be zero");
-        uint initialPricePerShare = bullaFactoring.pricePerShare();
         uint256 assetsToConvert = 120922222;
-        uint256 sharesConverted = bullaFactoring.convertToShares(assetsToConvert);
+        uint256 sharesConverted = vault.convertToShares(assetsToConvert);
 
         assertEq(sharesConverted, assetsToConvert, "Converted shares should equal assets when supply is zero");
     }
@@ -584,7 +581,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(address(this));
-        bullaFactoring.setDepositPermissions(address(new MockPermissions()));
+        vault.setDepositPermissions(address(new MockPermissions()));
         vm.stopPrank();
 
         vm.startPrank(alice);

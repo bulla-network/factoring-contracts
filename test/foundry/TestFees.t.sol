@@ -117,7 +117,7 @@ contract TestFees is CommonSetup {
         // owner will reconcile paid invoices to account for any realized gains or losses, and fees
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
@@ -129,7 +129,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.withdrawProtocolFees();
         vm.stopPrank();
 
-        uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountAfter = vault.calculateCapitalAccount();
 
         assertEq(capitalAccountAfter, capitalAccountBefore, "Capital Account should remain unchanged");
     }
@@ -167,7 +167,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId2, 5000);
         vm.stopPrank();
 
-        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Assert that target interest and protocol fees are the same for both invoices
         assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
@@ -194,7 +194,7 @@ contract TestFees is CommonSetup {
         // Calculate expected fees
         uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetProtocolFee2);
 
-        uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
+        uint gainLoss = vault.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees
         assertEq(realizedFees + gainLoss, expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
     }
@@ -391,7 +391,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.setTargetYield(0);
         vm.stopPrank();
 
-        uint pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint pricePerShareBefore = vault.previewRedeem(1);
 
         // Simulate funding an invoice
         vm.startPrank(bob);
@@ -414,13 +414,13 @@ contract TestFees is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint pricePerShareAfter = vault.previewRedeem(1);
 
         assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be the same if pnl = 0");
 
-        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = vault.maxRedeem();
+        uint amountToRedeem = vault.unlockedShareSupply();
 
         // Alice redeems all her shares
         vm.prank(alice);
