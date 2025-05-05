@@ -52,7 +52,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         uint256 actualDaysUntilPayment = 30;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
-        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1);
+        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1e18);
 
         // Debtor pays the invoice
         vm.startPrank(alice);
@@ -62,7 +62,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfterReconciliation = vault.previewRedeem(1);
+        uint pricePerShareAfterReconciliation = vault.previewRedeem(1e18);
     
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
     }
@@ -94,7 +94,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
-        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1);
+        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1e18);
 
         // Debtor pays the invoice
         vm.startPrank(alice);
@@ -102,11 +102,13 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfterReconciliation = vault.previewRedeem(1);
+        uint pricePerShareAfterReconciliation = vault.previewRedeem(1e18);
     
+        console.log("pricePerShareBeforeReconciliation", pricePerShareBeforeReconciliation);
+        console.log("pricePerShareAfterReconciliation", pricePerShareAfterReconciliation);
+        
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should change even if invoice repaid immediately");
     }
 

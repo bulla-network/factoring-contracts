@@ -60,7 +60,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // Simulate debtor paying in 30 days
         vm.warp(block.timestamp + 30 days);
 
-        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1);
+        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1e18);
 
         // alice pays both invoices
         vm.startPrank(alice);
@@ -77,7 +77,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // owner will reconcile paid invoices to account for any realized gains or losses
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfterReconciliation = vault.previewRedeem(1);
+        uint pricePerShareAfterReconciliation = vault.previewRedeem(1e18);
 
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
     }
@@ -134,7 +134,7 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         // we reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
-        uint pricePerShareBeforeImpairment = vault.previewRedeem(1);
+        uint pricePerShareBeforeImpairment = vault.previewRedeem(1e18);
 
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
@@ -144,7 +144,7 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         // Check the impact on the price per share due to the impaired invoice
         bullaFactoring.reconcileActivePaidInvoices();
-        uint pricePerShareAfterImpairment = vault.previewRedeem(1);
+        uint pricePerShareAfterImpairment = vault.previewRedeem(1e18);
         assertTrue(pricePerShareAfterImpairment < pricePerShareBeforeImpairment, "Price per share should decrease due to impaired invoice");
     }
     
@@ -166,7 +166,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
-        uint initialPricePerShare = vault.previewRedeem(1);
+        uint initialPricePerShare = vault.previewRedeem(1e18);
 
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
@@ -178,7 +178,7 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices(); 
 
-        uint pricePerShareAfter = vault.previewRedeem(1);
+        uint pricePerShareAfter = vault.previewRedeem(1e18);
         assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
     }
 
@@ -210,7 +210,7 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareBeforeSecondFactoring = vault.previewRedeem(1);
+        uint pricePerShareBeforeSecondFactoring = vault.previewRedeem(1e18);
 
         vm.startPrank(bob);
         uint invoiceId02Amount = 2000000;
@@ -227,7 +227,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vault.redeem(initialDeposit / 2, alice, alice);
         vm.stopPrank();
 
-        uint pricePerShareAfterSecondFactoring = vault.previewRedeem(1);
+        uint pricePerShareAfterSecondFactoring = vault.previewRedeem(1e18);
 
         assertEq(pricePerShareBeforeSecondFactoring, pricePerShareAfterSecondFactoring, "Price per share should not change after second factoring");
     }
@@ -242,7 +242,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
-        uint initialPps = vault.previewRedeem(1);
+        uint initialPps = vault.previewRedeem(1e18);
 
         vm.startPrank(bob);
         uint invoiceId01Amount = 500000; // 0.5 USDC
@@ -265,7 +265,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint ppsAfterFirstRepayment = vault.previewRedeem(1);
+        uint ppsAfterFirstRepayment = vault.previewRedeem(1e18);
 
         assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
 
@@ -275,7 +275,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vault.deposit(anotherDeposit, alice);
         vm.stopPrank();
 
-        uint ppsAfterSecondDeposit = vault.previewRedeem(1);
+        uint ppsAfterSecondDeposit = vault.previewRedeem(1e18);
 
         assertEq(ppsAfterSecondDeposit, ppsAfterFirstRepayment, "Price per share should remain the same after second deposit");
 
@@ -301,7 +301,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint ppsAfterSecondRepayment = vault.previewRedeem(1);
+        uint ppsAfterSecondRepayment = vault.previewRedeem(1e18);
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");
 
         // alice redeems half of her balance 
@@ -310,7 +310,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vault.redeem(sharesToWithdraw, alice, alice);
         vm.stopPrank();
 
-        uint ppsAfterRedemption = vault.previewRedeem(1);
+        uint ppsAfterRedemption = vault.previewRedeem(1e18);
 
         assertEq(ppsAfterSecondRepayment, ppsAfterRedemption, "Price per share should remain the same after partial redemption");
     }

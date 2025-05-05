@@ -74,14 +74,18 @@ contract CommonSetup is Test {
 
         bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
 
+        vault.authorizeFactoringFund(address(bullaFactoring));
+
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
 
         vm.startPrank(alice);
+        asset.approve(address(vault), 1000 ether);
         asset.approve(address(bullaFactoring), 1000 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
+        asset.approve(address(vault), 1000 ether);
         asset.approve(address(bullaFactoring), 1000 ether);
         vm.stopPrank();
     }
@@ -94,7 +98,7 @@ contract CommonSetup is Test {
         if (fundingAmount > 0) {
             asset.mint(user, fundingAmount);
             vm.startPrank(user);
-            asset.approve(address(bullaFactoring), fundingAmount);
+            asset.approve(address(vault), fundingAmount);
             vm.stopPrank();
         }
     }

@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
@@ -118,8 +117,9 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
-        
+
         assertEq(vault.balanceOf(alice), 0, "Alice redeem all her shares");
+        assertEq(vault.totalAssets(), 0, "Vault should have no assets left");
                 
         dueDate = block.timestamp + 30 days;
         // second identical deposit
@@ -144,7 +144,6 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId2, invoiceAmount);
         vm.stopPrank();
-
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Alice withdraws all her funds
@@ -307,5 +306,19 @@ contract TestWithdraw is CommonSetup {
         vault.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
-}
 
+    function testSymmetricWithdrawal() public { 
+        uint256 initialDeposit = 1000000000000000000;
+        vm.startPrank(alice);
+        vault.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vault.withdraw(initialDeposit, alice, alice);
+        vm.stopPrank();
+        
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
+        assertEq(vault.totalAssets(), 0, "Vault should have no assets left");
+        
+    }
+}

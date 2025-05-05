@@ -77,7 +77,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
         if (amount == 0) revert InvalidAmount(amount);
         
         // Calculate shares equivalent to the amount being funded
-        uint256 sharesToLock = previewRedeem(amount);
+        uint256 sharesToLock = previewWithdraw(amount);
         
         IERC20(asset()).safeTransfer(receiver, amount);
 
@@ -163,11 +163,13 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
      */
     function previewDeposit(uint256 assets) public view override returns (uint256) {
         uint256 totalAccruedInterest = 0;
+        
         for (uint256 i = 0; i < _authorizedFundsList.length; i++) {
             address fund = _authorizedFundsList[i];
             totalAccruedInterest += IFactoringFund(fund).getAccruedInterestForVault();
         }
-        return assets.mulDiv(unlockedShareSupply()  + 10 ** _decimalsOffset(), totalAssets() + totalAccruedInterest + 1, Math.Rounding.Floor);
+
+        return assets.mulDiv(unlockedShareSupply() + 10 ** _decimalsOffset(), totalAssets() + totalAccruedInterest + 1, Math.Rounding.Floor);
     }
 
     /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
@@ -188,6 +190,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) external returns (uint256) {
         uint256 shares = deposit(assets, receiver);
         emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
+
         return shares;
     }
 
@@ -230,6 +233,10 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     //////////////// WITHDRAW FUNCTIONS //////////////////
     //////////////////////////////////////////////////////
 
+    function maxWithdraw(address _owner) public view override returns (uint256) {
+        return Math.min(super.maxWithdraw(_owner), unlockedShareSupply());
+    }
+
     /// @notice Helper function to handle the logic of withdrawing assets in exchange for fund shares
     /// @param receiver The address to receive the assets
     /// @param _owner The address who owns the shares to redeem
@@ -251,6 +258,10 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
      * @dev override to account for locked shares
      */
     function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
+        if (assets == totalAssets()) {
+            return unlockedShareSupply();
+        }
+
         return assets.mulDiv(unlockedShareSupply() + 10 ** _decimalsOffset(), totalAssets() + 1, rounding);
     }
 
@@ -259,6 +270,10 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
      * @dev override to account for locked shares
      */
     function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
+        if (shares == unlockedShareSupply()) {
+            return totalAssets();
+        }
+
         return shares.mulDiv(totalAssets() + 1, unlockedShareSupply() + 10 ** _decimalsOffset(), rounding);
     }
 

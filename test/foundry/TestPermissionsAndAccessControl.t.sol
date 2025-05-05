@@ -44,7 +44,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoringAragon), 1000 ether);
+        asset.approve(address(vault), 1000 ether);
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
     }
@@ -57,7 +57,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoringAragon), 1000 ether);
+        asset.approve(address(vault), 1000 ether);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", alice));
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
@@ -71,7 +71,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoringSafe), 1000 ether);
+        asset.approve(address(vault), 1000 ether);
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
     }

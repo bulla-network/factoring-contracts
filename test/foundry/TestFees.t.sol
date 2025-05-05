@@ -391,7 +391,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.setTargetYield(0);
         vm.stopPrank();
 
-        uint pricePerShareBefore = vault.previewRedeem(1);
+        uint pricePerShareBefore = vault.previewRedeem(1e18);
 
         // Simulate funding an invoice
         vm.startPrank(bob);
@@ -414,7 +414,7 @@ contract TestFees is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfter = vault.previewRedeem(1);
+        uint pricePerShareAfter = vault.previewRedeem(1e18);
 
         assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be the same if pnl = 0");
 

@@ -223,7 +223,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // Alice deposits into the fund
         uint256 initialDepositAlice = 100;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDepositAlice);
+        asset.approve(address(vault), initialDepositAlice);
         vault.deposit(initialDepositAlice, alice);
         vm.stopPrank();
 
@@ -271,7 +271,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertEq(vault.balanceOf(alice), 0, "Alice should have no funds");
         uint256 initialDepositAlice = 25000000000; // initialize a 25k pool
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDepositAlice);
+        asset.approve(address(vault), initialDepositAlice);
         vault.deposit(initialDepositAlice, alice);
         vm.stopPrank();
 
@@ -297,7 +297,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
-        uint initialPricePerShare = vault.previewRedeem(1);
+        uint initialPricePerShare = vault.previewRedeem(1e18);
 
         // due date is in 30 days, + 60 days grace period
         uint256 waitDaysToApplyImpairment = 100;
@@ -312,7 +312,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 capitalAccount = vault.calculateCapitalAccount();
         assertGt(capitalAccount, 0);
 
-        uint pricePerShareAfter = vault.previewRedeem(1);
+        uint pricePerShareAfter = vault.previewRedeem(1e18);
 
         assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
 
@@ -437,7 +437,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
-        uint initialPps = vault.previewRedeem(1);
+        uint initialPps = vault.previewRedeem(1e18);
 
         vm.startPrank(bob);
         uint invoiceId01Amount = 500000; // 0.5 USDC
@@ -460,7 +460,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint ppsAfterFirstRepayment = vault.previewRedeem(1);
+        uint ppsAfterFirstRepayment = vault.previewRedeem(1e18);
 
         assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
 
@@ -475,7 +475,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
         vm.stopPrank();
 
-        uint priceBeforeRedeem = vault.previewRedeem(1);
+        uint priceBeforeRedeem = vault.previewRedeem(1e18);
 
         // alice maxRedeems
         uint amountToRedeem = vault.unlockedShareSupply();
@@ -484,7 +484,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertGt(vault.balanceOf(alice), 0, "Alice should have some balance left");
         vm.stopPrank();
 
-        uint priceAfterRedeem = vault.previewRedeem(1);
+        uint priceAfterRedeem = vault.previewRedeem(1e18);
         assertApproxEqAbs(priceBeforeRedeem, priceAfterRedeem, 1, "Price per share should remain the same after redemption");
 
         // Fast forward time by 30 days
@@ -498,7 +498,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint ppsAfterSecondRepayment = vault.previewRedeem(1);
+        uint ppsAfterSecondRepayment = vault.previewRedeem(1e18);
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");
 
         // alice maxRedeems
@@ -508,7 +508,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
 
-        uint ppsAfterFullRedemption = vault.previewRedeem(1);
+        uint ppsAfterFullRedemption = vault.previewRedeem(1e18);
         assertEq(initialPps, ppsAfterFullRedemption, "Price per share should be equal to initial price per share");
     }
 

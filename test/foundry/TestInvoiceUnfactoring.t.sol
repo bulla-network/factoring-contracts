@@ -24,7 +24,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Alice deposits into the fund
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDeposit);
+        asset.approve(address(vault), initialDeposit);
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
@@ -46,7 +46,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // Assert the invoice NFT is transferred back to Bob and that fund has received the funded amount back
         assertEq(bullaClaimERC721.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
-        assertEq(asset.balanceOf(address(bullaFactoring)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
+        assertEq(asset.balanceOf(address(vault)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
     }
 
     function testUnfactorImpairedInvoiceAffectsSharePrice() public {
@@ -103,7 +103,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
-        uint sharePriceBeforeUnfactoring = vault.previewRedeem(1);
+        uint sharePriceBeforeUnfactoring = vault.previewRedeem(1e18);
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
@@ -112,7 +112,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
   
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint256 sharePriceAfterUnfactoring = vault.previewRedeem(1);
+        uint256 sharePriceAfterUnfactoring = vault.previewRedeem(1e18);
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
         assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
@@ -148,14 +148,14 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         vm.warp(block.timestamp + 1 days);
 
-        uint sharePriceBeforeUnfactoring = vault.previewRedeem(1);
+        uint sharePriceBeforeUnfactoring = vault.previewRedeem(1e18);
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
         bullaFactoring.unfactorInvoice(invoiceId01);
         vm.stopPrank();
 
-        uint256 sharePriceAfterUnfactoring = vault.previewRedeem(1);
+        uint256 sharePriceAfterUnfactoring = vault.previewRedeem(1e18);
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored invoice");
         assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
@@ -230,7 +230,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Alice deposits into the fund
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDeposit);
+        asset.approve(address(vault), initialDeposit);
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 

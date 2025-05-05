@@ -56,7 +56,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // Alice deposits into the fund
         uint256 initialDepositAlice = 20000000000000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDepositAlice);
+        asset.approve(address(vault), initialDepositAlice);
         vault.deposit(initialDepositAlice, alice);
         vm.stopPrank();
 
@@ -262,6 +262,7 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
         vm.stopPrank();
 
+        assertEq(asset.balanceOf(address(vault)), 0, "Bulla Factoring vault should have no balance left");
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
 
@@ -690,11 +691,11 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Alice sends BFTs to unauthorized user
         uint sharesBalance = vault.balanceOf(alice);
-        IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
+        IERC20(address(vault)).transfer(userWithoutPermissions, sharesBalance);
 
         // unauthorized user permits Alice
         vm.startPrank(userWithoutPermissions);
-        IERC20(address(bullaFactoring)).approve(alice, initialDeposit);
+        IERC20(address(vault)).approve(alice, initialDeposit);
         vm.stopPrank();
 
         vm.startPrank(alice);
