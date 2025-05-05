@@ -23,7 +23,7 @@ contract TestFees is CommonSetup {
     function testWithdrawFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Simulate funding an invoice to generate fees
@@ -78,7 +78,7 @@ contract TestFees is CommonSetup {
 
         uint256 initialDeposit = 9000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -137,7 +137,7 @@ contract TestFees is CommonSetup {
     function testPoolFeesRemainSameRegardlessOfUpfrontBps() public {
         uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000000000; // 100,000 USDC
@@ -185,7 +185,7 @@ contract TestFees is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint256 availableAssetsAfter = bullaFactoring.totalAssets();
+        uint256 availableAssetsAfter = vault.totalAssets();
         uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         // Calculate realized fees
@@ -202,7 +202,7 @@ contract TestFees is CommonSetup {
     function testAdminFeeAccruesOvertime() public {
         uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000000000; // 100,000 USDC
@@ -257,7 +257,7 @@ contract TestFees is CommonSetup {
     function testSetBullaDao() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Simulate funding an invoice to generate fees
@@ -304,7 +304,7 @@ contract TestFees is CommonSetup {
     function testSetProtocolFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Set protocol fee to 0
@@ -344,7 +344,7 @@ contract TestFees is CommonSetup {
     function testSetAdminFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Set admin fee to 0
@@ -383,7 +383,7 @@ contract TestFees is CommonSetup {
     function testSetTargetYield() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Set target yield to 0
@@ -418,14 +418,14 @@ contract TestFees is CommonSetup {
 
         assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be the same if pnl = 0");
 
-        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = bullaFactoring.maxRedeem();
+        uint amountToRedeem = vault.maxRedeem();
 
         // Alice redeems all her shares
         vm.prank(alice);
-        bullaFactoring.redeem(amountToRedeem, alice, alice);
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vault.redeem(amountToRedeem, alice, alice);
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
 
     }

@@ -28,7 +28,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -75,7 +75,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -117,7 +117,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the 2 invoices
@@ -152,7 +152,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 9000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         dueBy = block.timestamp + 7 days;
@@ -215,7 +215,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
     function testDisperseKickbackAmount() public {
         uint256 initialDeposit = 900;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint initialFactorerBalance = asset.balanceOf(bob);
@@ -263,7 +263,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
 
@@ -309,7 +309,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates two invoices
@@ -346,7 +346,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -389,7 +389,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -414,7 +414,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -444,7 +444,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // alice is allowed to factor
@@ -472,7 +472,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // alice is allowed to factor
