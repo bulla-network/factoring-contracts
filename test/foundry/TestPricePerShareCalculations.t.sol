@@ -26,7 +26,7 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         uint256 initialDeposit = 9000000;
         vm.startPrank(alice);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint initialFactorerBalance = asset.balanceOf(bob);
@@ -85,7 +85,7 @@ contract TestPricePerShareCalculations is CommonSetup {
     function testPriceUpdateInvoicesImpaired() public {
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -151,7 +151,7 @@ contract TestPricePerShareCalculations is CommonSetup {
     function testReducedPricePerShareDueToImpairment() public {
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -185,7 +185,7 @@ contract TestPricePerShareCalculations is CommonSetup {
     function testPriceDoesntChangeAfterSecondFactoring() public {
         uint256 initialDeposit = 100000000000;
         vm.startPrank(alice);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -224,7 +224,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        vault.redeemTo(initialDeposit / 2, alice, alice);
+        bullaFactoring.redeem(initialDeposit / 2, alice, alice);
         vm.stopPrank();
 
         uint pricePerShareAfterSecondFactoring = bullaFactoring.pricePerShare();
@@ -239,7 +239,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint256 initialDeposit = 3000000; // deposit 3 USDC
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint initialPps = bullaFactoring.pricePerShare();
@@ -272,7 +272,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // alice deposits an additional 1 USDC
         uint256 anotherDeposit = 1000000; // deposit 1 USDC
         vm.startPrank(alice);
-        vault.depositFrom(alice, anotherDeposit);
+        bullaFactoring.deposit(anotherDeposit, alice);
         vm.stopPrank();
 
         uint ppsAfterSecondDeposit = bullaFactoring.pricePerShare();
@@ -307,7 +307,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // alice redeems half of her balance 
         uint256 sharesToWithdraw = bullaFactoring.balanceOf(alice) / 2;
         vm.startPrank(alice);
-        vault.redeemTo(sharesToWithdraw, alice, alice);
+        bullaFactoring.redeem(sharesToWithdraw, alice, alice);
         vm.stopPrank();
 
         uint ppsAfterRedemption = bullaFactoring.pricePerShare();

@@ -30,7 +30,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         uint256 initialDeposit = 900000000;
         vm.startPrank(alice);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -136,7 +136,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         uint256 initialDeposit = 900000000;
         vm.startPrank(alice);
-        vault.depositFrom(alice, initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 dueByNew = block.timestamp + 30 days;
