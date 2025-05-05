@@ -26,12 +26,6 @@ interface IBullaFactoringV2 {
         uint16 adminFeeBps;
     }
 
-    struct Multihash {
-        bytes32 hash;
-        uint8 hashFunction;
-        uint8 size;
-    }
-
     struct FundInfo {
         string name;
         uint256 creationTimestamp;
@@ -63,7 +57,6 @@ interface IBullaFactoringV2 {
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
-    event DepositPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
     event ImpairReserveChanged(uint256 newImpairReserve);

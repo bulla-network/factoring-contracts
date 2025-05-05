@@ -15,7 +15,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoringV2 is IBullaFactoringV2, Ownable {
+contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
@@ -84,7 +84,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, Ownable {
     error InvoiceCanceled();
     error InvoicePaidAmountChanged();
     error FunctionNotSupported();
-    error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
     error UnpaidInvoice();
     error InvoiceNotImpaired();
@@ -131,6 +130,14 @@ contract BullaFactoringV2 is IBullaFactoringV2, Ownable {
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
         vault = _vault;
+    }
+
+    function underlyingAsset() external view returns (IERC20) {
+        return assetAddress;
+    }
+
+    function getAccruedInterestForVault() external view returns (uint256) {
+        return calculateAccruedProfits();
     }
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
@@ -264,6 +271,22 @@ contract BullaFactoringV2 is IBullaFactoringV2, Ownable {
         }
 
         return realizedGains;
+    }
+
+    /// @notice Calculates the total accrued profits from all active invoices
+    /// @dev Iterates through all active invoices, calculates interest for each and sums the net accrued interest
+    /// @return accruedProfits The total net accrued profits across all active invoices
+    function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            uint256 invoiceId = activeInvoices[i];
+            
+            if(!isInvoiceImpaired(invoiceId)) {
+                (,uint256 trueInterest,,) = calculateKickbackAmount(invoiceId);
+                accruedProfits += trueInterest;
+            }
+        }
+
+        return accruedProfits;
     }
 
     /// @notice Calculates the true fees and net funded amount for a given invoice and factorer's upfront bps, annualised
