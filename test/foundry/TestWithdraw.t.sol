@@ -272,7 +272,7 @@ contract TestWithdraw is CommonSetup {
 
     function testConvertToAssetsReturnsSharesWhenNoSupply() public {
         vm.startPrank(alice);
-        assertEq(vault.convertToAssets(1000), 1000, "Assets should be equal to shares if no shares/no capital deposited");
+        assertEq(vault.convertToAssets(1e18), 1e9, "Assets should be equal to shares if no shares/no capital deposited");
         vm.stopPrank();
 
     }
@@ -293,11 +293,11 @@ contract TestWithdraw is CommonSetup {
 
         // Alice sends BFTs to unauthorized user
         uint sharesBalance = vault.balanceOf(alice);
-        IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
+        IERC20(address(vault)).transfer(userWithoutPermissions, sharesBalance);
 
         // unauthorized user permits Alice
         vm.startPrank(userWithoutPermissions);
-        IERC20(address(bullaFactoring)).approve(alice, initialDeposit);
+        IERC20(address(vault)).approve(alice, initialDeposit);
         vm.stopPrank();
 
         vm.startPrank(alice);

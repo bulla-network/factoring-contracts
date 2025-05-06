@@ -726,14 +726,16 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Inflation isn't tracked due to internal accounting logic
         vm.prank(address(firstDepositor));
-        asset.transfer(address(bullaFactoring), inflationAmount);
+        asset.transfer(address(vault), inflationAmount);
 
         vm.startPrank(secondDepositor);
         uint256 secondDepositorShares = vault.deposit(secondDepositAmount, secondDepositor);
+        uint256 secondDepositorAmountAfter = vault.redeem(secondDepositorShares, secondDepositor, secondDepositor);
         vm.stopPrank();
 
-        assertEq(firstDepositorShares, 1, "First depositor should have 1 share");
-        assertEq(secondDepositorShares, 1e18, "Second depositor should have 1e18 shares");
+        uint256 actualSecondDepositorPriceImpactBps = (secondDepositAmount - secondDepositorAmountAfter) * 100_00 / secondDepositAmount;
+
+        assertEq(firstDepositorShares, 1e9, "First depositor should have 1e9 shares");
+        assertEq(actualSecondDepositorPriceImpactBps, 0, "The price impact is so low, it rounds to 0");
     }
 }
-

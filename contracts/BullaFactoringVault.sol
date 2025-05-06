@@ -134,8 +134,22 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
         return _authorizedFundsList;
     }    
 
+    /// @notice Returns the total amount of unlocked shares
+    /// @dev This is the total amount of shares that can be redeemed from the vault, and takes into account the locked shares for impaired invoices
+    /// @return The total amount of unlocked shares
     function unlockedShareSupply() public view returns (uint256) {
-        return totalSupply() - _totalLockedShares;
+        uint256 totalLockedShares = _totalLockedShares;
+
+        for (uint256 i = 0; i < _authorizedFundsList.length; i++) {
+            IFactoringFund fund = IFactoringFund(_authorizedFundsList[i]);
+            (, uint256[] memory impairedInvoices) = fund.viewPoolStatus();
+
+            // subtract the locked shares for impaired invoices, they are considered lost
+            for (uint256 j = 0; j < impairedInvoices.length; j++) {
+                totalLockedShares -= _lockedSharesByClaimId[impairedInvoices[j]];
+            }
+        }
+        return totalSupply() - totalLockedShares;
     }
 
     //////////////////////////////////////////////

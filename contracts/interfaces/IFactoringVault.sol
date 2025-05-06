@@ -41,4 +41,6 @@ interface IFactoringFund {
     function underlyingAsset() external view returns (IERC20);
     // returns the accrued interest for the vault (the msg.sender)
     function getAccruedInterestForVault() external view returns (uint256);
+    // returns the list of paid invoices and the list of impaired invoices
+    function viewPoolStatus() external view returns (uint256[] memory, uint256[] memory);
 }

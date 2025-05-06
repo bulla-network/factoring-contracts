@@ -175,7 +175,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
-
         bullaFactoring.reconcileActivePaidInvoices(); 
 
         uint pricePerShareAfter = vault.previewRedeem(1e18);

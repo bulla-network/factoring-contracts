@@ -360,7 +360,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
     /// @notice Provides a view of the pool's status, listing paid and impaired invoices, to be called by Gelato or alike
     /// @return paidInvoices An array of paid invoice IDs
     /// @return impairedInvoices An array of impaired invoice IDs
-    function viewPoolStatus() public view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
+    function viewPoolStatus() public view override(IBullaFactoringV2, IFactoringFund) returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) {
         uint256 activeCount = activeInvoices.length;
         uint256 impairedByFundCount = impairedByFundInvoicesIds.length;
         
@@ -717,6 +717,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         // deduct from capital at risk
         removeActivePaidInvoice(invoiceId);
 
+        // send the impair amount to the vault
+        assetAddress.safeTransfer(address(vault), impairAmount);
         // mark the claim as impaired in the vault
         vault.markClaimAsImpaired(invoiceId);
 
