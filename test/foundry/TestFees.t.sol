@@ -143,6 +143,8 @@ contract TestFees is CommonSetup {
         uint256 invoiceAmount = 100000000000; // 100,000 USDC
         uint256 dueDate = block.timestamp + 30 days;
 
+        uint256 totalAssetsBefore = asset.balanceOf(address(vault)) + asset.balanceOf(address(bullaFactoring));
+
         // Create and fund first invoice with 100% upfront
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
@@ -151,7 +153,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 targetAdminFee1, uint256 targetInterest1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000);
         vm.stopPrank();
 
@@ -163,16 +165,14 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        (, uint256 targetAdminFee2, uint256 targetInterest2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
         bullaFactoring.fundInvoice(invoiceId2, 5000);
         vm.stopPrank();
-
-        uint capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Assert that target interest and protocol fees are the same for both invoices
         assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
         assertEq(targetProtocolFee1, targetProtocolFee2, "Target protocol fee should be the same regardless of upfront percentage");
-        assertEq(adminFee1, adminFee2, "Admin fee should be the same");
+        assertEq(targetAdminFee1, targetAdminFee2, "Admin fee should be the same");
 
         // Simulate invoices being paid on time
         vm.warp(dueDate - 1);
@@ -185,18 +185,16 @@ contract TestFees is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint256 availableAssetsAfter = vault.totalAssets();
-        uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
+        uint256 totalAssetsAfter = asset.balanceOf(address(vault)) + asset.balanceOf(address(bullaFactoring));
 
         // Calculate realized fees
-        uint realizedFees = totalAssetsAfter - availableAssetsAfter;
+        uint realizedFees = totalAssetsAfter - totalAssetsBefore;
 
         // Calculate expected fees
-        uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetProtocolFee2);
+        uint256 expectedFees = (targetAdminFee1 + targetInterest1 + targetProtocolFee1) + (targetAdminFee2 + targetInterest2 + targetProtocolFee2);
 
-        uint gainLoss = vault.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees
-        assertEq(realizedFees + gainLoss, expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
+        assertEq(realizedFees, expectedFees, "Realized fees should match expected fees for both invoices");
     }
 
     function testAdminFeeAccruesOvertime() public {
@@ -219,7 +217,6 @@ contract TestFees is CommonSetup {
         (, uint256 targetAdminFee1,,,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000);
         vm.stopPrank();
-
 
         // Simulate first invoice being paid after 15 days
         vm.warp(dueDate - 14 days);

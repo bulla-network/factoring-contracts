@@ -105,9 +105,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         uint pricePerShareAfterReconciliation = vault.previewRedeem(1e18);
-    
-        console.log("pricePerShareBeforeReconciliation", pricePerShareBeforeReconciliation);
-        console.log("pricePerShareAfterReconciliation", pricePerShareAfterReconciliation);
         
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should change even if invoice repaid immediately");
     }

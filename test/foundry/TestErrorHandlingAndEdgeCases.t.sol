@@ -391,6 +391,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
+        uint256 totalAssetsBefore = asset.balanceOf(address(vault)) + asset.balanceOf(address(bullaFactoring));
+
         vm.startPrank(bob);
         uint invoiceAmount = 1000000000000;
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -406,8 +408,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
-        uint capitalAccountBefore = vault.calculateCapitalAccount();
-
         // Simulate invoice is paid exactly on time
         vm.warp(dueBy - 1);
 
@@ -418,13 +418,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint availableAssetsAfter = vault.totalAssets();
-        uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
+        uint totalAssetsAfter = asset.balanceOf(address(vault)) + asset.balanceOf(address(bullaFactoring));
 
         uint targetFees = adminFee + targetInterest + targetProtocolFee;
-        uint realizedFees = totalAssetsAfter - availableAssetsAfter;
-        uint gainLoss = vault.calculateCapitalAccount() - capitalAccountBefore;
-        assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
+        uint realizedFees = totalAssetsAfter - totalAssetsBefore;
+
+        assertEq(realizedFees, targetFees, "Realized fees should match target fees when invoice is paid on time");
     }
 
     function testTotalAssetsDeclineWhenCapitalIsAtRisk() public {
@@ -516,9 +515,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // Ensure no deposits have been made
         assertEq(vault.totalSupply(), 0, "Total supply should be zero");
         uint256 assetsToConvert = 120922222;
+        uint256 expectedShares = 120922222e9;
         uint256 sharesConverted = vault.convertToShares(assetsToConvert);
 
-        assertEq(sharesConverted, assetsToConvert, "Converted shares should equal assets when supply is zero");
+        assertEq(sharesConverted, expectedShares, "Converted shares should equal assets when supply is zero");
     }
 
     function testUpfrontBpsFailsIf0or1000() public {

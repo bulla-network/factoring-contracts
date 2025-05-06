@@ -34,17 +34,14 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     /// @notice Array to track all authorized factoring funds
     address[] private _authorizedFundsList;
 
-    /// @notice The amount of locked shares by claim ID
-    mapping(uint256 => uint256) private _lockedSharesByClaimId;
+    /// @notice The amount of capital at risk by claim ID
+    mapping(uint256 => uint256) private _atRiskCapitalByClaimId;
 
     /// @notice The fund requester for a given claim ID
     mapping(uint256 => address) private _fundRequesterByClaimId;
-
-    /// @notice The total amount of locked shares per fund
-    mapping(address => uint256) private _totalLockedSharesByFund;
     
-    /// @notice The global total of locked shares across all funds
-    uint256 private _totalLockedShares;
+    /// @notice The global total of capital at risk across all funds
+    uint256 private _globalTotalAtRiskCapital;
 
     /// @notice Event emitted when a factoring fund is authorized
     event FactoringFundAuthorized(address indexed fund);
@@ -62,7 +59,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     //////////////////////////////////////////////
 
     function calculateCapitalAccount() public view returns (uint256) {
-        return previewRedeem(unlockedShareSupply());
+        return totalAssets() + _globalTotalAtRiskCapital - impairedCapital();
     }
 
     /// @notice Helper function to handle the logic of funding a claim
@@ -71,61 +68,67 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     /// @param amount The amount of assets to fund
     function fundClaim(address receiver,uint256 claimId, uint256 amount) external onlyAuthorizedFactoringFund {
         address fund = _msgSender();
-        uint256 currentLockedSharesForClaimId = _lockedSharesByClaimId[claimId];
+        uint256 currentAtRiskCapitalForClaimId = _atRiskCapitalByClaimId[claimId];
 
-        if (currentLockedSharesForClaimId > 0) revert ClaimAlreadyFunded(claimId);
+        if (currentAtRiskCapitalForClaimId > 0) revert ClaimAlreadyFunded(claimId);
         if (amount == 0) revert InvalidAmount(amount);
         
-        // Calculate shares equivalent to the amount being funded
-        uint256 sharesToLock = previewWithdraw(amount);
-        
+        // We no longer calculate shares to lock, just use the amount directly
         IERC20(asset()).safeTransfer(receiver, amount);
 
         _fundRequesterByClaimId[claimId] = fund;
-        _lockedSharesByClaimId[claimId] = sharesToLock;
-        _totalLockedSharesByFund[fund] += sharesToLock;
-        _totalLockedShares += sharesToLock;
+        _atRiskCapitalByClaimId[claimId] = amount;
+        _globalTotalAtRiskCapital += amount;
     }
 
     /// @notice Helper function to handle the logic of marking a claim as paid
     /// @notice the fund requester is responsible for sending the underlying asset to the vault
     /// @param claimId The ID of the claim to mark as paid
     function markClaimAsPaid(uint256 claimId) external {
-        _unlockShares(claimId);
+        _removeAtRiskCapital(claimId);
 
         // reset the fund requester to mark the claim as paid
         _fundRequesterByClaimId[claimId] = address(0);
     }
 
     /// @notice Helper function to handle the logic of marking a claim as impaired
-    /// @notice this simply unlocks the shares for the claim
+    /// @notice this simply removes the at risk capital for the claim
     /// @param claimId The ID of the claim to mark as impaired
     function markClaimAsImpaired(uint256 claimId) external {
-        _unlockShares(claimId);
+        _removeAtRiskCapital(claimId);
     }
 
-    function _unlockShares(uint256 claimId) internal onlyFundRequester(claimId)   {
-        address fund = _msgSender();
-        uint256 currentLockedSharesForClaimId = _lockedSharesByClaimId[claimId];
+    function _removeAtRiskCapital(uint256 claimId) internal onlyFundRequester(claimId) {
+        uint256 currentAtRiskCapitalForClaimId = _atRiskCapitalByClaimId[claimId];
 
-        if (currentLockedSharesForClaimId != 0) {
-            _lockedSharesByClaimId[claimId] = 0;
-            _totalLockedSharesByFund[fund] -= currentLockedSharesForClaimId;
-            _totalLockedShares -= currentLockedSharesForClaimId;
+        if (currentAtRiskCapitalForClaimId != 0) {
+            _atRiskCapitalByClaimId[claimId] = 0;
+            _globalTotalAtRiskCapital -= currentAtRiskCapitalForClaimId;
         }
     }
 
-    /// @notice Returns the total amount of locked shares for a specific fund
-    /// @param fund The address of the factoring fund
-    /// @return The total amount of locked shares for the fund
-    function totalLockedSharesByFund(address fund) external view returns (uint256) {
-        return _totalLockedSharesByFund[fund];
+    /// @notice Returns the total amount of capital at risk across all funds
+    /// @return The global total of capital at risk
+    function impairedCapital() public view returns (uint256) {
+        uint256 _impairedCapital = 0;
+        
+        for (uint256 i = 0; i < _authorizedFundsList.length; i++) {
+            address fund = _authorizedFundsList[i];
+            (, uint256[] memory impairedInvoices) = IFactoringFund(fund).viewPoolStatus();
+
+            for (uint256 j = 0; j < impairedInvoices.length; j++) {
+                uint256 impairmentCapital = _atRiskCapitalByClaimId[impairedInvoices[j]];
+                _impairedCapital += impairmentCapital;
+            }
+        }
+
+        return _impairedCapital;
     }
-    
-    /// @notice Returns the total amount of locked shares across all funds
-    /// @return The global total of locked shares
-    function getTotalLockedShares() external view returns (uint256) {
-        return _totalLockedShares;
+
+    /// @notice Returns the total amount of capital at risk across all funds
+    /// @return The global total of capital at risk
+    function globalTotalAtRiskCapital() external view returns (uint256) {
+        return _globalTotalAtRiskCapital;
     }
     
     /// @notice Returns all authorized factoring funds
@@ -134,22 +137,10 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
         return _authorizedFundsList;
     }    
 
-    /// @notice Returns the total amount of unlocked shares
-    /// @dev This is the total amount of shares that can be redeemed from the vault, and takes into account the locked shares for impaired invoices
+    /// @notice Returns the total amount of unlocked shares available for redemption
     /// @return The total amount of unlocked shares
     function unlockedShareSupply() public view returns (uint256) {
-        uint256 totalLockedShares = _totalLockedShares;
-
-        for (uint256 i = 0; i < _authorizedFundsList.length; i++) {
-            IFactoringFund fund = IFactoringFund(_authorizedFundsList[i]);
-            (, uint256[] memory impairedInvoices) = fund.viewPoolStatus();
-
-            // subtract the locked shares for impaired invoices, they are considered lost
-            for (uint256 j = 0; j < impairedInvoices.length; j++) {
-                totalLockedShares -= _lockedSharesByClaimId[impairedInvoices[j]];
-            }
-        }
-        return totalSupply() - totalLockedShares;
+        return previewWithdraw(totalAssets());
     }
 
     //////////////////////////////////////////////
@@ -177,13 +168,14 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
      */
     function previewDeposit(uint256 assets) public view override returns (uint256) {
         uint256 totalAccruedInterest = 0;
+        uint256 totalCapitalAccount = calculateCapitalAccount();
         
         for (uint256 i = 0; i < _authorizedFundsList.length; i++) {
             address fund = _authorizedFundsList[i];
             totalAccruedInterest += IFactoringFund(fund).getAccruedInterestForVault();
         }
 
-        return assets.mulDiv(unlockedShareSupply() + 10 ** _decimalsOffset(), totalAssets() + totalAccruedInterest + 1, Math.Rounding.Floor);
+        return assets.mulDiv(totalSupply() + 10 ** _decimalsOffset(), totalAccruedInterest + totalCapitalAccount + 1, Math.Rounding.Floor);
     }
 
     /// @notice Helper function to handle the logic of depositing assets in exchange for fund shares
@@ -247,8 +239,11 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     //////////////// WITHDRAW FUNCTIONS //////////////////
     //////////////////////////////////////////////////////
 
+    /// @notice Calculates the maximum amount of assets that can be withdrawn based the owners share balance
+    /// @param _owner The owner of the shares being redeemed
+    /// @return The maximum number of assets that can be withdrawn
     function maxWithdraw(address _owner) public view override returns (uint256) {
-        return Math.min(super.maxWithdraw(_owner), unlockedShareSupply());
+        return Math.min(super.maxWithdraw(_owner), totalAssets());
     }
 
     /// @notice Helper function to handle the logic of withdrawing assets in exchange for fund shares
@@ -272,11 +267,14 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
      * @dev override to account for locked shares
      */
     function _convertToShares(uint256 assets, Math.Rounding rounding) internal view override returns (uint256) {
-        if (assets == totalAssets()) {
-            return unlockedShareSupply();
+        uint256 totalCapitalAccount = calculateCapitalAccount();
+        uint256 _totalSupply = totalSupply();
+
+        if (assets == totalCapitalAccount) {
+            return _totalSupply;
         }
 
-        return assets.mulDiv(unlockedShareSupply() + 10 ** _decimalsOffset(), totalAssets() + 1, rounding);
+        return assets.mulDiv(_totalSupply + 10 ** _decimalsOffset(), totalCapitalAccount + 1, rounding);
     }
 
     /**
@@ -284,11 +282,14 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
      * @dev override to account for locked shares
      */
     function _convertToAssets(uint256 shares, Math.Rounding rounding) internal view override returns (uint256) {
-        if (shares == unlockedShareSupply()) {
-            return totalAssets();
+        uint256 totalCapitalAccount = calculateCapitalAccount();
+        uint256 _totalSupply = totalSupply();
+
+        if (shares == _totalSupply) {
+            return totalCapitalAccount;
         }
 
-        return shares.mulDiv(totalAssets() + 1, unlockedShareSupply() + 10 ** _decimalsOffset(), rounding);
+        return shares.mulDiv(totalCapitalAccount + 1, _totalSupply + 10 ** _decimalsOffset(), rounding);
     }
 
     //////////////////////////////////////

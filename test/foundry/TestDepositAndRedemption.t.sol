@@ -49,7 +49,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vault.deposit(initialDepositBob, bob);
         vm.stopPrank();
 
-        assertEq(1000, vault.previewRedeem(1000), "Price should go back to the scaling factor for new depositor in empty asset vault");
+        assertEq(0, vault.previewRedeem(1000), "Price should be 0 if there are no assets in the vault");
     }
     
     function testAvailableAssetsLessThanTotal() public {
@@ -81,7 +81,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve();
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), vault.totalAssets() + fees, "Available Assets should be lower than total assets by the sum of fees");
+        assertEq(asset.balanceOf(address(bullaFactoring)), fees, "Available Assets should be lower than total assets by the sum of fees");
     }
 
     function testInvestorRedeemsAllFunds() public {
@@ -400,7 +400,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), adminFee + targetInterest + targetProtocolFee, "There should be no assets left in the pool, net of fees");
+        assertEq(asset.balanceOf(address(bullaFactoring)) + asset.balanceOf(address(vault)), adminFee + targetInterest + targetProtocolFee, "There should be no assets left in the pool, net of fees");
 
         // Alice never pays the invoices
         // fund owner impaires both invoices
@@ -581,6 +581,8 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, 0);
         vm.stopPrank();
+        
+        uint256 previewDepositBeforeFunding = vault.previewDeposit(initialDeposit);
 
         // creditor funds the invoice
         vm.startPrank(bob);
@@ -592,7 +594,9 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.warp(block.timestamp + 1 days);
 
         // Preview deposit after funded invoice but before partial claim payment
-        uint256 previewDepositBefore = vault.previewDeposit(initialDeposit);
+        uint256 previewDepositBeforePayment = vault.previewDeposit(initialDeposit);
+
+        assertGt(previewDepositBeforeFunding, previewDepositBeforePayment, "Accrued interest should be greater than 0");
 
         uint256 halfOfInvoiceAmount = invoiceAmount / 2;
         // Debtor pays half of the invoice
@@ -604,7 +608,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // Preview deposit after funded invoice but before partial claim payment
         uint256 previewDepositAfterHalfPay = vault.previewDeposit(initialDeposit);
         
-        assertEq(previewDepositAfterHalfPay, previewDepositBefore, "payments that have not generated profit should not change accrued interest");
+        assertEq(previewDepositAfterHalfPay, previewDepositBeforePayment, "payments that have not generated profit should not change accrued interest");
 
         uint256 invoiceRemainder = invoiceAmount - halfOfInvoiceAmount;
 
