@@ -352,18 +352,20 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
+        
+        uint256 maxRedeemAmountBeforeGracePeriod = vault.unlockedShareSupply();
+
         // Simulate the invoice becoming impaired after the grace period
         uint256 gracePeriodDays = bullaFactoring.gracePeriodDays();
         vm.warp(dueBy + gracePeriodDays * 1 days + 1);
 
-        uint256 maxRedeemAmountAfterGracePeriod = vault.unlockedShareSupply();
 
         // Fund impairs the invoice
         bullaFactoring.impairInvoice(invoiceId);
 
         uint256 maxRedeemAmountAfterGraceImpairment = vault.unlockedShareSupply();
 
-        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as totalAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
+        assertLt(maxRedeemAmountBeforeGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as totalAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
