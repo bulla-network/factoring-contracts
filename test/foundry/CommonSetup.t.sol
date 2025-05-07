@@ -15,9 +15,11 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
+import "contracts/BullaFactoringVault.sol";
 
 contract CommonSetup is Test {
     BullaFactoringV2 public bullaFactoring;
+    BullaFactoringVault public vault;
     BullaClaimInvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
@@ -48,7 +50,7 @@ contract CommonSetup is Test {
     string poolTokenName = 'Test Bulla Factoring Pool Token';
     string poolTokenSymbol = 'BFT-Test';
 
-    function setUp() public {
+    function setUp() virtual public {
         asset = new MockUSDC();
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();
@@ -68,16 +70,22 @@ contract CommonSetup is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
+        vault = new BullaFactoringVault(address(this), asset, 9, address(depositPermissions), poolTokenName, poolTokenSymbol);
+
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
+
+        vault.authorizeFactoringFund(address(bullaFactoring));
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
 
         vm.startPrank(alice);
+        asset.approve(address(vault), 1000 ether);
         asset.approve(address(bullaFactoring), 1000 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
+        asset.approve(address(vault), 1000 ether);
         asset.approve(address(bullaFactoring), 1000 ether);
         vm.stopPrank();
     }
@@ -90,7 +98,7 @@ contract CommonSetup is Test {
         if (fundingAmount > 0) {
             asset.mint(user, fundingAmount);
             vm.startPrank(user);
-            asset.approve(address(bullaFactoring), fundingAmount);
+            asset.approve(address(vault), fundingAmount);
             vm.stopPrank();
         }
     }

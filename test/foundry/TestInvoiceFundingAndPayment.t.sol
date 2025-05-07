@@ -28,7 +28,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -52,7 +52,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         uint256 actualDaysUntilPayment = 30;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1e18);
 
         // Debtor pays the invoice
         vm.startPrank(alice);
@@ -62,7 +62,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
+        uint pricePerShareAfterReconciliation = vault.previewRedeem(1e18);
     
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
     }
@@ -75,7 +75,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -94,7 +94,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps);
         vm.stopPrank();
 
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+        uint pricePerShareBeforeReconciliation = vault.previewRedeem(1e18);
 
         // Debtor pays the invoice
         vm.startPrank(alice);
@@ -102,11 +102,10 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
-    
+        uint pricePerShareAfterReconciliation = vault.previewRedeem(1e18);
+        
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should change even if invoice repaid immediately");
     }
 
@@ -117,7 +116,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the 2 invoices
@@ -152,7 +151,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 9000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         dueBy = block.timestamp + 7 days;
@@ -186,7 +185,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         assertEq(targetInterest02, targetInterest01, "Target interest should be the same for both invoices as min days for interest to be charged is 30 days");
 
-        uint capitalAccountAfterInvoice0 = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountAfterInvoice0 = vault.calculateCapitalAccount();
 
         // alice pays both invoices, at different times
         vm.startPrank(alice);
@@ -198,7 +197,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
         
-        uint capitalAccountAfterInvoice1 = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountAfterInvoice1 = vault.calculateCapitalAccount();
 
         // Simulate debtor paying second invoice in 30 days
         vm.warp(block.timestamp + 28 days);
@@ -207,7 +206,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
         
-        uint capitalAccountAfterInvoice2 = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountAfterInvoice2 = vault.calculateCapitalAccount();
 
         assertEq(capitalAccountAfterInvoice2 - capitalAccountAfterInvoice1, capitalAccountAfterInvoice1 - capitalAccountAfterInvoice0, "Factoring gain should be the same for both invoices as min days for interest to be charged is 30 days");
     }
@@ -215,7 +214,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
     function testDisperseKickbackAmount() public {
         uint256 initialDeposit = 900;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint initialFactorerBalance = asset.balanceOf(bob);
@@ -263,7 +262,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
 
@@ -309,7 +308,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates two invoices
@@ -346,7 +345,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -389,7 +388,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -414,7 +413,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -444,7 +443,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // alice is allowed to factor
@@ -472,7 +471,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // alice is allowed to factor

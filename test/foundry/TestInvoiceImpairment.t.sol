@@ -30,7 +30,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         uint256 initialDeposit = 900000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -66,8 +66,12 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
+        bullaFactoring.reconcileActivePaidInvoices();
 
         uint256 dueByNew = block.timestamp + 30 days;
+
+        uint256 capitalAccountBeforeFunding = vault.calculateCapitalAccount();
+        uint256 totalAssetsBeforeFunding = vault.totalAssets();
 
         vm.startPrank(bob);
         uint invoiceId03Amount = 10000;
@@ -80,9 +84,8 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
         IBullaFactoringV2.FundInfo memory fundInfoBefore = bullaFactoring.getFundInfo();
-        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint256 totalAssetsAfterFunding = vault.totalAssets();
 
         // fund cannot impair an active invoice which is not classified as impaired
         vm.expectRevert(abi.encodeWithSignature("InvoiceNotImpaired()"));
@@ -103,11 +106,11 @@ contract TestInvoiceImpairment is CommonSetup {
         // reconcile redeemed invoice to make accounting adjustments
         bullaFactoring.reconcileActivePaidInvoices();
         IBullaFactoringV2.FundInfo memory fundInfoAfterImpairmentyFund = bullaFactoring.getFundInfo();
-        uint256 capitalAccountAfterImpair = bullaFactoring.calculateCapitalAccount();
+        uint256 capitalAccountAfterImpair = vault.calculateCapitalAccount();
 
-        assertTrue(capitalAccountBefore > capitalAccountAfterImpair, "Realized gain decreases if invoice is impaired by fund");
+        assertTrue(capitalAccountBeforeFunding > capitalAccountAfterImpair, "Realized gain decreases if invoice is impaired by fund");
         assertTrue(fundInfoBefore.impairReserve > fundInfoAfterImpairmentyFund.impairReserve, "Impair reserve should decline after the fund has impaired an invoice");
-        assertTrue(fundInfoBefore.fundBalance < fundInfoAfterImpairmentyFund.fundBalance, "Fund balance should rise after fund impaired an invoice");
+        assertTrue(totalAssetsAfterFunding < totalAssetsBeforeFunding, "Total assets should rise after fund impaired an invoice");
 
         // cannot unfactor again the same invoice
         vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyImpairedByFund()"));
@@ -124,8 +127,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        IBullaFactoringV2.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
-        uint256 capitalAccountAfterPayment = bullaFactoring.calculateCapitalAccount();
+        uint256 capitalAccountAfterPayment = vault.calculateCapitalAccount();
         
         assertTrue(capitalAccountAfterImpair < capitalAccountAfterPayment, "Realized gain increases when invoice impaired by fund gets paid");
     }
@@ -136,7 +138,7 @@ contract TestInvoiceImpairment is CommonSetup {
 
         uint256 initialDeposit = 900000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 dueByNew = block.timestamp + 30 days;

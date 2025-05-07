@@ -24,7 +24,7 @@ contract TestDepositAndRedemption is CommonSetup {
     function testWhitelistDeposit() public {
         vm.startPrank(userWithoutPermissions);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.deposit(1 ether, alice);
+        vault.deposit(1 ether, alice);
         vm.stopPrank();
     }
     
@@ -32,12 +32,12 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 initialBalanceAlice = asset.balanceOf(alice);
         uint256 initialDepositAlice = 10 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDepositAlice, alice);
+        vault.deposit(initialDepositAlice, alice);
         vm.stopPrank();
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
 
         uint256 aliceBalanceAfterRedemption = asset.balanceOf(alice);
@@ -46,18 +46,18 @@ contract TestDepositAndRedemption is CommonSetup {
         // New depositor Bob comes in
         uint256 initialDepositBob = 20 ether;
         vm.startPrank(bob);
-        bullaFactoring.deposit(initialDepositBob, bob);
+        vault.deposit(initialDepositBob, bob);
         vm.stopPrank();
 
-        assertEq(1000, bullaFactoring.previewRedeem(1000), "Price should go back to the scaling factor for new depositor in empty asset vault");
+        assertEq(0, vault.previewRedeem(1000), "Price should be 0 if there are no assets in the vault");
     }
     
     function testAvailableAssetsLessThanTotal() public {
         // Alice deposits into the fund
         uint256 initialDepositAlice = 20000000000000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDepositAlice);
-        bullaFactoring.deposit(initialDepositAlice, alice);
+        asset.approve(address(vault), initialDepositAlice);
+        vault.deposit(initialDepositAlice, alice);
         vm.stopPrank();
 
         // Bob funds an invoice
@@ -81,12 +81,12 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve();
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), bullaFactoring.totalAssets() + fees, "Available Assets should be lower than total assets by the sum of fees");
+        assertEq(asset.balanceOf(address(bullaFactoring)), fees, "Available Assets should be lower than total assets by the sum of fees");
     }
 
     function testInvestorRedeemsAllFunds() public {
-        assertEq(bullaFactoring.totalSupply(), 0, "Total supply should be 0");
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should start at 0");
+        assertEq(vault.totalSupply(), 0, "Total supply should be 0");
+        assertEq(vault.balanceOf(alice), 0, "Alice's balance should start at 0");
 
         dueBy = block.timestamp + 60 days; // Invoice due in 60 days
         uint256 invoiceAmount = 100000; // Invoice amount is $100000
@@ -97,7 +97,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -130,7 +130,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        uint redeemedAmount = bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        uint redeemedAmount = vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
 
         uint aliceBalanceAfterRedemption = asset.balanceOf(alice);
@@ -139,7 +139,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertGt(aliceBalanceAfterRedemption + invoiceAmount, aliceInitialBalance , "Alice's balance should be greater than her initial deposit after redemption");
 
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should be 0 after full redemption");
+        assertEq(vault.balanceOf(alice), 0, "Alice's balance should be 0 after full redemption");
 
         bullaFactoring.withdrawAdminFees(); 
     }
@@ -152,7 +152,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -185,11 +185,11 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
 
-        assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
+        assertEq(vault.unlockedShareSupply(), 0, "maxRedeem should be zero");
+        assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
     }
 
     function testDepositAndRedemptionWithImpairReserve() public {
@@ -204,7 +204,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint256 initialDeposit = 3000000; // deposit 3 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -242,15 +242,15 @@ contract TestDepositAndRedemption is CommonSetup {
         // reconcile redeemed invoice to adjust the price
         bullaFactoring.reconcileActivePaidInvoices();
        
-        assertEq(bullaFactoring.totalAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
-        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.totalAssets(), vault.calculateCapitalAccount(), "Available assets should be equal to capital account");
+        assertEq(vault.balanceOf(alice), vault.unlockedShareSupply(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = bullaFactoring.maxRedeem();
+        uint amountToRedeem = vault.unlockedShareSupply();
 
         // Alice redeems all her shares
         vm.prank(alice);
-        bullaFactoring.redeem(amountToRedeem, alice, alice);
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vault.redeem(amountToRedeem, alice, alice);
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
 
         // withdraw all fess
@@ -262,6 +262,7 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
         vm.stopPrank();
 
+        assertEq(asset.balanceOf(address(vault)), 0, "Bulla Factoring vault should have no balance left");
         assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
     }
 
@@ -273,7 +274,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint256 initialDeposit = 20000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -306,12 +307,12 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
 
-        assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        assertEq(vault.unlockedShareSupply(), 0, "maxRedeem should be zero");
+        assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
 
         // withdraw all fess
         bullaFactoring.withdrawAdminFees();
@@ -333,7 +334,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint256 initialDeposit = 10000000;
         vm.startPrank(alice);
-        uint shares1 = bullaFactoring.deposit(initialDeposit, alice);
+        uint shares1 = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -357,7 +358,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Alice deposits again
         vm.startPrank(alice);
-        uint shares2 = bullaFactoring.deposit(initialDeposit, alice);
+        uint shares2 = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         assertGt(shares1, shares2, "Shares issued should be reduced when there is accrued interest in the pool");
@@ -371,7 +372,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         uint256 initialDeposit = 100000000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -399,7 +400,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), adminFee + targetInterest + targetProtocolFee, "There should be no assets left in the pool, net of fees");
+        assertEq(asset.balanceOf(address(bullaFactoring)) + asset.balanceOf(address(vault)), adminFee + targetInterest + targetProtocolFee, "There should be no assets left in the pool, net of fees");
 
         // Alice never pays the invoices
         // fund owner impaires both invoices
@@ -410,7 +411,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Alice deposits again
         vm.startPrank(alice);
-        uint shares = bullaFactoring.deposit(initialDeposit, alice);
+        uint shares = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         assertGt(shares, 0, "Shares still get issued if there are no profits and all depositors money is lost");
@@ -425,11 +426,11 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Preview redeem before funding invoice
-        uint256 previewRedeem1 = bullaFactoring.previewRedeem(bullaFactoring.balanceOf(alice) / 2);
+        uint256 previewRedeem1 = vault.previewRedeem(vault.balanceOf(alice) / 2);
 
         // Creditor creates the invoice
         vm.startPrank(bob);
@@ -448,13 +449,13 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview redeem after funding invoice
-        uint256 previewRedeem2 = bullaFactoring.previewRedeem(bullaFactoring.balanceOf(alice) / 2);
+        uint256 previewRedeem2 = vault.previewRedeem(vault.balanceOf(alice) / 2);
 
         assertEq(previewRedeem1, previewRedeem2, "previewed redemption amounts should be the same after invoice funded");
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        uint256 redemption = bullaFactoring.redeem(bullaFactoring.balanceOf(alice) / 2, alice, alice);
+        uint256 redemption = vault.redeem(vault.balanceOf(alice) / 2, alice, alice);
         vm.stopPrank();
 
         assertEq(previewRedeem2, redemption, "previewed redemption amount is the same as actual redemption amount");
@@ -469,11 +470,11 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Preview withdraw before funding invoice
-        uint256 previewWithdraw1 = bullaFactoring.previewWithdraw(initialDeposit / 2);
+        uint256 previewWithdraw1 = vault.previewWithdraw(initialDeposit / 2);
 
         // Creditor creates the invoice
         vm.startPrank(bob);
@@ -492,13 +493,13 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview withdraw after funding invoice
-        uint256 previewWithdraw2 = bullaFactoring.previewWithdraw(initialDeposit / 2);
+        uint256 previewWithdraw2 = vault.previewWithdraw(initialDeposit / 2);
 
         assertEq(previewWithdraw1, previewWithdraw2, "previewed withdrawal amounts should be the same after invoice funded");
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
-        uint256 withdrawal = bullaFactoring.withdraw(initialDeposit / 2, alice, alice);
+        uint256 withdrawal = vault.withdraw(initialDeposit / 2, alice, alice);
         vm.stopPrank();
 
         assertEq(previewWithdraw2, withdrawal, "previewed withdrawal amount is the same as actual withdrawal amount");
@@ -513,19 +514,19 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         // Preview deposit before everything
-        uint256 previewDeposit0 = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDeposit0 = vault.previewDeposit(initialDeposit);
 
         vm.startPrank(alice);
-        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        uint256 deposit0 = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         assertEq(previewDeposit0, deposit0, "previewed deposit amount is the same as actual deposit amount");
 
         // Preview deposit before funding invoice
-        uint256 previewDeposit1 = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDeposit1 = vault.previewDeposit(initialDeposit);
 
         vm.startPrank(alice);
-        uint256 deposit1 = bullaFactoring.deposit(initialDeposit, alice);
+        uint256 deposit1 = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         assertEq(previewDeposit1, deposit1, "previewed deposit amount is the same as actual deposit amount");
@@ -547,13 +548,13 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview deposit after funding invoice
-        uint256 previewDeposit2 = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDeposit2 = vault.previewDeposit(initialDeposit);
 
         assertLt(previewDeposit2, previewDeposit1, "depositing after an invoice is funded should grant less shares than before");
 
         // Alice deposits again
         vm.startPrank(alice);
-        uint256 deposit2 = bullaFactoring.deposit(initialDeposit, alice);
+        uint256 deposit2 = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         assertEq(previewDeposit2, deposit2, "previewed deposit amount is the same as actual deposit amount");
@@ -568,7 +569,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -580,6 +581,8 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, 0);
         vm.stopPrank();
+        
+        uint256 previewDepositBeforeFunding = vault.previewDeposit(initialDeposit);
 
         // creditor funds the invoice
         vm.startPrank(bob);
@@ -591,7 +594,9 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.warp(block.timestamp + 1 days);
 
         // Preview deposit after funded invoice but before partial claim payment
-        uint256 previewDepositBefore = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositBeforePayment = vault.previewDeposit(initialDeposit);
+
+        assertGt(previewDepositBeforeFunding, previewDepositBeforePayment, "Accrued interest should be greater than 0");
 
         uint256 halfOfInvoiceAmount = invoiceAmount / 2;
         // Debtor pays half of the invoice
@@ -601,9 +606,9 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
         
         // Preview deposit after funded invoice but before partial claim payment
-        uint256 previewDepositAfterHalfPay = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterHalfPay = vault.previewDeposit(initialDeposit);
         
-        assertEq(previewDepositAfterHalfPay, previewDepositBefore, "payments that have not generated profit should not change accrued interest");
+        assertEq(previewDepositAfterHalfPay, previewDepositBeforePayment, "payments that have not generated profit should not change accrued interest");
 
         uint256 invoiceRemainder = invoiceAmount - halfOfInvoiceAmount;
 
@@ -614,14 +619,14 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview deposit after claim payment
-        uint256 previewDepositAfterFullPay = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterFullPay = vault.previewDeposit(initialDeposit);
         
         assertEq(previewDepositAfterFullPay, previewDepositAfterHalfPay, "Should get equal shares after full invoice payment");
 
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Preview deposit after reconciliation
-        uint256 previewDepositAfterReconciliation = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterReconciliation = vault.previewDeposit(initialDeposit);
         
         assertEq(previewDepositAfterFullPay, previewDepositAfterReconciliation, "Reconciliation should not change deposit value");
     }
@@ -635,7 +640,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -655,13 +660,13 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // Preview deposit before impairment
-        uint256 previewDepositAtFunding = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAtFunding = vault.previewDeposit(initialDeposit);
 
         // Around due date
         vm.warp(block.timestamp + 30 days);
 
         // Preview deposit before impairment
-        uint256 previewDepositBeforeImpairment = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositBeforeImpairment = vault.previewDeposit(initialDeposit);
 
         assertGt(previewDepositAtFunding, previewDepositBeforeImpairment, "Accrued interest should increase therefore a depositor gets less shares");
 
@@ -669,7 +674,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.warp(block.timestamp + 120 days);
 
         // Preview deposit after impairment
-        uint256 previewDepositAfterImpairment = bullaFactoring.previewDeposit(initialDeposit);
+        uint256 previewDepositAfterImpairment = vault.previewDeposit(initialDeposit);
         
         assertGt(previewDepositAfterImpairment, previewDepositBeforeImpairment, "Accrued interest should have decreased therefore a depositor gets more shares");
     }
@@ -677,7 +682,7 @@ contract TestDepositAndRedemption is CommonSetup {
     function testOnlyAuthorizedDepositorsCanRedeem() public {
         vm.startPrank(userWithoutPermissions);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.redeem(1 ether, userWithoutPermissions, alice);
+        vault.redeem(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
     }
 
@@ -686,21 +691,21 @@ contract TestDepositAndRedemption is CommonSetup {
         
         // Alice deposits
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
 
         // Alice sends BFTs to unauthorized user
-        uint sharesBalance = bullaFactoring.balanceOf(alice);
-        IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
+        uint sharesBalance = vault.balanceOf(alice);
+        IERC20(address(vault)).transfer(userWithoutPermissions, sharesBalance);
 
         // unauthorized user permits Alice
         vm.startPrank(userWithoutPermissions);
-        IERC20(address(bullaFactoring)).approve(alice, initialDeposit);
+        IERC20(address(vault)).approve(alice, initialDeposit);
         vm.stopPrank();
 
         vm.startPrank(alice);
         // Alice calls redeem/withdraw for unauthorized user
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.redeem(sharesBalance, userWithoutPermissions, userWithoutPermissions);
+        vault.redeem(sharesBalance, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
 
@@ -720,19 +725,21 @@ contract TestDepositAndRedemption is CommonSetup {
         permitUser(secondDepositor, true, secondDepositAmount);
 
         vm.startPrank(firstDepositor);
-        uint256 firstDepositorShares = bullaFactoring.deposit(firstDepositAmount, firstDepositor);
+        uint256 firstDepositorShares = vault.deposit(firstDepositAmount, firstDepositor);
         vm.stopPrank();
 
         // Inflation isn't tracked due to internal accounting logic
         vm.prank(address(firstDepositor));
-        asset.transfer(address(bullaFactoring), inflationAmount);
+        asset.transfer(address(vault), inflationAmount);
 
         vm.startPrank(secondDepositor);
-        uint256 secondDepositorShares = bullaFactoring.deposit(secondDepositAmount, secondDepositor);
+        uint256 secondDepositorShares = vault.deposit(secondDepositAmount, secondDepositor);
+        uint256 secondDepositorAmountAfter = vault.redeem(secondDepositorShares, secondDepositor, secondDepositor);
         vm.stopPrank();
 
-        assertEq(firstDepositorShares, 1, "First depositor should have 1 share");
-        assertEq(secondDepositorShares, 1e18, "Second depositor should have 1e18 shares");
+        uint256 actualSecondDepositorPriceImpactBps = (secondDepositAmount - secondDepositorAmountAfter) * 100_00 / secondDepositAmount;
+
+        assertEq(firstDepositorShares, 1e9, "First depositor should have 1e9 shares");
+        assertEq(actualSecondDepositorPriceImpactBps, 0, "The price impact is so low, it rounds to 0");
     }
 }
-

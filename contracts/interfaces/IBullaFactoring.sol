@@ -26,23 +26,14 @@ interface IBullaFactoringV2 {
         uint16 adminFeeBps;
     }
 
-    struct Multihash {
-        bytes32 hash;
-        uint8 hashFunction;
-        uint8 size;
-    }
-
     struct FundInfo {
         string name;
         uint256 creationTimestamp;
-        uint256 fundBalance;
         uint256 deployedCapital;
-        uint256 capitalAccount;
-        uint256 price;
-        uint256 tokensAvailableForRedemption;
         uint16 adminFeeBps;
         uint256 impairReserve;
         uint256 targetYieldBps;
+        int256 pnl;
     }
 
     struct ImpairmentDetails {
@@ -61,14 +52,11 @@ interface IBullaFactoringV2 {
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 adminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint interestToCharge);
-    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
-    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
     event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
-    event DepositPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
     event ImpairReserveChanged(uint256 newImpairReserve);
@@ -76,7 +64,6 @@ interface IBullaFactoringV2 {
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;
-    function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);
     function reconcileActivePaidInvoices() external;
