@@ -13,7 +13,13 @@
     "moduleFactoryAddress": "0xCf4254cF35EB7F13B7e02bA774f5502f5f5C7A7d",
     "bullaModuleMasterCopyAddress": "0xAA6E5B4E34f3C3BA4D90694909dca7DDdf058079",
     "bullaFinanceAddress": "0x5369F71e1Fe238f0e6D938c734E2D2aE7296F362",
-    "frendLendAddress": "0xbAB429068fc4A5455849f58C4Bf04F398e8006c1"
+    "frendLendAddress": "0xbAB429068fc4A5455849f58C4Bf04F398e8006c1",
+    "0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5": {
+      "name": "Bulla TCS Settlement Pool - Mainnet V2",
+      "bullaClaimInvoiceProviderAdapter": "0xE14E624b29BcDa2ec409BBBf97037fEDe3803797",
+      "depositPermissions": "0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6",
+      "factoringPermissions": "0x1c534661326b41c8b8aab5631ECED6D9755ff192"
+    }
   },
   "4": {
     "name": "Testnet Rinkeby",

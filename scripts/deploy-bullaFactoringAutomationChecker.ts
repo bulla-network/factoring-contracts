@@ -1,17 +1,36 @@
 import { writeFileSync } from 'fs';
 import hre from 'hardhat';
 import addresses from '../automation-addresses.json';
+import { getNetworkFromEnv, verifyContract } from './deploy-utils';
 
 export const deployBullaFactoringAutomationChecker = async function () {
     const { deployments, getNamedAccounts, getChainId } = hre;
     const { deploy } = deployments;
     const { deployer } = await getNamedAccounts();
 
+    // Get the network from environment variable
+    const network = getNetworkFromEnv();
+    console.log(`Using network: ${network}`);
+
+    console.log('Deploying Bulla Factoring Automation Checker...');
+
     // deploy factoring automation checker
     const { address: bullaFactoringAutomationCheckerAddress } = await deploy('BullaFactoringAutomationChecker', {
         from: deployer,
         args: [],
     });
+
+    console.log(`Bulla Factoring Automation Checker deployed: ${bullaFactoringAutomationCheckerAddress}`);
+
+    // Add verification step
+    console.log('Verifying Bulla Factoring Automation Checker...');
+    await verifyContract(
+        bullaFactoringAutomationCheckerAddress,
+        [], // No constructor arguments
+        network,
+        'contracts/BullaFactoringAutomationChecker.sol:BullaFactoringAutomationChecker',
+    );
+    console.log(`Bulla Factoring Automation Checker verified: ${bullaFactoringAutomationCheckerAddress}`);
 
     const chainId = await getChainId();
 
@@ -29,15 +48,16 @@ export const deployBullaFactoringAutomationChecker = async function () {
         currentTime: now.toISOString(),
         bullaFactoringAutomationCheckerAddress,
     };
-    console.log('Bulla Factoring Automation Checker Deployment Address: \n', bullaFactoringAutomationCheckerAddress);
 
     return deployInfo;
 };
 
-// uncomment this line to run the script individually
-deployBullaFactoringAutomationChecker()
-    .then(() => process.exit(0))
-    .catch(error => {
-        console.error(error);
-        process.exit(1);
-    });
+// Only run the function if this script is being executed directly
+if (require.main === module) {
+    deployBullaFactoringAutomationChecker()
+        .then(() => process.exit(0))
+        .catch(error => {
+            console.error(error);
+            process.exit(1);
+        });
+}
