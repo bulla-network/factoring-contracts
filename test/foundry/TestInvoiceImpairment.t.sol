@@ -85,7 +85,6 @@ contract TestInvoiceImpairment is CommonSetup {
         vm.stopPrank();
 
         IBullaFactoringV2.FundInfo memory fundInfoBefore = bullaFactoring.getFundInfo();
-        uint256 capitalAccountAfterFunding = vault.calculateCapitalAccount();
         uint256 totalAssetsAfterFunding = vault.totalAssets();
 
         // fund cannot impair an active invoice which is not classified as impaired

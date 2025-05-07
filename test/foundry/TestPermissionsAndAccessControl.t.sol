@@ -40,7 +40,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         daoMock.setHasPermissionReturnValueMock(true);
 
         vault = new BullaFactoringVault(address(this), asset, 9, address(permissionsWithAragon), poolName, poolTokenSymbol);
-        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
+        new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -53,7 +53,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         daoMock.setHasPermissionReturnValueMock(false);
         
         vault = new BullaFactoringVault(address(this), asset, 9, address(permissionsWithAragon), poolName, poolTokenSymbol);
-        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
+        new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield);
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -67,7 +67,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         daoMock.setHasPermissionReturnValueMock(true);
         
         vault = new BullaFactoringVault(address(this), asset, 9, address(permissionsWithSafe), poolName, poolTokenSymbol);
-        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield) ;
+        new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, vault, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);

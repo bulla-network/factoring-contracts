@@ -21,6 +21,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     error NotFundRequester(address, uint256);
     error InvalidAmount(uint256);
     error UnauthorizedDeposit(address caller);
+    error InvalidUnderlyingAsset(address, address);
 
     /// @notice The decimals offset for the vault
     uint8 private __decimalsOffset;
@@ -41,7 +42,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     mapping(uint256 => address) private _fundRequesterByClaimId;
     
     /// @notice The global total of capital at risk across all funds
-    uint256 private _globalTotalAtRiskCapital;
+    uint256 public globalTotalAtRiskCapital;
 
     /// @notice Event emitted when a factoring fund is authorized
     event FactoringFundAuthorized(address indexed fund);
@@ -59,7 +60,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     //////////////////////////////////////////////
 
     function calculateCapitalAccount() public view returns (uint256) {
-        return totalAssets() + _globalTotalAtRiskCapital - impairedCapital();
+        return totalAssets() + globalTotalAtRiskCapital - impairedCapital();
     }
 
     /// @notice Helper function to handle the logic of funding a claim
@@ -78,7 +79,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
 
         _fundRequesterByClaimId[claimId] = fund;
         _atRiskCapitalByClaimId[claimId] = amount;
-        _globalTotalAtRiskCapital += amount;
+        globalTotalAtRiskCapital += amount;
     }
 
     /// @notice Helper function to handle the logic of marking a claim as paid
@@ -103,7 +104,7 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
 
         if (currentAtRiskCapitalForClaimId != 0) {
             _atRiskCapitalByClaimId[claimId] = 0;
-            _globalTotalAtRiskCapital -= currentAtRiskCapitalForClaimId;
+            globalTotalAtRiskCapital -= currentAtRiskCapitalForClaimId;
         }
     }
 
@@ -123,12 +124,6 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
         }
 
         return _impairedCapital;
-    }
-
-    /// @notice Returns the total amount of capital at risk across all funds
-    /// @return The global total of capital at risk
-    function globalTotalAtRiskCapital() external view returns (uint256) {
-        return _globalTotalAtRiskCapital;
     }
     
     /// @notice Returns all authorized factoring funds
@@ -300,10 +295,11 @@ contract BullaFactoringVault is ERC4626, IBullaFactoringVault, Ownable {
     /// @param fund The address of the factoring fund to authorize
     function authorizeFactoringFund(address fund) external onlyOwner {
         if (authorizedFactoringFunds[fund]) revert FundAlreadyAuthorized(fund);
+        IFactoringFund newFund = IFactoringFund(fund);
+        if (address(newFund.underlyingAsset()) != asset()) revert InvalidUnderlyingAsset(address(newFund.underlyingAsset()), asset());
         
         authorizedFactoringFunds[fund] = true;
         _authorizedFundsList.push(fund);
-        
         emit FactoringFundAuthorized(fund);
     }
     
