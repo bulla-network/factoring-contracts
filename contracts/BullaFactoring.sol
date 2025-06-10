@@ -180,22 +180,17 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return protocolFee The calculated protocol fee amount
     /// @return adminFee The calculated admin fee amount
     function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest, uint256 currentFullInvoiceAmount) private pure returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
-        uint256 interestAprBps = approval.interestApr;
-        uint256 interestAprMbps = interestAprBps * 1000;
-
         // Calculate the APR discount for the payment period
         // millibips used due to the small nature of the fees
-        uint256 interestRateMbps = Math.mulDiv(interestAprMbps, daysOfInterest, 365);
-
-        // calculate the APR discount with protocols fee
-        // millibips used due to the small nature of the fees
-        uint256 interestAndProtocolFeeMbps = Math.mulDiv(interestRateMbps, (10000 + uint256(approval.protocolFeeBps)), 10000);
+        uint256 interestRateMbps = Math.mulDiv(uint256(approval.interestApr) * 1000, daysOfInterest, 365);
         
         // Calculate the admin fee rate
         uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.adminFeeBps) * 1000, daysOfInterest, 365);
+
+        uint256 protocolFeeRateMbps = Math.mulDiv(uint256(approval.protocolFeeBps) * 1000, daysOfInterest, 365);
         
         // Calculate the total fee rate Mbps (interest + protocol fee + admin fee)
-        uint256 totalFeeRateMbps = interestAndProtocolFeeMbps + adminFeeRateMbps;
+        uint256 totalFeeRateMbps = interestRateMbps + adminFeeRateMbps + protocolFeeRateMbps;
         
         // cap total fees to max available to distribute
         // V2 update: what is available to distribute now also includes potential interest on the underlying invoice
@@ -204,17 +199,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Calculate total fees
         uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(currentFullInvoiceAmount - approval.initialPaidAmount, totalFeeRateMbps, 10_000_000));
         
-        // Calculate the interest and protocol fee
-        uint256 interestAndProtocolFee = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, interestAndProtocolFeeMbps, totalFeeRateMbps);
-        
-        // Calculate the true interest
-        interest = interestAndProtocolFeeMbps == 0 ? 0 : Math.mulDiv(interestAndProtocolFee, interestRateMbps, interestAndProtocolFeeMbps);
-
-        // Calculate true protocol fee
-        protocolFee = interestAndProtocolFee - interest;
-
-        // Calculate true admin fee
-        adminFee = totalFees - interestAndProtocolFee;
+        adminFee = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, adminFeeRateMbps, totalFeeRateMbps);
+        interest = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, interestRateMbps, totalFeeRateMbps);
+        protocolFee = totalFees - adminFee - interest;
 
         return (interest, protocolFee, adminFee);
     }
@@ -768,8 +755,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Allows the Bulla DAO to withdraw accumulated protocol fees.
-    function withdrawProtocolFees() external {
-        if (msg.sender != bullaDao) revert CallerNotBullaDao();
+    function withdrawProtocolFees() external onlyBullaDao {
         uint256 feeAmount = protocolFeeBalance;
         if (feeAmount == 0) revert NoFeesToWithdraw();
         protocolFeeBalance = 0;
@@ -788,7 +774,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Updates the Bulla DAO address
     /// @param _newBullaDao The new address for the Bulla DAO
-    function setBullaDaoAddress(address _newBullaDao) public onlyOwner {
+    function setBullaDaoAddress(address _newBullaDao) public onlyBullaDao {
         if (_newBullaDao == address(0)) revert InvalidAddress();
         bullaDao = _newBullaDao;
         emit BullaDaoAddressChanged(bullaDao, _newBullaDao);
@@ -796,7 +782,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Updates the protocol fee in basis points (bps)
     /// @param _newProtocolFeeBps The new protocol fee in basis points
-    function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyOwner {
+    function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyBullaDao {
         if (_newProtocolFeeBps > 10000) revert InvalidPercentage();
         protocolFeeBps = _newProtocolFeeBps;
         emit ProtocolFeeBpsChanged(protocolFeeBps, _newProtocolFeeBps);
@@ -897,5 +883,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         });
 
         emit InvoiceImpaired(invoiceId, fundedAmount, impairAmount);
+    }
+
+    modifier onlyBullaDao() {
+        if (msg.sender != bullaDao) revert CallerNotBullaDao();
+        _;
     }
 }
