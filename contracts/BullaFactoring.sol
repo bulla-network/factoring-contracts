@@ -50,6 +50,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Permissions contracts for deposit and factoring
     Permissions public depositPermissions;
+    Permissions public redeemPermissions;
     Permissions public factoringPermissions;
 
     /// Mapping of paid invoices ID to track gains/losses
@@ -109,6 +110,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapterV2 _invoiceProviderAdapter, 
         address _underwriter,
         Permissions _depositPermissions,
+        Permissions _redeemPermissions,
         Permissions _factoringPermissions,
         address _bullaDao,
         uint16 _protocolFeeBps,
@@ -125,6 +127,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         invoiceProviderAdapter = _invoiceProviderAdapter;
         underwriter = _underwriter;
         depositPermissions = _depositPermissions;
+        redeemPermissions = _redeemPermissions;
         factoringPermissions = _factoringPermissions;
         bullaDao = _bullaDao;
         protocolFeeBps = _protocolFeeBps;
@@ -692,8 +695,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param assets The amount of assets to withdraw
     /// @return The number of shares redeemed
     function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
-        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
+        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
  
         uint256 shares = super.withdraw(assets, receiver, _owner);
 
@@ -707,8 +710,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _owner The owner of the shares being redeemed
     /// @return The number of shares redeemed
     function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
-        if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!depositPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
+        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
         
         uint256 assets = super.redeem(shares, receiver, _owner);
 
@@ -805,6 +808,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function setDepositPermissions(address _newDepositPermissionsAddress) public onlyOwner {
         depositPermissions = Permissions(_newDepositPermissionsAddress);
         emit DepositPermissionsChanged(_newDepositPermissionsAddress);
+    }
+
+    /// @notice Updates the redeem permissions contract
+    /// @param _newRedeemPermissionsAddress The new redeem permissions contract address
+    function setRedeemPermissions(address _newRedeemPermissionsAddress) public onlyOwner {
+        redeemPermissions = Permissions(_newRedeemPermissionsAddress);
+        emit RedeemPermissionsChanged(_newRedeemPermissionsAddress);
     }
 
     /// @notice Updates the factoring permissions contract

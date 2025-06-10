@@ -575,4 +575,191 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertTrue(realizedInterest1 > realizedInterest2, "Realized interest should be higher for 10% APR than 0% APR");
         assertEq(realizedInterest2, 0, "Realized interest should be 0 for 0% APR");
     }
+
+    function testDepositAndRedeemPermissionsAreDifferent() public {
+        address depositor = makeAddr("depositor");
+        address redeemer = makeAddr("redeemer");
+        uint256 depositAmount = 100000;
+
+        // Give both users some tokens
+        vm.startPrank(address(this));
+        asset.mint(depositor, depositAmount);
+        vm.stopPrank();
+
+        // Initially, both users should not have any permissions
+        vm.startPrank(depositor);
+        asset.approve(address(bullaFactoring), depositAmount);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", depositor));
+        bullaFactoring.deposit(depositAmount, depositor);
+        vm.stopPrank();
+
+        vm.startPrank(redeemer);
+        asset.approve(address(bullaFactoring), depositAmount);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", redeemer));
+        bullaFactoring.deposit(depositAmount, redeemer);
+        vm.stopPrank();
+
+        // Grant only deposit permission to depositor
+        vm.startPrank(address(this));
+        depositPermissions.allow(depositor);
+        vm.stopPrank();
+
+        // Grant only redeem permission to redeemer
+        vm.startPrank(address(this));
+        redeemPermissions.allow(redeemer);
+        vm.stopPrank();
+
+        // Depositor should be able to deposit but not redeem
+        vm.startPrank(depositor);
+        uint256 shares = bullaFactoring.deposit(depositAmount, depositor);
+        assertTrue(shares > 0, "Depositor should receive shares");
+        
+        // Depositor should not be able to redeem (no redeem permission)
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", depositor));
+        bullaFactoring.redeem(shares, depositor, depositor);
+        vm.stopPrank();
+
+        // Redeemer should not be able to deposit (no deposit permission)
+        vm.startPrank(redeemer);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", redeemer));
+        bullaFactoring.deposit(depositAmount, redeemer);
+        vm.stopPrank();
+
+        // Transfer shares from depositor to redeemer to test redemption
+        vm.startPrank(depositor);
+        bullaFactoring.transfer(redeemer, shares);
+        vm.stopPrank();
+
+        // Redeemer should be able to redeem the transferred shares
+        vm.startPrank(redeemer);
+        uint256 redeemedAssets = bullaFactoring.redeem(shares, redeemer, redeemer);
+        assertTrue(redeemedAssets > 0, "Redeemer should receive assets from redemption");
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(redeemer), depositAmount, "Redeemer should receive the deposited amount back");
+    }
+
+    function testCanChangeDepositAndRedeemPermissionsIndependently() public {
+        address user = makeAddr("user");
+        uint256 depositAmount = 100000;
+
+        // Give user some tokens
+        vm.startPrank(address(this));
+        asset.mint(user, depositAmount * 2);
+        vm.stopPrank();
+
+        // Create new permission contracts
+        MockPermissions newDepositPermissions = new MockPermissions();
+        MockPermissions newRedeemPermissions = new MockPermissions();
+
+        // Allow user in new deposit permissions only
+        newDepositPermissions.allow(user);
+
+        // Update only deposit permissions
+        vm.startPrank(address(this));
+        bullaFactoring.setDepositPermissions(address(newDepositPermissions));
+        vm.stopPrank();
+
+        // User should be able to deposit with new permissions
+        vm.startPrank(user);
+        asset.approve(address(bullaFactoring), depositAmount);
+        uint256 shares = bullaFactoring.deposit(depositAmount, user);
+        assertTrue(shares > 0, "User should be able to deposit with new deposit permissions");
+
+        // User should not be able to redeem (still using old redeem permissions where user is not allowed)
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
+        bullaFactoring.redeem(shares, user, user);
+        vm.stopPrank();
+
+        // Allow user in new redeem permissions
+        newRedeemPermissions.allow(user);
+
+        // Update only redeem permissions
+        vm.startPrank(address(this));
+        bullaFactoring.setRedeemPermissions(address(newRedeemPermissions));
+        vm.stopPrank();
+
+        // Now user should be able to redeem
+        vm.startPrank(user);
+        uint256 redeemedAssets = bullaFactoring.redeem(shares, user, user);
+        assertTrue(redeemedAssets > 0, "User should be able to redeem with new redeem permissions");
+        vm.stopPrank();
+
+        // Revoke user from new deposit permissions
+        newDepositPermissions.disallow(user);
+
+        // User should not be able to deposit anymore
+        vm.startPrank(user);
+        asset.approve(address(bullaFactoring), depositAmount);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
+        bullaFactoring.deposit(depositAmount, user);
+        vm.stopPrank();
+    }
+
+    function testDepositPermissionsDoNotAffectRedemption() public {
+        address user = makeAddr("user");
+        uint256 depositAmount = 100000;
+
+        // Give user some tokens and allow both deposit and redeem initially
+        vm.startPrank(address(this));
+        asset.mint(user, depositAmount);
+        depositPermissions.allow(user);
+        redeemPermissions.allow(user);
+        vm.stopPrank();
+
+        // User deposits
+        vm.startPrank(user);
+        asset.approve(address(bullaFactoring), depositAmount);
+        uint256 shares = bullaFactoring.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        // Remove user from deposit permissions
+        vm.startPrank(address(this));
+        depositPermissions.disallow(user);
+        vm.stopPrank();
+
+        // User should still be able to redeem even without deposit permissions
+        vm.startPrank(user);
+        uint256 redeemedAssets = bullaFactoring.redeem(shares, user, user);
+        assertTrue(redeemedAssets > 0, "User should be able to redeem even without deposit permissions");
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(user), depositAmount, "User should receive full deposit amount back");
+    }
+
+    function testRedeemPermissionsDoNotAffectDeposit() public {
+        address user = makeAddr("user");
+        uint256 depositAmount = 100000;
+
+        // Give user some tokens and allow both deposit and redeem initially
+        vm.startPrank(address(this));
+        asset.mint(user, depositAmount * 2);
+        depositPermissions.allow(user);
+        redeemPermissions.allow(user);
+        vm.stopPrank();
+
+        // User deposits first time
+        vm.startPrank(user);
+        asset.approve(address(bullaFactoring), depositAmount);
+        uint256 shares1 = bullaFactoring.deposit(depositAmount, user);
+        vm.stopPrank();
+
+        // Remove user from redeem permissions
+        vm.startPrank(address(this));
+        redeemPermissions.disallow(user);
+        vm.stopPrank();
+
+        // User should still be able to deposit even without redeem permissions
+        vm.startPrank(user);
+        asset.approve(address(bullaFactoring), depositAmount);
+        uint256 shares2 = bullaFactoring.deposit(depositAmount, user);
+        assertTrue(shares2 > 0, "User should be able to deposit even without redeem permissions");
+        vm.stopPrank();
+
+        // But user should not be able to redeem
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
+        bullaFactoring.redeem(shares1 + shares2, user, user);
+        vm.stopPrank();
+    }
 }
