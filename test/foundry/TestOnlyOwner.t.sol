@@ -49,14 +49,14 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
     function testSetBullaDaoAddressOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert(abi.encodeWithSignature("CallerNotBullaDao()"));
         bullaFactoring.setBullaDaoAddress(bob);
         vm.stopPrank();
     }
 
     function testSetProtocolFeeBpsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert(abi.encodeWithSignature("CallerNotBullaDao()"));
         bullaFactoring.setProtocolFeeBps(0);
         vm.stopPrank();
     }

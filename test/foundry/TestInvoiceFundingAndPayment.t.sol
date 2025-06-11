@@ -339,7 +339,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         assertTrue(fullyUnpaidFundedAmount > partiallyPaidFundedAmount, "Funded amount for partially paid invoice should be less than fully unpaid invoice");
-        assertEq((fullyUnpaidFundedAmount / 2), partiallyPaidFundedAmount, "Funded amount for partially paid invoice should be half than fully unpaid invoice");
+        assertApproxEqAbs((fullyUnpaidFundedAmount / 2), partiallyPaidFundedAmount, 1, "Funded amount for partially paid invoice should be half than fully unpaid invoice");
     }
 
     function testPartiallyPaidInvoice() public {
@@ -500,5 +500,79 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("InvoiceTokenMismatch()"));
         bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
         vm.stopPrank();
+    }
+
+    function testProtocolFeeIndependentOfInterestRate() public {
+        uint256 initialDeposit = 5000000; // 5 USDC
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 1000000; // 1 USDC
+        upfrontBps = 8000; // 80% upfront
+
+        // Create two identical invoices
+        vm.startPrank(bob);
+        uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve first invoice with 10% APR
+        uint16 highInterestApr = 1000; // 10% APR
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, highInterestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Approve second invoice with 0% APR
+        uint16 zeroInterestApr = 0; // 0% APR
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, zeroInterestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Calculate target fees for both invoices
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+
+        // Protocol fee should be the same regardless of interest rate
+        assertApproxEqAbs(targetProtocolFee1, targetProtocolFee2, 1, "Protocol fee should be the same whether interest rate is 10% or 0%");
+        
+        // Admin fee should also be the same (independent of interest rate)
+        assertEq(adminFee1, adminFee2, "Admin fee should be the same regardless of interest rate");
+        
+        // Interest should be different
+        assertTrue(targetInterest1 > targetInterest2, "Interest should be higher for 10% APR than 0% APR");
+        assertEq(targetInterest2, 0, "Interest should be 0 for 0% APR");
+
+        // Fund both invoices
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        bullaFactoring.fundInvoice(invoiceId1, upfrontBps);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
+        vm.stopPrank();
+
+        // Simulate payment after some time
+        vm.warp(block.timestamp + 30 days);
+
+        // Pay both invoices
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount * 2);
+        bullaClaim.payClaim(invoiceId1, invoiceAmount);
+        bullaClaim.payClaim(invoiceId2, invoiceAmount);
+        vm.stopPrank();
+
+        // Get actual realized fees
+        (,uint256 realizedInterest1, uint256 realizedProtocolFee1, uint256 realizedAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,uint256 realizedInterest2, uint256 realizedProtocolFee2, uint256 realizedAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId2);
+
+        // Realized protocol fees should be the same
+        assertApproxEqAbs(realizedProtocolFee1, realizedProtocolFee2, 1, "Realized protocol fee should be the same whether interest rate is 10% or 0%");
+        
+        // Realized admin fees should be the same
+        assertEq(realizedAdminFee1, realizedAdminFee2, "Realized admin fee should be the same regardless of interest rate");
+        
+        // Realized interest should be different
+        assertTrue(realizedInterest1 > realizedInterest2, "Realized interest should be higher for 10% APR than 0% APR");
+        assertEq(realizedInterest2, 0, "Realized interest should be 0 for 0% APR");
     }
 }
