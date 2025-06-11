@@ -21,6 +21,7 @@ contract CommonSetup is Test {
     BullaClaimInvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
+    MockPermissions public redeemPermissions;
     MockPermissions public factoringPermissions;
     PermissionsWithAragon public permissionsWithAragon;
     DAOMock public daoMock;
@@ -53,6 +54,7 @@ contract CommonSetup is Test {
         invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
+        redeemPermissions = new MockPermissions();
         daoMock = new DAOMock();
         address[] memory safeOwners = new address[](2);
         safeOwners[0] = alice;
@@ -65,10 +67,12 @@ contract CommonSetup is Test {
         // Allow alice and bob for deposits, and bob for factoring
         depositPermissions.allow(alice);
         depositPermissions.allow(bob);
+        redeemPermissions.allow(alice);
+        redeemPermissions.allow(bob);
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -84,6 +88,7 @@ contract CommonSetup is Test {
 
     function permitUser(address user, bool canFactor, uint256 fundingAmount) internal {
         depositPermissions.allow(user);
+        redeemPermissions.allow(user);
         if (canFactor) {
             factoringPermissions.allow(user);
         }
