@@ -1,4 +1,4 @@
-.PHONY: test
+.PHONY: test test_invariant
 
 # include .env file and export its env vars
 # (-include to ignore error if it does not exist)
@@ -16,7 +16,8 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 constructor-args := 
 
 build  :; forge build --via-ir
-test   :; forge test -vvv --fork-url ${SEPOLIA_RPC_URL} --via-ir $(ARGS)
+test   :; forge test -vvv --fork-url ${SEPOLIA_RPC_URL} --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
+test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" $(ARGS)
 test-s   :; forge test --match-path test/foundry/TestErrorHandlingAndEdgeCases.t.sol -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 coverage   :; forge coverage -vv --fork-url ${SEPOLIA_RPC_URL} --ir-minimum --report lcov
