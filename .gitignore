@@ -1,5 +1,6 @@
 /artifacts
 /typechain/
+/typechain-types/
 /node_modules
 .env
 /cache
@@ -10,3 +11,4 @@ coverage/
 contracts/artifacts
 dist/
 .DS_Store
+typechain-types/

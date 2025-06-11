@@ -8,11 +8,11 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
-interface IBullaFactoring {
+interface IBullaFactoringV2 {
     // Structs
     struct InvoiceApproval {
         bool approved;
-        IInvoiceProviderAdapter.Invoice invoiceSnapshot;
+        IInvoiceProviderAdapterV2.Invoice invoiceSnapshot;
         uint256 validUntil;
         uint256 fundedTimestamp;
         uint16 interestApr;
@@ -20,7 +20,8 @@ interface IBullaFactoring {
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
         uint16 minDaysInterestApplied;
-        uint256 trueFaceValue;
+        uint256 initialFullInvoiceAmount;
+        uint256 initialPaidAmount;
         uint16 protocolFeeBps;
         uint16 adminFeeBps;
     }
@@ -68,10 +69,9 @@ interface IBullaFactoring {
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event DepositPermissionsChanged(address newAddress);
+    event RedeemPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
-    event TaxBalanceWithdrawn(address indexed receiver, uint256 amount);
-    event TaxBpsChanged(uint16 indexed oldTaxBps, uint256 indexed newTaxBps);
     event ImpairReserveChanged(uint256 newImpairReserve);
     event TargetYieldChanged(uint16 newTargetYield);
 

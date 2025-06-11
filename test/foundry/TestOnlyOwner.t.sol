@@ -2,10 +2,10 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoring } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -47,23 +47,16 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
     }
 
-    function testWithdrawTaxBalanceOnlyCalledByOwner() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.withdrawTaxBalance();
-        vm.stopPrank();
-    }
-
     function testSetBullaDaoAddressOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert(abi.encodeWithSignature("CallerNotBullaDao()"));
         bullaFactoring.setBullaDaoAddress(bob);
         vm.stopPrank();
     }
 
     function testSetProtocolFeeBpsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert(abi.encodeWithSignature("CallerNotBullaDao()"));
         bullaFactoring.setProtocolFeeBps(0);
         vm.stopPrank();
     }
@@ -72,13 +65,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
         bullaFactoring.setAdminFeeBps(0);
-        vm.stopPrank();
-    }
-
-    function testSetTaxBpsOnlyCalledByOwner() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.setTaxBps(0);
         vm.stopPrank();
     }
 

@@ -1,12 +1,11 @@
-
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoring } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapter } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -18,10 +17,11 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
 
 contract CommonSetup is Test {
-    BullaFactoring public bullaFactoring;
-    BullaClaimInvoiceProviderAdapter public invoiceAdapterBulla;
+    BullaFactoringV2 public bullaFactoring;
+    BullaClaimInvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
+    MockPermissions public redeemPermissions;
     MockPermissions public factoringPermissions;
     PermissionsWithAragon public permissionsWithAragon;
     DAOMock public daoMock;
@@ -42,8 +42,7 @@ contract CommonSetup is Test {
 
     address bullaDao = address(this);
     uint16 protocolFeeBps = 25;
-    uint16 adminFeeBps = 50;
-    uint16 taxBps = 1_000;
+    uint16 adminFeeBps = 25;
     uint16 targetYield = 730;
 
     string poolName = 'Test Pool';
@@ -52,9 +51,10 @@ contract CommonSetup is Test {
 
     function setUp() public virtual {
         asset = new MockUSDC();
-        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapter(bullaClaim);
+        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
+        redeemPermissions = new MockPermissions();
         daoMock = new DAOMock();
         address[] memory safeOwners = new address[](2);
         safeOwners[0] = alice;
@@ -67,10 +67,12 @@ contract CommonSetup is Test {
         // Allow alice and bob for deposits, and bob for factoring
         depositPermissions.allow(alice);
         depositPermissions.allow(bob);
+        redeemPermissions.allow(alice);
+        redeemPermissions.allow(bob);
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoring(asset, invoiceAdapterBulla, underwriter, depositPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, taxBps, targetYield, poolTokenName, poolTokenSymbol);
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
@@ -86,6 +88,7 @@ contract CommonSetup is Test {
 
     function permitUser(address user, bool canFactor, uint256 fundingAmount) internal {
         depositPermissions.allow(user);
+        redeemPermissions.allow(user);
         if (canFactor) {
             factoringPermissions.allow(user);
         }
