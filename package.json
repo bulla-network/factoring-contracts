@@ -26,6 +26,8 @@
         "deploy:automation:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/deploy-bullaFactoringAutomationChecker.ts",
         "deploy:automation:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/deploy-bullaFactoringAutomationChecker.ts",
         "deploy:automation:mainnet": "cross-env NETWORK=mainnet npx hardhat run --network mainnet scripts/deploy-bullaFactoringAutomationChecker.ts",
+        "deploy:fundmanager:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/deploy-bullaFactoringFundManager.ts",
+        "deploy:fundmanager:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/deploy-bullaFactoringFundManager.ts",
         "change-underwriter:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/change-underwriter.ts",
         "change-underwriter:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/change-underwriter.ts",
         "change-underwriter:mainnet": "cross-env NETWORK=mainnet npx hardhat run --network mainnet scripts/change-underwriter.ts",

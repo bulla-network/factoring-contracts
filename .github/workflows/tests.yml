@@ -2,6 +2,7 @@ on:
     push:
         branches:
             - main
+            - v3-simplified
 
     pull_request:
 
@@ -36,7 +37,10 @@ jobs:
               env:
                   SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
 
-            - name: Run tests with Sepolia fork
+            - name: Run unit tests with Sepolia fork
               run: make test
               env:
                   SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+
+            - name: Run invariant tests
+              run: make test_invariant
