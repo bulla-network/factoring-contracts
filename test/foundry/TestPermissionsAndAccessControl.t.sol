@@ -32,7 +32,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         vm.startPrank(userWithoutPermissions);
         bullaClaimERC721.approve(address(bullaFactoring), InvoiceId);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", userWithoutPermissions));
-        bullaFactoring.fundInvoice(InvoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(InvoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -114,7 +114,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Underwriter approves the invoice again

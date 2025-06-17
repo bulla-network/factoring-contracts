@@ -68,7 +68,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Debtor pays the invoice
@@ -113,7 +113,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -168,7 +168,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -215,7 +215,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -226,7 +226,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward time by 30 days
@@ -290,7 +290,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -350,7 +350,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate 30 days pass, hence some accrued interest in the pool
@@ -388,7 +388,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         (, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
@@ -445,7 +445,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Preview redeem after funding invoice
@@ -489,7 +489,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Preview withdraw after funding invoice
@@ -544,7 +544,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Preview deposit after funding invoice
@@ -587,7 +587,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // After days of interest is not 0
@@ -656,7 +656,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Preview deposit before impairment

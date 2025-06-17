@@ -325,7 +325,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
     /// @dev No checks needed for the creditor, as transferFrom will revert unless it gets executed by the nft owner (i.e. claim creditor)
     /// @param invoiceId The ID of the invoice to fund
     /// @param factorerUpfrontBps factorer specified upfront bps
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps) external returns(uint256) {
+    /// @param receiverAddress Address to receive the funds, if address(0) then funds go to msg.sender
+    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
@@ -344,8 +345,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, IFactoringFund, Ownable {
         // update upfrontBps with what was passed in the arg by the factorer
         approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
 
-        // fund the invoice from vault
-        vault.fundClaim(msg.sender, invoiceId, fundedAmountNet);
+        // Determine the actual receiver address - use msg.sender if receiverAddress is address(0)
+        address actualReceiver = receiverAddress == address(0) ? msg.sender : receiverAddress;
+
+        // fund the invoice from vault to the actual receiver
+        vault.fundClaim(actualReceiver, invoiceId, fundedAmountNet);
 
         // transfer invoice nft ownership to vault
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
