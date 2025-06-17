@@ -41,7 +41,7 @@ contract TestInvoiceImpairment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -52,7 +52,7 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -77,7 +77,7 @@ contract TestInvoiceImpairment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
         bullaFactoring.reconcileActivePaidInvoices();
@@ -149,7 +149,7 @@ contract TestInvoiceImpairment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
 
