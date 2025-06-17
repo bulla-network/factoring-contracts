@@ -35,6 +35,7 @@ contract CommonSetup is Test {
     address bob = address(0xb0b);
     address underwriter = address(0x1222);
     address userWithoutPermissions = address(0x743123);
+    address charlie = address(0xc4a11e);
 
     uint16 interestApr = 730;
     uint16 upfrontBps = 8000;
@@ -78,6 +79,7 @@ contract CommonSetup is Test {
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
+        asset.mint(charlie, 1000 ether);
 
         vm.startPrank(alice);
         asset.approve(address(vault), 1000 ether);
@@ -85,6 +87,11 @@ contract CommonSetup is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
+        asset.approve(address(vault), 1000 ether);
+        asset.approve(address(bullaFactoring), 1000 ether);
+        vm.stopPrank();
+
+        vm.startPrank(charlie);
         asset.approve(address(vault), 1000 ether);
         asset.approve(address(bullaFactoring), 1000 ether);
         vm.stopPrank();
