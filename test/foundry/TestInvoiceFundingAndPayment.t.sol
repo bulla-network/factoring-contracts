@@ -871,4 +871,111 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertEq(asset.balanceOf(bob), bobInitialBalance + fundedAmount1, "Bob should have received funds from first invoice");
         assertEq(asset.balanceOf(charlie), charlieInitialBalance + fundedAmount2, "Charlie should have received funds from second invoice");
     }
+
+    function testKickbackGoesToCorrectReceiver() public {
+        uint256 invoiceAmount = 100000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Create invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Check initial balances
+        uint256 charlieInitialBalance = asset.balanceOf(charlie);
+
+        // Fund invoice with charlie as receiver
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, charlie);
+        vm.stopPrank();
+
+        // Verify charlie received the initial funding
+        assertEq(asset.balanceOf(charlie), charlieInitialBalance + fundedAmount, "Charlie should have received the funded amount");
+
+        // Simulate time passing for interest accrual
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 bobBalanceBeforePayment = asset.balanceOf(bob);
+        uint256 charlieBalanceBeforePayment = asset.balanceOf(charlie);
+
+        // Debtor pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        // Calculate expected kickback amount
+        (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
+
+        // Reconcile to trigger kickback payment
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Verify kickback went to charlie (the receiver), not bob (the original creditor)
+        assertEq(asset.balanceOf(bob), bobBalanceBeforePayment, "Bob should not have received any kickback");
+        assertEq(asset.balanceOf(charlie), charlieBalanceBeforePayment + expectedKickback, "Charlie should have received the kickback amount");
+    }
+
+    function testKickbackGoesToMsgSenderWhenReceiverIsZero() public {
+        uint256 invoiceAmount = 100000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Create invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Record initial balance
+        uint256 bobInitialBalance = asset.balanceOf(bob);
+
+        // Fund invoice with address(0) as receiver (should default to msg.sender = bob)
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Verify bob received the initial funding
+        assertEq(asset.balanceOf(bob), bobInitialBalance + fundedAmount, "Bob should have received the funded amount");
+
+        // Simulate time passing for interest accrual
+        vm.warp(block.timestamp + 30 days);
+
+        // Record balance before payment
+        uint256 bobBalanceBeforePayment = asset.balanceOf(bob);
+
+        // Debtor pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        // Calculate expected kickback amount
+        (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
+
+        // Reconcile to trigger kickback payment
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Verify kickback went to bob (msg.sender when receiver was address(0))
+        assertEq(asset.balanceOf(bob), bobBalanceBeforePayment + expectedKickback, "Bob should have received the kickback amount when receiver was address(0)");
+    }
 }
