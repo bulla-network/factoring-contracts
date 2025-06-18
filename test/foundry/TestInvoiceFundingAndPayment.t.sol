@@ -546,9 +546,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Fund both invoices
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate payment after some time
