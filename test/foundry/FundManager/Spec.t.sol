@@ -11,7 +11,6 @@ contract BaseFactoringFundManagerSpecTestSetup is CommonSetup, IBullaFactoringFu
 
     // Test accounts
     address public owner = address(0x1111111111111111111111111111111111111111);
-    address public charlie = address(0x2222222222222222222222222222222222222222);
     address public capitalCaller = address(0x3333333333333333333333333333333333333333);
 
     function setUp() public override {

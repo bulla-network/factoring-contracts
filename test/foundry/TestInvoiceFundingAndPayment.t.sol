@@ -44,7 +44,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
 
@@ -91,7 +91,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
@@ -135,9 +135,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Factorer funds one invoice at a lower UpfrontBps
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, approvedUpfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, approvedUpfrontBps, address(0));
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId2, factorerUpfrontBps);
+        bullaFactoring.fundInvoice(invoiceId2, factorerUpfrontBps, address(0));
         vm.stopPrank();
 
         uint256 actualFundedAmount = bullaFactoring.getFundedAmount(invoiceId);
@@ -166,7 +166,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         (, , uint targetInterest01, ,) = bullaFactoring.calculateTargetFees(invoiceId01, upfrontBps);
         vm.stopPrank();
 
@@ -180,7 +180,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         (, , uint targetInterest02, ,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
@@ -229,7 +229,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -276,7 +276,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -333,9 +333,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Factorer funds both invoices
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), partiallyPaidInvoiceId);
-        uint256 partiallyPaidFundedAmount = bullaFactoring.fundInvoice(partiallyPaidInvoiceId, upfrontBps);
+        uint256 partiallyPaidFundedAmount = bullaFactoring.fundInvoice(partiallyPaidInvoiceId, upfrontBps, address(0));
         bullaClaimERC721.approve(address(bullaFactoring), fullyUnpaidInvoiceId);
-        uint256 fullyUnpaidFundedAmount =bullaFactoring.fundInvoice(fullyUnpaidInvoiceId, upfrontBps);
+        uint256 fullyUnpaidFundedAmount =bullaFactoring.fundInvoice(fullyUnpaidInvoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         assertTrue(fullyUnpaidFundedAmount > partiallyPaidFundedAmount, "Funded amount for partially paid invoice should be less than fully unpaid invoice");
@@ -370,9 +370,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
-        uint fundedAmount01 = bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        uint fundedAmount01 = bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
-        uint fundedAmount02 = bullaFactoring.fundInvoice(invoiceId02, upfrontBps);
+        uint fundedAmount02 = bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         assertLt(fundedAmount01, fundedAmount02, "Funded amount for partially paid invoice should be less than fully unpaid invoice");
@@ -435,7 +435,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("ApprovalExpired()"));
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -463,7 +463,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         vm.startPrank(alice);
         vm.expectRevert();
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -546,9 +546,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Fund both invoices
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate payment after some time
@@ -761,5 +761,114 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
         bullaFactoring.redeem(shares1 + shares2, user, user);
         vm.stopPrank();
+    }
+
+    function testFundInvoiceWithSpecificReceiver() public {
+        uint256 invoiceAmount = 100000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Create invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Check initial balances
+        uint256 bobInitialBalance = asset.balanceOf(bob);
+        uint256 charlieInitialBalance = asset.balanceOf(charlie);
+
+        // Fund invoice with charlie as receiver
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, charlie);
+        vm.stopPrank();
+
+        // Verify charlie received the funds, not bob
+        assertEq(asset.balanceOf(bob), bobInitialBalance, "Bob should not have received any funds");
+        assertEq(asset.balanceOf(charlie), charlieInitialBalance + fundedAmount, "Charlie should have received the funded amount");
+    }
+
+    function testFundInvoiceWithZeroAddressReceiver() public {
+        uint256 invoiceAmount = 100000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Create invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Check initial balance
+        uint256 bobInitialBalance = asset.balanceOf(bob);
+
+        // Fund invoice with address(0) as receiver (should default to msg.sender)
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Verify bob received the funds (since address(0) defaults to msg.sender)
+        assertEq(asset.balanceOf(bob), bobInitialBalance + fundedAmount, "Bob should have received the funded amount when receiver is address(0)");
+    }
+
+    function testFundInvoiceReceiverConsistency() public {
+        uint256 invoiceAmount = 100000;
+        upfrontBps = 8000;
+
+        uint256 initialDeposit = 400000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Create two identical invoices
+        vm.startPrank(bob);
+        uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve both invoices
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Check initial balances
+        uint256 bobInitialBalance = asset.balanceOf(bob);
+        uint256 charlieInitialBalance = asset.balanceOf(charlie);
+
+        // Fund first invoice with address(0) (should go to bob)
+        vm.startPrank(bob);
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        uint256 fundedAmount1 = bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
+        
+        // Fund second invoice with charlie as receiver
+        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        uint256 fundedAmount2 = bullaFactoring.fundInvoice(invoiceId2, upfrontBps, charlie);
+        vm.stopPrank();
+
+        // Verify the funded amounts are the same (since invoices are identical)
+        assertEq(fundedAmount1, fundedAmount2, "Funded amounts should be identical for identical invoices");
+
+        // Verify balances
+        assertEq(asset.balanceOf(bob), bobInitialBalance + fundedAmount1, "Bob should have received funds from first invoice");
+        assertEq(asset.balanceOf(charlie), charlieInitialBalance + fundedAmount2, "Charlie should have received funds from second invoice");
     }
 }

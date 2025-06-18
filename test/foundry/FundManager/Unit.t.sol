@@ -11,7 +11,6 @@ contract FactoringFundManagerUnitTest is CommonSetup {
 
     // Test accounts
     address public owner = address(address(this));
-    address public charlie = address(0x1234);
 
     function setUp() public override {
         super.setUp();

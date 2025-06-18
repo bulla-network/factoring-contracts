@@ -50,7 +50,7 @@ contract TestWithdraw is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -101,7 +101,7 @@ contract TestWithdraw is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        bullaFactoring.fundInvoice(invoiceId1, 10000);
+        bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
         // Simulate invoices being paid on time
@@ -135,7 +135,7 @@ contract TestWithdraw is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId2, 10000);
+        bullaFactoring.fundInvoice(invoiceId2, 10000, address(0));
         vm.stopPrank();
 
         // Simulate invoices being paid on time
@@ -182,7 +182,7 @@ contract TestWithdraw is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -234,7 +234,7 @@ contract TestWithdraw is CommonSetup {
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
