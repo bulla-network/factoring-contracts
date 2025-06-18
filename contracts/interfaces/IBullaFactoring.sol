@@ -24,6 +24,7 @@ interface IBullaFactoringV2 {
         uint256 initialPaidAmount;
         uint16 protocolFeeBps;
         uint16 adminFeeBps;
+        address receiverAddress;
     }
 
     struct Multihash {

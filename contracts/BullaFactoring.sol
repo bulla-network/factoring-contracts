@@ -171,7 +171,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             initialFullInvoiceAmount: invoiceSnapshot.invoiceAmount,
             initialPaidAmount: invoiceSnapshot.paidAmount,
             protocolFeeBps: protocolFeeBps,
-            adminFeeBps: adminFeeBps
+            adminFeeBps: adminFeeBps,
+            receiverAddress: address(0)
         });
         emit InvoiceApproved(invoiceId, _interestApr, _upfrontBps, _validUntil, minDaysInterestApplied);
     }
@@ -420,6 +421,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Determine the actual receiver address - use msg.sender if receiverAddress is address(0)
         address actualReceiver = receiverAddress == address(0) ? msg.sender : receiverAddress;
 
+        // Store the receiver address for future kickback payments
+        approvedInvoices[invoiceId].receiverAddress = actualReceiver;
+
         // transfer net funded amount to caller to the actual receiver
         assetAddress.safeTransfer(actualReceiver, fundedAmountNet);
 
@@ -528,11 +532,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
             incrementProfitAndFeeBalances(invoiceId, trueInterest, trueProtocolFee, trueAdminFee);   
 
-            // Disperse kickback amount to the original creditor
-            address originalCreditor = originalCreditors[invoiceId];            
+            // Disperse kickback amount to the receiver address specified when the invoice was funded
+            address receiverAddress = approvedInvoices[invoiceId].receiverAddress;            
             if (kickbackAmount != 0) {
-                assetAddress.safeTransfer(originalCreditor, kickbackAmount);
-                emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, originalCreditor);
+                assetAddress.safeTransfer(receiverAddress, kickbackAmount);
+                emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
             }
 
             // Check if the invoice was previously marked as impaired by the fund
@@ -548,7 +552,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             }
 
             InvoiceApproval memory approval = approvedInvoices[invoiceId];
-            emit InvoicePaid(invoiceId, trueInterest, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, originalCreditor);
+            emit InvoicePaid(invoiceId, trueInterest, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
         }
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
     }
