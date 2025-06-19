@@ -183,7 +183,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return interest The calculated interest amount
     /// @return protocolFee The calculated protocol fee amount
     /// @return adminFee The calculated admin fee amount
-    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest, uint256 currentFullInvoiceAmount) private pure returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
+    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest) private pure returns (uint256 interest, uint256 protocolFee, uint256 adminFee) {
         // Calculate the APR discount for the payment period
         // millibips used due to the small nature of the fees
         uint256 interestRateMbps = Math.mulDiv(uint256(approval.interestApr) * 1000, daysOfInterest, 365);
@@ -196,12 +196,14 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Calculate the total fee rate Mbps (interest + protocol fee + admin fee)
         uint256 totalFeeRateMbps = interestRateMbps + adminFeeRateMbps + protocolFeeRateMbps;
         
+        // Calculate the principal amount, net of any paid amount
+        uint256 principalAmount = approval.initialFullInvoiceAmount - approval.initialPaidAmount;
+        
         // cap total fees to max available to distribute
-        // V2 update: what is available to distribute now also includes potential interest on the underlying invoice
-        uint256 capTotalFees = currentFullInvoiceAmount - approval.initialPaidAmount - approval.fundedAmountNet;
+        uint256 capTotalFees = principalAmount - approval.fundedAmountNet;
 
-        // Calculate total fees
-        uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(currentFullInvoiceAmount - approval.initialPaidAmount, totalFeeRateMbps, 10_000_000));
+        // Calculate total fees on the principal amount only
+        uint256 totalFees = Math.min(capTotalFees, Math.mulDiv(principalAmount, totalFeeRateMbps, 10_000_000));
         
         adminFee = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, adminFeeRateMbps, totalFeeRateMbps);
         interest = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, interestRateMbps, totalFeeRateMbps);
@@ -224,7 +226,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         
         uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.minDaysInterestApplied);
 
-        (trueInterest, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest, invoice.invoiceAmount);
+        (trueInterest, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest);
 
         // Calculate the total amount that should have been paid to the original creditor
         uint256 totalDueToCreditor = invoice.invoiceAmount - approval.initialPaidAmount - trueAdminFee - trueInterest - trueProtocolFee;
@@ -386,7 +388,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
 
-        (targetInterest, targetProtocolFee, adminFee) = calculateFees(approval, daysUntilDue, approval.initialFullInvoiceAmount);
+        (targetInterest, targetProtocolFee, adminFee) = calculateFees(approval, daysUntilDue);
 
         uint256 totalFees = adminFee + targetInterest + targetProtocolFee;
         netFundedAmount = fundedAmountGross - totalFees;
@@ -581,7 +583,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Calculate the number of days since funding
          uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
-        (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysSinceFunded, invoice.invoiceAmount);
+        (uint256 trueInterest, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysSinceFunded);
         int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueProtocolFee + trueAdminFee) - int256(getPaymentsOnInvoiceSinceFunding(invoiceId));
 
         // positive number means the original creditor owes us the amount
