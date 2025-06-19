@@ -669,6 +669,8 @@ contract OwnerFunctionsSpecTest is BaseFactoringFundManagerSpecTestSetup {
 
     /// forge-config: default.fuzz.runs = 1024
     function testFuzz_BlocklistInvestor(address _investor) public {
+        vm.assume(_investor != address(0));
+        
         _allowlistInvestor(_investor);
         _commitInvestments(_investor, 1000e6);
 
