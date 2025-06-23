@@ -249,7 +249,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 kickbackAmount,,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
         uint maxRedeem = bullaFactoring.maxRedeem();
 
@@ -257,10 +257,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // if Alice tries to redeem more shares than she owns, it will revert
         vm.startPrank(alice);
-        uint balanceBefore = asset.balanceOf(alice);
         vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", alice, sharesToRedeemIncludingKickback, bullaFactoring.balanceOf(alice)));
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
-        uint balanceAfter = asset.balanceOf(alice);
         vm.stopPrank();
     }
 
@@ -404,7 +402,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -423,7 +421,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint availableAssetsAfter = bullaFactoring.totalAssets();
         uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
-        uint targetFees = adminFee + targetInterest + targetProtocolFee;
+        uint targetFees = adminFee + targetInterest + targetProtocolFee + targetSpread;
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
@@ -677,7 +675,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        (, uint targetAdminFeeAfterFeeChange, , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, uint targetAdminFeeAfterFeeChange, , , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         vm.warp(dueBy - 1);

@@ -80,7 +80,7 @@ contract TestWithdraw is CommonSetup {
 
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should be 0 after full withdrawal");
 
-        bullaFactoring.withdrawAdminFees(); 
+        bullaFactoring.withdrawAdminFeesAndSpreadGains(); 
     }
 
      function testWithdrawIsEquivalentToRedemption() public {
@@ -260,7 +260,7 @@ contract TestWithdraw is CommonSetup {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
 
         // withdraw all fess
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
 
         vm.prank(bullaDao);

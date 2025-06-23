@@ -141,7 +141,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should be 0 after full redemption");
 
-        bullaFactoring.withdrawAdminFees(); 
+        bullaFactoring.withdrawAdminFeesAndSpreadGains(); 
     }
 
     function testMaxRedemtionIsZeroAfterAllRedemptions() public {
@@ -254,7 +254,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // withdraw all fess
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
 
         vm.prank(bullaDao);
@@ -314,7 +314,7 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
 
         // withdraw all fess
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
 
         vm.prank(bullaDao);
@@ -390,7 +390,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
 
         // Simulate impairment
         vm.warp(block.timestamp + 100 days);
@@ -399,7 +399,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), adminFee + targetInterest + targetProtocolFee, "There should be no assets left in the pool, net of fees");
+        assertEq(asset.balanceOf(address(bullaFactoring)), adminFee + targetInterest + targetProtocolFee + targetSpread, "There should be no assets left in the pool, net of fees");
 
         // Alice never pays the invoices
         // fund owner impaires both invoices

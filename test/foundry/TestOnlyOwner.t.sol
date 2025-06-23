@@ -43,7 +43,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     function testWithdrawAdminFeesOnlyCalledByOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
     }
 

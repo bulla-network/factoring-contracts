@@ -200,8 +200,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest) private pure returns (uint256 interest, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee) {
         // Calculate the APR discount for the payment period
         // millibips used due to the small nature of the fees
-        uint256 baseYieldRateMbps = Math.mulDiv(uint256(approval.interestApr - approval.spreadBps) * 1000, daysOfInterest, 365);
-        uint256 spreadRateMbps = Math.mulDiv(uint256(approval.spreadBps) * 1000, daysOfInterest, 365);
+        uint256 baseYieldRateMbps = Math.mulDiv(uint256(approval.feeParams.interestApr - approval.feeParams.spreadBps) * 1000, daysOfInterest, 365);
+        uint256 spreadRateMbps = Math.mulDiv(uint256(approval.feeParams.spreadBps) * 1000, daysOfInterest, 365);
         
         // Calculate the admin fee rate
         uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.adminFeeBps) * 1000, daysOfInterest, 365);

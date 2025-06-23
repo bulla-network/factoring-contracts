@@ -55,7 +55,7 @@ contract TestFees is CommonSetup {
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
 
         // Withdraw protocol fees
@@ -121,7 +121,7 @@ contract TestFees is CommonSetup {
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
 
         // Withdraw protocol fees
@@ -151,7 +151,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
@@ -163,7 +163,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
         bullaFactoring.fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
@@ -173,6 +173,7 @@ contract TestFees is CommonSetup {
         assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
         assertEq(targetProtocolFee1, targetProtocolFee2, "Target protocol fee should be the same regardless of upfront percentage");
         assertEq(adminFee1, adminFee2, "Admin fee should be the same");
+        assertEq(targetSpread1, targetSpread2, "Target spread should be the same regardless of upfront percentage");
 
         // Simulate invoices being paid on time
         vm.warp(dueDate - 1);
@@ -216,7 +217,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 targetAdminFee1,,,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 targetAdminFee1,,,,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
@@ -225,7 +226,7 @@ contract TestFees is CommonSetup {
         vm.warp(dueDate - 14 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        (,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
         bullaClaim.payClaim(invoiceId1, invoiceAmount);
         vm.stopPrank();
 
@@ -239,7 +240,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 targetAdminFee2,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, 10000);
+        (, uint256 targetAdminFee2,,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, 10000);
         bullaFactoring.fundInvoice(invoiceId2, 10000, address(0));
         vm.stopPrank();
 
@@ -249,7 +250,7 @@ contract TestFees is CommonSetup {
         vm.warp(dueDate - 1 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        (,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
 
         assertGt(trueAdminFee2, trueAdminFee1, "Admin fee should increase overtime");
     }
@@ -376,7 +377,7 @@ contract TestFees is CommonSetup {
         // Withdraw admin fees but aren't none since fee = 0
         vm.startPrank(address(this));
         vm.expectRevert(abi.encodeWithSignature("NoFeesToWithdraw()"));
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
     }
 
