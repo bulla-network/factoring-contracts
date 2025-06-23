@@ -173,16 +173,18 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             validUntil: _validUntil,
             invoiceSnapshot: invoiceSnapshot,
             fundedTimestamp: 0,
-            interestApr: totalInterestApr,
-            spreadBps: _spreadBps,
-            upfrontBps: _upfrontBps,
+            feeParams: FeeParams({
+                interestApr: totalInterestApr,
+                spreadBps: _spreadBps,
+                upfrontBps: _upfrontBps,
+                protocolFeeBps: protocolFeeBps,
+                adminFeeBps: adminFeeBps,
+                minDaysInterestApplied: minDaysInterestApplied
+            }),
             fundedAmountGross: 0,
             fundedAmountNet: 0,
-            minDaysInterestApplied: minDaysInterestApplied,
             initialFullInvoiceAmount: invoiceSnapshot.invoiceAmount,
             initialPaidAmount: invoiceSnapshot.paidAmount,
-            protocolFeeBps: protocolFeeBps,
-            adminFeeBps: adminFeeBps,
             receiverAddress: address(0)
         });
         emit InvoiceApproved(invoiceId, totalInterestApr, _upfrontBps, _validUntil, minDaysInterestApplied);
@@ -202,9 +204,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 spreadRateMbps = Math.mulDiv(uint256(approval.spreadBps) * 1000, daysOfInterest, 365);
         
         // Calculate the admin fee rate
-        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.adminFeeBps) * 1000, daysOfInterest, 365);
+        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.adminFeeBps) * 1000, daysOfInterest, 365);
 
-        uint256 protocolFeeRateMbps = Math.mulDiv(uint256(approval.protocolFeeBps) * 1000, daysOfInterest, 365);
+        uint256 protocolFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.protocolFeeBps) * 1000, daysOfInterest, 365);
         
         // Calculate the total fee rate Mbps (base yield + spread + protocol fee + admin fee)
         uint256 totalFeeRateMbps = baseYieldRateMbps + spreadRateMbps + adminFeeRateMbps + protocolFeeRateMbps;
@@ -239,7 +241,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
         
-        uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.minDaysInterestApplied);
+        uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.feeParams.minDaysInterestApplied);
 
         (trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee) = calculateFees(approval, daysOfInterest);
 
@@ -393,7 +395,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
 
         if (!approval.approved) revert InvoiceNotApproved();
-        if (factorerUpfrontBps > approval.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
+        if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
         uint256 trueInitialFaceValue = approval.initialFullInvoiceAmount - approval.initialPaidAmount;
 
@@ -402,7 +404,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 daysUntilDue =  Math.mulDiv(invoice.dueDate - block.timestamp, 1, 1 days, Math.Rounding.Ceil);
 
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
-        daysUntilDue = Math.max(daysUntilDue, approval.minDaysInterestApplied);
+        daysUntilDue = Math.max(daysUntilDue, approval.feeParams.minDaysInterestApplied);
 
         (targetInterest, targetSpreadAmount, targetProtocolFee, adminFee) = calculateFees(approval, daysUntilDue);
 
@@ -420,7 +422,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
-        if (factorerUpfrontBps > approvedInvoices[invoiceId].upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
+        if (factorerUpfrontBps > approvedInvoices[invoiceId].feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
@@ -434,7 +436,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
         // update upfrontBps with what was passed in the arg by the factorer
-        approvedInvoices[invoiceId].upfrontBps = factorerUpfrontBps; 
+        approvedInvoices[invoiceId].feeParams.upfrontBps = factorerUpfrontBps; 
 
         // Determine the actual receiver address - use msg.sender if receiverAddress is address(0)
         address actualReceiver = receiverAddress == address(0) ? msg.sender : receiverAddress;

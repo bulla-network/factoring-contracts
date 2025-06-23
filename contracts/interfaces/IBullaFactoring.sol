@@ -10,21 +10,25 @@ import "./IInvoiceProviderAdapter.sol";
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2 {
     // Structs
+    struct FeeParams {
+        uint16 interestApr;
+        uint16 spreadBps;
+        uint16 upfrontBps;
+        uint16 protocolFeeBps;
+        uint16 adminFeeBps;
+        uint16 minDaysInterestApplied;
+    }
+
     struct InvoiceApproval {
         bool approved;
         IInvoiceProviderAdapterV2.Invoice invoiceSnapshot;
         uint256 validUntil;
         uint256 fundedTimestamp;
-        uint16 interestApr;
-        uint16 spreadBps;
-        uint16 upfrontBps;
+        FeeParams feeParams;
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
-        uint16 minDaysInterestApplied;
         uint256 initialFullInvoiceAmount;
         uint256 initialPaidAmount;
-        uint16 protocolFeeBps;
-        uint16 adminFeeBps;
         address receiverAddress;
     }
 
