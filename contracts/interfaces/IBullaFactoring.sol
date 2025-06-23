@@ -83,7 +83,7 @@ interface IBullaFactoringV2 {
     event TargetYieldChanged(uint16 newTargetYield);
 
     // Functions
-    function approveInvoice(uint256 invoiceId, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) external;
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) external;
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);

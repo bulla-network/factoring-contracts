@@ -153,7 +153,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _spreadBps The spread in basis points to add on top of target yield
     /// @param _upfrontBps The maximum upfront percentage the factorer can request
     /// @param minDaysInterestApplied The minimum number of days interest must be applied
-    function approveInvoice(uint256 invoiceId, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) public {
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) public {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
@@ -166,7 +166,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         address claimToken = invoiceSnapshot.tokenAddress;
         if (claimToken != address(assetAddress)) revert InvoiceTokenMismatch();
 
-        uint16 totalInterestApr = targetYieldBps + _spreadBps;
+        uint16 totalInterestApr = _interestApr + _spreadBps;
 
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,

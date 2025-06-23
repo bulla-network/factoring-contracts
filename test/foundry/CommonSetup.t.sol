@@ -37,6 +37,7 @@ contract CommonSetup is Test {
     address charlie = address(0xc4a11e);
 
     uint16 interestApr = 730;
+    uint16 spreadBps = 1000;
     uint16 upfrontBps = 8000;
     uint256 dueBy = block.timestamp + 30 days;
     uint16 minDays = 30;

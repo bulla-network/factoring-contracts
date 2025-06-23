@@ -27,7 +27,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InexistentInvoice()"));
-        bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
     }
 
@@ -59,7 +59,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.warp(block.timestamp + 2 hours);
         vm.startPrank(bob);
@@ -80,7 +80,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.rescindClaim(invoiceId);
@@ -93,7 +93,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -118,7 +118,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -144,7 +144,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -170,7 +170,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -195,7 +195,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId03Amount = 100;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
@@ -231,7 +231,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceIdAmount = 100; // Amount of the invoice
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -280,7 +280,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // Bob funds the first invoice
         uint256 invoiceId01 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -290,7 +290,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // Bob funds the second invoice 5k second invoice
         uint256 invoiceId02 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
@@ -344,7 +344,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -397,7 +397,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -443,7 +443,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId01Amount = 500000; // 0.5 USDC
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -468,7 +468,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId02Amount = 1000000; // 1 USDC
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
@@ -534,12 +534,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, 0, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, 0, minDays);
         vm.stopPrank();
 
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, 10001, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, 10001, minDays);
         vm.stopPrank();
     }
 
@@ -555,7 +555,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSignature("CallerNotUnderwriter()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(address(this));
@@ -563,7 +563,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
     }
 
@@ -606,7 +606,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -626,7 +626,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -649,7 +649,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, targetYield, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId01, targetYield, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -669,7 +669,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, newTargetYield, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId02, newTargetYield, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
