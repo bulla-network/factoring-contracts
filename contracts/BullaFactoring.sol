@@ -29,7 +29,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Accumulated admin fee balance
     uint256 public adminFeeBalance;
     /// @notice Accumulated spread gains balance
-    uint256 public spreadGains;
+    uint256 public spreadGainsBalance;
     /// @notice Address of the underlying asset token (e.g., USDC)
     IERC20 public assetAddress;
     /// @notice Address of the invoice provider contract adapter
@@ -535,7 +535,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // store spread gain separately
         paidInvoicesSpreadGain[invoiceId] = trueSpreadAmount;
-        spreadGains += trueSpreadAmount;
+        spreadGainsBalance += trueSpreadAmount;
 
         // Update protocol fee balance
         protocolFeeBalance += trueProtocolFee;
@@ -801,13 +801,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Allows the Pool Owner to withdraw accumulated admin fees and spread gains.
     function withdrawAdminFeesAndSpreadGains() onlyOwner public {
         uint256 adminFeeAmount = adminFeeBalance;
-        uint256 spreadAmount = spreadGains;
+        uint256 spreadAmount = spreadGainsBalance;
         uint256 totalAmount = adminFeeAmount + spreadAmount;
         
         if (totalAmount == 0) revert NoFeesToWithdraw();
         
         adminFeeBalance = 0;
-        spreadGains = 0;
+        spreadGainsBalance = 0;
         
         assetAddress.safeTransfer(msg.sender, totalAmount);
         emit AdminFeesWithdrawn(msg.sender, adminFeeAmount);
