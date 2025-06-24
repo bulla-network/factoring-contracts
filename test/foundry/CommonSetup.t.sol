@@ -35,7 +35,7 @@ contract CommonSetup is Test {
     BullaControllerRegistry public bullaControllerRegistry;
     MockPermissions public feeExemptionWhitelist;
     IBullaFrendLend public bullaFrendLend;
-    IBullaClaimV2 public bullaClaimV2;
+    BullaClaimV2 public bullaClaimV2;
     IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
     IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
 
@@ -88,7 +88,7 @@ contract CommonSetup is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, bullaClaimV2, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);

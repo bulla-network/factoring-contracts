@@ -246,8 +246,7 @@ contract TestFees is CommonSetup {
 
         assertEq(targetAdminFee2, targetAdminFee1, "Admin fee should be the same");
 
-        // Simulate first invoice being paid after 30 days
-        vm.warp(dueDate - 1 days);
+        vm.warp(block.timestamp + 29 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
         (,,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);

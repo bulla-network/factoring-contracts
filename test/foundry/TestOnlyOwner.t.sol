@@ -21,28 +21,28 @@ import { CommonSetup } from './CommonSetup.t.sol';
 contract TestErrorHandlingAndEdgeCases is CommonSetup {
     function testSetUnderwriterOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setUnderwriter(alice);
         vm.stopPrank();
     }
 
     function testSetApprovalDurationOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setApprovalDuration(10);
         vm.stopPrank();
     }
 
     function testSetGracePeriodDaysOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setGracePeriodDays(10);
         vm.stopPrank();
     }
 
     function testWithdrawAdminFeesOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
     }
@@ -63,35 +63,35 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
     function testSetAdminFeeBpsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setAdminFeeBps(0);
         vm.stopPrank();
     }
 
     function testSetDepositPermissionsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setDepositPermissions(bob);
         vm.stopPrank();
     }
 
     function testSetFactoringPermissionsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setFactoringPermissions(bob);
         vm.stopPrank();
     }
 
     function testSetTargetYieldOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.setTargetYield(0);
         vm.stopPrank();
     }
 
     function testImpairInvoiceOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", bob));
+        vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.impairInvoice(0);
         vm.stopPrank();
     }

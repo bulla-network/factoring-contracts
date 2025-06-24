@@ -18,6 +18,6 @@ constructor-args :=
 build  :; forge build --via-ir
 test   :; forge test -vvv --fork-url ${SEPOLIA_RPC_URL} --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
 test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" $(ARGS)
-test-s   :; forge test --match-path test/foundry/TestErrorHandlingAndEdgeCases.t.sol -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
+test-s   :; forge test --match-test "testAdminFeeAccruesOvertime" -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
 coverage   :; forge coverage -vv --fork-url ${SEPOLIA_RPC_URL} --ir-minimum --report lcov

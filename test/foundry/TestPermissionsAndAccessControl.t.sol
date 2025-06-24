@@ -4,8 +4,8 @@ pragma solidity ^0.8.20;
 import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
-    import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-    import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
+import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -38,7 +38,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -50,7 +50,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -63,7 +63,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -75,7 +75,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);
