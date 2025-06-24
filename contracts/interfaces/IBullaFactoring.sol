@@ -10,20 +10,25 @@ import "./IInvoiceProviderAdapter.sol";
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2 {
     // Structs
+    struct FeeParams {
+        uint16 interestApr;
+        uint16 spreadBps;
+        uint16 upfrontBps;
+        uint16 protocolFeeBps;
+        uint16 adminFeeBps;
+        uint16 minDaysInterestApplied;
+    }
+
     struct InvoiceApproval {
         bool approved;
         IInvoiceProviderAdapterV2.Invoice invoiceSnapshot;
         uint256 validUntil;
         uint256 fundedTimestamp;
-        uint16 interestApr;
-        uint16 upfrontBps;
+        FeeParams feeParams;
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
-        uint16 minDaysInterestApplied;
         uint256 initialFullInvoiceAmount;
         uint256 initialPaidAmount;
-        uint16 protocolFeeBps;
-        uint16 adminFeeBps;
         address receiverAddress;
     }
 
@@ -60,7 +65,7 @@ interface IBullaFactoringV2 {
     event ApprovalDurationChanged(uint256 newDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
-    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueProtocolFee, uint256 adminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 adminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint interestToCharge);
     event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
     event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
@@ -69,6 +74,7 @@ interface IBullaFactoringV2 {
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
+    event SpreadGainsWithdrawn(address indexed owner, uint256 amount);
     event DepositPermissionsChanged(address newAddress);
     event RedeemPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
@@ -77,7 +83,7 @@ interface IBullaFactoringV2 {
     event TargetYieldChanged(uint16 newTargetYield);
 
     // Functions
-    function approveInvoice(uint256 invoiceId, uint16 _apr, uint16 _bps, uint16 minDaysInterestApplied) external;
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) external;
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);

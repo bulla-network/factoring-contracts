@@ -32,7 +32,7 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -55,7 +55,7 @@ contract TestFees is CommonSetup {
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
 
         // Withdraw protocol fees
@@ -85,7 +85,7 @@ contract TestFees is CommonSetup {
         uint invoiceId01Amount = 100000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
@@ -97,7 +97,7 @@ contract TestFees is CommonSetup {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
@@ -121,7 +121,7 @@ contract TestFees is CommonSetup {
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
 
         // Withdraw protocol fees
@@ -146,24 +146,24 @@ contract TestFees is CommonSetup {
         // Create and fund first invoice with 100% upfront
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, 10000, minDays); // 100% upfront
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, 10000, minDays); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
         // Create and fund second invoice with 50% upfront
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, 5000, minDays); // 50% upfront
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, 10000, minDays); // Approve with 100% max but fund with 50%
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
         bullaFactoring.fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
@@ -173,6 +173,7 @@ contract TestFees is CommonSetup {
         assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
         assertEq(targetProtocolFee1, targetProtocolFee2, "Target protocol fee should be the same regardless of upfront percentage");
         assertEq(adminFee1, adminFee2, "Admin fee should be the same");
+        assertEq(targetSpread1, targetSpread2, "Target spread should be the same regardless of upfront percentage");
 
         // Simulate invoices being paid on time
         vm.warp(dueDate - 1);
@@ -192,7 +193,7 @@ contract TestFees is CommonSetup {
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
 
         // Calculate expected fees
-        uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetProtocolFee2);
+        uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1 + targetSpread1) + (adminFee2 + targetInterest2 + targetProtocolFee2 + targetSpread2);
 
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees
@@ -211,13 +212,13 @@ contract TestFees is CommonSetup {
         // Create and fund first invoice
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, 10000, minDays); // 100% upfront
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, minDays); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 targetAdminFee1,,,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
-        bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
+        (, uint256 targetAdminFee1,,,,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
 
@@ -225,22 +226,22 @@ contract TestFees is CommonSetup {
         vm.warp(dueDate - 14 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        (,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
         bullaClaim.payClaim(invoiceId1, invoiceAmount);
         vm.stopPrank();
 
         dueDate = block.timestamp + 30 days;
 
-                // Create and fund second invoice
+        // Create and fund second invoice
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, 10000, minDays);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 targetAdminFee2,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, 10000);
-        bullaFactoring.fundInvoice(invoiceId2, 10000, address(0));
+        (, uint256 targetAdminFee2,,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
         assertEq(targetAdminFee2, targetAdminFee1, "Admin fee should be the same");
@@ -249,7 +250,7 @@ contract TestFees is CommonSetup {
         vm.warp(dueDate - 1 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        (,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
 
         assertGt(trueAdminFee2, trueAdminFee1, "Admin fee should increase overtime");
     }
@@ -266,7 +267,7 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -318,7 +319,7 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -358,7 +359,8 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, upfrontBps, minDays);
+        uint16 zeroSpreadBps = 0;
+        bullaFactoring.approveInvoice(invoiceId, interestApr, zeroSpreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
@@ -376,7 +378,7 @@ contract TestFees is CommonSetup {
         // Withdraw admin fees but aren't none since fee = 0
         vm.startPrank(address(this));
         vm.expectRevert(abi.encodeWithSignature("NoFeesToWithdraw()"));
-        bullaFactoring.withdrawAdminFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
     }
 
@@ -399,7 +401,7 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, bullaFactoring.targetYieldBps(), upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, bullaFactoring.targetYieldBps(), spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
