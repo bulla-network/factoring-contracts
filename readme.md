@@ -1,53 +1,66 @@
-# Bulla Factoring Pool Contracts V1
+## Foundry
 
-## Overview
+**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
 
-The Bulla Factoring contracts specifically enable the creation of credit pools for invoice factoring, adhering to the **ERC4626** specification. Through these contracts, invoice issuers can factor their receivables, allowing them to receive early payments in exchange for a premium. This integration not only broadens the utility of the Bulla Claim Protocol but also provides a new financial mechanism for liquidity and credit management on-chain.
+Foundry consists of:
+
+-   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
+-   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
+-   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
+-   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+
+## Documentation
+
+https://book.getfoundry.sh/
 
 ## Usage
-To install Foundry:
 
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-```
-This will download foundryup. To start Foundry, run:
+### Build
 
-```bash
-foundryup
+```shell
+$ forge build
 ```
 
-Repo also uses hardhat for deployment, to install dependencies:
-```bash
-yarn install
+### Test
+
+```shell
+$ forge test
 ```
 
-## Development
+### Format
 
-### Contracts Build
-```bash
-forge build --via-ir
+```shell
+$ forge fmt
 ```
 
-### Deployment
-```bash
-yarn deploy:NETWORK # see package.json
+### Gas Snapshots
+
+```shell
+$ forge snapshot
 ```
 
-### Tests
-Create an `.env` file using the `.env.example` file as a template.
+### Anvil
 
-Invoke the following to run test scenarios located in `./test/foundry`, forking Sepolia network:
-
-```bash
-  make test
+```shell
+$ anvil
 ```
 
-## 🔒 Security Contacts 🔒
-- mike@bulla.network
-- jeremy@bulla.network
+### Deploy
 
-## License
+```shell
+$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```
 
-(c) 2024 Arkitoken, LLC
+### Cast
 
-The Bulla Factoring Pool contracts code is licensed under Business Source License 1.1 (see the file `LICENSE`).
+```shell
+$ cast <subcommand>
+```
+
+### Help
+
+```shell
+$ forge --help
+$ anvil --help
+$ cast --help
+```

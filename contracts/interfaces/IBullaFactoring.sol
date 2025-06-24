@@ -9,6 +9,18 @@ import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2 {
+
+    // The rest of the info can be retrieved from the loan offer
+    struct PendingLoanOfferInfo {
+        bool exists;
+        uint256 offeredAt;
+        uint16 targetYieldBps;
+        uint16 adminFeeBps;
+        uint16 protocolFeeBps;
+        uint256 principalAmount;
+        uint256 termLength;
+    }
+
     // Structs
     struct FeeParams {
         uint16 interestApr;
@@ -21,8 +33,9 @@ interface IBullaFactoringV2 {
 
     struct InvoiceApproval {
         bool approved;
-        IInvoiceProviderAdapterV2.Invoice invoiceSnapshot;
+        address creditor;
         uint256 validUntil;
+        uint256 invoiceDueDate;
         uint256 fundedTimestamp;
         FeeParams feeParams;
         uint256 fundedAmountGross;

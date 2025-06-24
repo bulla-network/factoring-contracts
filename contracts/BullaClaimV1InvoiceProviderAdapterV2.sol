@@ -6,7 +6,7 @@ import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
 
-contract BullaClaimInvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
+contract BullaClaimV1InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
     IBullaClaim private bullaClaim;
 
     error InexistentInvoice();
