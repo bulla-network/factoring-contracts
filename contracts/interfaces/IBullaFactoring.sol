@@ -9,9 +9,10 @@ import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2 {
+
     // Structs
     struct FeeParams {
-        uint16 interestApr;
+        uint16 targetYieldBps;
         uint16 spreadBps;
         uint16 upfrontBps;
         uint16 protocolFeeBps;
@@ -19,10 +20,20 @@ interface IBullaFactoringV2 {
         uint16 minDaysInterestApplied;
     }
 
+    // The rest of the info can be retrieved from the loan offer
+    struct PendingLoanOfferInfo {
+        bool exists;
+        uint256 offeredAt;
+        uint256 principalAmount;
+        uint256 termLength;
+        FeeParams feeParams;
+    }
+
     struct InvoiceApproval {
         bool approved;
-        IInvoiceProviderAdapterV2.Invoice invoiceSnapshot;
+        address creditor;
         uint256 validUntil;
+        uint256 invoiceDueDate;
         uint256 fundedTimestamp;
         FeeParams feeParams;
         uint256 fundedAmountGross;
@@ -58,7 +69,7 @@ interface IBullaFactoringV2 {
     }
 
     // Events
-    event InvoiceApproved(uint256 indexed invoiceId, uint16 interestApr, uint16 upfrontBps, uint256 validUntil, uint16 minDays);
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);

@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -246,8 +246,7 @@ contract TestFees is CommonSetup {
 
         assertEq(targetAdminFee2, targetAdminFee1, "Admin fee should be the same");
 
-        // Simulate first invoice being paid after 30 days
-        vm.warp(dueDate - 1 days);
+        vm.warp(block.timestamp + 29 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
         (,,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);

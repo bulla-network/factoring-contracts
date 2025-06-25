@@ -75,7 +75,7 @@ contract BullaFactoringFundManager is IBullaFactoringFundManager, Ownable {
     /// @notice a mapping of investor addresses to their capital commitment struct
     mapping(address => CapitalCommitment) public capitalCommitments;
 
-    constructor(IERC4626 _factoringPool, uint256 _minInvestment, address _capitalCaller) Ownable(msg.sender) {
+    constructor(IERC4626 _factoringPool, uint256 _minInvestment, address _capitalCaller) {
         // Set immutables
         factoringPool = _factoringPool;
         asset = IERC20(_factoringPool.asset());

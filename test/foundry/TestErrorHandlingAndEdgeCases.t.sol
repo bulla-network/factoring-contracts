@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -257,7 +257,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // if Alice tries to redeem more shares than she owns, it will revert
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", alice, sharesToRedeemIncludingKickback, bullaFactoring.balanceOf(alice)));
+        vm.expectRevert("ERC4626: redeem more than max");
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
         vm.stopPrank();
     }

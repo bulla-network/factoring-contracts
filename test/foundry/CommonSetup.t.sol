@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimInvoiceProviderAdapterV2 } from 'contracts/BullaClaimInvoiceProviderAdapter.sol';
+import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -15,10 +15,15 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
+import {IBullaClaim as IBullaClaimV2, LockState} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
+import {IBullaFrendLend} from "bulla-contracts-v2/src/interfaces/IBullaFrendLend.sol";
+import {BullaFrendLend} from "bulla-contracts-v2/src/BullaFrendLend.sol";
+import {BullaControllerRegistry} from "bulla-contracts-v2/src/BullaControllerRegistry.sol";
+import {BullaClaim as BullaClaimV2} from "bulla-contracts-v2/src/BullaClaim.sol";
 
 contract CommonSetup is Test {
     BullaFactoringV2 public bullaFactoring;
-    BullaClaimInvoiceProviderAdapterV2 public invoiceAdapterBulla;
+    BullaClaimV1InvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
     MockPermissions public redeemPermissions;
@@ -27,6 +32,10 @@ contract CommonSetup is Test {
     DAOMock public daoMock;
     PermissionsWithSafe public permissionsWithSafe;
     TestSafe public testSafe;
+    BullaControllerRegistry public bullaControllerRegistry;
+    MockPermissions public feeExemptionWhitelist;
+    IBullaFrendLend public bullaFrendLend;
+    BullaClaimV2 public bullaClaimV2;
     IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
     IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
 
@@ -53,11 +62,16 @@ contract CommonSetup is Test {
 
     function setUp() public virtual {
         asset = new MockUSDC();
-        invoiceAdapterBulla = new BullaClaimInvoiceProviderAdapterV2(bullaClaim);
+        invoiceAdapterBulla = new BullaClaimV1InvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
         redeemPermissions = new MockPermissions();
         daoMock = new DAOMock();
+        feeExemptionWhitelist = new MockPermissions();
+        bullaControllerRegistry = new BullaControllerRegistry();
+        bullaClaimV2 = new BullaClaimV2(address(bullaControllerRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
+        bullaFrendLend = new BullaFrendLend(address(bullaClaimV2), address(this), 50);
+
         address[] memory safeOwners = new address[](2);
         safeOwners[0] = alice;
         safeOwners[1] = address(this);
@@ -74,7 +88,7 @@ contract CommonSetup is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
+        bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);

@@ -6,7 +6,7 @@ import "./Permissions.sol";
 contract FactoringPermissions is Permissions, Ownable {
     mapping(address => bool) public allowedAddresses;
 
-    constructor() Ownable(msg.sender) {}
+    constructor() {}
 
     function isAllowed(address _address) external view override returns (bool) {
         return allowedAddresses[_address];
