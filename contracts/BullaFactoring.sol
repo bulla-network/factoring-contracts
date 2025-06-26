@@ -537,7 +537,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
 
-        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approvedInvoices[invoiceId].dueDate, factorerUpfrontBps);
+        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approvedInvoices[invoiceId].invoiceDueDate, factorerUpfrontBps);
         return fundedAmountNet;
     }
 
