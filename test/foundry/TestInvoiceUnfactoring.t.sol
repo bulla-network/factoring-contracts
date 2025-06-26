@@ -20,6 +20,8 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestInvoiceUnfactoring is CommonSetup {
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint interestToCharge, uint spreadAmount, uint protocolFee, uint adminFee);
+
     function testUnfactorInvoice() public {
         // Alice deposits into the fund
         uint256 initialDeposit = 1000;
@@ -38,6 +40,9 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
+
+        vm.expectEmit(true, false, false, false);
+        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0, 0);
 
         // Bob unfactors the invoice
         vm.startPrank(bob);

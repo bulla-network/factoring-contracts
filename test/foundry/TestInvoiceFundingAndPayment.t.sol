@@ -20,6 +20,8 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestInvoiceFundingAndPayment is CommonSetup {
+    event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
+
     function testInvoicePaymentAndKickbackCalculation() public {
         dueBy = block.timestamp + 60 days; // Invoice due in 60 days
         uint256 invoiceAmount = 100000; // Invoice amount is $100000
@@ -245,6 +247,15 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // automation will signal that we have some paid invoices
         (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoices.length, 1);
+
+        // Calculate expected kickback amount before reconciliation
+        (uint256 expectedKickbackAmount,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        
+        // Expect InvoiceKickbackAmountSent event if kickback amount > 0
+        if (expectedKickbackAmount > 0) {
+            vm.expectEmit(true, true, true, true);
+            emit InvoiceKickbackAmountSent(invoiceId01, expectedKickbackAmount, bob);
+        }
 
         // owner will reconcile paid invoices to account for any realized gains or losses
         bullaFactoring.reconcileActivePaidInvoices();
