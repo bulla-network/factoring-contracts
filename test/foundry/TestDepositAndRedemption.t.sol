@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
@@ -21,6 +20,16 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestDepositAndRedemption is CommonSetup {
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps);
+    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
+    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, IBullaFactoringV2.Multihash attachment);
+    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, IBullaFactoringV2.Multihash attachment);
+    event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
+    event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
+    event SpreadGainsWithdrawn(address indexed owner, uint256 amount);
+
     function testWhitelistDeposit() public {
         vm.startPrank(userWithoutPermissions);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
@@ -107,12 +116,29 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
+        IBullaFactoringV2.FeeParams memory expectedFeeParams = IBullaFactoringV2.FeeParams({
+            targetYieldBps: interestApr,
+            spreadBps: spreadBps,
+            upfrontBps: upfrontBps,
+            protocolFeeBps: protocolFeeBps,
+            adminFeeBps: adminFeeBps,
+            minDaysInterestApplied: minDays
+        });
+        
+        vm.expectEmit(true, true, true, true);
+        emit InvoiceApproved(invoiceId, block.timestamp + bullaFactoring.approvalDuration(), expectedFeeParams);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        
+        // Calculate expected funded amount
+        (, , , , , uint256 expectedFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        
+        vm.expectEmit(true, true, true, true);
+        emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -126,6 +152,12 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
+        // Expect ActivePaidInvoicesReconciled event
+        uint256[] memory paidInvoiceIds = new uint256[](1);
+        paidInvoiceIds[0] = invoiceId;
+        
+        vm.expectEmit(true, true, true, true);
+        emit ActivePaidInvoicesReconciled(paidInvoiceIds);
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Alice redeems all her funds
@@ -141,6 +173,18 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should be 0 after full redemption");
 
+        // Expect fee withdrawal events
+        uint256 adminFeeAmount = bullaFactoring.adminFeeBalance();
+        uint256 spreadAmount = bullaFactoring.spreadGainsBalance();
+        
+        if (adminFeeAmount > 0) {
+            vm.expectEmit(true, true, true, true);
+            emit AdminFeesWithdrawn(address(this), adminFeeAmount);
+        }
+        if (spreadAmount > 0) {
+            vm.expectEmit(true, true, true, true);
+            emit SpreadGainsWithdrawn(address(this), spreadAmount);
+        }
         bullaFactoring.withdrawAdminFeesAndSpreadGains(); 
     }
 
@@ -317,7 +361,12 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.withdrawAdminFeesAndSpreadGains();
         assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
 
+        uint256 protocolFeeAmount = bullaFactoring.protocolFeeBalance();
         vm.prank(bullaDao);
+        if (protocolFeeAmount > 0) {
+            vm.expectEmit(true, true, true, true);
+            emit ProtocolFeesWithdrawn(bullaDao, protocolFeeAmount);
+        }
         bullaFactoring.withdrawProtocolFees();
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
         vm.stopPrank();
@@ -733,6 +782,49 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(firstDepositorShares, 1, "First depositor should have 1 share");
         assertEq(secondDepositorShares, 1e18, "Second depositor should have 1e18 shares");
+    }
+
+    function testDepositWithAttachmentEmitsEvent() public {
+        uint256 depositAmount = 1000000;
+        IBullaFactoringV2.Multihash memory attachment = IBullaFactoringV2.Multihash({
+            hash: "QmTestHash123456789",
+            hashFunction: 18,
+            size: 32
+        });
+
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit DepositMadeWithAttachment(alice, depositAmount, depositAmount, attachment);
+        uint256 shares = bullaFactoring.depositWithAttachment(depositAmount, alice, attachment);
+        vm.stopPrank();
+
+        assertEq(shares, depositAmount, "Shares should equal deposit amount when supply is zero");
+        assertEq(bullaFactoring.balanceOf(alice), depositAmount, "Alice should have received the shares");
+    }
+
+    function testRedeemWithAttachmentEmitsEvent() public {
+        uint256 depositAmount = 1000000;
+        
+        // First make a deposit
+        vm.startPrank(alice);
+        bullaFactoring.deposit(depositAmount, alice);
+        vm.stopPrank();
+
+        uint256 sharesToRedeem = bullaFactoring.balanceOf(alice);
+        IBullaFactoringV2.Multihash memory attachment = IBullaFactoringV2.Multihash({
+            hash: "QmRedeemHash123456789",
+            hashFunction: 18,
+            size: 32
+        });
+
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit SharesRedeemedWithAttachment(alice, sharesToRedeem, depositAmount, attachment);
+        uint256 assets = bullaFactoring.redeemWithAttachment(sharesToRedeem, alice, alice, attachment);
+        vm.stopPrank();
+
+        assertEq(assets, depositAmount, "Assets should equal deposit amount");
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no shares left");
     }
 }
 

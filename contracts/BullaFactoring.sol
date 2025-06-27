@@ -228,7 +228,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         originalCreditors[loanId] = address(this);
         activeInvoices.push(loanId);
         
-        emit InvoiceFunded(loanId, pendingLoanOffer.principalAmount, address(this));
+        emit InvoiceFunded(loanId, pendingLoanOffer.principalAmount, address(this), block.timestamp + pendingLoanOffer.termLength, pendingLoanOffer.feeParams.upfrontBps);
     }
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
@@ -536,7 +536,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
-        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender);
+
+        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approvedInvoices[invoiceId].invoiceDueDate, factorerUpfrontBps);
         return fundedAmountNet;
     }
 
@@ -720,7 +721,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         delete originalCreditors[invoiceId];
 
-        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest);
+        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
@@ -911,24 +912,27 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _newBullaDao The new address for the Bulla DAO
     function setBullaDaoAddress(address _newBullaDao) public onlyBullaDao {
         if (_newBullaDao == address(0)) revert InvalidAddress();
+        address oldBullaDao = bullaDao;
         bullaDao = _newBullaDao;
-        emit BullaDaoAddressChanged(bullaDao, _newBullaDao);
+        emit BullaDaoAddressChanged(oldBullaDao, _newBullaDao);
     }
 
     /// @notice Updates the protocol fee in basis points (bps)
     /// @param _newProtocolFeeBps The new protocol fee in basis points
     function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyBullaDao {
         if (_newProtocolFeeBps > 10000) revert InvalidPercentage();
+        uint16 oldProtocolFeeBps = protocolFeeBps;
         protocolFeeBps = _newProtocolFeeBps;
-        emit ProtocolFeeBpsChanged(protocolFeeBps, _newProtocolFeeBps);
+        emit ProtocolFeeBpsChanged(oldProtocolFeeBps, _newProtocolFeeBps);
     }
 
     /// @notice Sets the admin fee in basis points
     /// @param _newAdminFeeBps The new admin fee in basis points
     function setAdminFeeBps(uint16 _newAdminFeeBps) public onlyOwner {
         if (_newAdminFeeBps > 10000) revert InvalidPercentage();
+        uint16 oldAdminFeeBps = adminFeeBps;
         adminFeeBps = _newAdminFeeBps;
-        emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
+        emit AdminFeeBpsChanged(oldAdminFeeBps, _newAdminFeeBps);
     }
 
     function mint(uint256, address) public pure override returns (uint256){

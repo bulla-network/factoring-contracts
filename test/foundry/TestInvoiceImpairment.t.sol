@@ -20,9 +20,15 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestInvoiceImpairment is CommonSetup {
+    event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
+    event ImpairReserveChanged(uint256 newImpairReserve);
+
     function testImparedReserve() public {
         uint initialImpairReserve = 500; 
         asset.approve(address(bullaFactoring), initialImpairReserve);
+        
+        vm.expectEmit(true, true, true, true);
+        emit ImpairReserveChanged(initialImpairReserve);
         bullaFactoring.setImpairReserve(initialImpairReserve);
 
         interestApr = 3000;
@@ -93,6 +99,9 @@ contract TestInvoiceImpairment is CommonSetup {
 
         (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
+
+        vm.expectEmit(true, false, false, false);
+        emit InvoiceImpaired(invoiceId03, 0, 0);
 
         // fund impares the third invoice
         bullaFactoring.impairInvoice(invoiceId03);

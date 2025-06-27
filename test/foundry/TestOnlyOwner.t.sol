@@ -19,6 +19,11 @@ import "contracts/interfaces/IBullaFactoring.sol";
 import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestErrorHandlingAndEdgeCases is CommonSetup {
+    event GracePeriodDaysChanged(uint256 newGracePeriodDays);
+    event ApprovalDurationChanged(uint256 newApprovalDuration);
+    event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
+    event RedeemPermissionsChanged(address newRedeemPermissionsAddress);
+
     function testSetUnderwriterOnlyCalledByOwner() public {
         vm.startPrank(bob);
         vm.expectRevert("Ownable: caller is not the owner");
@@ -94,5 +99,48 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.expectRevert("Ownable: caller is not the owner");
         bullaFactoring.impairInvoice(0);
         vm.stopPrank();
+    }
+
+    function testSetUnderwriterEmitsEvent() public {
+        address oldUnderwriter = bullaFactoring.underwriter();
+        address newUnderwriter = alice;
+        
+        vm.expectEmit(true, true, true, true);
+        emit UnderwriterChanged(oldUnderwriter, newUnderwriter);
+        bullaFactoring.setUnderwriter(newUnderwriter);
+        
+        assertEq(bullaFactoring.underwriter(), newUnderwriter, "Underwriter should be updated");
+    }
+
+    function testSetGracePeriodDaysEmitsEvent() public {
+        uint256 oldGracePeriodDays = bullaFactoring.gracePeriodDays();
+        uint256 newGracePeriodDays = 90;
+        
+        vm.expectEmit(true, true, true, true);
+        emit GracePeriodDaysChanged(newGracePeriodDays);
+        bullaFactoring.setGracePeriodDays(newGracePeriodDays);
+        
+        assertEq(bullaFactoring.gracePeriodDays(), newGracePeriodDays, "Grace period days should be updated");
+    }
+
+    function testSetApprovalDurationEmitsEvent() public {
+        uint256 oldApprovalDuration = bullaFactoring.approvalDuration();
+        uint256 newApprovalDuration = 7200; // 2 hours
+        
+        vm.expectEmit(true, true, true, true);
+        emit ApprovalDurationChanged(newApprovalDuration);
+        bullaFactoring.setApprovalDuration(newApprovalDuration);
+        
+        assertEq(bullaFactoring.approvalDuration(), newApprovalDuration, "Approval duration should be updated");
+    }
+
+    function testSetRedeemPermissionsEmitsEvent() public {
+        address newRedeemPermissions = alice;
+        
+        vm.expectEmit(true, true, true, true);
+        emit RedeemPermissionsChanged(newRedeemPermissions);
+        bullaFactoring.setRedeemPermissions(newRedeemPermissions);
+        
+        assertEq(address(bullaFactoring.redeemPermissions()), newRedeemPermissions, "Redeem permissions should be updated");
     }
 }
