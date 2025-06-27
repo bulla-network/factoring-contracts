@@ -22,6 +22,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newApprovalDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
+    event RedeemPermissionsChanged(address newRedeemPermissionsAddress);
 
     function testSetUnderwriterOnlyCalledByOwner() public {
         vm.startPrank(bob);
@@ -131,5 +132,15 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.setApprovalDuration(newApprovalDuration);
         
         assertEq(bullaFactoring.approvalDuration(), newApprovalDuration, "Approval duration should be updated");
+    }
+
+    function testSetRedeemPermissionsEmitsEvent() public {
+        address newRedeemPermissions = alice;
+        
+        vm.expectEmit(true, true, true, true);
+        emit RedeemPermissionsChanged(newRedeemPermissions);
+        bullaFactoring.setRedeemPermissions(newRedeemPermissions);
+        
+        assertEq(address(bullaFactoring.redeemPermissions()), newRedeemPermissions, "Redeem permissions should be updated");
     }
 }
