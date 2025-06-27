@@ -255,8 +255,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         // Test InvoicePaid event emission
-        vm.expectEmit(true, false, false, false);
-        emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, 0, address(0));
+        vm.expectEmit(true, true, false, false);
+        emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, 0, bob);
         bullaFactoring.reconcileActivePaidInvoices();
 
         (uint256 kickbackAmount,,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);

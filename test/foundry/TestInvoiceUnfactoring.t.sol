@@ -20,7 +20,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestInvoiceUnfactoring is CommonSetup {
-    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint interestToCharge, uint spreadAmount, uint protocolFee, uint adminFee);
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee);
 
     function testUnfactorInvoice() public {
         // Alice deposits into the fund
