@@ -20,6 +20,13 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestErrorHandlingAndEdgeCases is CommonSetup {
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps);
+    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
+    event DepositPermissionsChanged(address newAddress);
+    event FactoringPermissionsChanged(address newAddress);
+
    function testUnknownInvoiceId() public {
         uint invoiceId01Amount = 100;
         createClaim(bob, alice, invoiceId01Amount, dueBy);
@@ -247,6 +254,9 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceIdAmount);
         vm.stopPrank();
 
+        // Test InvoicePaid event emission
+        vm.expectEmit(true, false, false, false);
+        emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, 0, address(0));
         bullaFactoring.reconcileActivePaidInvoices();
 
         (uint256 kickbackAmount,,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
@@ -582,7 +592,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(address(this));
-        bullaFactoring.setDepositPermissions(address(new MockPermissions()));
+        MockPermissions newPermissions = new MockPermissions();
+        vm.expectEmit(true, true, true, true);
+        emit DepositPermissionsChanged(address(newPermissions));
+        bullaFactoring.setDepositPermissions(address(newPermissions));
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -616,7 +629,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(address(this));
-        bullaFactoring.setFactoringPermissions(address(new MockPermissions()));
+        MockPermissions newFactoringPermissions = new MockPermissions();
+        vm.expectEmit(true, true, true, true);
+        emit FactoringPermissionsChanged(address(newFactoringPermissions));
+        bullaFactoring.setFactoringPermissions(address(newFactoringPermissions));
         vm.stopPrank();
 
         // Creditor creates the invoice

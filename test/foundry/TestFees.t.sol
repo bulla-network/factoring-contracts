@@ -21,6 +21,9 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestFees is CommonSetup {
     event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
+    event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
+    event TargetYieldChanged(uint16 newTargetYield);
+    event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
 
     function testWithdrawFees() public {
         uint256 initialDeposit = 1 ether;
@@ -313,6 +316,8 @@ contract TestFees is CommonSetup {
 
         // Set protocol fee to 0
         vm.startPrank(address(this)); 
+        vm.expectEmit(true, true, true, true);
+        emit ProtocolFeeBpsChanged(protocolFeeBps, 0);
         bullaFactoring.setProtocolFeeBps(0);
         vm.stopPrank();
 
@@ -353,6 +358,9 @@ contract TestFees is CommonSetup {
 
         // Set admin fee to 0
         vm.startPrank(address(this)); 
+        uint16 oldAdminFeeBps = bullaFactoring.adminFeeBps();
+        vm.expectEmit(true, true, true, true);
+        emit AdminFeeBpsChanged(oldAdminFeeBps, 0);
         bullaFactoring.setAdminFeeBps(0);
         vm.stopPrank();
 
@@ -393,6 +401,8 @@ contract TestFees is CommonSetup {
 
         // Set target yield to 0
         vm.startPrank(address(this)); 
+        vm.expectEmit(true, true, true, true);
+        emit TargetYieldChanged(0);
         bullaFactoring.setTargetYield(0);
         vm.stopPrank();
 

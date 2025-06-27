@@ -921,16 +921,18 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _newProtocolFeeBps The new protocol fee in basis points
     function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyBullaDao {
         if (_newProtocolFeeBps > 10000) revert InvalidPercentage();
+        uint16 oldProtocolFeeBps = protocolFeeBps;
         protocolFeeBps = _newProtocolFeeBps;
-        emit ProtocolFeeBpsChanged(protocolFeeBps, _newProtocolFeeBps);
+        emit ProtocolFeeBpsChanged(oldProtocolFeeBps, _newProtocolFeeBps);
     }
 
     /// @notice Sets the admin fee in basis points
     /// @param _newAdminFeeBps The new admin fee in basis points
     function setAdminFeeBps(uint16 _newAdminFeeBps) public onlyOwner {
         if (_newAdminFeeBps > 10000) revert InvalidPercentage();
+        uint16 oldAdminFeeBps = adminFeeBps;
         adminFeeBps = _newAdminFeeBps;
-        emit AdminFeeBpsChanged(adminFeeBps, _newAdminFeeBps);
+        emit AdminFeeBpsChanged(oldAdminFeeBps, _newAdminFeeBps);
     }
 
     function mint(uint256, address) public pure override returns (uint256){
