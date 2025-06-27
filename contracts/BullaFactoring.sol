@@ -912,8 +912,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _newBullaDao The new address for the Bulla DAO
     function setBullaDaoAddress(address _newBullaDao) public onlyBullaDao {
         if (_newBullaDao == address(0)) revert InvalidAddress();
+        address oldBullaDao = bullaDao;
         bullaDao = _newBullaDao;
-        emit BullaDaoAddressChanged(bullaDao, _newBullaDao);
+        emit BullaDaoAddressChanged(oldBullaDao, _newBullaDao);
     }
 
     /// @notice Updates the protocol fee in basis points (bps)

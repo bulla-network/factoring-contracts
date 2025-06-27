@@ -19,8 +19,8 @@ import "contracts/interfaces/IBullaFactoring.sol";
 import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestErrorHandlingAndEdgeCases is CommonSetup {
-    event GracePeriodDaysChanged(uint256 oldGracePeriodDays, uint256 newGracePeriodDays);
-    event ApprovalDurationChanged(uint256 oldApprovalDuration, uint256 newApprovalDuration);
+    event GracePeriodDaysChanged(uint256 newGracePeriodDays);
+    event ApprovalDurationChanged(uint256 newApprovalDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
 
     function testSetUnderwriterOnlyCalledByOwner() public {
@@ -116,7 +116,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 newGracePeriodDays = 90;
         
         vm.expectEmit(true, true, true, true);
-        emit GracePeriodDaysChanged(oldGracePeriodDays, newGracePeriodDays);
+        emit GracePeriodDaysChanged(newGracePeriodDays);
         bullaFactoring.setGracePeriodDays(newGracePeriodDays);
         
         assertEq(bullaFactoring.gracePeriodDays(), newGracePeriodDays, "Grace period days should be updated");
@@ -127,7 +127,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 newApprovalDuration = 7200; // 2 hours
         
         vm.expectEmit(true, true, true, true);
-        emit ApprovalDurationChanged(oldApprovalDuration, newApprovalDuration);
+        emit ApprovalDurationChanged(newApprovalDuration);
         bullaFactoring.setApprovalDuration(newApprovalDuration);
         
         assertEq(bullaFactoring.approvalDuration(), newApprovalDuration, "Approval duration should be updated");

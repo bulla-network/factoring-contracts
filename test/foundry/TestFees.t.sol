@@ -20,7 +20,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestFees is CommonSetup {
-    event BullaDaoAddressChanged(address indexed oldBullaDao, address indexed newBullaDao);
+    event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
 
     function testWithdrawFees() public {
         uint256 initialDeposit = 1 ether;
@@ -287,7 +287,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Change bulla dao address to Alice
-        vm.startPrank(address(this));
+        vm.startPrank(bullaDao);
         vm.expectEmit(true, true, true, true);
         emit BullaDaoAddressChanged(bullaDao, alice);
         bullaFactoring.setBullaDaoAddress(alice);
