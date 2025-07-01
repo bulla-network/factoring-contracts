@@ -617,7 +617,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -684,7 +684,7 @@ contract TestDepositAndRedemption is CommonSetup {
         uint256 invoiceAmount =   50000000000;
 
         vm.startPrank(alice);
-        uint256 deposit0 = bullaFactoring.deposit(initialDeposit, alice);
+        bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice

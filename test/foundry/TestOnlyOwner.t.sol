@@ -113,7 +113,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     }
 
     function testSetGracePeriodDaysEmitsEvent() public {
-        uint256 oldGracePeriodDays = bullaFactoring.gracePeriodDays();
         uint256 newGracePeriodDays = 90;
         
         vm.expectEmit(true, true, true, true);
@@ -124,7 +123,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     }
 
     function testSetApprovalDurationEmitsEvent() public {
-        uint256 oldApprovalDuration = bullaFactoring.approvalDuration();
         uint256 newApprovalDuration = 7200; // 2 hours
         
         vm.expectEmit(true, true, true, true);

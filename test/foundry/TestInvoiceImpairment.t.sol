@@ -133,7 +133,6 @@ contract TestInvoiceImpairment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        IBullaFactoringV2.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
         uint256 capitalAccountAfterPayment = bullaFactoring.calculateCapitalAccount();
         
         assertTrue(capitalAccountAfterImpair < capitalAccountAfterPayment, "Realized gain increases when invoice impaired by fund gets paid");

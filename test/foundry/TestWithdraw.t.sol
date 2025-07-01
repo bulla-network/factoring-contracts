@@ -116,7 +116,7 @@ contract TestWithdraw is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        uint assetsRedeemed = bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
         vm.stopPrank();
         
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice redeem all her shares");
