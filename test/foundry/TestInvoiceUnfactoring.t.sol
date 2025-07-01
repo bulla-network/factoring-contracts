@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -32,12 +32,13 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // Bob creates and funds an invoice
         uint invoiceIdAmount = 100;
+        vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -50,7 +51,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
 
         // Assert the invoice NFT is transferred back to Bob and that fund has received the funded amount back
-        assertEq(bullaClaimERC721.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
+        assertEq(bullaClaim.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
         assertEq(asset.balanceOf(address(bullaFactoring)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
     }
 
@@ -70,7 +71,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -81,7 +82,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -99,7 +100,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaClaim.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -147,7 +148,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -190,7 +191,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -210,7 +211,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaClaim.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -241,12 +242,13 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // Bob creates and funds an invoice
         uint invoiceAmount = 100;
+        vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -260,12 +262,13 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 repayment = assetBalanceBefore - assetBalanceAfter;
 
         // mint new identical invoice
+        vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        bullaClaim.approve(address(bullaFactoring), invoiceId2);
         bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -286,12 +289,13 @@ contract TestInvoiceUnfactoring is CommonSetup {
         assertEq(repayment, repayment2 + 5, "The payment made by alice reduced the required repayment by the payment amount");
 
         // mint new identical invoice
+        vm.prank(bob);
         uint256 invoiceId3 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId3, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId3);
+        bullaClaim.approve(address(bullaFactoring), invoiceId3);
         bullaFactoring.fundInvoice(invoiceId3, upfrontBps, address(0));
         vm.stopPrank();
 

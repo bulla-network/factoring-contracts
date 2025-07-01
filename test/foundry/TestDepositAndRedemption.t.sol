@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -71,12 +71,13 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Bob funds an invoice
         uint invoiceIdAmount = 10000000; // Amount of the invoice
+        vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -132,7 +133,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         
         // Calculate expected funded amount
         (, , , , , uint256 expectedFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -211,7 +212,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -258,7 +259,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -269,7 +270,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -332,7 +333,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -397,7 +398,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -435,7 +436,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -492,7 +493,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -536,7 +537,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -591,7 +592,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -632,7 +633,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -699,7 +700,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
