@@ -54,14 +54,14 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
     function testSetBullaDaoAddressOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.CallerNotBullaDao.selector, bob));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.CallerNotBullaDao.selector));
         bullaFactoring.setBullaDaoAddress(bob);
         vm.stopPrank();
     }
 
     function testSetProtocolFeeBpsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.CallerNotBullaDao.selector, bob));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.CallerNotBullaDao.selector));
         bullaFactoring.setProtocolFeeBps(0);
         vm.stopPrank();
     }
