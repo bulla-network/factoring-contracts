@@ -10,7 +10,7 @@ import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IBullaFactoring.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import "bulla-contracts-v2/src/interfaces/IBullaFrendLend.sol";
+import "@bulla/contracts-v2/src/interfaces/IBullaFrendLend.sol";
 
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
@@ -137,7 +137,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint16 _targetYieldBps,
         string memory _tokenName, 
         string memory _tokenSymbol
-    ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) {
+    ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
         if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
 
@@ -323,7 +323,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         InvoiceApproval memory approval = approvedInvoices[invoiceId];
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Up) : 0;
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
         
         uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.feeParams.minDaysInterestApplied);
 
@@ -436,7 +436,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             shares = assets;
         } else {
             uint256 accruedProfits = calculateAccruedProfits();
-            shares = Math.mulDiv(assets, sharesOutstanding, (capitalAccount + accruedProfits), Math.Rounding.Down);
+            shares = Math.mulDiv(assets, sharesOutstanding, (capitalAccount + accruedProfits), Math.Rounding.Floor);
         }
 
         return shares;
@@ -484,7 +484,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         fundedAmountGross = Math.mulDiv(trueInitialFaceValue, factorerUpfrontBps, 10000);
 
-        uint256 daysUntilDue =  Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Up);
+        uint256 daysUntilDue =  Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Ceil);
 
         /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
         daysUntilDue = Math.max(daysUntilDue, approval.feeParams.minDaysInterestApplied);
@@ -698,7 +698,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 fundedAmount = approval.fundedAmountNet;
 
         // Calculate the number of days since funding
-         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Up) : 0;
+         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Ceil) : 0;
         (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = calculateFees(approval, daysSinceFunded);
         int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueProtocolFee + trueAdminFee) - int256(getPaymentsOnInvoiceSinceFunding(invoiceId));
 
