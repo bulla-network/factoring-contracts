@@ -267,7 +267,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // if Alice tries to redeem more shares than she owns, it will revert
         vm.startPrank(alice);
-        vm.expectRevert("ERC4626: redeem more than max");
+        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", alice, sharesToRedeemIncludingKickback, maxRedeem));
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
         vm.stopPrank();
     }

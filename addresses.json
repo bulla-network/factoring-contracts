@@ -411,7 +411,13 @@
       "depositPermissions": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8",
       "factoringPermissions": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e"
     },
-    "BullaFactoringFundManager": "0xD0a82D749b836C5743b353501F3f350a9F80ee07"
+    "BullaFactoringFundManager": "0xD0a82D749b836C5743b353501F3f350a9F80ee07",
+    "0x078Dc29cDaf3B3c7F616109Ac6e752c846490BAf": {
+      "name": "Bulla TCS Factoring Pool Sepolia Test v2.1",
+      "bullaClaimInvoiceProviderAdapter": "0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5",
+      "depositPermissions": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8",
+      "factoringPermissions": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e"
+    }
   },
   "1313161554": {
     "name": "Aurora Mainnet",

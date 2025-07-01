@@ -26,77 +26,77 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
     function testSetUnderwriterOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setUnderwriter(alice);
         vm.stopPrank();
     }
 
     function testSetApprovalDurationOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setApprovalDuration(10);
         vm.stopPrank();
     }
 
     function testSetGracePeriodDaysOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setGracePeriodDays(10);
         vm.stopPrank();
     }
 
     function testWithdrawAdminFeesOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.withdrawAdminFeesAndSpreadGains();
         vm.stopPrank();
     }
 
     function testSetBullaDaoAddressOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("CallerNotBullaDao()"));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.CallerNotBullaDao.selector));
         bullaFactoring.setBullaDaoAddress(bob);
         vm.stopPrank();
     }
 
     function testSetProtocolFeeBpsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("CallerNotBullaDao()"));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.CallerNotBullaDao.selector));
         bullaFactoring.setProtocolFeeBps(0);
         vm.stopPrank();
     }
 
     function testSetAdminFeeBpsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setAdminFeeBps(0);
         vm.stopPrank();
     }
 
     function testSetDepositPermissionsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setDepositPermissions(bob);
         vm.stopPrank();
     }
 
     function testSetFactoringPermissionsOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setFactoringPermissions(bob);
         vm.stopPrank();
     }
 
     function testSetTargetYieldOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.setTargetYield(0);
         vm.stopPrank();
     }
 
     function testImpairInvoiceOnlyCalledByOwner() public {
         vm.startPrank(bob);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
         bullaFactoring.impairInvoice(0);
         vm.stopPrank();
     }

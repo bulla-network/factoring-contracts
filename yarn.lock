@@ -41,10 +41,10 @@
     "@types/node" "^16.9.1"
     ethers "^5.4.2"
 
-"@bulla/contracts-v2@^1.4.3":
-  version "1.4.3"
-  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-1.4.3.tgz#9b95a3c059f658ec423fb6730daad8f4c8e1a28a"
-  integrity sha512-foa2LKkag/JynTd04bWLyEldl0Pu9kQOcTgVFsaNIzcbuEjJbFC50uI6ZJMF6QRgHbLCvDT54Y+JpLuXQ4KpZQ==
+"@bulla/contracts-v2@^1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-1.8.1.tgz#7efa7bf6a8bf441380a1efb90aea8a289ac50308"
+  integrity sha512-xlya62kKASpeUd8MkWwelcw2/vBAMyMlUk69ZCt+qqYQqcXtkNer0y1P/+VZgQsjuwvkolsQQxLZIJoSxF1GxQ==
 
 "@colors/colors@1.5.0":
   version "1.5.0"
@@ -1232,10 +1232,10 @@
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.7.0.tgz#3092d70ea60e3d1835466266b1d68ad47035a2d5"
   integrity sha512-52Qb+A1DdOss8QvJrijYYPSf32GUg2pGaG/yCxtaA3cu4jduouTdg4XZSMLW9op54m1jH7J8hoajhHKOPsoJFw==
 
-"@openzeppelin/contracts@^4.7.0":
-  version "4.9.6"
-  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.9.6.tgz#2a880a24eb19b4f8b25adc2a5095f2aa27f39677"
-  integrity sha512-xSmezSupL+y9VkHZJGDoCBpmnB2ogM13ccaYDWqJTfS3dbuHkgjuwDFUmaFauBCboQMGB/S5UqUl2y54X99BmA==
+"@openzeppelin/contracts@^5.3.0":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-5.3.0.tgz#0a90ce16f5c855e3c8239691f1722cd4999ae741"
+  integrity sha512-zj/KGoW7zxWUE8qOI++rUM18v+VeLTTzKs/DJFkSzHpQFPD/jKKF0TrMxBfGLl3kpdELCNccvB3zmofSzm4nlA==
 
 "@resolver-engine/core@^0.3.3":
   version "0.3.3"

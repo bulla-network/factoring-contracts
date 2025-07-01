@@ -13,7 +13,6 @@ export type DeployBullaFactoringParams = {
     protocolFeeBps: number;
     adminFeeBps: number;
     poolName: string;
-    taxBps: number;
     targetYieldBps: number;
     poolTokenName: string;
     poolTokenSymbol: string;
@@ -21,7 +20,9 @@ export type DeployBullaFactoringParams = {
     BullaClaimInvoiceProviderAdapterAddress?: string;
     factoringPermissionsAddress?: string;
     depositPermissionsAddress?: string;
+    redeemPermissionsAddress?: string;
     bullaFactoringAddress?: string;
+    bullaFrendLendAddress?: string;
     writeNewAddresses?: boolean;
     setImpairReserve?: boolean;
 };
@@ -34,7 +35,6 @@ export const deployBullaFactoring = async ({
     protocolFeeBps,
     adminFeeBps,
     poolName,
-    taxBps,
     targetYieldBps,
     poolTokenName,
     poolTokenSymbol,
@@ -42,6 +42,8 @@ export const deployBullaFactoring = async ({
     BullaClaimInvoiceProviderAdapterAddress,
     factoringPermissionsAddress,
     depositPermissionsAddress,
+    redeemPermissionsAddress,
+    bullaFrendLendAddress,
     bullaFactoringAddress,
     writeNewAddresses = true,
     setImpairReserve = true,
@@ -105,19 +107,20 @@ export const deployBullaFactoring = async ({
     // Deploy bulla factoring contract if not provided
     if (!bullaFactoringAddress && factoringPermissionsAddress && depositPermissionsAddress) {
         console.log('Deploying Bulla Factoring Contract...');
-        const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
+        const { address: bullaFactoringAddress } = await deploy('BullaFactoringV2', {
             from: deployer,
             args: [
                 underlyingAsset,
                 BullaClaimInvoiceProviderAdapterAddress,
+                bullaFrendLendAddress,
                 underwriter,
                 depositPermissionsAddress,
+                redeemPermissionsAddress,
                 factoringPermissionsAddress,
                 bullaDao,
                 protocolFeeBps,
                 adminFeeBps,
                 poolName,
-                taxBps,
                 targetYieldBps,
                 poolTokenName,
                 poolTokenSymbol,
@@ -131,14 +134,15 @@ export const deployBullaFactoring = async ({
             [
                 underlyingAsset,
                 BullaClaimInvoiceProviderAdapterAddress,
+                bullaFrendLendAddress,
                 underwriter,
                 depositPermissionsAddress,
+                redeemPermissionsAddress,
                 factoringPermissionsAddress,
                 bullaDao,
                 protocolFeeBps,
                 adminFeeBps,
                 poolName,
-                taxBps,
                 targetYieldBps,
                 poolTokenName,
                 poolTokenSymbol,
@@ -179,7 +183,9 @@ export const deployBullaFactoring = async ({
                 [bullaFactoringAddress]: {
                     name: poolName,
                     bullaClaimInvoiceProviderAdapter: BullaClaimInvoiceProviderAdapterAddress,
+                    bullaFrendLend: bullaFrendLendAddress,
                     depositPermissions: depositPermissionsAddress,
+                    redeemPermissions: redeemPermissionsAddress,
                     factoringPermissions: factoringPermissionsAddress,
                 },
             },
