@@ -15,7 +15,6 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
-
 import { CommonSetup } from './CommonSetup.t.sol';
 
 
