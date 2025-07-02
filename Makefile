@@ -16,8 +16,8 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 constructor-args := 
 
 build  :; forge build --via-ir
-test   :; forge test -vvv --fork-url ${SEPOLIA_RPC_URL} --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
+test   :; forge test -vvv --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
 test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" $(ARGS)
-test-s   :; forge test --match-test "testAdminFeeAccruesOvertime" -vv --fork-url ${SEPOLIA_RPC_URL} --via-ir
-trace   :; forge test -vvvv --fork-url ${SEPOLIA_RPC_URL} --via-ir
-coverage   :; forge coverage -vv --fork-url ${SEPOLIA_RPC_URL} --ir-minimum --report lcov
+test-s   :; forge test --match-test "testAdminFeeAccruesOvertime" -vv --via-ir
+trace   :; forge test -vvvv --via-ir
+coverage   :; forge coverage -vv --ir-minimum --report lcov

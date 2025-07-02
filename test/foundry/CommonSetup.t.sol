@@ -5,12 +5,12 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
 import { TestSafe } from 'contracts/mocks/gnosisSafe.sol';
-import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
+
 import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -20,10 +20,14 @@ import {IBullaFrendLend} from "bulla-contracts-v2/src/interfaces/IBullaFrendLend
 import {BullaFrendLend} from "bulla-contracts-v2/src/BullaFrendLend.sol";
 import {BullaControllerRegistry} from "bulla-contracts-v2/src/BullaControllerRegistry.sol";
 import {BullaClaim as BullaClaimV2} from "bulla-contracts-v2/src/BullaClaim.sol";
+import {IBullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
+import {BullaInvoice} from "bulla-contracts-v2/src/BullaInvoice.sol";
+import {IBullaClaim} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
+import {CreateClaimParams, ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
 
 contract CommonSetup is Test {
     BullaFactoringV2 public bullaFactoring;
-    BullaClaimV1InvoiceProviderAdapterV2 public invoiceAdapterBulla;
+    BullaClaimV2InvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
     MockPermissions public redeemPermissions;
@@ -35,9 +39,8 @@ contract CommonSetup is Test {
     BullaControllerRegistry public bullaControllerRegistry;
     MockPermissions public feeExemptionWhitelist;
     IBullaFrendLend public bullaFrendLend;
-    BullaClaimV2 public bullaClaimV2;
-    IBullaClaim bullaClaim = IBullaClaim(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // contract address on SEPOLIA
-    IERC721 bullaClaimERC721 = IERC721(0x3702D060cbB102b6AebF40B40880F77BeF3d7225); // required to use approve & transferFrom functions
+    IBullaClaim public bullaClaim;
+    IBullaInvoice public bullaInvoice;
 
     address alice = address(0xA11c3);
     address bob = address(0xb0b);
@@ -62,15 +65,16 @@ contract CommonSetup is Test {
 
     function setUp() public virtual {
         asset = new MockUSDC();
-        invoiceAdapterBulla = new BullaClaimV1InvoiceProviderAdapterV2(bullaClaim);
         depositPermissions = new MockPermissions();
         factoringPermissions = new MockPermissions();
         redeemPermissions = new MockPermissions();
         daoMock = new DAOMock();
         feeExemptionWhitelist = new MockPermissions();
         bullaControllerRegistry = new BullaControllerRegistry();
-        bullaClaimV2 = new BullaClaimV2(address(bullaControllerRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaimV2), address(this), 50);
+        bullaClaim = new BullaClaimV2(address(bullaControllerRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
+        bullaFrendLend = new BullaFrendLend(address(bullaClaim), address(this), 50);
+        bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 50);
+        invoiceAdapterBulla = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
 
         address[] memory safeOwners = new address[](2);
         safeOwners[0] = alice;
@@ -129,20 +133,19 @@ contract CommonSetup is Test {
     ) internal returns (uint256) {
         string memory description = "";
         address claimToken = address(asset);
-        Multihash memory attachment = Multihash({
-            hash: 0x0,
-            hashFunction: 0x12, 
-            size: 32 
+
+        CreateClaimParams memory params = CreateClaimParams({
+            creditor: creditor,
+            debtor: debtor,
+            claimAmount: claimAmount,
+            description: description,
+            token: claimToken,
+            binding: ClaimBinding.Unbound,
+            payerReceivesClaimOnPayment: true,
+            dueBy: _dueBy,
+            impairmentGracePeriod: 15 days
         });
 
-        return bullaClaim.createClaim(
-            creditor,
-            debtor,
-            description,
-            claimAmount,
-            _dueBy,
-            claimToken,
-            attachment
-        );
+        return bullaClaim.createClaim(params);
     }
 }

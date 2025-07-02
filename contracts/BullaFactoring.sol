@@ -233,6 +233,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Approves an invoice for funding, can only be called by the underwriter
     /// @param invoiceId The ID of the invoice to approve
+    /// @param _targetYieldBps The target yield in basis points
     /// @param _spreadBps The spread in basis points to add on top of target yield
     /// @param _upfrontBps The maximum upfront percentage the factorer can request
     /// @param minDaysInterestApplied The minimum number of days interest must be applied
@@ -243,8 +244,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapterV2.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
         // if invoice already got approved and funded (creditor/owner of invoice is this contract), do not override storage
-        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
-        if (IERC721(invoiceContractAddress).ownerOf(invoiceId) == address(this)) revert InvoiceAlreadyFunded();
+        // we assume that invoices are always from the bulla protocol and the creditor is always the NFT owner
+        if (invoiceSnapshot.creditor == address(this)) revert InvoiceAlreadyFunded();
         // check claim token is equal to pool token
         address claimToken = invoiceSnapshot.tokenAddress;
         if (claimToken != address(assetAddress)) revert InvoiceTokenMismatch();
@@ -531,7 +532,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         assetAddress.safeTransfer(actualReceiver, fundedAmountNet);
 
         // transfer invoice nft ownership to vault
-        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
+        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress(invoiceId);
         IERC721(invoiceContractAddress).transferFrom(msg.sender, address(this), invoiceId);
 
         originalCreditors[invoiceId] = msg.sender;
@@ -711,8 +712,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             assetAddress.safeTransfer(originalCreditor, uint256(-totalRefundOrPaymentAmount));
         }
 
-        // Transfer the invoice NFT back to the original creditor
-        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress();
+        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress(invoiceId);
         IERC721(invoiceContractAddress).transferFrom(address(this), originalCreditor, invoiceId);
 
         // Update the contract's state to reflect the unfactoring

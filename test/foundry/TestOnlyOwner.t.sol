@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -113,7 +113,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     }
 
     function testSetGracePeriodDaysEmitsEvent() public {
-        uint256 oldGracePeriodDays = bullaFactoring.gracePeriodDays();
         uint256 newGracePeriodDays = 90;
         
         vm.expectEmit(true, true, true, true);
@@ -124,7 +123,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     }
 
     function testSetApprovalDurationEmitsEvent() public {
-        uint256 oldApprovalDuration = bullaFactoring.approvalDuration();
         uint256 newApprovalDuration = 7200; // 2 hours
         
         vm.expectEmit(true, true, true, true);

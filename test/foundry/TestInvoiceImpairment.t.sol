@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -46,14 +46,14 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(bob);
         uint invoiceId02Amount = 90000000;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
@@ -82,7 +82,7 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaClaim.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -133,7 +133,6 @@ contract TestInvoiceImpairment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        IBullaFactoringV2.FundInfo memory fundInfoAfterRepayment = bullaFactoring.getFundInfo();
         uint256 capitalAccountAfterPayment = bullaFactoring.calculateCapitalAccount();
         
         assertTrue(capitalAccountAfterImpair < capitalAccountAfterPayment, "Realized gain increases when invoice impaired by fund gets paid");
@@ -157,7 +156,7 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaClaim.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 

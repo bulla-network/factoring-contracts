@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -29,11 +29,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
    function testUnknownInvoiceId() public {
         uint invoiceId01Amount = 100;
+        vm.prank(bob);
         createClaim(bob, alice, invoiceId01Amount, dueBy);
         // picking a random number as incorrect invoice id
         uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
         vm.startPrank(underwriter);
-        vm.expectRevert(abi.encodeWithSignature("InexistentInvoice()"));
+        vm.expectRevert(abi.encodeWithSignature("NotMinted()"));
         bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
     }
@@ -48,7 +49,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         vm.expectRevert(abi.encodeWithSignature("InvoiceNotApproved()"));
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
@@ -64,7 +65,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceIdAmount = 100;
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
@@ -85,12 +86,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceIdAmount = 100;
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaim.rescindClaim(invoiceId);
+        bullaClaim.cancelClaim(invoiceId, "");
         vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
@@ -98,13 +99,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         uint256 invoiceId02 = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        bullaClaim.rejectClaim(invoiceId02);
+        bullaClaim.cancelClaim(invoiceId02, "");
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -123,7 +124,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceIdAmount = 100;
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
@@ -149,13 +150,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceIdAmount = 100;
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.transferFrom(bob, alice, invoiceId);
+        bullaClaim.transferFrom(bob, alice, invoiceId);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -180,7 +181,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -205,7 +206,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId03);
+        bullaClaim.approve(address(bullaFactoring), invoiceId03);
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -236,12 +237,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Bob funds an invoice
         uint invoiceIdAmount = 100; // Amount of the invoice
+        vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -288,22 +290,24 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceAmount = 5000000000; // 5k invoice
 
         // Bob funds the first invoice
+        vm.prank(bob);
         uint256 invoiceId01 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Bob funds the second invoice 5k second invoice
+        vm.prank(bob);
         uint256 invoiceId02 = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -358,7 +362,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -411,7 +415,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
@@ -456,7 +460,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -481,7 +485,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, minDays);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -522,10 +526,9 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertEq(initialPps, ppsAfterFullRedemption, "Price per share should be equal to initial price per share");
     }
 
-    function testConvertToSharesWithZeroSupply() public {
+    function testConvertToSharesWithZeroSupply() public view {
         // Ensure no deposits have been made
         assertEq(bullaFactoring.totalSupply(), 0, "Total supply should be zero");
-        uint initialPricePerShare = bullaFactoring.pricePerShare();
         uint256 assetsToConvert = 120922222;
         uint256 sharesConverted = bullaFactoring.convertToShares(assetsToConvert);
 
@@ -624,7 +627,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        bullaClaim.approve(address(bullaFactoring), invoiceId1);
         bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -647,7 +650,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        bullaClaim.approve(address(bullaFactoring), invoiceId2);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", bob));
         bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
@@ -669,7 +672,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId01);
+        bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -689,7 +692,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId02);
+        bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
         (, uint targetAdminFeeAfterFeeChange, , , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();

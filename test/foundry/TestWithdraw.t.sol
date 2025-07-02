@@ -6,7 +6,7 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
-import { BullaClaimV1InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol';
+import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { DAOMock } from 'contracts/mocks/DAOMock.sol';
@@ -49,7 +49,7 @@ contract TestWithdraw is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -94,13 +94,14 @@ contract TestWithdraw is CommonSetup {
         uint256 dueDate = block.timestamp + 30 days;
 
         // Create and fund first invoice
+        vm.prank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, 10000, minDays); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId1);
+        bullaClaim.approve(address(bullaFactoring), invoiceId1);
         bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
@@ -116,7 +117,7 @@ contract TestWithdraw is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        uint assetsRedeemed = bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
         vm.stopPrank();
         
         assertEq(bullaFactoring.balanceOf(alice), 0, "Alice redeem all her shares");
@@ -128,13 +129,14 @@ contract TestWithdraw is CommonSetup {
         vm.stopPrank();
 
         // Create and fund second invoice, identical to the first
+        vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, 10000, minDays); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId2);
+        bullaClaim.approve(address(bullaFactoring), invoiceId2);
         bullaFactoring.fundInvoice(invoiceId2, 10000, address(0));
         vm.stopPrank();
 
@@ -181,7 +183,7 @@ contract TestWithdraw is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -233,7 +235,7 @@ contract TestWithdraw is CommonSetup {
 
         // creditor funds the invoice
         vm.startPrank(bob);
-        bullaClaimERC721.approve(address(bullaFactoring), invoiceId);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
