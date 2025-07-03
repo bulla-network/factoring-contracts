@@ -23,6 +23,7 @@ import {BullaClaim as BullaClaimV2} from "bulla-contracts-v2/src/BullaClaim.sol"
 import {IBullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 import {BullaInvoice} from "bulla-contracts-v2/src/BullaInvoice.sol";
 import {IBullaClaim} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
+import {BullaApprovalRegistry} from "bulla-contracts-v2/src/BullaApprovalRegistry.sol";
 import {CreateClaimParams, ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
 
 contract CommonSetup is Test {
@@ -37,16 +38,20 @@ contract CommonSetup is Test {
     PermissionsWithSafe public permissionsWithSafe;
     TestSafe public testSafe;
     BullaControllerRegistry public bullaControllerRegistry;
+    BullaApprovalRegistry public bullaApprovalRegistry;
     MockPermissions public feeExemptionWhitelist;
     IBullaFrendLend public bullaFrendLend;
     IBullaClaim public bullaClaim;
     IBullaInvoice public bullaInvoice;
 
+    uint256 bobPK = 0x1;
+    uint256 charliePK = 0x2;
+
     address alice = address(0xA11c3);
-    address bob = address(0xb0b);
+    address bob = vm.addr(bobPK);
     address underwriter = address(0x1222);
     address userWithoutPermissions = address(0x743123);
-    address charlie = address(0xc4a11e);
+    address charlie = vm.addr(charliePK);
 
     uint16 interestApr = 730;
     uint16 spreadBps = 1000;
@@ -71,11 +76,13 @@ contract CommonSetup is Test {
         daoMock = new DAOMock();
         feeExemptionWhitelist = new MockPermissions();
         bullaControllerRegistry = new BullaControllerRegistry();
-        bullaClaim = new BullaClaimV2(address(bullaControllerRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
+        bullaApprovalRegistry = new BullaApprovalRegistry(address(bullaControllerRegistry));
+        bullaClaim = new BullaClaimV2(address(bullaApprovalRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
         bullaFrendLend = new BullaFrendLend(address(bullaClaim), address(this), 50);
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 50);
         invoiceAdapterBulla = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
-
+        bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);
+        
         address[] memory safeOwners = new address[](2);
         safeOwners[0] = alice;
         safeOwners[1] = address(this);

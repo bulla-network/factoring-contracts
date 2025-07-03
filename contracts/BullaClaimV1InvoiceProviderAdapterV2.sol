@@ -34,7 +34,7 @@ contract BullaClaimV1InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         return invoice;
     }
 
-    function getInvoiceContractAddress(uint256 invoiceId) external view returns (address) {
+    function getInvoiceContractAddress(uint256) external view returns (address) {
         return address(bullaClaim);
     }
 }
