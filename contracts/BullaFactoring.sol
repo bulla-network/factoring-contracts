@@ -118,7 +118,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvoiceAlreadyFunded();
     error LoanOfferNotExists();
     error LoanOfferAlreadyAccepted();
-    error TEMP();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
