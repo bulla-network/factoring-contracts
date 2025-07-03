@@ -541,4 +541,87 @@ contract TestBullaInvoiceFactoring is CommonSetup {
             }
         }
     }
+
+    function testBullaInvoicePoolGainOnlyFromPrincipalNotPenalties() public {
+        uint256 initialDeposit = 400000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 principalAmount = 100000;
+        uint256 _dueBy = block.timestamp + 30 days;
+        
+        // Create two invoices with same principal amount
+        vm.startPrank(bob);
+        // Invoice 1: With interest rate (will generate penalty fees when paid late)
+        uint256 invoiceId1 = createInvoice(bob, alice, principalAmount, _dueBy, 1800, 365); // 18% APR
+        
+        // Invoice 2: Without interest rate (no penalty fees)
+        uint256 invoiceId2 = createInvoice(bob, alice, principalAmount, _dueBy, 0, 365); // 0% APR
+        vm.stopPrank();
+
+        // Both invoices get the same factoring terms from underwriter
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, minDays);
+        vm.stopPrank();
+
+        // Fund both invoices with same terms
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId1);
+        uint256 fundedAmount1 = bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
+        
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId2);
+        uint256 fundedAmount2 = bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Verify both invoices were funded with the same amount (same principal, same terms)
+        assertEq(fundedAmount1, fundedAmount2, "Both invoices should have same funded amount");
+
+        // Fast forward past due date (invoice 1 will accrue penalties, invoice 2 won't)
+        vm.warp(block.timestamp + 60 days); // 30 days overdue
+
+        // Get invoice details before payment
+        IInvoiceProviderAdapterV2.Invoice memory invoice1 = invoiceAdapterBulla.getInvoiceDetails(invoiceId1);
+        IInvoiceProviderAdapterV2.Invoice memory invoice2 = invoiceAdapterBulla.getInvoiceDetails(invoiceId2);
+
+        // Verify that invoice 1 has accrued penalty interest but invoice 2 hasn't
+        assertGt(invoice1.invoiceAmount, principalAmount, "Invoice 1 should have accrued penalty interest");
+        assertEq(invoice2.invoiceAmount, principalAmount, "Invoice 2 should not have accrued any interest");
+
+        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+
+        // Pay both invoices (invoice 1 pays more due to penalties, but pool gain should be the same)
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), invoice1.invoiceAmount);
+        bullaInvoice.payInvoice(invoiceId1, invoice1.invoiceAmount);
+        
+        asset.approve(address(bullaInvoice), invoice2.invoiceAmount);
+        bullaInvoice.payInvoice(invoiceId2, invoice2.invoiceAmount);
+        vm.stopPrank();
+
+        // Reconcile both payments
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase from both payments");
+
+        // Check that pool gained the same amount from both invoices
+        uint256 gain1 = bullaFactoring.paidInvoicesGain(invoiceId1);
+        uint256 gain2 = bullaFactoring.paidInvoicesGain(invoiceId2);
+
+        assertEq(gain1, gain2, "Pool should gain the same amount from both invoices regardless of penalty fees");
+        assertGt(gain1, 0, "Pool should have positive gain from factoring");
+
+        // Also verify that spread gains are the same for both invoices
+        uint256 spreadGain1 = bullaFactoring.paidInvoicesSpreadGain(invoiceId1);
+        uint256 spreadGain2 = bullaFactoring.paidInvoicesSpreadGain(invoiceId2);
+        
+        assertEq(spreadGain1, spreadGain2, "Pool should have same spread gain from both invoices");
+
+        // The difference in total payment (invoice1 paid more due to penalties) 
+        // should NOT affect the pool's gain - those penalties go to the original creditor
+        uint256 totalPaymentDifference = invoice1.invoiceAmount - invoice2.invoiceAmount;
+        assertGt(totalPaymentDifference, 0, "Invoice 1 should have paid more due to penalty fees");
+    }
 } 
