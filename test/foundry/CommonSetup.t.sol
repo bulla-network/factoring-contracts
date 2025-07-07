@@ -25,6 +25,7 @@ import {BullaInvoice} from "bulla-contracts-v2/src/BullaInvoice.sol";
 import {IBullaClaim} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
 import {BullaApprovalRegistry} from "bulla-contracts-v2/src/BullaApprovalRegistry.sol";
 import {CreateClaimParams, ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
+import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 
 contract CommonSetup is Test {
     BullaFactoringV2 public bullaFactoring;
@@ -154,5 +155,34 @@ contract CommonSetup is Test {
         });
 
         return bullaClaim.createClaim(params);
+    }
+
+    function createInvoice(
+        address creditor, 
+        address debtor, 
+        uint256 principalAmount,
+        uint256 _dueBy,
+        uint256 interestRateBps,
+        uint256 numberOfPeriodsPerYear
+    ) internal returns (uint256) {
+        CreateInvoiceParams memory params = CreateInvoiceParams({
+            creditor: creditor,
+            debtor: debtor,
+            claimAmount: principalAmount,
+            description: "Test Invoice",
+            token: address(asset),
+            dueBy: _dueBy,
+            deliveryDate: 0, // No delivery date for simple invoices
+            binding: ClaimBinding.Unbound,
+            payerReceivesClaimOnPayment: true,
+            lateFeeConfig: InterestConfig({
+                interestRateBps: uint16(interestRateBps),
+                numberOfPeriodsPerYear: uint16(numberOfPeriodsPerYear)
+            }),
+            impairmentGracePeriod: 15 days,
+            depositAmount: 0 // No deposit for simple invoices
+        });
+
+        return bullaInvoice.createInvoice(params);
     }
 }
