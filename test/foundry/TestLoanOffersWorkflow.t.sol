@@ -10,6 +10,7 @@ import {CreateClaimApprovalType} from '@bulla/contracts-v2/src/BullaClaim.sol';
 import {EIP712Helper} from './utils/EIP712Helper.sol';
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Loan} from '@bulla/contracts-v2/src/BullaFrendLend.sol';
+import {Status} from '@bulla/contracts-v2/src/types/Types.sol';
 
 contract TestLoanOffersWorkflow is CommonSetup {
 
@@ -93,6 +94,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             500,           // spreadBps (5%)
             100_000,       // principalAmount
             30 days,       // termLength
+            365,           // numberOfPeriodsPerYear
             "Test loan"    // description
         );
         vm.stopPrank();
@@ -107,6 +109,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             500,
             100_000,
             30 days,
+            365, // numberOfPeriodsPerYear
             "Test loan"
         );
         vm.stopPrank();
@@ -153,6 +156,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             _spreadBps,
             principalAmount,
             termLength,
+            365, // numberOfPeriodsPerYear
             description
         );
         
@@ -291,7 +295,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 termLength = 45 days;
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, "State test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, 365, "State test");
         vm.stopPrank();
         
         // Verify pending loan offer exists
@@ -319,7 +323,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 termLength = 60 days;
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, "Fee params test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, 365, "Fee params test");
         vm.stopPrank();
         
         // Get original fee params
@@ -380,6 +384,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
                 500,
                 100_000 + (i * 10_000), // Different amounts
                 30 days,
+                365, // numberOfPeriodsPerYear
                 string(abi.encodePacked("Loan ", vm.toString(i)))
             );
         }
@@ -443,7 +448,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     function testOnLoanOfferAccepted_AlreadyAcceptedLoanOffer() public {
         // Create and accept a loan offer
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "Test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Test");
         vm.stopPrank();
         
         // Alice makes a deposit to fund the pool
@@ -476,7 +481,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         );
 
         vm.startPrank(underwriter);
-        uint256 nextLoanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "Test");
+        uint256 nextLoanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Test");
         vm.stopPrank();
         
         // Try to accept the same loan offer again
@@ -499,7 +504,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 approvalDuration = bullaFactoring.approvalDuration();
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "Expiration test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Expiration test");
         vm.stopPrank();
         
         // Verify pending loan offer exists
@@ -564,6 +569,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             _spreadBps,
             principalAmount,
             termLength,
+            365, // numberOfPeriodsPerYear
             description
         );
         vm.stopPrank();
@@ -594,7 +600,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_ZeroTargetYield() public {
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 0, 500, 100_000, 30 days, "Zero yield test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 0, 500, 100_000, 30 days, 365, "Zero yield test");
         vm.stopPrank();
         (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -607,7 +613,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint16 highYield = 5000; // 50%
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, highYield, 500, 100_000, 30 days, "High yield test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, highYield, 500, 100_000, 30 days, 365, "High yield test");
         vm.stopPrank();
         (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -616,7 +622,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_ZeroSpread() public {
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 0, 100_000, 30 days, "Zero spread test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 0, 100_000, 30 days, 365, "Zero spread test");
         vm.stopPrank();
         (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -627,7 +633,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint16 maxSpread = 2000; // 20%
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, maxSpread, 100_000, 30 days, "Max spread test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, maxSpread, 100_000, 30 days, 365, "Max spread test");
         vm.stopPrank();
         (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -639,7 +645,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     function testOfferLoan_ZeroPrincipalAmount() public {
         vm.startPrank(underwriter);
         // This should work as validation might be in BullaFrendLend
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 0, 30 days, "Zero principal test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 0, 30 days, 365, "Zero principal test");
         vm.stopPrank();
         (,, uint256 principalAmount,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -650,7 +656,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 largePrincipal = type(uint128).max; // Maximum for BullaFrendLend
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, largePrincipal, 30 days, "Large principal test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, largePrincipal, 30 days, 365, "Large principal test");
         vm.stopPrank();
         (,, uint256 principalAmount,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -660,7 +666,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     function testOfferLoan_ZeroTermLength() public {
         vm.startPrank(underwriter);
         vm.expectRevert(InvalidTermLength.selector);
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 0, "Zero term test");
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 0, 365, "Zero term test");
         vm.stopPrank();
     }
     
@@ -668,7 +674,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 longTerm = 365 days * 10; // 10 years
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, longTerm, "Long term test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, longTerm, 365, "Long term test");
         vm.stopPrank();
         (,,, uint256 termLength,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -685,7 +691,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 timestampBefore = block.timestamp;
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, "Storage test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, 365, "Storage test");
         vm.stopPrank();
         (
             bool exists,
@@ -714,9 +720,9 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         
         // Create 3 different loan offers
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "Offer 1");
-        bullaFactoring.offerLoan(alice, 1200, 600, 150_000, 45 days, "Offer 2");
-        bullaFactoring.offerLoan(charlie, 800, 400, 80_000, 20 days, "Offer 3");
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 1");
+        bullaFactoring.offerLoan(alice, 1200, 600, 150_000, 45 days, 365, "Offer 2");
+        bullaFactoring.offerLoan(charlie, 800, 400, 80_000, 20 days, 365, "Offer 3");
         
         vm.stopPrank();
         
@@ -739,7 +745,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 timestampBefore = block.timestamp;
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1500, 750, principalAmount, termLength, "Propagation test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1500, 750, principalAmount, termLength, 365, "Propagation test");
         vm.stopPrank();
         
         // Alice makes a deposit to fund the pool
@@ -802,7 +808,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 offerTime = block.timestamp;
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "Timestamp test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Timestamp test");
         vm.stopPrank();
         (bool exists, uint256 offeredAt,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -853,7 +859,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_EmptyDescription() public {
         vm.startPrank(underwriter);
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "");
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "");
         vm.stopPrank();
         
         assertEq(getPendingLoanOffersCount(), 1, "Should create offer with empty description");
@@ -863,7 +869,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         string memory longDesc = "This is a very long description that contains many characters to test the behavior with lengthy strings and ensure that the contract can handle large text inputs without issues or gas problems";
         
         vm.startPrank(underwriter);
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, longDesc);
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, longDesc);
         vm.stopPrank();
         
         assertEq(getPendingLoanOffersCount(), 1, "Should create offer with long description");
@@ -872,7 +878,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     function testOfferLoan_ZeroAddressDebtor() public {
         vm.startPrank(underwriter);
         // This might be validated by BullaFrendLend, but factoring contract should handle it
-        bullaFactoring.offerLoan(address(0), 1000, 500, 100_000, 30 days, "Zero address test");
+        bullaFactoring.offerLoan(address(0), 1000, 500, 100_000, 30 days, 365, "Zero address test");
         vm.stopPrank();
         
         assertEq(getPendingLoanOffersCount(), 1, "Should create offer with zero address debtor");
@@ -880,7 +886,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_SelfAsDebtor() public {
         vm.startPrank(underwriter);
-        bullaFactoring.offerLoan(address(bullaFactoring), 1000, 500, 100_000, 30 days, "Self debtor test");
+        bullaFactoring.offerLoan(address(bullaFactoring), 1000, 500, 100_000, 30 days, 365, "Self debtor test");
         vm.stopPrank();
         
         assertEq(getPendingLoanOffersCount(), 1, "Should create offer with contract as debtor");
@@ -899,6 +905,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
                 500,
                 100_000 + i * 1000,
                 30 days,
+                365, // numberOfPeriodsPerYear
                 string(abi.encodePacked("Offer ", vm.toString(i)))
             );
         }
@@ -935,7 +942,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoanAndAcceptance_MappingConsistency() public {
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, "Mapping test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Mapping test");
         vm.stopPrank();
         
         // Verify pending mapping exists
@@ -972,7 +979,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 termLength = 60 days;
         
         vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, termLength, "Event test");
+        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, termLength, 365, "Event test");
         vm.stopPrank();
         uint256 expectedDueDate = block.timestamp + termLength;
         
@@ -1036,6 +1043,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             _spreadBps,
             principalAmount,
             termLength,
+            365, // numberOfPeriodsPerYear
             description
         );
         vm.stopPrank();
@@ -1089,5 +1097,110 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(loan.interestConfig.interestRateBps, actualTotalFeeBps, "Interest rate should be equal to total fee basis points");
         assertEq(loan.interestComputationState.protocolFeeBps, 0, "Protocol fee should be exempt");
 
+    }
+    
+    function testOfferLoan_365PeriodsYieldMoreInterestThan0Periods() public {
+        uint256 principalAmount = 10_000;
+        uint16 targetYieldBps = 1200; // 12% APR
+        uint16 _spreadBps = 300; // 3% APR
+        uint256 termLength = 365 days; // 1 year to allow for meaningful compounding test
+        
+        // Alice deposits funds to fund both loans
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 4, alice);
+        vm.stopPrank();
+        
+        // Create two identical loan offers with different numberOfPeriodsPerYear
+        vm.startPrank(underwriter);
+        
+        uint256 loanOfferId365 = bullaFactoring.offerLoan(
+            bob,
+            targetYieldBps,
+            _spreadBps,
+            principalAmount,
+            termLength,
+            365, // 365 periods per year - daily compounding
+            "365 periods test loan"
+        );
+        
+        uint256 loanOfferId0 = bullaFactoring.offerLoan(
+            bob,
+            targetYieldBps,
+            _spreadBps,
+            principalAmount,
+            termLength,
+            0, // 0 periods per year - no compounding
+            "0 periods test loan"
+        );
+        
+        vm.stopPrank();
+        
+        // Accept both loans
+        vm.startPrank(bob);
+        uint256 loanId365 = bullaFrendLend.acceptLoan(loanOfferId365);
+        uint256 loanId0 = bullaFrendLend.acceptLoan(loanOfferId0);
+        vm.stopPrank();
+        
+        // Fast forward to a longer period to see meaningful compounding difference
+        vm.warp(block.timestamp + 180 days); // 6 months
+        
+        // Get loan details from BullaFrendLend to check interest accrual
+        Loan memory loan365 = bullaFrendLend.getLoan(loanId365);
+        Loan memory loan0 = bullaFrendLend.getLoan(loanId0);
+        
+        // Verify both loans have the same basic parameters
+        assertEq(loan365.claimAmount, loan0.claimAmount, "Both loans should have identical principal amounts");
+        assertEq(loan365.interestConfig.interestRateBps, loan0.interestConfig.interestRateBps, "Both loans should have identical interest rates");
+        
+        // Verify different compounding frequencies
+        assertEq(loan365.interestConfig.numberOfPeriodsPerYear, 365, "365-period loan should have 365 periods per year");
+        assertEq(loan0.interestConfig.numberOfPeriodsPerYear, 0, "0-period loan should have 0 periods per year");
+        
+        // Get total amounts due for both loans
+        (uint256 principal365, uint256 interest365) = bullaFrendLend.getTotalAmountDue(loanId365);
+        (uint256 principal0, uint256 interest0) = bullaFrendLend.getTotalAmountDue(loanId0);
+        
+        uint256 totalDue365 = principal365 + interest365;
+        uint256 totalDue0 = principal0 + interest0;
+        
+        // Verify both loans have the same principal
+        assertEq(principal365, principal0, "Both loans should have identical principal amounts");
+        assertEq(principal365, principalAmount, "Principal should match the original loan amount");
+        
+        // Verify that both loans accrued some interest
+        assertGt(interest365, 0, "365-period loan should have accrued interest");
+        assertGt(interest0, 0, "0-period loan should have accrued interest");
+        
+        // The key assertion: 365 periods should yield more interest than 0 periods
+        // This is because 365 periods allows for compounding, while 0 periods is simple interest
+        assertGt(interest365, interest0, "365 periods per year should yield more interest than 0 periods per year");
+        assertGt(totalDue365, totalDue0, "365-period loan should have higher total amount due");
+        
+        // Verify the difference is meaningful (at least 0.1% more)
+        uint256 minExpectedDifference = Math.mulDiv(interest0, 10, 10000); // 0.1% of the 0-period interest
+        assertGe(interest365 - interest0, minExpectedDifference, "Interest difference should be meaningful");
+        
+        // Test that payments work correctly for both loan types
+        vm.startPrank(bob);
+        
+        // Pay both loans in full
+        asset.approve(address(bullaFrendLend), totalDue365);
+        bullaFrendLend.payLoan(loanId365, totalDue365);
+        
+        asset.approve(address(bullaFrendLend), totalDue0);
+        bullaFrendLend.payLoan(loanId0, totalDue0);
+        
+        vm.stopPrank();
+        
+        // Verify both loans are paid
+        Loan memory paidLoan365 = bullaFrendLend.getLoan(loanId365);
+        Loan memory paidLoan0 = bullaFrendLend.getLoan(loanId0);
+        
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        assertTrue(paidLoan365.status == Status.Paid, "365-period loan should be paid");
+        assertTrue(paidLoan0.status == Status.Paid, "0-period loan should be paid");
+
+        assertGt(bullaFactoring.paidInvoicesGain(loanId365), bullaFactoring.paidInvoicesGain(loanId0), "Paid invoices gain should be greater for 365-period loan");
     }
 } 
