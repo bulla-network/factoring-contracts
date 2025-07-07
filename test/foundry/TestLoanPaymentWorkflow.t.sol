@@ -101,6 +101,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
             spreadBps,
             principalAmount,
             termLength,
+            365, // numberOfPeriodsPerYear
             "Test loan"
         );
         vm.stopPrank();

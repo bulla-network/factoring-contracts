@@ -162,15 +162,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return ERC20(address(assetAddress)).decimals();
     }
 
-    function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, string memory description)
+    function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
         public returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
+        if (numberOfPeriodsPerYear > 365) revert InvalidPercentage();
 
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
             interestConfig: InterestConfig({
                 interestRateBps: _targetYieldBps + spreadBps + adminFeeBps + protocolFeeBps,
-                numberOfPeriodsPerYear: 365
+                numberOfPeriodsPerYear: numberOfPeriodsPerYear
             }),
             loanAmount: principalAmount,
             creditor: address(this),
@@ -183,7 +184,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             callbackSelector: this.onLoanOfferAccepted.selector
         });
 
-        assetAddress.approve(address(bullaFrendLend), principalAmount);
+        assetAddress.safeIncreaseAllowance(address(bullaFrendLend), principalAmount);
         loanOfferId = bullaFrendLend.offerLoan(loanRequestParams);
 
         pendingLoanOffersByLoanOfferId[loanOfferId] = PendingLoanOfferInfo({
