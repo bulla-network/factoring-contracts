@@ -296,7 +296,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(loanId, 7500, address(0));
+        bullaFactoring.fundInvoice(loanId, 7500, address(0));
         vm.stopPrank();
         
         // Fast forward 20 days (early payment - less interest accrued)
@@ -357,7 +357,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(loanId, 6000, address(0));
+        bullaFactoring.fundInvoice(loanId, 6000, address(0));
         vm.stopPrank();
         
         // Fast forward 15 days
@@ -423,7 +423,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(loanId, 7000, address(0));
+        bullaFactoring.fundInvoice(loanId, 7000, address(0));
         vm.stopPrank();
         
         // Fast forward 10 days

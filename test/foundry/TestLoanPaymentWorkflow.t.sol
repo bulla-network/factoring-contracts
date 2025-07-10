@@ -121,7 +121,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint16 spreadBps = 500; // 5% APR (annualized)  
         uint256 termLength = 30 days;
         
-        (uint256 loanId, uint256 loanOfferId) = createAndFundLoan(
+        (uint256 loanId, ) = createAndFundLoan(
             bob,
             principalAmount,
             targetYieldBps,
@@ -208,7 +208,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint16 spreadBps = 600; // 6% APR (annualized)
         uint256 termLength = 60 days;
         
-        (uint256 loanId, uint256 loanOfferId) = createAndFundLoan(
+        (uint256 loanId, ) = createAndFundLoan(
             bob,
             principalAmount,
             targetYieldBps,
