@@ -119,6 +119,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error LoanOfferNotExists();
     error LoanOfferAlreadyAccepted();
     error InsufficientFunds(uint256 available, uint256 required);
+    error UnreconciledPaidInvoices();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -161,6 +162,17 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return The number of decimals for this token
     function decimals() public view override(ERC20, ERC4626) returns (uint8) {
         return ERC20(address(assetAddress)).decimals();
+    }
+
+    /// @notice Modifier to check that there are no unreconciled paid invoices before fund movement operations
+    modifier noUnreconciledPaidInvoices() {
+        // Check if any active invoices have been paid but not reconciled
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            if (isInvoicePaid(activeInvoices[i])) {
+                revert UnreconciledPaidInvoices();
+            }
+        }
+        _;
     }
 
     function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
@@ -454,7 +466,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param receiver The address to receive the fund shares
     /// @param assets The amount of assets to deposit
     /// @return The number of shares issued for the deposit
-    function deposit(uint256 assets,address receiver) public override returns (uint256) {
+    function deposit(uint256 assets,address receiver) public override noUnreconciledPaidInvoices returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         
         uint256 shares = super.deposit(assets, receiver);
@@ -467,7 +479,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param receiver The address to receive the fund shares
     /// @param attachment The attachment data for the deposit
     /// @return The number of shares issued for the deposit
-    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) external returns (uint256) {
+    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) external noUnreconciledPaidInvoices returns (uint256) {
         uint256 shares = deposit(assets, receiver);
         emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
         return shares;
@@ -511,7 +523,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param invoiceId The ID of the invoice to fund
     /// @param factorerUpfrontBps factorer specified upfront bps
     /// @param receiverAddress Address to receive the funds, if address(0) then funds go to msg.sender
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns(uint256) {
+    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external noUnreconciledPaidInvoices returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approvedInvoices[invoiceId].feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
@@ -837,7 +849,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _owner The address who owns the shares to redeem
     /// @param assets The amount of assets to withdraw
     /// @return The number of shares redeemed
-    function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
+    function withdraw(uint256 assets, address receiver, address _owner) public override noUnreconciledPaidInvoices returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
  
@@ -852,7 +864,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param receiver The address to receive the assets
     /// @param _owner The owner of the shares being redeemed
     /// @return The number of shares redeemed
-    function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
+    function redeem(uint256 shares, address receiver, address _owner) public override noUnreconciledPaidInvoices returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
         
@@ -869,7 +881,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _owner The owner of the shares being redeemed
     /// @param attachment The attachment data for the redemption
     /// @return The amount of assets redeemed
-    function redeemWithAttachment(uint256 shares, address receiver, address _owner, Multihash calldata attachment) external returns (uint256) {
+    function redeemWithAttachment(uint256 shares, address receiver, address _owner, Multihash calldata attachment) external noUnreconciledPaidInvoices returns (uint256) {
         uint256 assets = redeem(shares, receiver, _owner);
         emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
         return assets;
