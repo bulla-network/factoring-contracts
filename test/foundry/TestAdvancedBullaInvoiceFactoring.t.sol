@@ -69,7 +69,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
 
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Test at different payment times and verify interest calculations
@@ -83,7 +83,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         for (uint256 i = 0; i < paymentTimes.length; i++) {
             vm.warp(block.timestamp + paymentTimes[i]);
             
-            (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
+            (, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
             
             // Interest should increase with time
             if (i > 0) {
@@ -298,7 +298,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         (,,,,,uint256 fundedAmountNet) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         // Should revert due to insufficient funds
-        vm.expectRevert(abi.encodeWithSelector(ERC20InsufficientBalance.selector, address(bullaFactoring), initialDeposit, fundedAmountNet));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, initialDeposit, fundedAmountNet));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }

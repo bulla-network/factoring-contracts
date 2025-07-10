@@ -998,4 +998,97 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Verify kickback went to bob (msg.sender when receiver was address(0))
         assertEq(asset.balanceOf(bob), bobBalanceBeforePayment + expectedKickback, "Bob should have received the kickback amount when receiver was address(0)");
     }
+
+    function testPaidInvoiceFundsNotAccessibleUntilReconciliation() public {
+        // Setup: Limited deposit that can fund one invoice but not two
+        uint256 limitedDeposit = 90000; // 90k deposit
+        uint256 invoiceAmount = 100000; // 100k invoice amount
+        uint16 testUpfrontBps = 8000; // 80% upfront funding
+        
+        vm.startPrank(alice);
+        bullaFactoring.deposit(limitedDeposit, alice);
+        vm.stopPrank();
+
+        // Verify initial total assets
+        uint256 initialTotalAssets = bullaFactoring.totalAssets();
+        assertEq(initialTotalAssets, limitedDeposit, "Initial total assets should equal deposit");
+
+        // Create first invoice
+        vm.startPrank(bob);
+        uint256 firstInvoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve first invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(firstInvoiceId, targetYield, spreadBps, testUpfrontBps, minDays);
+        vm.stopPrank();
+
+        // Fund first invoice - should succeed
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), firstInvoiceId);
+        uint256 fundedAmount = bullaFactoring.fundInvoice(firstInvoiceId, testUpfrontBps, address(0));
+        vm.stopPrank();
+
+        // Verify total assets decreased after funding
+        uint256 assetsAfterFunding = bullaFactoring.totalAssets();
+        assertLt(assetsAfterFunding, initialTotalAssets, "Total assets should decrease after funding");
+
+        // Create second invoice of similar size
+        vm.startPrank(bob);
+        uint256 secondInvoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve second invoice
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(secondInvoiceId, targetYield, spreadBps, testUpfrontBps, minDays);
+        vm.stopPrank();
+
+        // Debtor pays the first invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(firstInvoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        // Verify the invoice shows as paid in pool status
+        (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
+        assertEq(paidInvoices.length, 1, "Should have one paid invoice");
+        assertEq(paidInvoices[0], firstInvoiceId, "First invoice should be in paid invoices");
+
+        // Total assets should still be low (payment not reconciled yet)
+        uint256 assetsBeforeReconciliation = bullaFactoring.totalAssets();
+        assertEq(assetsBeforeReconciliation, assetsAfterFunding, "Total assets should not change until reconciliation");
+
+        // Calculate expected funded amount for second invoice
+        (,,,,, uint256 expectedFundedAmountNet) = bullaFactoring.calculateTargetFees(secondInvoiceId, testUpfrontBps);
+        
+        // Try to fund second invoice - should fail due to insufficient funds
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), secondInvoiceId);
+        
+        // Expect the transaction to revert due to insufficient balance
+        vm.expectRevert(
+            abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, assetsBeforeReconciliation, expectedFundedAmountNet)
+        );
+        bullaFactoring.fundInvoice(secondInvoiceId, testUpfrontBps, address(0));
+        vm.stopPrank();
+
+        // Now reconcile the paid invoices
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Verify total assets increased after reconciliation (due to returned payment)
+        uint256 assetsAfterReconciliation = bullaFactoring.totalAssets();
+        assertGt(assetsAfterReconciliation, assetsBeforeReconciliation, "Total assets should increase after reconciliation");
+
+        // Now funding the second invoice should succeed
+        vm.startPrank(bob);
+        uint256 secondFundedAmount = bullaFactoring.fundInvoice(secondInvoiceId, testUpfrontBps, address(0));
+        vm.stopPrank();
+
+        assertGt(secondFundedAmount, 0, "Second invoice should be successfully funded after reconciliation");
+        
+        // Verify the second invoice is now in active invoices
+        // We can check this indirectly by seeing if we can get funded amount
+        uint256 retrievedFundedAmount = bullaFactoring.getFundedAmount(secondInvoiceId);
+        assertEq(retrievedFundedAmount, secondFundedAmount, "Second invoice should be properly tracked as active");
+    }
 }

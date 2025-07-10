@@ -105,7 +105,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate expected fees
-        (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , uint256 targetInterest, uint256 targetSpreadAmount, , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice
         vm.startPrank(bob);
@@ -361,7 +361,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
 
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint256 bobBalanceBefore = asset.balanceOf(bob);
@@ -518,7 +518,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
 
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward to different payment times and verify interest calculations
@@ -530,7 +530,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         for (uint256 i = 0; i < paymentTimes.length; i++) {
             vm.warp(block.timestamp + paymentTimes[i]);
             
-            (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
+            (, uint256 trueInterest, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
             
             // Earlier payments should have lower true interest and higher kickback
             assertGt(trueInterest, 0, "True interest should be positive");

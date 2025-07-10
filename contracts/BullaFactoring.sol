@@ -118,6 +118,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvoiceAlreadyFunded();
     error LoanOfferNotExists();
     error LoanOfferAlreadyAccepted();
+    error InsufficientFunds(uint256 available, uint256 required);
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -521,6 +522,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
         (uint256 fundedAmountGross,,,,,uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
+        uint256 _totalAssets = totalAssets();
+        if(fundedAmountNet > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountNet);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
