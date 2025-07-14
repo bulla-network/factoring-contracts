@@ -653,8 +653,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
  
             incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
 
+            address receiverAddress = approvedInvoices[invoiceId].receiverAddress;
+            
             if (kickbackAmount != 0) {
-                address receiverAddress = approvedInvoices[invoiceId].receiverAddress;
                 assetAddress.safeTransfer(receiverAddress, kickbackAmount);
                 emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
             }
