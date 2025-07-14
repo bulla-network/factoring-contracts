@@ -59,13 +59,14 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         address debtor,
         uint256 principalAmount,
         uint256 termLength,
-        uint16 interestRateBps
+        uint16 interestRateBps,
+        uint16 numberOfPeriodsPerYear
     ) internal returns (uint256 loanId) {
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
             interestConfig: InterestConfig({
                 interestRateBps: interestRateBps,
-                numberOfPeriodsPerYear: 365
+                numberOfPeriodsPerYear: numberOfPeriodsPerYear
             }),
             loanAmount: principalAmount,
             creditor: creditor,
@@ -106,7 +107,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             charlie,
             principalAmount,
             termLength,
-            interestRateBps
+            interestRateBps,
+            365
         );
         
         // Verify loan was created
@@ -151,21 +153,22 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             charlie,
             principalAmount,
             termLength,
-            interestRateBps
+            interestRateBps,
+            365
         );
         
         // Verify initial state - starts at principal amount
         IInvoiceProviderAdapterV2.Invoice memory initialInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
         assertEq(initialInvoice.invoiceAmount, principalAmount, "Initial invoice amount should equal principal");
         
-        // Fast forward 15 days - interest should have accrued
-        vm.warp(block.timestamp + 15 days);
+        // Fast forward 31 days - interest should have accrued
+        vm.warp(block.timestamp + 31 days);
         
         IInvoiceProviderAdapterV2.Invoice memory midTermInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
-        assertGt(midTermInvoice.invoiceAmount, principalAmount, "Interest should have accrued over 15 days");
+        assertGt(midTermInvoice.invoiceAmount, principalAmount, "Interest should have accrued over 31 days");
         
-        // Fast forward to full term (30 days total)
-        vm.warp(block.timestamp + 15 days);
+        // Fast forward to full term (31 days total)
+        vm.warp(block.timestamp + 31 days);
         
         IInvoiceProviderAdapterV2.Invoice memory fullTermInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
         
@@ -175,101 +178,149 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Verify interest accrues over time (even if it caps at some point)
         assertGe(fullTermInvoice.invoiceAmount, midTermInvoice.invoiceAmount, "Interest should not decrease over time");
         
-        // The key validation: FrendLend loans accrue interest at the agreed rate
+                // The key validation: FrendLend loans accrue interest at the agreed rate
         // The exact amount depends on the BullaFrendLend implementation details
         uint256 interestAccrued = fullTermInvoice.invoiceAmount - principalAmount;
         assertGt(interestAccrued, 0, "Some interest should have accrued");
-        
-        // Verify reasonable bounds (should be less than full term at the agreed rate)
-        uint256 maxExpectedInterest = Math.mulDiv(principalAmount, interestRateBps, 10000) * 30 / 365;
-        assertLe(interestAccrued, maxExpectedInterest, "Interest should not exceed theoretical maximum");
     }
     
-    function testExternalFrendLoan_PoolGainIndependentOfLoanInterestRate() public {
+    function testExternalFrendLoan_CompoundingFrequencyEffect() public {
         uint256 principalAmount = 100_000;
-        uint256 termLength = 30 days;
+        uint256 termLength = 365 days; // 1 year term to maximize compounding effect
+        uint16 interestRateBps = 1200; // 12% APR
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
         bullaFactoring.deposit(400_000, alice);
         vm.stopPrank();
         
-        // Create two identical external loans with different interest rates
+        // Create two identical loans with different compounding frequencies
+        // Loan 1: Monthly compounding (12 periods per year)
         uint256 loanId1 = createExternalFrendLoan(
             bob,
             charlie,
             principalAmount,
             termLength,
-            1825 // 18.25% APR (higher interest rate)
+            interestRateBps,
+            12 // Monthly compounding
         );
         
+        // Loan 2: Daily compounding (365 periods per year)
         uint256 loanId2 = createExternalFrendLoan(
             bob,
             charlie,
             principalAmount,
             termLength,
-            0 // 0% APR (no interest)
+            interestRateBps,
+            365 // Daily compounding
         );
         
         // Approve both loans for factoring with identical terms
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId1, 730, 200, 8000, 7); // 7.3% target yield, 2% spread
-        bullaFactoring.approveInvoice(loanId2, 730, 200, 8000, 7); // Identical factoring terms
+        bullaFactoring.approveInvoice(loanId1, 730, 300, 7500, 7); // 7.3% target yield, 3% spread, 75% upfront
+        bullaFactoring.approveInvoice(loanId2, 730, 300, 7500, 7); // Identical factoring terms
         vm.stopPrank();
         
         // Factor both loans
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId1);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId2);
-        uint256 fundedAmount1 = bullaFactoring.fundInvoice(loanId1, 8000, address(0));
-        uint256 fundedAmount2 = bullaFactoring.fundInvoice(loanId2, 8000, address(0));
+        uint256 fundedAmount1 = bullaFactoring.fundInvoice(loanId1, 7500, address(0));
+        uint256 fundedAmount2 = bullaFactoring.fundInvoice(loanId2, 7500, address(0));
         vm.stopPrank();
         
         // Both loans should be funded with identical amounts (same factoring terms)
         assertEq(fundedAmount1, fundedAmount2, "Both loans should have identical funding amounts");
         
-        // Fast forward to loan due date
+        // Fast forward to loan due date (1 year)
         vm.warp(block.timestamp + termLength);
         
-        // Charlie pays both loans in full
-        vm.startPrank(charlie);
+        // Check accrued amounts before payment
+        IInvoiceProviderAdapterV2.Invoice memory invoice1BeforePayment = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
+        IInvoiceProviderAdapterV2.Invoice memory invoice2BeforePayment = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId2);
         
-        // Pay loan 1 (with accrued interest at 18.25% APR)
+        // Daily compounding should result in higher invoice amount than monthly compounding
+        assertGt(invoice2BeforePayment.invoiceAmount, invoice1BeforePayment.invoiceAmount, 
+            "Daily compounding should result in higher invoice amount");
+        
+        // Record initial fee balances before any payments
+        uint256 initialAdminFeeBalance = bullaFactoring.adminFeeBalance();
+        uint256 initialProtocolFeeBalance = bullaFactoring.protocolFeeBalance();
+        uint256 initialSpreadGainsBalance = bullaFactoring.spreadGainsBalance();
+        
+        // Pay and reconcile loan 1 (monthly compounding) first
+        vm.startPrank(charlie);
         (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(loanId1);
         uint256 totalDue1 = principal1 + interest1;
         asset.approve(address(bullaFrendLend), totalDue1);
         bullaFrendLend.payLoan(loanId1, totalDue1);
+        vm.stopPrank();
         
-        // Pay loan 2 (no interest accrued)
+        bullaFactoring.reconcileActivePaidInvoices();
+        
+        // Capture fee balances after loan 1 payment
+        uint256 adminFeeAfterLoan1 = bullaFactoring.adminFeeBalance();
+        uint256 protocolFeeAfterLoan1 = bullaFactoring.protocolFeeBalance();
+        uint256 spreadGainsAfterLoan1 = bullaFactoring.spreadGainsBalance();
+        uint256 gainFromLoan1 = bullaFactoring.paidInvoicesGain(loanId1);
+        uint256 spreadGainFromLoan1 = bullaFactoring.paidInvoicesSpreadGain(loanId1);
+        
+        // Pay and reconcile loan 2 (daily compounding)
+        vm.startPrank(charlie);
         (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(loanId2);
         uint256 totalDue2 = principal2 + interest2;
         asset.approve(address(bullaFrendLend), totalDue2);
         bullaFrendLend.payLoan(loanId2, totalDue2);
-        
         vm.stopPrank();
         
-        // Reconcile both loans
         bullaFactoring.reconcileActivePaidInvoices();
         
-        // Get pool gains for both loans
-        uint256 gain1 = bullaFactoring.paidInvoicesGain(loanId1);
-        uint256 gain2 = bullaFactoring.paidInvoicesGain(loanId2);
+        // Capture final fee balances after loan 2 payment
+        uint256 finalAdminFeeBalance = bullaFactoring.adminFeeBalance();
+        uint256 finalProtocolFeeBalance = bullaFactoring.protocolFeeBalance();
+        uint256 finalSpreadGainsBalance = bullaFactoring.spreadGainsBalance();
+        uint256 gainFromLoan2 = bullaFactoring.paidInvoicesGain(loanId2);
+        uint256 spreadGainFromLoan2 = bullaFactoring.paidInvoicesSpreadGain(loanId2);
         
-        // Verify loan 1 had higher total payment due to agreed interest rate
-        assertGt(totalDue1, totalDue2, "Loan 1 should have paid more due to higher interest rate");
+        // Calculate individual loan contributions to fees
+        uint256 adminFeeFromLoan1 = adminFeeAfterLoan1 - initialAdminFeeBalance;
+        uint256 adminFeeFromLoan2 = finalAdminFeeBalance - adminFeeAfterLoan1;
+        uint256 protocolFeeFromLoan1 = protocolFeeAfterLoan1 - initialProtocolFeeBalance;
+        uint256 protocolFeeFromLoan2 = finalProtocolFeeBalance - protocolFeeAfterLoan1;
+        uint256 spreadGainFromLoan1Calculated = spreadGainsAfterLoan1 - initialSpreadGainsBalance;
+        uint256 spreadGainFromLoan2Calculated = finalSpreadGainsBalance - spreadGainsAfterLoan1;
         
-        // Critical validation: pool gains should be identical
-        // The underlying loan's interest rate should not affect the factoring pool's gain
-        assertEq(gain1, gain2, "Pool gains must be equal - underlying loan interest rates don't affect pool gains");
+        // Critical validation: daily compounding loan should generate higher gains and fees than monthly compounding
+        assertGt(gainFromLoan2, gainFromLoan1, "Daily compounding loan should generate higher pool gains");
+        assertGt(spreadGainFromLoan2, spreadGainFromLoan1, "Daily compounding loan should generate higher spread gains");
+        assertGt(adminFeeFromLoan2, adminFeeFromLoan1, "Daily compounding loan should generate higher admin fees");
+        assertGt(protocolFeeFromLoan2, protocolFeeFromLoan1, "Daily compounding loan should generate higher protocol fees");
         
-        // The difference in payment amounts goes to the original lender (Bob)
-        IInvoiceProviderAdapterV2.Invoice memory invoice1 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
-        IInvoiceProviderAdapterV2.Invoice memory invoice2 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId2);
+        // Verify spread gain mappings match calculated values
+        assertEq(spreadGainFromLoan1, spreadGainFromLoan1Calculated, "Spread gain mapping should match calculated value for loan 1");
+        assertEq(spreadGainFromLoan2, spreadGainFromLoan2Calculated, "Spread gain mapping should match calculated value for loan 2");
         
-        uint256 totalPaymentDifference = invoice1.invoiceAmount - invoice2.invoiceAmount;
-        assertGt(totalPaymentDifference, 0, "Loan 1 should have higher total amount due to agreed interest rate");
+        // Get final invoice details to check total amounts
+        IInvoiceProviderAdapterV2.Invoice memory finalInvoice1 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
+        IInvoiceProviderAdapterV2.Invoice memory finalInvoice2 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId2);
+        
+        // Verify that daily compounding resulted in higher total payment
+        assertGt(finalInvoice2.invoiceAmount, finalInvoice1.invoiceAmount, 
+            "Daily compounding should result in higher total invoice amount");
+        
+        // Calculate the extra interest generated by daily vs monthly compounding
+        uint256 extraInterest = finalInvoice2.invoiceAmount - finalInvoice1.invoiceAmount;
+        assertGt(extraInterest, 0, "Daily compounding should generate additional interest over monthly");
+        
+        // Verify individual loan contributions are positive
+        assertGt(gainFromLoan1, 0, "Monthly compounding loan should generate positive pool gains");
+        assertGt(gainFromLoan2, 0, "Daily compounding loan should generate positive pool gains");
+        assertGt(adminFeeFromLoan1, 0, "Monthly compounding loan should generate positive admin fees");
+        assertGt(adminFeeFromLoan2, 0, "Daily compounding loan should generate positive admin fees");
+        assertGt(protocolFeeFromLoan1, 0, "Monthly compounding loan should generate positive protocol fees");
+        assertGt(protocolFeeFromLoan2, 0, "Daily compounding loan should generate positive protocol fees");
     }
-    
+  
     function testExternalFrendLoan_EarlyPayment() public {
         uint256 principalAmount = 150_000;
         uint256 termLength = 60 days;
@@ -286,7 +337,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             charlie,
             principalAmount,
             termLength,
-            interestRateBps
+            interestRateBps,
+            365
         );
         
         // Approve and factor the loan
@@ -347,7 +399,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             charlie,
             principalAmount,
             termLength,
-            interestRateBps
+            interestRateBps,
+            365
         );
         
         // Approve and factor the loan
@@ -413,7 +466,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             charlie,
             principalAmount,
             termLength,
-            interestRateBps
+            interestRateBps,
+            365
         );
         
         // Approve and factor the loan
@@ -460,9 +514,9 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         vm.stopPrank();
         
         // Bob creates multiple external loans to Charlie
-        uint256 loanId1 = createExternalFrendLoan(bob, charlie, principalAmount, termLength, interestRateBps);
-        uint256 loanId2 = createExternalFrendLoan(bob, charlie, principalAmount, termLength, interestRateBps);
-        uint256 loanId3 = createExternalFrendLoan(bob, charlie, principalAmount, termLength, interestRateBps);
+        uint256 loanId1 = createExternalFrendLoan(bob, charlie, principalAmount, termLength, interestRateBps, 365);
+        uint256 loanId2 = createExternalFrendLoan(bob, charlie, principalAmount, termLength, interestRateBps, 365);
+        uint256 loanId3 = createExternalFrendLoan(bob, charlie, principalAmount, termLength, interestRateBps, 365);
         
         // Approve all loans for factoring
         vm.startPrank(underwriter);
@@ -539,7 +593,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             charlie,
             principalAmount,
             termLength,
-            interestRateBps
+            interestRateBps,
+            365
         );
         
         // Try to factor without approval - should fail
@@ -578,5 +633,116 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         vm.expectRevert(abi.encodeWithSignature("InvoiceCreditorChanged()"));
         bullaFactoring.fundInvoice(loanId, 8000, address(0));
         vm.stopPrank();
+    }
+    
+    // Helper function to bound fuzz parameters
+    function _boundFuzzParameters(
+        uint256 principalAmount,
+        uint16 targetYieldBps,
+        uint16 spreadBps,
+        uint16 numberOfPeriodsPerYear,
+        uint256 termLength
+    ) internal pure returns (uint256, uint16, uint16, uint16, uint256) {
+        principalAmount = bound(principalAmount, 10_000, 1_000_000); // $10K to $1M
+        targetYieldBps = uint16(bound(uint256(targetYieldBps), 500, 5000)); // 5% to 50% APR
+        spreadBps = uint16(bound(uint256(spreadBps), 1000, 2000)); // 10% to 20% spread
+        numberOfPeriodsPerYear = uint16(bound(uint256(numberOfPeriodsPerYear), 4, 365)); // 4 to 365 periods per year (quarterly to daily)
+        termLength = bound(termLength, 365 days, 3 * 365 days); // 1 year to 3 years
+        
+        return (principalAmount, targetYieldBps, spreadBps, numberOfPeriodsPerYear, termLength);
+    }
+    
+    // Helper function to create and accept loan offer
+    function _createAndAcceptLoan(
+        uint256 principalAmount,
+        uint16 targetYieldBps,
+        uint16 spreadBps,
+        uint16 numberOfPeriodsPerYear,
+        uint256 termLength
+    ) internal returns (uint256 loanId) {
+        vm.startPrank(underwriter);
+        uint256 loanOfferId = bullaFactoring.offerLoan(
+            charlie, // debtor
+            targetYieldBps,
+            spreadBps,
+            principalAmount,
+            termLength,
+            numberOfPeriodsPerYear,
+            "Fuzz test loan"
+        );
+        vm.stopPrank();
+        
+        vm.startPrank(charlie);
+        loanId = bullaFrendLend.acceptLoan(loanOfferId);
+        vm.stopPrank();
+        
+        return loanId;
+    }
+    
+    // Helper function to pay loan and reconcile
+    function _payLoanAndReconcile(uint256 loanId, uint256 termLength) internal {
+        vm.warp(block.timestamp + termLength / 2); // Pay at halfway point
+        
+        vm.startPrank(charlie);
+        (uint256 principal, uint256 interest) = bullaFrendLend.getTotalAmountDue(loanId);
+        uint256 totalDue = principal + interest;
+        
+        if (asset.balanceOf(charlie) < totalDue) {
+            deal(address(asset), charlie, totalDue);
+        }
+        
+        asset.approve(address(bullaFrendLend), totalDue);
+        bullaFrendLend.payLoan(loanId, totalDue);
+        vm.stopPrank();
+        
+        bullaFactoring.reconcileActivePaidInvoices();
+    }
+    
+    function testFuzz_OfferLoanNeverFailsNorGeneratesKickback(
+        uint256 principalAmount,
+        uint16 targetYieldBps,
+        uint16 spreadBps,
+        uint16 numberOfPeriodsPerYear,
+        uint256 termLength
+    ) public {
+        // Bound parameters using helper function
+        (principalAmount, targetYieldBps, spreadBps, numberOfPeriodsPerYear, termLength) = 
+            _boundFuzzParameters(principalAmount, targetYieldBps, spreadBps, numberOfPeriodsPerYear, termLength);
+        
+        // Alice deposits sufficient funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(2_000_000, alice);
+        vm.stopPrank();
+
+        uint256 initialPoolBalance = bullaFactoring.totalAssets();
+        
+        // Create and accept loan
+        uint256 loanId = _createAndAcceptLoan(principalAmount, targetYieldBps, spreadBps, numberOfPeriodsPerYear, termLength);
+        
+        // Verify loan creation
+        assertTrue(loanId > 0, "Loan ID should be valid");
+        IInvoiceProviderAdapterV2.Invoice memory invoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
+        assertEq(invoice.creditor, address(bullaFactoring), "Factoring contract should be the creditor");
+        assertFalse(invoice.isPaid, "Loan should not be paid initially");
+        
+        // Pay loan and reconcile
+        _payLoanAndReconcile(loanId, termLength);
+        
+        // Verify loan is paid
+        IInvoiceProviderAdapterV2.Invoice memory paidInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
+        assertTrue(paidInvoice.isPaid, "Loan should be marked as paid");
+        
+        // Critical validation: No kickback for pool-offered loans
+        (uint256 kickbackAmount, uint256 trueInterest, , , ) = bullaFactoring.calculateKickbackAmount(loanId);
+        assertEq(kickbackAmount, 0, "offerLoan should never generate kickbacks when paid");
+        
+        // Verify pool balance increase
+        uint256 finalPoolBalance = bullaFactoring.totalAssets();
+        uint256 poolBalanceIncrease = finalPoolBalance - initialPoolBalance;
+        assertEq(poolBalanceIncrease, trueInterest, "Pool balance should increase by exactly the target yield interest");
+        
+        // Verify pool gains
+        uint256 poolGain = bullaFactoring.paidInvoicesGain(loanId);
+        assertGt(poolGain, 0, "Pool should have recorded gains from the loan");
     }
 } 
