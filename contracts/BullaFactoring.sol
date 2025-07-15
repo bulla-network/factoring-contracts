@@ -224,7 +224,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             feeParams: pendingLoanOffer.feeParams,
             fundedAmountGross: pendingLoanOffer.principalAmount,
             fundedAmountNet: pendingLoanOffer.principalAmount,
-            initialFullInvoiceAmount: pendingLoanOffer.principalAmount,
+            initialInvoiceValue: pendingLoanOffer.principalAmount,
             initialPaidAmount: 0,
             invoiceDueDate: block.timestamp + pendingLoanOffer.termLength,
             receiverAddress: address(this),
@@ -243,7 +243,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _spreadBps The spread in basis points to add on top of target yield
     /// @param _upfrontBps The maximum upfront percentage the factorer can request
     /// @param minDaysInterestApplied The minimum number of days interest must be applied
-    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) public {
+    /// @param _initialInvoiceValueOverride The initial invoice value to override the invoice amount. For example in cases of loans or bonds.
+    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _initialInvoiceValueOverride) public {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
@@ -273,7 +274,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             feeParams: feeParams,
             fundedAmountGross: 0,
             fundedAmountNet: 0,
-            initialFullInvoiceAmount: invoiceSnapshot.invoiceAmount,
+            initialInvoiceValue: _initialInvoiceValueOverride != 0 ? _initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount,
             initialPaidAmount: invoiceSnapshot.paidAmount,
             receiverAddress: address(0),
             invoiceDueDate: invoiceSnapshot.dueDate
@@ -301,26 +302,35 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         
         // Calculate the total fee rate Mbps (base yield + spread + protocol fee + admin fee)
         uint256 totalFeeRateMbps = _targetYieldMbps + spreadRateMbps + adminFeeRateMbps + protocolFeeRateMbps;
-        
-        // Calculate the principal amount, net of any paid amount
-        uint256 principalAmount = approval.initialFullInvoiceAmount - approval.initialPaidAmount;
 
         // cap kickback amount to the principal amount
-        uint256 capKickbackAmount = principalAmount > approval.fundedAmountNet ? principalAmount - approval.fundedAmountNet : 0;
+        uint256 capKickbackAmount = approval.initialInvoiceValue > approval.fundedAmountNet ? approval.initialInvoiceValue - approval.fundedAmountNet : 0;
         
         // cap total fees to max available to distribute
         // invoice amount includes interest
-        uint256 capTotalFees = invoice.invoiceAmount - approval.initialPaidAmount - approval.fundedAmountNet;
+        // Handle case where override amount might be higher than invoice amount
+        uint256 availableFromInvoice = invoice.invoiceAmount - approval.initialPaidAmount;
+        uint256 capTotalFees =
+            availableFromInvoice > approval.fundedAmountNet
+            ? availableFromInvoice - approval.fundedAmountNet
+            : 0;
+
+        uint256 minimumFees = capTotalFees > capKickbackAmount ? capTotalFees - capKickbackAmount : 0;
 
         // Calculate total fees on the principal amount only
-        uint256 totalFees = Math.max(Math.min(capTotalFees, Math.mulDiv(principalAmount, totalFeeRateMbps, 10_000_000)), capTotalFees - capKickbackAmount);
+        uint256 totalFees = Math.max(Math.min(capTotalFees, Math.mulDiv(approval.initialInvoiceValue, totalFeeRateMbps, 10_000_000)), minimumFees);
         
-        adminFee = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, adminFeeRateMbps, totalFeeRateMbps);
-        interest = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, _targetYieldMbps, totalFeeRateMbps);
-        spreadAmount = totalFeeRateMbps == 0 ? 0 : Math.mulDiv(totalFees, spreadRateMbps, totalFeeRateMbps);
+        adminFee = totalFeeRateMbps == 0 || totalFees == 0 ? 0 : Math.mulDiv(totalFees, adminFeeRateMbps, totalFeeRateMbps);
+        interest = totalFeeRateMbps == 0 || totalFees == 0 ? 0 : Math.mulDiv(totalFees, _targetYieldMbps, totalFeeRateMbps);
+        spreadAmount = totalFeeRateMbps == 0 || totalFees == 0 ? 0 : Math.mulDiv(totalFees, spreadRateMbps, totalFeeRateMbps);
         protocolFee = totalFees - adminFee - interest - spreadAmount;
 
-        uint256 totalDueToCreditor = invoice.invoiceAmount - approval.initialPaidAmount - adminFee - interest - spreadAmount - protocolFee;
+        // Handle case where total fees might exceed available amount from invoice
+        uint256 totalDueToCreditor =
+            availableFromInvoice > totalFees
+            ? availableFromInvoice - totalFees
+            : 0;
+
         kickbackAmount = totalDueToCreditor > approval.fundedAmountNet ? totalDueToCreditor - approval.fundedAmountNet : 0;
 
         return (interest, spreadAmount, protocolFee, adminFee, kickbackAmount);
@@ -490,9 +500,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        uint256 trueInitialFaceValue = approval.initialFullInvoiceAmount - approval.initialPaidAmount;
-
-        fundedAmountGross = Math.mulDiv(trueInitialFaceValue, factorerUpfrontBps, 10000);
+        fundedAmountGross = Math.mulDiv(approval.initialInvoiceValue, factorerUpfrontBps, 10000);
 
         uint256 daysUntilDue =  Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Ceil);
 
@@ -502,7 +510,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         (targetInterest, targetSpreadAmount, targetProtocolFee, adminFee, ) = calculateFees(approval, daysUntilDue, invoice);
 
         uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + targetProtocolFee;
-        netFundedAmount = fundedAmountGross - totalFees;
+        netFundedAmount = fundedAmountGross > totalFees ? fundedAmountGross - totalFees : 0;
 
         return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, targetProtocolFee, netFundedAmount);
     }
