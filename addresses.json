@@ -417,6 +417,14 @@
       "bullaClaimInvoiceProviderAdapter": "0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5",
       "depositPermissions": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8",
       "factoringPermissions": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e"
+    },
+    "0xC1a9F48Db6E873E52848DeA2904d4Eff3c55A8A0": {
+      "name": "Bulla Fudorra Factoring Pool Sepolia Test",
+      "bullaClaimInvoiceProviderAdapter": "0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5",
+      "bullaFrendLend": "0x0000000000000000000000000000000000000000",
+      "depositPermissions": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8",
+      "redeemPermissions": "0x0000000000000000000000000000000000000000",
+      "factoringPermissions": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e"
     }
   },
   "1313161554": {
