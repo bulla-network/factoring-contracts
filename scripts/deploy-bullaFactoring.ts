@@ -3,7 +3,7 @@ import hre, { ethers } from 'hardhat';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
 import { getNetworkFromEnv, verifyContract } from './deploy-utils';
-import { ethereumConfig, polygonConfig, sepoliaConfig } from './network-config';
+import { ethereumConfig, polygonConfig, sepoliaConfig, sepoliaFudorraConfig } from './network-config';
 
 export type DeployBullaFactoringParams = {
     bullaClaim: string;
@@ -199,7 +199,14 @@ if (require.main === module) {
     const network = getNetworkFromEnv();
 
     // Use the imported network configurations - no duplication
-    const config = network === 'sepolia' ? sepoliaConfig : network === 'polygon' ? polygonConfig : ethereumConfig;
+    const config =
+        network === 'sepolia'
+            ? sepoliaConfig
+            : network === 'sepoliaFudorra'
+            ? sepoliaFudorraConfig
+            : network === 'polygon'
+            ? polygonConfig
+            : ethereumConfig;
 
     deployBullaFactoring({
         ...config,
