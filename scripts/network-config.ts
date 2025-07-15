@@ -36,8 +36,6 @@ export const sepoliaFudorraConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
-    bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
     bullaFactoringAddress: '0xD898DD7D411c471486856F3C73dD956D9d86572D',
     writeNewAddresses: true,
     setImpairReserve: true,
