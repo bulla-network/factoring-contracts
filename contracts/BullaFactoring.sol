@@ -8,9 +8,11 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import {console} from "../lib/forge-std/src/console.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IBullaFactoring.sol";
+import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import "@bulla/contracts-v2/src/interfaces/IBullaFrendLend.sol";
+import "./RedemptionQueue.sol";
 
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
@@ -57,6 +59,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     Permissions public depositPermissions;
     Permissions public redeemPermissions;
     Permissions public factoringPermissions;
+
+    /// @notice Redemption queue contract for handling queued redemptions
+    IRedemptionQueue public redemptionQueue;
 
     /// Mapping of paid invoices ID to track gains/losses
     mapping(uint256 => uint256) public paidInvoicesGain;
@@ -119,6 +124,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error LoanOfferNotExists();
     error LoanOfferAlreadyAccepted();
     error InsufficientFunds(uint256 available, uint256 required);
+    error RedemptionQueueNotEmpty();
+    error ReconciliationNeeded();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -155,6 +162,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
+        redemptionQueue = new RedemptionQueue(msg.sender, address(this));
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -167,6 +175,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         public returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         if (numberOfPeriodsPerYear > 365) revert InvalidPercentage();
+
+        // probably doesn't need it here, but it can block in `onLoanOfferAccepted` so best to pre-empt any issues here
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
 
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
@@ -213,11 +225,15 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         PendingLoanOfferInfo memory pendingLoanOffer = pendingLoanOffersByLoanOfferId[loanOfferId];
         if (!pendingLoanOffer.exists) revert LoanOfferNotExists();
         if (approvedInvoices[loanId].approved) revert LoanOfferAlreadyAccepted();
+        (uint256[] memory paidInvoices,) = viewPoolStatus();
+
+        // since the funds are already pulled at this point, we can't reconcile automatically. We will have to reconcile manually before accepting loan
+        if (paidInvoices.length != 0) revert ReconciliationNeeded();
 
         pendingLoanOffersByLoanOfferId[loanOfferId].exists = false;
         removePendingLoanOffer(loanOfferId);
 
-        approvedInvoices[loanOfferId] = InvoiceApproval({
+        approvedInvoices[loanId] = InvoiceApproval({
             approved: true,
             validUntil: pendingLoanOffer.offeredAt,
             fundedTimestamp: block.timestamp,
@@ -468,8 +484,18 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function deposit(uint256 assets,address receiver) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
+
         uint256 shares = super.deposit(assets, receiver);
         totalDeposits += assets;
+
+        // it might look strange to call this twice, but I think it is the way to go.
+        // the first processing of the queue is due to paid invoices. If we only call it once after the deposit, it is unfair to the depositor,
+        // due to the accured interest that is paid by them leaking out to redemptioners.
+        // This assures they get to keep the extra accrued interest value that they paid for when entering the pool, so to not enter at a loss.
+        _processRedemptionQueue();
+        
         return shares;
     }
 
@@ -522,6 +548,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param receiverAddress Address to receive the funds, if address(0) then funds go to msg.sender
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
+        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
         if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approvedInvoices[invoiceId].feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
         if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
@@ -529,6 +556,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (approvedInvoices[invoiceId].initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
+
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
 
         (uint256 fundedAmountGross,,,,,uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         uint256 _totalAssets = totalAssets();
@@ -651,6 +681,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
     function reconcileActivePaidInvoices() external {
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
+    }
+
+    function _reconcileActivePaidInvoices() internal {
         (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
@@ -683,6 +718,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             InvoiceApproval memory approval = approvedInvoices[invoiceId];
             emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
         }
+        
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
     }
 
@@ -740,6 +776,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
 
         delete originalCreditors[invoiceId];
+
+        // Process redemption queue after unfactoring, not reconciling here because it is somewhat done above.
+        _processRedemptionQueue();
 
         emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
     }
@@ -843,6 +882,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
+        
+        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
  
         uint256 shares = super.withdraw(assets, receiver, _owner);
 
@@ -858,6 +902,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
+
+        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
         
         uint256 assets = super.redeem(shares, receiver, _owner);
 
@@ -1054,5 +1103,153 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     modifier onlyBullaDao() {
         if (msg.sender != bullaDao) revert CallerNotBullaDao();
         _;
+    }
+
+    // Redemption Queue Functions
+
+    /// @notice Attempt to redeem shares, queuing excess if insufficient liquidity
+    /// @param shares The number of shares to redeem
+    /// @param receiver The address to receive the redeemed assets
+    /// @param _owner The owner of the shares being redeemed
+    /// @return redeemedAssets The amount of assets actually redeemed
+    /// @return queuedShares The amount of shares queued for future redemption
+    function redeemAndOrQueue(uint256 shares, address receiver, address _owner) external returns (uint256 redeemedAssets, uint256 queuedShares) {
+        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
+        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
+
+        uint256 maxRedeemableShares = maxRedeem(_owner);
+        uint256 sharesToRedeem = Math.min(shares, maxRedeemableShares);
+        
+        if (sharesToRedeem > 0) {
+            redeemedAssets = super.redeem(sharesToRedeem, receiver, _owner);
+            totalWithdrawals += redeemedAssets;
+        }
+
+        queuedShares = shares - sharesToRedeem;
+        if (queuedShares > 0) {
+            // Queue the remaining shares for future redemption
+            redemptionQueue.queueRedemption(_owner, receiver, queuedShares, 0);
+        }
+    }
+
+    /// @notice Attempt to withdraw assets, queuing excess if insufficient liquidity
+    /// @param assets The amount of assets to withdraw
+    /// @param receiver The address to receive the withdrawn assets
+    /// @param _owner The owner of the shares being redeemed
+    /// @return redeemedShares The amount of shares actually redeemed
+    /// @return queuedAssets The amount of assets queued for future withdrawal
+    function withdrawAndOrQueue(uint256 assets, address receiver, address _owner) external returns (uint256 redeemedShares, uint256 queuedAssets) {
+        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
+        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+
+        _reconcileActivePaidInvoices();
+        _processRedemptionQueue();
+
+        uint256 maxWithdrawableAssets = maxWithdraw(_owner);
+        uint256 assetsToWithdraw = Math.min(assets, maxWithdrawableAssets);
+        
+        if (assetsToWithdraw > 0) {
+            redeemedShares = super.withdraw(assetsToWithdraw, receiver, _owner);
+            totalWithdrawals += assetsToWithdraw;
+        }
+
+        queuedAssets = assets - assetsToWithdraw;
+        if (queuedAssets > 0) {
+            // Queue the remaining assets for future withdrawal
+            redemptionQueue.queueRedemption(_owner, receiver, 0, queuedAssets);
+        }
+    }
+
+    /// @notice Process queued redemptions when liquidity becomes available
+    function _processRedemptionQueue() private {
+        IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
+        uint256 _totalAssets = totalAssets();
+        uint256 maxRedeemableShares = maxRedeem();
+        
+        while (redemption.owner != address(0) && _totalAssets > 0) {
+            uint256 amountProcessed = 0; // this is shares or assets depending on the investor
+            
+            if (redemption.shares > 0) {
+                // This is a share-based redemption
+                uint256 sharesToRedeem = Math.min(redemption.shares, maxRedeemableShares);
+                
+                if (sharesToRedeem > 0) {
+                    // Pre-validation: Check if owner has enough shares and allowance
+                    uint256 ownerBalance = balanceOf(redemption.owner);
+                    uint256 ownerAllowance = allowance(redemption.owner, address(this));
+                    
+                    if (ownerBalance >= sharesToRedeem && ownerAllowance >= sharesToRedeem) {
+                        // Owner has sufficient funds and approval - process redemption
+                        uint256 assets = super.redeem(sharesToRedeem, redemption.receiver, redemption.owner);
+                        totalWithdrawals += assets;
+                        amountProcessed = sharesToRedeem;
+                        _totalAssets -= assets;
+                        maxRedeemableShares -= sharesToRedeem;
+                    } else {
+                        // Owner doesn't have sufficient funds or approval - remove from queue
+                        redemptionQueue.cancelQueuedRedemption(0);
+                        redemption = redemptionQueue.getNextRedemption();
+                        continue;
+                    }
+                } else {
+                    // No liquidity available - stop processing to maintain FIFO order
+                    break;
+                }
+            } else if (redemption.assets > 0) {
+                // This is an asset-based withdrawal
+                uint256 maxWithdrawableAssets = maxWithdraw(redemption.owner);
+                uint256 assetsToWithdraw = Math.min(redemption.assets, maxWithdrawableAssets);
+                
+                if (assetsToWithdraw > 0) {
+                    // Pre-validation: Check if owner has enough shares for withdrawal and allowance
+                    uint256 sharesToBurn = previewWithdraw(assetsToWithdraw);
+                    uint256 ownerBalance = balanceOf(redemption.owner);
+                    uint256 ownerAllowance = allowance(redemption.owner, address(this));
+                    
+                    if (ownerBalance >= sharesToBurn && ownerAllowance >= sharesToBurn) {
+                        // Owner has sufficient funds and approval - process withdrawal
+                        uint256 shares = super.withdraw(assetsToWithdraw, redemption.receiver, redemption.owner);
+                        totalWithdrawals += assetsToWithdraw;
+                        amountProcessed = assetsToWithdraw;
+                        _totalAssets -= assetsToWithdraw;
+                        maxRedeemableShares -= shares;
+                    } else {
+                        redemptionQueue.cancelQueuedRedemption(0);
+                        redemption = redemptionQueue.getNextRedemption();
+                        continue;
+                    }
+                } else {
+                    // No liquidity available - stop processing to maintain FIFO order
+                    break;
+                }
+            }
+            
+            if (amountProcessed > 0) {
+                // Remove the processed redemption from the queue
+                redemption = redemptionQueue.removeAmountFromFirstOwner(amountProcessed);
+            } else {
+                // Can't process this redemption, stop processing
+                break;
+            }
+        }
+    }
+
+    /// @notice Get the redemption queue contract
+    /// @return The redemption queue contract interface
+    function getRedemptionQueue() external view returns (IRedemptionQueue) {
+        return redemptionQueue;
+    }
+
+    /// @notice Set the redemption queue contract
+    /// @param _redemptionQueue The new redemption queue contract address
+    function setRedemptionQueue(address _redemptionQueue) external onlyOwner {
+        if (_redemptionQueue == address(0)) revert InvalidAddress();
+
+        address oldQueue = address(redemptionQueue);
+        redemptionQueue = IRedemptionQueue(_redemptionQueue);
+        emit RedemptionQueueChanged(oldQueue, _redemptionQueue);
     }
 }

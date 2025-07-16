@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./IInvoiceProviderAdapter.sol";
+import "./IRedemptionQueue.sol";
 
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2 {
@@ -92,6 +93,7 @@ interface IBullaFactoringV2 {
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
     event ImpairReserveChanged(uint256 newImpairReserve);
     event TargetYieldChanged(uint16 newTargetYield);
+    event RedemptionQueueChanged(address indexed oldQueue, address indexed newQueue);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _principalAmountOverride) external;
@@ -102,4 +104,10 @@ interface IBullaFactoringV2 {
     function setGracePeriodDays(uint256 _days) external;
     function setApprovalDuration(uint256 _duration) external;
     function assetAddress() external view returns (IERC20);
+
+    // Redemption queue functions
+    function redeemAndOrQueue(uint256 shares, address receiver, address _owner) external returns (uint256 redeemedAssets, uint256 queuedShares);
+    function withdrawAndOrQueue(uint256 assets, address receiver, address _owner) external returns (uint256 redeemedShares, uint256 queuedAssets);
+    function getRedemptionQueue() external view returns (IRedemptionQueue);
+    function setRedemptionQueue(address _redemptionQueue) external;
 }
