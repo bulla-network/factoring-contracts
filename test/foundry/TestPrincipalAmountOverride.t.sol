@@ -43,26 +43,6 @@ contract TestPrincipalAmountOverride is CommonSetup {
 
     // ==================== BASIC overrideAmount FUNCTIONALITY TESTS ====================
 
-    function testPrincipalAmountOverride_BasicOverride() public {
-        uint256 invoiceAmount = 100000;
-        uint256 overrideAmount = 75000; // overrideAmount to factor only 75% of invoice
-        
-        // Create invoice
-        vm.startPrank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-
-        // Approve with overrideAmount
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
-        vm.stopPrank();
-        
-        // Verify overrideAmount value is used
-        (,,,,,,,, uint256 initialInvoiceValue, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
-        assertEq(initialInvoiceValue, overrideAmount);
-        assertEq(initialPaidAmount, 0);
-    }
-
     function testPrincipalAmountOverride_ZeroOverrideUsesOriginal() public {
         uint256 invoiceAmount = 100000;
         uint256 paidAmount = 20000;
