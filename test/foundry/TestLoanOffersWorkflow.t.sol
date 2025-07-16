@@ -249,7 +249,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             IBullaFactoringV2.FeeParams memory approvalFeeParams,
             uint256 fundedAmountGross,
             uint256 fundedAmountNet,
-            uint256 initialFullInvoiceAmount,
+            uint256 initialInvoiceValue,
             uint256 initialPaidAmount,
             address receiverAddress
         ) = bullaFactoring.approvedInvoices(loanOfferId);
@@ -258,7 +258,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(creditor, address(bullaFactoring), "Creditor should be factoring contract");
         assertEq(fundedAmountGross, principalAmount, "Funded amount gross should match");
         assertEq(fundedAmountNet, principalAmount, "Funded amount net should match");
-        assertEq(initialFullInvoiceAmount, principalAmount, "Initial full amount should match");
+        assertEq(initialInvoiceValue, principalAmount, "Initial full amount should match");
         assertEq(initialPaidAmount, 0, "Initial paid amount should be 0");
         assertEq(receiverAddress, address(bullaFactoring), "Receiver address should be factoring contract");
         assertEq(invoiceDueDate, block.timestamp + termLength, "Due date should be calculated correctly");
@@ -787,7 +787,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             ,
             uint256 fundedAmountGross,
             uint256 fundedAmountNet,
-            uint256 initialFullInvoiceAmount,
+            uint256 initialInvoiceValue,
             uint256 initialPaidAmount,
             address receiverAddress
         ) = bullaFactoring.approvedInvoices(loanOfferId);
@@ -796,7 +796,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(creditor, address(bullaFactoring), "Creditor should be factoring contract");
         assertEq(fundedAmountGross, principalAmount, "Funded amount gross should equal principal");
         assertEq(fundedAmountNet, principalAmount, "Funded amount net should equal principal");
-        assertEq(initialFullInvoiceAmount, principalAmount, "Initial full amount should equal principal");
+        assertEq(initialInvoiceValue, principalAmount, "Initial full amount should equal principal");
         assertEq(initialPaidAmount, 0, "Initial paid amount should be 0");
         assertEq(receiverAddress, address(bullaFactoring), "Receiver address should be factoring contract");
         assertGe(invoiceDueDate, timestampBefore + termLength, "Due date should be calculated correctly");

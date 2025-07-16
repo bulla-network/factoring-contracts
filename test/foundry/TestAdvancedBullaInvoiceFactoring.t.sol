@@ -64,7 +64,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -128,7 +128,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -184,7 +184,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -239,7 +239,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
             vm.stopPrank();
 
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays);
+            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays, 0);
             vm.stopPrank();
 
             vm.startPrank(bob);
@@ -287,7 +287,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         // Try to fund invoice when insufficient capital
@@ -320,7 +320,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -375,7 +375,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -422,7 +422,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
         vm.stopPrank();
 
         // Fund invoice first time

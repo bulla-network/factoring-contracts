@@ -38,7 +38,7 @@ interface IBullaFactoringV2 {
         FeeParams feeParams;
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
-        uint256 initialFullInvoiceAmount;
+        uint256 initialInvoiceValue; // takes into account the principal amount override and the initial paid amount. Do not subtract the initial paid amount from this value.
         uint256 initialPaidAmount;
         address receiverAddress;
     }
@@ -94,7 +94,7 @@ interface IBullaFactoringV2 {
     event TargetYieldChanged(uint16 newTargetYield);
 
     // Functions
-    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied) external;
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _principalAmountOverride) external;
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);

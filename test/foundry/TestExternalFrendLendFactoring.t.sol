@@ -121,7 +121,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Underwriter approves the loan for factoring
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 200, 8000, 7); // 7.3% yield, 2% spread, 80% upfront, 7 days min
+        bullaFactoring.approveInvoice(loanId, 730, 200, 8000, 7, 0); // 7.3% yield, 2% spread, 80% upfront, 7 days min
         vm.stopPrank();
         
         // Bob factors the loan
@@ -217,8 +217,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve both loans for factoring with identical terms
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId1, 730, 300, 7500, 7); // 7.3% target yield, 3% spread, 75% upfront
-        bullaFactoring.approveInvoice(loanId2, 730, 300, 7500, 7); // Identical factoring terms
+        bullaFactoring.approveInvoice(loanId1, 730, 300, 7500, 7, 0); // 7.3% target yield, 3% spread, 75% upfront
+        bullaFactoring.approveInvoice(loanId2, 730, 300, 7500, 7, 0); // Identical factoring terms
         vm.stopPrank();
         
         // Factor both loans
@@ -343,7 +343,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve and factor the loan
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 300, 7500, 10); // 10 days minimum
+        bullaFactoring.approveInvoice(loanId, 730, 300, 7500, 10, 0); // 10 days minimum
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -405,7 +405,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve and factor the loan
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 365, 150, 6000, 5); // 3.65% yield, 1.5% spread, 60% upfront, 5 days min
+        bullaFactoring.approveInvoice(loanId, 365, 150, 6000, 5, 0); // 3.65% yield, 1.5% spread, 60% upfront, 5 days min
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -472,7 +472,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve and factor the loan
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 400, 7000, 14); // 14 days minimum
+        bullaFactoring.approveInvoice(loanId, 730, 400, 7000, 14, 0); // 14 days minimum
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -520,9 +520,9 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve all loans for factoring
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId1, 730, 200, 8000, 7);
-        bullaFactoring.approveInvoice(loanId2, 730, 200, 8000, 7);
-        bullaFactoring.approveInvoice(loanId3, 730, 200, 8000, 7);
+        bullaFactoring.approveInvoice(loanId1, 730, 200, 8000, 7, 0);
+        bullaFactoring.approveInvoice(loanId2, 730, 200, 8000, 7, 0);
+        bullaFactoring.approveInvoice(loanId3, 730, 200, 8000, 7, 0);
         vm.stopPrank();
         
         // Factor all loans
@@ -606,7 +606,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve with invalid upfront percentage
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 200, 8000, 7);
+        bullaFactoring.approveInvoice(loanId, 730, 200, 8000, 7, 0);
         vm.stopPrank();
         
         // Try to factor with too high upfront percentage - should fail
