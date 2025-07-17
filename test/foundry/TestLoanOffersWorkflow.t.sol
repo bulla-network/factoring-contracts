@@ -312,7 +312,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertFalse(existsAfter, "Loan offer should not exist after acceptance");
         
         // Verify invoice approval is created
-        (bool approved,,,,,,,,,, ) = bullaFactoring.approvedInvoices(loanOfferId);
+        (bool approved,,,,,,,,,, ) = bullaFactoring.approvedInvoices(loanId);
         assertTrue(approved, "Invoice should be approved after acceptance");
     }
     
@@ -895,6 +895,10 @@ contract TestLoanOffersWorkflow is CommonSetup {
     // ============= ARRAY MANAGEMENT TESTS =============
     
     function testOfferLoanAndAcceptance_ArrayManagement() public {
+
+        vm.prank(alice);
+        bullaFactoring.deposit(100000, alice);
+
         vm.startPrank(underwriter);
         
         // Create 5 loan offers
@@ -903,7 +907,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
                 bob,
                 1000,
                 500,
-                100_000 + i * 1000,
+                100 + i * 1000,
                 30 days,
                 365, // numberOfPeriodsPerYear
                 string(abi.encodePacked("Offer ", vm.toString(i)))
@@ -920,10 +924,10 @@ contract TestLoanOffersWorkflow is CommonSetup {
             offerIds[i] = bullaFactoring.pendingLoanOffersIds(i);
         }
         
-        vm.startPrank(address(bullaFrendLend));
-        bullaFactoring.onLoanOfferAccepted(offerIds[1], 1001);
-        bullaFactoring.onLoanOfferAccepted(offerIds[3], 1003);
-        bullaFactoring.onLoanOfferAccepted(offerIds[4], 1004);
+        vm.startPrank(bob);
+        bullaFrendLend.acceptLoan(offerIds[1]);
+        bullaFrendLend.acceptLoan(offerIds[3]);
+        bullaFrendLend.acceptLoan(offerIds[4]);
         vm.stopPrank();
         
         // Should have 2 pending offers left
