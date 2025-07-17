@@ -499,17 +499,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return shares;
     }
 
-    /// @notice Allows for the deposit of assets in exchange for fund shares with an attachment
-    /// @param assets The amount of assets to deposit
-    /// @param receiver The address to receive the fund shares
-    /// @param attachment The attachment data for the deposit
-    /// @return The number of shares issued for the deposit
-    function depositWithAttachment(uint256 assets, address receiver, Multihash calldata attachment) external returns (uint256) {
-        uint256 shares = deposit(assets, receiver);
-        emit DepositMadeWithAttachment(_msgSender(), assets, shares, attachment);
-        return shares;
-    }
-
     /// @notice Calculates the true fees and net funded amount for a given invoice and factorer's upfront bps, annualised
     /// @param invoiceId The ID of the invoice for which to calculate the fees
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
@@ -912,18 +901,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         totalWithdrawals += assets;
 
-        return assets;
-    }
-
-    /// @notice Redeems shares for underlying assets with an attachment, transferring the assets to the specified receiver
-    /// @param shares The number of shares to redeem
-    /// @param receiver The address to receive the redeemed assets
-    /// @param _owner The owner of the shares being redeemed
-    /// @param attachment The attachment data for the redemption
-    /// @return The amount of assets redeemed
-    function redeemWithAttachment(uint256 shares, address receiver, address _owner, Multihash calldata attachment) external returns (uint256) {
-        uint256 assets = redeem(shares, receiver, _owner);
-        emit SharesRedeemedWithAttachment(_msgSender(), shares, assets, attachment);
         return assets;
     }
 
