@@ -270,6 +270,11 @@ contract RedemptionQueueTest is Test {
         // Verify cancelled item is marked as cancelled
         IRedemptionQueue.QueuedRedemption memory cancelledRedemption = redemptionQueue.getQueuedRedemption(1);
         assertEq(cancelledRedemption.owner, address(0));
+
+        // Verify cancelled item is marked as cancelled
+        IRedemptionQueue.QueuedRedemption memory thirdRedemption = redemptionQueue.getQueuedRedemption(2);
+        assertEq(thirdRedemption.owner, user1);
+        assertEq(thirdRedemption.shares, 150e18);
     }
     
     function test_CancelQueuedRedemption_HeadItem_AdvancesHead() public {
