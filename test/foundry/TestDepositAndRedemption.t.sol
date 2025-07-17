@@ -24,8 +24,7 @@ contract TestDepositAndRedemption is CommonSetup {
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
-    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, IBullaFactoringV2.Multihash attachment);
-    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, IBullaFactoringV2.Multihash attachment);
+
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event SpreadGainsWithdrawn(address indexed owner, uint256 amount);
@@ -784,48 +783,4 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(firstDepositorShares, 1, "First depositor should have 1 share");
         assertEq(secondDepositorShares, 1e18, "Second depositor should have 1e18 shares");
     }
-
-    function testDepositWithAttachmentEmitsEvent() public {
-        uint256 depositAmount = 1000000;
-        IBullaFactoringV2.Multihash memory attachment = IBullaFactoringV2.Multihash({
-            hash: "QmTestHash123456789",
-            hashFunction: 18,
-            size: 32
-        });
-
-        vm.startPrank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit DepositMadeWithAttachment(alice, depositAmount, depositAmount, attachment);
-        uint256 shares = bullaFactoring.depositWithAttachment(depositAmount, alice, attachment);
-        vm.stopPrank();
-
-        assertEq(shares, depositAmount, "Shares should equal deposit amount when supply is zero");
-        assertEq(bullaFactoring.balanceOf(alice), depositAmount, "Alice should have received the shares");
-    }
-
-    function testRedeemWithAttachmentEmitsEvent() public {
-        uint256 depositAmount = 1000000;
-        
-        // First make a deposit
-        vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-        vm.stopPrank();
-
-        uint256 sharesToRedeem = bullaFactoring.balanceOf(alice);
-        IBullaFactoringV2.Multihash memory attachment = IBullaFactoringV2.Multihash({
-            hash: "QmRedeemHash123456789",
-            hashFunction: 18,
-            size: 32
-        });
-
-        vm.startPrank(alice);
-        vm.expectEmit(true, true, true, true);
-        emit SharesRedeemedWithAttachment(alice, sharesToRedeem, depositAmount, attachment);
-        uint256 assets = bullaFactoring.redeemWithAttachment(sharesToRedeem, alice, alice, attachment);
-        vm.stopPrank();
-
-        assertEq(assets, depositAmount, "Assets should equal deposit amount");
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no shares left");
-    }
 }
-

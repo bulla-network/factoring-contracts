@@ -44,12 +44,6 @@ interface IBullaFactoringV2 {
         address receiverAddress;
     }
 
-    struct Multihash {
-        bytes32 hash;
-        uint8 hashFunction;
-        uint8 size;
-    }
-
     struct FundInfo {
         string name;
         uint256 creationTimestamp;
@@ -79,8 +73,7 @@ interface IBullaFactoringV2 {
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee);
-    event DepositMadeWithAttachment(address indexed depositor, uint256 assets, uint256 shares, Multihash attachment);
-    event SharesRedeemedWithAttachment(address indexed redeemer, uint256 shares, uint256 assets, Multihash attachment);
+
     event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
