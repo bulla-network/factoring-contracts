@@ -1154,19 +1154,19 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 uint256 sharesToRedeem = Math.min(redemption.shares, maxRedeemableShares);
                 
                 if (sharesToRedeem > 0) {
-                    // Pre-validation: Check if owner has enough shares and allowance
+                    // Pre-validation: Check if owner has enough shares (bypass allowance check)
                     uint256 ownerBalance = balanceOf(redemption.owner);
-                    uint256 ownerAllowance = allowance(redemption.owner, address(this));
                     
-                    if (ownerBalance >= sharesToRedeem && ownerAllowance >= sharesToRedeem) {
-                        // Owner has sufficient funds and approval - process redemption
-                        uint256 assets = super.redeem(sharesToRedeem, redemption.receiver, redemption.owner);
+                    if (ownerBalance >= sharesToRedeem) {
+                        // Owner has sufficient funds - process redemption bypassing allowance
+                        uint256 assets = previewRedeem(sharesToRedeem);
+                        _withdraw(redemption.owner, redemption.receiver, redemption.owner, assets, sharesToRedeem);
                         totalWithdrawals += assets;
                         amountProcessed = sharesToRedeem;
                         _totalAssets -= assets;
                         maxRedeemableShares -= sharesToRedeem;
                     } else {
-                        // Owner doesn't have sufficient funds or approval - remove from queue
+                        // Owner doesn't have sufficient funds - remove from queue
                         redemptionQueue.cancelQueuedRedemption(0);
                         redemption = redemptionQueue.getNextRedemption();
                         continue;
@@ -1181,18 +1181,17 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 uint256 assetsToWithdraw = Math.min(redemption.assets, maxWithdrawableAssets);
                 
                 if (assetsToWithdraw > 0) {
-                    // Pre-validation: Check if owner has enough shares for withdrawal and allowance
+                    // Pre-validation: Check if owner has enough shares for withdrawal (bypass allowance check)
                     uint256 sharesToBurn = previewWithdraw(assetsToWithdraw);
                     uint256 ownerBalance = balanceOf(redemption.owner);
-                    uint256 ownerAllowance = allowance(redemption.owner, address(this));
                     
-                    if (ownerBalance >= sharesToBurn && ownerAllowance >= sharesToBurn) {
-                        // Owner has sufficient funds and approval - process withdrawal
-                        uint256 shares = super.withdraw(assetsToWithdraw, redemption.receiver, redemption.owner);
+                    if (ownerBalance >= sharesToBurn) {
+                        // Owner has sufficient funds - process withdrawal bypassing allowance
+                        _withdraw(redemption.owner, redemption.receiver, redemption.owner, assetsToWithdraw, sharesToBurn);
                         totalWithdrawals += assetsToWithdraw;
                         amountProcessed = assetsToWithdraw;
                         _totalAssets -= assetsToWithdraw;
-                        maxRedeemableShares -= shares;
+                        maxRedeemableShares -= sharesToBurn;
                     } else {
                         redemptionQueue.cancelQueuedRedemption(0);
                         redemption = redemptionQueue.getNextRedemption();
