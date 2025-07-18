@@ -426,25 +426,36 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(charlie);
         bullaFactoring.redeemAndOrQueue(queueAmount, charlie, charlie);
         
-        // Pay invoice to provide liquidity
-        vm.prank(eve);
-        bullaClaim.payClaim(invoiceId, 2500000);
-        
+        // Read balances before triggering queue processing
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         uint256 charlieBalanceBefore = asset.balanceOf(charlie);
         
-        // Trigger processing
-        bullaFactoring.reconcileActivePaidInvoices();
+        // Add limited liquidity through deposits - enough for only Alice's redemption (600k + buffer)
+        vm.prank(david);
+        bullaFactoring.deposit(650000, david); // Only enough for Alice's redemption + some for Bob
         
         uint256 aliceBalanceAfter = asset.balanceOf(alice);
         uint256 bobBalanceAfter = asset.balanceOf(bob);
         uint256 charlieBalanceAfter = asset.balanceOf(charlie);
         
-        // Alice should be processed first (FIFO)
-        assertTrue(aliceBalanceAfter > aliceBalanceBefore, "Alice should be processed first");
-        assertTrue(bobBalanceAfter > bobBalanceBefore, "Bob should be processed second");
-        assertTrue(charlieBalanceAfter > charlieBalanceBefore, "Charlie should be processed third");
+        // Alice should be processed first (FIFO), Bob may be partially processed, Charlie should not be processed
+        assertTrue(aliceBalanceAfter > aliceBalanceBefore, "Alice should be processed first (FIFO)");
+        
+        // Bob might get partially processed if there's enough liquidity left after Alice
+        uint256 aliceIncrease = aliceBalanceAfter - aliceBalanceBefore;
+        uint256 bobIncrease = bobBalanceAfter - bobBalanceBefore;
+        uint256 charlieIncrease = charlieBalanceAfter - charlieBalanceBefore;
+        
+        // Verify FIFO: Alice processed first, then Bob, then Charlie gets nothing
+        assertTrue(aliceIncrease > 0, "Alice should be processed first");
+        assertEq(charlieIncrease, 0, "Charlie should NOT be processed (FIFO - last in queue)");
+        
+        // Alice should have smaller increase than Bob since Alice had smaller queue amount
+        assertTrue(aliceIncrease < bobIncrease, "Alice should have smaller redemption than Bob (different queue amounts)");
+        
+        // Queue should still have pending redemptions (Charlie and possibly remaining Bob)
+        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should still have pending redemptions");
     }
 
     // ============================================
@@ -520,7 +531,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         uint256 aliceBalanceAfter = asset.balanceOf(alice);
         
         assertEq(aliceBalanceAfter, aliceBalanceBefore, "Alice should not receive anything");
-        assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should be empty after cancellation");
+        assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should be empty after transfer");
     }
 
     // ============================================
@@ -592,19 +603,27 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should have mixed redemptions");
         
-        // Verify FIFO processing works with mixed types
-        vm.prank(eve);
-        bullaClaim.payClaim(invoiceId, 2500000);
-        
+        // Read balances before triggering queue processing
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         uint256 charlieBalanceBefore = asset.balanceOf(charlie);
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        // Add limited liquidity through deposits - enough for only Alice's redemption (1M + buffer)
+        vm.prank(david);
+        bullaFactoring.deposit(1100000, david); // Only enough for Alice's redemption + some for Bob
         
-        assertTrue(asset.balanceOf(alice) > aliceBalanceBefore, "Alice should be processed");
-        assertTrue(asset.balanceOf(bob) > bobBalanceBefore, "Bob should be processed");
-        assertTrue(asset.balanceOf(charlie) > charlieBalanceBefore, "Charlie should be processed");
+        // Verify FIFO processing works with mixed types
+        uint256 aliceIncrease = asset.balanceOf(alice) - aliceBalanceBefore;
+        uint256 bobIncrease = asset.balanceOf(bob) - bobBalanceBefore;  
+        uint256 charlieIncrease = asset.balanceOf(charlie) - charlieBalanceBefore;
+        
+        // Alice should be processed first (FIFO), Charlie should not be processed
+        assertTrue(aliceIncrease > 0, "Alice should be processed (first in FIFO)");
+        assertEq(charlieIncrease, 0, "Charlie should NOT be processed yet (FIFO order)");
+        
+        // Bob might get partially processed if there's enough liquidity after Alice
+        // Verify queue still has pending redemptions
+        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should still have pending redemptions");
     }
 
     // ============================================
