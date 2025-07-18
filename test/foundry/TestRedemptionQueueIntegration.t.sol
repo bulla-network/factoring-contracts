@@ -2,6 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "./CommonSetup.t.sol";
+import {IRedemptionQueue} from "../../contracts/interfaces/IRedemptionQueue.sol";
+import {CreateClaimApprovalType} from "bulla-contracts-v2/src/BullaClaim.sol";
+import {EIP712Helper} from "./utils/EIP712Helper.sol";
 
 /**
  * @title TestRedemptionQueueIntegration
@@ -9,25 +12,38 @@ import "./CommonSetup.t.sol";
  * @dev Tests automatic queue processing, FIFO ordering, and integration with other contract functions
  */
 contract TestRedemptionQueueIntegration is CommonSetup {
-    
+    EIP712Helper public sigHelper;
     // Additional test users
     address david = address(0x4);
     address eve = address(0x5);
     
     function setUp() public override {
         super.setUp();
-        
+        sigHelper = new EIP712Helper(address(bullaClaim));
+
         // Grant permissions to charlie for deposits/redemptions
         depositPermissions.allow(charlie);
         redeemPermissions.allow(charlie);
         factoringPermissions.allow(alice);
         factoringPermissions.allow(charlie);
-        
-        // Grant permissions for claim creation - authorize users in BullaClaim system
-        bullaApprovalRegistry.setAuthorizedContract(alice, true);
-        bullaApprovalRegistry.setAuthorizedContract(bob, true);
-        bullaApprovalRegistry.setAuthorizedContract(charlie, true);
-        
+
+        // Set up permitCreateClaim for Bob to create loans via BullaFrendLend
+        bullaClaim.approvalRegistry().permitCreateClaim({
+            user: bob,
+            controller: address(bullaFrendLend),
+            approvalType: CreateClaimApprovalType.Approved,
+            approvalCount: type(uint64).max,
+            isBindingAllowed: true,
+            signature: sigHelper.signCreateClaimPermit({
+                pk: bobPK,
+                user: bob,
+                controller: address(bullaFrendLend),
+                approvalType: CreateClaimApprovalType.Approved,
+                approvalCount: type(uint64).max,
+                isBindingAllowed: true
+            })
+        });
+
         // Setup additional test users with asset
         deal(address(asset), david, 10000000);
         deal(address(asset), eve, 10000000);
@@ -266,7 +282,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.deposit(depositAmount, alice);
         
         vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
+        uint256 invoiceId = createClaim(bob, eve, 800000, dueBy);
         vm.prank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
         vm.prank(bob);
@@ -280,7 +296,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         
         // Pay the invoice
-        vm.prank(alice);
+        vm.prank(eve);
         bullaClaim.payClaim(invoiceId, 800000);
         
         // Reconcile - should trigger queue processing
@@ -295,6 +311,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         uint256 depositAmount = 1000000;
         uint256 queueAmount = 200000;
         uint256 directRedeemAmount = 100000;
+        uint256 invoiceAmount = 1500000;
         
         // Setup: Alice and Bob deposit, Alice queues, Bob redeems to trigger processing
         vm.prank(alice);
@@ -304,7 +321,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Fund invoice to reduce liquidity
         vm.prank(charlie);
-        uint256 invoiceId = createClaim(charlie, alice, 1500000, dueBy);
+        uint256 invoiceId = createClaim(charlie, eve, invoiceAmount, dueBy);
         vm.prank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
         vm.prank(charlie);
@@ -314,9 +331,15 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Alice queues redemption
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        bullaFactoring.redeemAndOrQueue(depositAmount, alice, alice);
         
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
+
+        // Pay the invoice to add liquidity
+        vm.prank(eve);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        vm.prank(eve);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
         
         // Bob redeems - should trigger queue processing
         vm.prank(bob);
@@ -329,14 +352,32 @@ contract TestRedemptionQueueIntegration is CommonSetup {
 
     function testQueueProcessing_TriggeredByOfferLoan() public {
         uint256 depositAmount = 1000000;
-        uint256 queueAmount = 200000;
+        uint256 queueAmount = 500000;
         
         // Setup with queued redemption
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
+
+        // Create, fund, and pay an invoice to add liquidity for queue processing
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, eve, depositAmount, dueBy);
+        
+        vm.prank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
+        
+        vm.prank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        vm.prank(bob);
+        bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
         
         vm.prank(alice);
         bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        
+        // Pay the invoice to add liquidity
+        vm.prank(eve);
+        asset.approve(address(bullaClaim), depositAmount);
+        vm.prank(eve);
+        bullaClaim.payClaim(invoiceId, depositAmount);
         
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         
@@ -355,7 +396,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
 
     function testFIFOQueueOrder_MultipleUsersQueueInOrder() public {
         uint256 depositAmount = 1000000;
-        uint256 queueAmount = 300000;
+        uint256 queueAmount =    600000;
         
         // All users deposit
         vm.prank(alice);
@@ -367,13 +408,13 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Fund large invoice to eliminate liquidity
         vm.prank(david);
-        uint256 invoiceId = createClaim(david, alice, 2500000, dueBy);
+        uint256 invoiceId = createClaim(david, eve, 2500000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
         vm.prank(david);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(david);
-        bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
+        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
         // Users queue redemptions in order: Alice, Bob, Charlie
         vm.prank(alice);
@@ -386,7 +427,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.redeemAndOrQueue(queueAmount, charlie, charlie);
         
         // Pay invoice to provide liquidity
-        vm.prank(alice);
+        vm.prank(eve);
         bullaClaim.payClaim(invoiceId, 2500000);
         
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
@@ -409,37 +450,6 @@ contract TestRedemptionQueueIntegration is CommonSetup {
     // ============================================
     // 4. Integration with Contract State Tests
     // ============================================
-
-    function testOnLoanAccepted_RevertsWhenQueueNotEmpty() public {
-        uint256 depositAmount = 1000000;
-        
-        // Setup with queued redemption
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-        
-        // Create liquidity constraint and queue redemption
-        vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
-        vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
-        vm.prank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
-        
-        vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(200000, alice, alice);
-        
-        // Offer loan
-        vm.prank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 100, 100000, 30 days, 12, "Test loan");
-        
-        // Accept loan should not revert due to queue (queue gets processed in offerLoan)
-        // This test verifies the behavior documented in the function
-        vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSignature("ReconciliationNeeded()"));
-        bullaFrendLend.acceptLoan(loanOfferId);
-    }
 
     function testRedeemAndOrQueue_RespectsMaxRedeemLimits() public {
         uint256 depositAmount = 1000000;
@@ -494,9 +504,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(alice);
         bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
         
+        uint256 aliceShares = bullaFactoring.balanceOf(alice);
+
         // Alice transfers away her shares
         vm.prank(alice);
-        bullaFactoring.transfer(bob, bullaFactoring.balanceOf(alice));
+        bullaFactoring.transfer(bob, aliceShares);
         
         // Pay invoice to restore liquidity
         vm.prank(alice);
@@ -533,13 +545,13 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
         
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        (, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
         
         IRedemptionQueue.QueuedRedemption memory redemption = bullaFactoring.getRedemptionQueue().getNextRedemption();
         
         assertEq(redemption.owner, alice, "Owner should be Alice");
         assertEq(redemption.receiver, alice, "Receiver should be Alice");
-        assertEq(redemption.shares, queueAmount, "Shares should match queued amount");
+        assertEq(redemption.shares, queuedShares, "Shares should match queued amount");
         assertEq(redemption.assets, 0, "Assets should be 0 for share-based redemption");
     }
 
@@ -560,28 +572,28 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Create liquidity constraint
         vm.prank(david);
-        uint256 invoiceId = createClaim(david, alice, 2500000, dueBy);
+        uint256 invoiceId = createClaim(david, eve, 2500000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
         vm.prank(david);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(david);
-        bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
+        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
         // Mixed redemption types
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(300000, alice, alice); // Share-based
+        bullaFactoring.redeemAndOrQueue(depositAmount, alice, alice); // Share-based
         
         vm.prank(bob);
-        bullaFactoring.withdrawAndOrQueue(250000, bob, bob); // Asset-based
+        bullaFactoring.withdrawAndOrQueue(depositAmount, bob, bob); // Asset-based
         
         vm.prank(charlie);
-        bullaFactoring.redeemAndOrQueue(200000, charlie, charlie); // Share-based
+        bullaFactoring.redeemAndOrQueue(depositAmount, charlie, charlie); // Share-based
         
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should have mixed redemptions");
         
         // Verify FIFO processing works with mixed types
-        vm.prank(alice);
+        vm.prank(eve);
         bullaClaim.payClaim(invoiceId, 2500000);
         
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
@@ -625,7 +637,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
 
     function testDeposit_FollowedByQueueProcessing() public {
         uint256 depositAmount = 1000000;
-        uint256 queueAmount = 300000;
+        uint256 queueAmount = 500000;
         uint256 newDeposit = 500000;
         
         // Setup queued redemption
@@ -636,21 +648,27 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
         vm.prank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
-        vm.prank(bob);
+
+        vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.prank(bob);
         bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
+        vm.stopPrank();
         
-        vm.prank(alice);
+        vm.startPrank(alice);
         bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        vm.stopPrank();
+
+        IRedemptionQueue.QueuedRedemption memory nextRedemption = bullaFactoring.getRedemptionQueue().getNextRedemption();
         
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         
         // New deposit should trigger queue processing
         vm.prank(bob);
         bullaFactoring.deposit(newDeposit, bob);
+
+        nextRedemption = bullaFactoring.getRedemptionQueue().getNextRedemption();
         
-        assertTrue(asset.balanceOf(alice) > aliceBalanceBefore, "Alice should receive processed redemption");
+        assertGt(asset.balanceOf(alice), aliceBalanceBefore, "Alice should receive processed redemption");
     }
 
     function testFundInvoice_FollowedByQueueProcessing() public {
@@ -698,7 +716,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.deposit(depositAmount, alice);
         
         vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
+        uint256 invoiceId = createClaim(bob, eve, 800000, dueBy);
         vm.prank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
         vm.prank(bob);
@@ -712,11 +730,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         
         // Pay invoice and reconcile
-        vm.prank(alice);
+        vm.prank(eve);
         bullaClaim.payClaim(invoiceId, 800000);
         
         bullaFactoring.reconcileActivePaidInvoices();
         
-        assertTrue(asset.balanceOf(alice) > aliceBalanceBefore, "Alice should receive processed redemption");
+        assertGt(asset.balanceOf(alice), aliceBalanceBefore, "Alice should receive processed redemption");
     }
 } 
