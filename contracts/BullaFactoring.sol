@@ -227,8 +227,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approvedInvoices[loanId].approved) revert LoanOfferAlreadyAccepted();
         (uint256[] memory paidInvoices,) = viewPoolStatus();
 
-        // since the funds are already pulled at this point, we can't reconcile automatically. We will have to reconcile manually before accepting loan
-        if (paidInvoices.length != 0) revert ReconciliationNeeded();
+        // We no longer force having an empty queue because if the queue is non-empty,
+        // it means there's no cash in the pool anyways, and
+        // the frendlend will fail before even getting to this function
 
         pendingLoanOffersByLoanOfferId[loanOfferId].exists = false;
         removePendingLoanOffer(loanOfferId);
