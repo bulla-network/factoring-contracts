@@ -81,6 +81,26 @@ export const ethereumConfig = {
     setImpairReserve: false,
 };
 
+export const baseConfig = {
+    bullaClaim: '0x873C25e47f3C5e4bC524771DFed53B5B36ad5eA2', // Base Address
+    underlyingAsset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base USDC, https://www.circle.com/pt-br/multi-chain-usdc
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+    bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+    protocolFeeBps: 100,
+    adminFeeBps: 50,
+    poolName: 'Bulla TCS Settlement Pool - Base',
+    taxBps: 0,
+    targetYieldBps: 1100, // 11%
+    poolTokenName: 'Bulla TCS Settlement Pool Token',
+    poolTokenSymbol: 'BFT-TCS',
+    BullaClaimInvoiceProviderAdapterAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
+    factoringPermissionsAddress: '0x3287d25C2Ff250467E4e375886FEe49A936C2F1c',
+    depositPermissionsAddress: '0x7B3776dcCDb3965Ab9d414F5c9Db5a07177Ea449',
+    // bullaFactoringAddress: undefined,
+    writeNewAddresses: false,
+    setImpairReserve: false,
+};
+
 // Helper function to get config based on network
 export function getNetworkConfig(network: string) {
     if (!network) {
@@ -96,6 +116,8 @@ export function getNetworkConfig(network: string) {
             return polygonConfig;
         case 'mainnet':
             return ethereumConfig;
+        case 'base':
+            return baseConfig;
         default:
             throw new Error(`Unsupported network: ${network}`);
     }
