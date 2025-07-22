@@ -96,9 +96,9 @@ export const baseConfig = {
     BullaClaimInvoiceProviderAdapterAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
     factoringPermissionsAddress: '0x3287d25C2Ff250467E4e375886FEe49A936C2F1c',
     depositPermissionsAddress: '0x7B3776dcCDb3965Ab9d414F5c9Db5a07177Ea449',
-    // bullaFactoringAddress: undefined,
-    writeNewAddresses: false,
-    setImpairReserve: false,
+    bullaFactoringAddress: '0x1968f9440724B3148C8152190eeCb18a2F3b2eec',
+    writeNewAddresses: true,
+    setImpairReserve: true,
 };
 
 // Helper function to get config based on network

@@ -52,7 +52,7 @@
         "@ethersproject/bytes": "5.7.0",
         "@ethersproject/providers": "5.7.0",
         "@noble/secp256k1": "^1.5.5",
-        "@nomiclabs/hardhat-ethers": "^3.0.0",
+        "@nomiclabs/hardhat-ethers": "2.2.3",
         "@nomiclabs/hardhat-solhint": "^3.0.0",
         "@nomiclabs/hardhat-waffle": "^2.0.6",
         "@nomicfoundation/hardhat-verify": "^2.0.14",
