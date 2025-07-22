@@ -37,7 +37,7 @@
         "verify:sepolia": "cross-env NETWORK=sepolia npx hardhat etherscan-verify --network sepolia",
         "verify:polygon": "cross-env NETWORK=polygon npx hardhat etherscan-verify --network polygon",
         "verify:mainnet": "cross-env NETWORK=mainnet npx hardhat etherscan-verify --network mainnet",
-        "verify:base": "cross-env NETWORK=base npx hardhat verify --network base",
+        "verify:base": "cross-env NETWORK=base npx hardhat verify --network base"
     },
     "dependencies": {
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
