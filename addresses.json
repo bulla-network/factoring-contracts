@@ -203,7 +203,13 @@
     "bullaFinanceAddress": "0xd3A33aE646701507eB043e2DB16f8C1428241F53",
     "frendLendAddress": "0x44ad74A14f268551Dd8619B094769C10089239C8",
     "moduleFactoryAddress": "0xE14E624b29BcDa2ec409BBBf97037fEDe3803797",
-    "bullaModuleMasterCopyAddress": "0x1c534661326b41c8b8aab5631ECED6D9755ff192"
+    "bullaModuleMasterCopyAddress": "0x1c534661326b41c8b8aab5631ECED6D9755ff192",
+    "0x1968f9440724B3148C8152190eeCb18a2F3b2eec": {
+      "name": "Bulla TCS Settlement Pool - Base",
+      "bullaClaimInvoiceProviderAdapter": "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
+      "depositPermissions": "0x7B3776dcCDb3965Ab9d414F5c9Db5a07177Ea449",
+      "factoringPermissions": "0x3287d25C2Ff250467E4e375886FEe49A936C2F1c"
+    }
   },
   "42161": {
     "name": "Arbitrum",

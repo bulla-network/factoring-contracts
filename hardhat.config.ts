@@ -1,24 +1,40 @@
 require('dotenv').config({ path: './.env' });
 import '@nomiclabs/hardhat-ethers';
-import '@nomiclabs/hardhat-etherscan';
+import '@nomicfoundation/hardhat-verify';
 import '@nomiclabs/hardhat-solhint';
 import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
 import 'hardhat-deploy';
 import 'hardhat-gas-reporter';
 import { HardhatUserConfig } from 'hardhat/types';
-// import "hardhat-ethernal"
+
+interface HardhatEtherscanConfig {
+    apiKey: string | Record<string, string>;
+    customChains: {
+        network: string;
+        chainId: number;
+        urls: {
+            apiURL: string;
+            browserURL: string;
+        };
+    }[];
+}
+
+interface CustomHardhatConfig extends HardhatUserConfig {
+    etherscan: HardhatEtherscanConfig;
+}
 
 const INFURA_API_KEY = process.env.INFURA_API_KEY!;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY!;
+const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY!;
 const GET_BLOCK_API_KEY = process.env.GET_BLOCK_API_KEY!;
 const MAINNET_GETBLOCK_API_KEY = process.env.MAINNET_GETBLOCK_API_KEY!;
 const DEPLOY_PK = process.env.DEPLOY_PK!;
 const COINMARKETCAP_API = process.env.COINMARKETCAP_API!;
 const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS!;
 
-const config: HardhatUserConfig = {
+const config: CustomHardhatConfig = {
     defaultNetwork: 'hardhat',
     solidity: {
         compilers: [
@@ -149,18 +165,14 @@ const config: HardhatUserConfig = {
         src: './contracts',
     },
     etherscan: {
-        apiKey: {
-            sepolia: ETHERSCAN_API_KEY,
-            polygon: POLYGONSCAN_API_KEY,
-            mainnet: ETHERSCAN_API_KEY,
-        },
+        apiKey: ETHERSCAN_API_KEY,
         customChains: [
             {
-                network: 'base-goerli',
-                chainId: 84531,
+                network: 'base',
+                chainId: 8453,
                 urls: {
-                    apiURL: 'https://api-goerli.basescan.org/api',
-                    browserURL: 'https://goerli.basescan.org',
+                    apiURL: 'https://api.basescan.org/api',
+                    browserURL: 'https://basescan.org',
                 },
             },
         ],
