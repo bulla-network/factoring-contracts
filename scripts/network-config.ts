@@ -21,22 +21,22 @@ export const sepoliaConfig = {
     setImpairReserve: true,
 };
 
-export const sepoliaFudorraConfig = {
+export const sepoliaFundoraConfig = {
     bullaClaim: '0x3702D060cbB102b6AebF40B40880F77BeF3d7225', // Sepolia Address
     underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // New WYST address
     underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
     protocolFeeBps: 25,
     adminFeeBps: 50,
-    poolName: 'Bulla Fudorra Factoring Pool Sepolia Test',
+    poolName: 'Bulla Fundora Factoring Pool Sepolia Test',
     taxBps: 0,
     targetYieldBps: 730,
-    poolTokenName: 'Fundorra Sepolia Test Token',
+    poolTokenName: 'Fundora Sepolia Test Token',
     poolTokenSymbol: 'BFT-FNDRA',
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    bullaFactoringAddress: '0xD898DD7D411c471486856F3C73dD956D9d86572D',
+    bullaFactoringAddress: '0x9efBa474E79e7e37C87AB5CAf3D32347Bb9e604F',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
@@ -110,8 +110,8 @@ export function getNetworkConfig(network: string) {
     switch (network) {
         case 'sepolia':
             return sepoliaConfig;
-        case 'sepoliaFudorra':
-            return sepoliaFudorraConfig;
+        case 'sepoliaFundora':
+            return sepoliaFundoraConfig;
         case 'polygon':
             return polygonConfig;
         case 'mainnet':
