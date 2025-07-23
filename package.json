@@ -18,7 +18,7 @@
         "estimate-gas:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/estimate-gas.ts",
         "estimate-gas:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/estimate-gas.ts",
         "deploy:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/deploy-bullaFactoring.ts",
-        "deploy:sepolia-fudorra": "cross-env NETWORK=sepoliaFudorra npx hardhat run --network sepolia scripts/deploy-bullaFactoring.ts",
+        "deploy:sepolia-fundora": "cross-env NETWORK=sepoliaFundora npx hardhat run --network sepolia scripts/deploy-bullaFactoring.ts",
         "deploy:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/deploy-bullaFactoring.ts ",
         "deploy:mainnet": "cross-env NETWORK=mainnet npx hardhat run --network mainnet scripts/deploy-bullaFactoring.ts ",
         "deploy:base": "cross-env NETWORK=base npx hardhat run --network base scripts/deploy-bullaFactoring.ts",
