@@ -214,4 +214,4 @@ This project is licensed under the BUSL 1.1 License - see the [LICENSE](LICENSE)
 ## Links
 
 -   [Bulla Network](https://bulla.network)
--   [Discord](https://discord.gg/bulla)
+-   [Discord](https://discord.gg/fZTfavP4EV)
