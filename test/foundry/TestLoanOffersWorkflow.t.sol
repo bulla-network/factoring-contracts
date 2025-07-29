@@ -5,11 +5,11 @@ import 'forge-std/Test.sol';
 import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import "contracts/interfaces/IBullaFactoring.sol";
-import {LoanOfferExpired, InvalidTermLength} from '@bulla/contracts-v2/src/BullaFrendLend.sol';
-import {CreateClaimApprovalType} from '@bulla/contracts-v2/src/BullaClaim.sol';
+import {LoanOfferExpired, InvalidTermLength} from '@bulla/contracts-v2/src/BullaFrendLendV2.sol';
+import {CreateClaimApprovalType} from '@bulla/contracts-v2/src/types/Types.sol';
 import {EIP712Helper} from './utils/EIP712Helper.sol';
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Loan} from '@bulla/contracts-v2/src/BullaFrendLend.sol';
+import {Loan} from '@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol';
 import {Status} from '@bulla/contracts-v2/src/types/Types.sol';
 
 contract TestLoanOffersWorkflow is CommonSetup {
