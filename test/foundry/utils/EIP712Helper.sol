@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import {BullaClaimPermitLib} from "@bulla/contracts-v2/src/libraries/BullaClaimPermitLib.sol";
 import {IBullaApprovalRegistry} from "@bulla/contracts-v2/src/interfaces/IBullaApprovalRegistry.sol";
 import {IBullaControllerRegistry} from "@bulla/contracts-v2/src/interfaces/IBullaControllerRegistry.sol";
-import {BullaClaim} from "@bulla/contracts-v2/src/BullaClaim.sol";
+import {BullaClaimV2} from "@bulla/contracts-v2/src/BullaClaimV2.sol";
 
 address constant HEVM_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
 
@@ -36,7 +36,7 @@ contract EIP712Helper {
     bytes32 public CREATE_CLAIM_TYPEHASH;
 
     constructor(address _bullaClaim) {
-        BullaClaim bullaClaim = BullaClaim(_bullaClaim);
+        BullaClaimV2 bullaClaim = BullaClaimV2(_bullaClaim);
         approvalRegistry = IBullaApprovalRegistry(bullaClaim.approvalRegistry());
         controllerRegistry = IBullaControllerRegistry(approvalRegistry.controllerRegistry());
 

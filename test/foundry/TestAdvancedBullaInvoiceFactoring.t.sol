@@ -7,7 +7,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 import {ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
-import {CreateClaimApprovalType} from "bulla-contracts-v2/src/BullaClaim.sol";
+import {CreateClaimApprovalType} from "bulla-contracts-v2/src/types/Types.sol";
 import {EIP712Helper} from './utils/EIP712Helper.sol';
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "contracts/interfaces/IBullaFactoring.sol";

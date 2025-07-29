@@ -2,16 +2,16 @@
 pragma solidity ^0.8.20;
 
 import "./interfaces/IInvoiceProviderAdapter.sol";
-import {IBullaClaim as IBullaClaimV2} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
+import {IBullaClaimV2} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol";
 import {Claim, Status} from "bulla-contracts-v2/src/types/Types.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
-import {IBullaFrendLend, Loan} from "bulla-contracts-v2/src/interfaces/IBullaFrendLend.sol";
+import {IBullaFrendLendV2, Loan} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {IBullaInvoice, Invoice as BullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 
 contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
     IBullaClaimV2 private bullaClaimV2;
-    IBullaFrendLend private immutable bullaFrendLend;
+    IBullaFrendLendV2 private immutable bullaFrendLend;
     IBullaInvoice private immutable bullaInvoice;
 
     error InexistentInvoice();
@@ -19,7 +19,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
 
     constructor(address _bullaClaimV2Address, address _bullaFrendLend, address _bullaInvoice) {
         bullaClaimV2 = IBullaClaimV2(_bullaClaimV2Address);
-        bullaFrendLend = IBullaFrendLend(_bullaFrendLend);
+        bullaFrendLend = IBullaFrendLendV2(_bullaFrendLend);
         bullaInvoice = IBullaInvoice(_bullaInvoice);
     }
 

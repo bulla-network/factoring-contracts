@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./CommonSetup.t.sol";
 import {IRedemptionQueue} from "../../contracts/interfaces/IRedemptionQueue.sol";
-import {CreateClaimApprovalType} from "bulla-contracts-v2/src/BullaClaim.sol";
+import {CreateClaimApprovalType} from "bulla-contracts-v2/src/types/Types.sol";
 import {EIP712Helper} from "./utils/EIP712Helper.sol";
 
 /**

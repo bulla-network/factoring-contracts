@@ -11,7 +11,8 @@ import "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import "@bulla/contracts-v2/src/interfaces/IBullaFrendLend.sol";
+import {IBullaFrendLendV2, LoanRequestParams} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
+import {InterestConfig} from "@bulla/contracts-v2/src/libraries/CompoundInterestLib.sol";
 import "./RedemptionQueue.sol";
 
 /// @title Bulla Factoring Fund
@@ -40,7 +41,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
     /// @notice Address of the bulla frendlend contract
-    IBullaFrendLend public bullaFrendLend;
+    IBullaFrendLendV2 public bullaFrendLend;
     /// @notice Address of the underwriter, trusted to approve invoices
     address public underwriter;
     /// @notice Timestamp of the fund's creation
@@ -133,7 +134,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     constructor(
         IERC20 _asset, 
         IInvoiceProviderAdapterV2 _invoiceProviderAdapter, 
-        IBullaFrendLend _bullaFrendLend,
+        IBullaFrendLendV2 _bullaFrendLend,
         address _underwriter,
         Permissions _depositPermissions,
         Permissions _redeemPermissions,

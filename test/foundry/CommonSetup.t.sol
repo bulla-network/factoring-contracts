@@ -15,14 +15,13 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
-import {IBullaClaim as IBullaClaimV2, LockState} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
-import {IBullaFrendLend} from "bulla-contracts-v2/src/interfaces/IBullaFrendLend.sol";
-import {BullaFrendLend} from "bulla-contracts-v2/src/BullaFrendLend.sol";
+import {IBullaClaimV2, LockState} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol";
+import {IBullaFrendLendV2} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
+import {BullaFrendLendV2} from "bulla-contracts-v2/src/BullaFrendLendV2.sol";
 import {BullaControllerRegistry} from "bulla-contracts-v2/src/BullaControllerRegistry.sol";
-import {BullaClaim as BullaClaimV2} from "bulla-contracts-v2/src/BullaClaim.sol";
+import {BullaClaimV2} from "bulla-contracts-v2/src/BullaClaimV2.sol";
 import {IBullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 import {BullaInvoice} from "bulla-contracts-v2/src/BullaInvoice.sol";
-import {IBullaClaim} from "bulla-contracts-v2/src/interfaces/IBullaClaim.sol";
 import {BullaApprovalRegistry} from "bulla-contracts-v2/src/BullaApprovalRegistry.sol";
 import {CreateClaimParams, ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
 import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
@@ -41,8 +40,8 @@ contract CommonSetup is Test {
     BullaControllerRegistry public bullaControllerRegistry;
     BullaApprovalRegistry public bullaApprovalRegistry;
     MockPermissions public feeExemptionWhitelist;
-    IBullaFrendLend public bullaFrendLend;
-    IBullaClaim public bullaClaim;
+    IBullaFrendLendV2 public bullaFrendLend;
+    IBullaClaimV2 public bullaClaim;
     IBullaInvoice public bullaInvoice;
 
     uint256 bobPK = 0x1;
@@ -79,7 +78,7 @@ contract CommonSetup is Test {
         bullaControllerRegistry = new BullaControllerRegistry();
         bullaApprovalRegistry = new BullaApprovalRegistry(address(bullaControllerRegistry));
         bullaClaim = new BullaClaimV2(address(bullaApprovalRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
-        bullaFrendLend = new BullaFrendLend(address(bullaClaim), address(this), 50);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 50);
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 50);
         invoiceAdapterBulla = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
         bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);

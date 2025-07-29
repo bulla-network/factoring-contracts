@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import './CommonSetup.t.sol';
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IBullaFrendLend, LoanRequestParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaFrendLend.sol";
-import {CreateClaimApprovalType} from "bulla-contracts-v2/src/BullaClaim.sol";
+import {IBullaFrendLendV2, LoanRequestParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
+import {CreateClaimApprovalType} from "bulla-contracts-v2/src/types/Types.sol";
 import {EIP712Helper} from "./utils/EIP712Helper.sol";
 
 contract TestExternalFrendLendFactoring is CommonSetup {
