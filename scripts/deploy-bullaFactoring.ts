@@ -3,7 +3,7 @@ import hre, { ethers } from 'hardhat';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
 import { getNetworkFromEnv, verifyContract } from './deploy-utils';
-import { ethereumConfig, polygonConfig, sepoliaConfig, sepoliaFundoraConfig, baseConfig } from './network-config';
+import { baseConfig, ethereumConfig, polygonConfig, sepoliaConfig, sepoliaFundoraConfig } from './network-config';
 
 export type DeployBullaFactoringParams = {
     bullaClaim: string;
@@ -75,29 +75,29 @@ export const deployBullaFactoring = async ({
 
     // Deploy mock permissions contracts if not provided
     if (!factoringPermissionsAddress) {
-        console.log('Deploying FactoringPermissions...');
-        const { address: factoringPermissionsAddress } = await deploy('FactoringPermissions', {
+        console.log('Deploying PermissionsWithReconcile...');
+        const { address: factoringPermissionsAddress } = await deploy('PermissionsWithReconcile', {
             from: deployer,
             args: [],
         });
-        console.log(`FactoringPermissionsAddress deployed: ${factoringPermissionsAddress}`);
-        console.log('Verifying FactoringPermissions...');
-        await verifyContract(factoringPermissionsAddress, [], network, 'contracts/FactoringPermissions.sol:FactoringPermissions');
-        console.log(`FactoringPermissionsAddress verified: ${factoringPermissionsAddress}`);
+        console.log(`PermissionsWithReconcile deployed: ${factoringPermissionsAddress}`);
+        console.log('Verifying PermissionsWithReconcile...');
+        await verifyContract(factoringPermissionsAddress, [], network, 'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile');
+        console.log(`PermissionsWithReconcile verified: ${factoringPermissionsAddress}`);
     } else {
         console.log(`Using provided factoringPermissionsAddress: ${factoringPermissionsAddress}`);
     }
 
     if (!depositPermissionsAddress) {
-        console.log('Deploying DepositPermissions...');
-        const { address: depositPermissionsAddress } = await deploy('DepositPermissions', {
+        console.log('Deploying PermissionsWithReconcile...');
+        const { address: depositPermissionsAddress } = await deploy('PermissionsWithReconcile', {
             from: deployer,
             args: [],
         });
-        console.log(`DepositPermissionsAddress deployed: ${depositPermissionsAddress}`);
-        console.log('Verifying DepositPermissions...');
-        await verifyContract(depositPermissionsAddress, [], network, 'contracts/DepositPermissions.sol:DepositPermissions');
-        console.log(`DepositPermissionsAddress verified: ${depositPermissionsAddress}`);
+        console.log(`PermissionsWithReconcile deployed: ${depositPermissionsAddress}`);
+        console.log('Verifying PermissionsWithReconcile...');
+        await verifyContract(depositPermissionsAddress, [], network, 'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile');
+        console.log(`PermissionsWithReconcile verified: ${depositPermissionsAddress}`);
     } else {
         console.log(`Using provided depositPermissionsAddress: ${depositPermissionsAddress}`);
     }
@@ -125,6 +125,14 @@ export const deployBullaFactoring = async ({
         });
 
         console.log(`Bulla Factoring Contract deployed: ${bullaFactoringAddress}`);
+
+        // Set BullaFactoring pool address in permission contracts
+        const signer = await ethers.getSigner(deployer);
+        const factoringPermissionsContract = await ethers.getContractAt('PermissionsWithReconcile', factoringPermissionsAddress, signer);
+        const depositPermissionsContract = await ethers.getContractAt('PermissionsWithReconcile', depositPermissionsAddress, signer);
+        await factoringPermissionsContract.setBullaFactoringPool(bullaFactoringAddress);
+        await depositPermissionsContract.setBullaFactoringPool(bullaFactoringAddress);
+
         console.log('Verifying Bulla Factoring Contract...');
         await verifyContract(
             bullaFactoringAddress,
