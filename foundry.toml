@@ -6,6 +6,9 @@ libs = [
     'node_modules',
 ]
 solc = "0.8.20"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
 remappings = [
     '@ensdomains/=node_modules/@ensdomains/',
     '@gnosis.pm/=node_modules/@gnosis.pm/',
