@@ -172,8 +172,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return ERC20(address(assetAddress)).decimals();
     }
 
+    /// @notice The underwriter approves a loan that was requested by a user
+    /// @dev This function is called by the underwriter to approve a loan that was requested by a user
+    /// @param debtor The address of the debtor
+    /// @param _targetYieldBps The target yield in basis points
+    /// @param spreadBps The spread in basis points to add on top of target yield
+    /// @param principalAmount The principal amount of the loan
+    /// @param termLength The term length of the loan
+    /// @param numberOfPeriodsPerYear The number of periods per year
     function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
-        public returns (uint256 loanOfferId) {
+        external returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         if (numberOfPeriodsPerYear > 365) revert InvalidPercentage();
 
@@ -221,12 +229,20 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return loanOfferId;
     }
 
-    function onLoanOfferAccepted(uint256 loanOfferId, uint256 loanId) public {
+    /// @notice Callback function called when a loan offer is accepted
+    /// @dev This function is called by the bulla frendlend contract when a loan offer is accepted
+    /// @param loanOfferId The ID of the loan offer
+    /// @param loanId The ID of the loan
+    function onLoanOfferAccepted(uint256 loanOfferId, uint256 loanId) external {
         if (msg.sender != address(bullaFrendLend)) revert CallerNotBullaFrendLend();
         PendingLoanOfferInfo memory pendingLoanOffer = pendingLoanOffersByLoanOfferId[loanOfferId];
         if (!pendingLoanOffer.exists) revert LoanOfferNotExists();
         if (approvedInvoices[loanId].approved) revert LoanOfferAlreadyAccepted();
-        (uint256[] memory paidInvoices,) = viewPoolStatus();
+
+        // even though the funds have left, `totalAssets` only updates once the invoice has been added as an active invoice
+        // which reduces totalAssets
+        uint256 _totalAssets = totalAssets();
+        if (_totalAssets < pendingLoanOffer.principalAmount) revert InsufficientFunds(_totalAssets, pendingLoanOffer.principalAmount);
 
         // We no longer force having an empty queue because if the queue is non-empty,
         // it means there's no cash in the pool anyways, and
@@ -553,7 +569,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         (uint256 fundedAmountGross,,,,,uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         uint256 _totalAssets = totalAssets();
-        if(fundedAmountNet > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountNet);
+        // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
+        if(fundedAmountGross > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross);
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
@@ -909,7 +926,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Sets the grace period in days for determining if an invoice is impaired
     /// @param _days The number of days for the grace period
     /// @dev This function can only be called by the contract owner
-    function setGracePeriodDays(uint256 _days) public onlyOwner {
+    function setGracePeriodDays(uint256 _days) external onlyOwner {
         gracePeriodDays = _days;
         emit GracePeriodDaysChanged(_days);
     }
@@ -917,14 +934,14 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Sets the duration for which invoice approvals are valid
     /// @param _duration The new duration in seconds
     /// @dev This function can only be called by the contract owner
-    function setApprovalDuration(uint256 _duration) public onlyOwner {
+    function setApprovalDuration(uint256 _duration) external onlyOwner {
         approvalDuration = _duration;
         emit ApprovalDurationChanged(_duration);
     }
 
     /// @notice Sets a new underwriter for the contract
     /// @param _newUnderwriter The address of the new underwriter
-    function setUnderwriter(address _newUnderwriter) public onlyOwner {
+    function setUnderwriter(address _newUnderwriter) external onlyOwner {
         if (_newUnderwriter == address(0)) revert InvalidAddress();
         address oldUnderwriter = underwriter;
         underwriter = _newUnderwriter;
@@ -941,7 +958,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Allows the Pool Owner to withdraw accumulated admin fees and spread gains.
-    function withdrawAdminFeesAndSpreadGains() onlyOwner public {
+    function withdrawAdminFeesAndSpreadGains() external onlyOwner {
         uint256 adminFeeAmount = adminFeeBalance;
         uint256 spreadAmount = spreadGainsBalance;
         uint256 totalAmount = adminFeeAmount + spreadAmount;
@@ -958,7 +975,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Updates the Bulla DAO address
     /// @param _newBullaDao The new address for the Bulla DAO
-    function setBullaDaoAddress(address _newBullaDao) public onlyBullaDao {
+    function setBullaDaoAddress(address _newBullaDao) external onlyBullaDao {
         if (_newBullaDao == address(0)) revert InvalidAddress();
         address oldBullaDao = bullaDao;
         bullaDao = _newBullaDao;
@@ -967,7 +984,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Updates the protocol fee in basis points (bps)
     /// @param _newProtocolFeeBps The new protocol fee in basis points
-    function setProtocolFeeBps(uint16 _newProtocolFeeBps) public onlyBullaDao {
+    function setProtocolFeeBps(uint16 _newProtocolFeeBps) external onlyBullaDao {
         if (_newProtocolFeeBps > 10000) revert InvalidPercentage();
         uint16 oldProtocolFeeBps = protocolFeeBps;
         protocolFeeBps = _newProtocolFeeBps;
@@ -976,7 +993,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Sets the admin fee in basis points
     /// @param _newAdminFeeBps The new admin fee in basis points
-    function setAdminFeeBps(uint16 _newAdminFeeBps) public onlyOwner {
+    function setAdminFeeBps(uint16 _newAdminFeeBps) external onlyOwner {
         if (_newAdminFeeBps > 10000) revert InvalidPercentage();
         uint16 oldAdminFeeBps = adminFeeBps;
         adminFeeBps = _newAdminFeeBps;
@@ -989,28 +1006,28 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Updates the deposit permissions contract
     /// @param _newDepositPermissionsAddress The new deposit permissions contract address
-    function setDepositPermissions(address _newDepositPermissionsAddress) public onlyOwner {
+    function setDepositPermissions(address _newDepositPermissionsAddress) external onlyOwner {
         depositPermissions = Permissions(_newDepositPermissionsAddress);
         emit DepositPermissionsChanged(_newDepositPermissionsAddress);
     }
 
     /// @notice Updates the redeem permissions contract
     /// @param _newRedeemPermissionsAddress The new redeem permissions contract address
-    function setRedeemPermissions(address _newRedeemPermissionsAddress) public onlyOwner {
+    function setRedeemPermissions(address _newRedeemPermissionsAddress) external onlyOwner {
         redeemPermissions = Permissions(_newRedeemPermissionsAddress);
         emit RedeemPermissionsChanged(_newRedeemPermissionsAddress);
     }
 
     /// @notice Updates the factoring permissions contract
     /// @param _newFactoringPermissionsAddress The address of the new factoring permissions contract
-    function setFactoringPermissions(address _newFactoringPermissionsAddress) public onlyOwner {
+    function setFactoringPermissions(address _newFactoringPermissionsAddress) external onlyOwner {
         factoringPermissions = Permissions(_newFactoringPermissionsAddress);
         emit FactoringPermissionsChanged(_newFactoringPermissionsAddress);
     }
 
     /// @notice Sets the impair reserve amount
     /// @param _impairReserve The new impair reserve amount
-    function setImpairReserve(uint256 _impairReserve) public onlyOwner {
+    function setImpairReserve(uint256 _impairReserve) external onlyOwner {
         if (_impairReserve < impairReserve) revert ImpairReserveMustBeGreater();
         uint256 amountToAdd = _impairReserve - impairReserve;
         assetAddress.safeTransferFrom(msg.sender, address(this), amountToAdd);
@@ -1020,7 +1037,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Sets the target yield in basis points
     /// @param _targetYieldBps The new target yield in basis points
-    function setTargetYield(uint16 _targetYieldBps) public onlyOwner {
+    function setTargetYield(uint16 _targetYieldBps) external onlyOwner {
         if (_targetYieldBps > 10000) revert InvalidPercentage();
         targetYieldBps = _targetYieldBps;
         emit TargetYieldChanged(_targetYieldBps);
@@ -1051,7 +1068,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Impairs an invoice, using the impairment reserve to cover the loss
     /// @param invoiceId The ID of the invoice to impair
-    function impairInvoice(uint256 invoiceId) public onlyOwner {
+    function impairInvoice(uint256 invoiceId) external onlyOwner {
         if (impairReserve == 0) revert ImpairReserveNotSet();
         if (!isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
 

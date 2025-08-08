@@ -293,6 +293,10 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint16 targetYieldBps = 800;
         uint16 _spreadBps = 200;
         uint256 termLength = 45 days;
+
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount, alice);
+        vm.stopPrank();
         
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, 365, "State test");
