@@ -1,6 +1,6 @@
 require('dotenv').config({ path: './.env' });
-import '@nomiclabs/hardhat-ethers';
 import '@nomicfoundation/hardhat-verify';
+import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-solhint';
 import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
@@ -24,24 +24,74 @@ interface CustomHardhatConfig extends HardhatUserConfig {
     etherscan: HardhatEtherscanConfig;
 }
 
+// Get private key from environment or use dummy for local networks
+function getPrivateKey(): string {
+    // Check if we're running a task that needs a private key
+    const needsPrivateKey = process.argv.some(arg => arg.includes('--network') && !arg.includes('hardhat') && !arg.includes('localhost'));
+
+    if (!needsPrivateKey) {
+        // Return dummy key for local/hardhat networks
+        return '0x0000000000000000000000000000000000000000000000000000000000000001';
+    }
+
+    // Use environment variable if available (for CI/automated deployments)
+    if (process.env.DEPLOY_PK) {
+        return process.env.DEPLOY_PK;
+    }
+
+    // Return placeholder that will be handled by deployment scripts
+    // This allows hardhat config to load without requiring immediate input
+    return '0x0000000000000000000000000000000000000000000000000000000000000001';
+}
+
 const INFURA_API_KEY = process.env.INFURA_API_KEY!;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY!;
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY!;
 const GET_BLOCK_API_KEY = process.env.GET_BLOCK_API_KEY!;
 const MAINNET_GETBLOCK_API_KEY = process.env.MAINNET_GETBLOCK_API_KEY!;
-const DEPLOY_PK = process.env.DEPLOY_PK!;
 const COINMARKETCAP_API = process.env.COINMARKETCAP_API!;
 const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS!;
+
+// Get the private key for deployment
+const DEPLOY_PK = getPrivateKey();
 
 const config: CustomHardhatConfig = {
     defaultNetwork: 'hardhat',
     solidity: {
         compilers: [
-            { version: '0.8.7', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
-            { version: '0.8.3', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
-            { version: '0.8.20', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
+            {
+                version: '0.8.7',
+                settings: {
+                    optimizer: { enabled: true, runs: 200 },
+                    viaIR: true,
+                    outputSelection: { '*': { '*': ['abi', 'evm.bytecode'] } },
+                },
+            },
+            {
+                version: '0.8.3',
+                settings: {
+                    optimizer: { enabled: true, runs: 200 },
+                    viaIR: true,
+                    outputSelection: { '*': { '*': ['abi', 'evm.bytecode'] } },
+                },
+            },
+            {
+                version: '0.8.20',
+                settings: {
+                    optimizer: { enabled: true, runs: 200 },
+                    viaIR: true,
+                    outputSelection: { '*': { '*': ['abi', 'evm.bytecode'] } },
+                },
+            },
         ],
+    },
+    typechain: {
+        outDir: 'typechain-types',
+        target: 'ethers-v5',
+        alwaysGenerateOverloads: false,
+        externalArtifacts: [],
+        dontOverrideCompile: false,
     },
     networks: {
         /** comment out this hardhat config if running tests */
@@ -148,6 +198,11 @@ const config: CustomHardhatConfig = {
             accounts: [DEPLOY_PK],
             chainId: 56,
         },
+        redbelly: {
+            url: `https://governors.mainnet.redbelly.network`,
+            accounts: [DEPLOY_PK],
+            chainId: 151,
+        },
     },
     namedAccounts: {
         deployer: {
@@ -173,6 +228,14 @@ const config: CustomHardhatConfig = {
                 urls: {
                     apiURL: 'https://api.basescan.org/api',
                     browserURL: 'https://basescan.org',
+                },
+            },
+            {
+                network: 'redbelly',
+                chainId: 151,
+                urls: {
+                    apiURL: 'https://api.routescan.io/v2/network/redbelly/evm/1/etherscan/api',
+                    browserURL: 'https://redbelly.routescan.io',
                 },
             },
         ],
