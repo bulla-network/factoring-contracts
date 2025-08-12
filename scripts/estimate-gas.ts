@@ -13,7 +13,7 @@ async function main(): Promise<void> {
     // Get the contract factories
     const BullaFactoring: ContractFactory = await ethers.getContractFactory('BullaFactoring');
     const BullaFactoringAutomationChecker: ContractFactory = await ethers.getContractFactory('BullaFactoringAutomationChecker');
-    const BullaClaimInvoiceProviderAdapter: ContractFactory = await ethers.getContractFactory('BullaClaimInvoiceProviderAdapter');
+    const BullaClaimInvoiceProviderAdapter: ContractFactory = await ethers.getContractFactory('BullaClaimV2InvoiceProviderAdapterV2');
     const FactoringPermissions: ContractFactory = await ethers.getContractFactory('FactoringPermissions');
     const DepositPermissions: ContractFactory = await ethers.getContractFactory('DepositPermissions');
 
@@ -33,14 +33,16 @@ async function main(): Promise<void> {
     const depositPermissionsGasEstimate: BigNumber = await ethers.provider.estimateGas(depositPermissionsDeployTx);
     console.log(`DepositPermissions contract deployment gas estimate: ${depositPermissionsGasEstimate.toString()}`);
 
-    // Simulated deployment of BullaClaimInvoiceProviderAdapter
+    // Simulated deployment of BullaClaimV2InvoiceProviderAdapterV2
     // Replace with your actual constructor arguments
     try {
         const adapterDeployTx: TransactionRequest = await BullaClaimInvoiceProviderAdapter.getDeployTransaction(
-            '0x1234567890123456789012345678901234567890', // Replace with your actual parameter
+            '0x1234567890123456789012345678901234567890', // _bullaClaimV2Address
+            '0x1234567890123456789012345678901234567890', // _bullaFrendLend
+            '0x1234567890123456789012345678901234567890', // _bullaInvoice
         );
         const adapterGasEstimate: BigNumber = await ethers.provider.estimateGas(adapterDeployTx);
-        console.log(`BullaClaimInvoiceProviderAdapter deployment gas estimate: ${adapterGasEstimate.toString()}`);
+        console.log(`BullaClaimV2InvoiceProviderAdapterV2 deployment gas estimate: ${adapterGasEstimate.toString()}`);
 
         // For BullaFactoring, you'll need to provide all the constructor parameters
         // This is a placeholder - replace with your actual parameters

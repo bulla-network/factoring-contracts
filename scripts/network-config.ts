@@ -1,29 +1,51 @@
 // Shared network configurations for deployment and permissions scripts
 
+export type NetworkConfig = {
+    bullaClaim: string;
+    underlyingAsset: string;
+    underwriter: string;
+    bullaDao: string;
+    protocolFeeBps: number;
+    adminFeeBps: number;
+    poolName: string;
+    targetYieldBps: number;
+    poolTokenName: string;
+    poolTokenSymbol: string;
+    BullaClaimInvoiceProviderAdapterAddress?: string;
+    factoringPermissionsAddress?: string;
+    depositPermissionsAddress?: string;
+    redeemPermissionsAddress?: string;
+    bullaFrendLendAddress: string;
+    bullaInvoiceAddress: string;
+    bullaFactoringAddress?: string;
+    writeNewAddresses: boolean;
+    setImpairReserve: boolean;
+};
+
 // Complete configurations for deployments
-export const sepoliaConfig = {
-    bullaClaim: '0x3702D060cbB102b6AebF40B40880F77BeF3d7225', // Sepolia Address
+export const sepoliaConfig: NetworkConfig = {
+    bullaClaim: '0xb4b455d4dd9832c2ae6042fa11ec82b114e8a7e4', // Sepolia Address
     underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // Sepolia USDC
     underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
     protocolFeeBps: 25,
     adminFeeBps: 50,
     poolName: 'Bulla TCS Factoring Pool Sepolia Test v2.1',
-    taxBps: 0,
     targetYieldBps: 730,
     poolTokenName: 'Bulla TCS Factoring Pool',
     poolTokenSymbol: 'BFT-TCS',
     BullaClaimInvoiceProviderAdapterAddress: '0x15ef2BD80BE2247C9007A35c761Ea9aDBe1063C5',
     factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
     depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-    redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
-    bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
+    redeemPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
+    bullaFrendLendAddress: '0x330b6f37d9881ca4781ef70d662197ddb0d353b7',
+    bullaInvoiceAddress: '0x6c4044597f2be6e1dc92217a49b0571c91025379',
     bullaFactoringAddress: '0x078Dc29cDaf3B3c7F616109Ac6e752c846490BAf',
     writeNewAddresses: true,
     setImpairReserve: true,
 };
 
-export const polygonConfig = {
+export const polygonConfig: NetworkConfig = {
     bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4', // Polygon Address
     underlyingAsset: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359', // Polygon USDC
     underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
@@ -39,12 +61,13 @@ export const polygonConfig = {
     depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
     redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
     bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
+    bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
     bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
     writeNewAddresses: true,
     setImpairReserve: false,
 };
 
-export const ethereumConfig = {
+export const ethereumConfig: NetworkConfig = {
     bullaClaim: '0x127948A4286A67A0A5Cb56a2D0d54881077A4889', // Mainnet Address
     underlyingAsset: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // Mainnet USDC
     underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
@@ -60,7 +83,31 @@ export const ethereumConfig = {
     depositPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
     redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
     bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
+    bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
     bullaFactoringAddress: '0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5',
+    writeNewAddresses: true,
+    setImpairReserve: false,
+};
+
+// Complete configurations for deployments
+export const fundoraConfig: NetworkConfig = {
+    bullaClaim: '0xb4b455d4dd9832c2ae6042fa11ec82b114e8a7e4', // Sepolia Address
+    underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // WYST
+    underwriter: '0x9D28ee39eAfa0727423126D93Cb0b889fc0aF971',
+    bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
+    BullaClaimInvoiceProviderAdapterAddress: '0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5',
+    factoringPermissionsAddress: '0xce704a7Fae206ad009852258dDD8574B844eDa3b',
+    depositPermissionsAddress: '0x6985d6af038f177438a6681d1F64d4409Dc8AaC2',
+    redeemPermissionsAddress: '0xba80d22b532eb1a2326334f35565af551f9c8af7',
+    protocolFeeBps: 100,
+    adminFeeBps: 100,
+    poolName: 'Fundora Management Pool',
+    targetYieldBps: 900,
+    poolTokenName: 'Fundora Management Token',
+    poolTokenSymbol: 'FACT',
+    bullaFrendLendAddress: '0x330b6f37d9881ca4781ef70d662197ddb0d353b7',
+    bullaInvoiceAddress: '0x6c4044597f2be6e1dc92217a49b0571c91025379',
+    bullaFactoringAddress: '0xbe25a1086de2b587b2d20e4b14c442cda2437945',
     writeNewAddresses: true,
     setImpairReserve: false,
 };
@@ -78,7 +125,51 @@ export function getNetworkConfig(network: string) {
             return polygonConfig;
         case 'mainnet':
             return ethereumConfig;
+        case 'fundora-sepolia':
+            return fundoraConfig;
         default:
             throw new Error(`Unsupported network: ${network}`);
+    }
+}
+
+// Utility functions for network operations
+export function getRpcUrl(network: string): string {
+    switch (network) {
+        case 'sepolia':
+        case 'fundora-sepolia':
+            return `https://rpc.ankr.com/eth_sepolia/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc`;
+        case 'polygon':
+            return 'https://polygon-rpc.com/';
+        case 'mainnet':
+            return `https://go.getblock.io/${process.env.MAINNET_GETBLOCK_API_KEY}`;
+        default:
+            throw new Error(`Unsupported network: ${network}`);
+    }
+}
+
+export function getEtherscanApiKey(network: string): string {
+    switch (network) {
+        case 'sepolia':
+        case 'fundora-sepolia':
+        case 'mainnet':
+            return process.env.ETHERSCAN_API_KEY!;
+        case 'polygon':
+            return process.env.POLYGONSCAN_API_KEY!;
+        default:
+            throw new Error(`No Etherscan API key configured for network: ${network}`);
+    }
+}
+
+export function getChainId(network: string): number {
+    switch (network) {
+        case 'sepolia':
+        case 'fundora-sepolia':
+            return 11155111;
+        case 'polygon':
+            return 137;
+        case 'mainnet':
+            return 1;
+        default:
+            throw new Error(`Unknown chain ID for network: ${network}`);
     }
 }
