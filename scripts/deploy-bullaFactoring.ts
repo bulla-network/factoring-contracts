@@ -3,7 +3,8 @@ import hre, { ethers } from 'hardhat';
 import ERC20 from '../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json';
 import bullaFactoringABI from '../deployments/sepolia/BullaFactoring.json';
 import { getNetworkFromEnv, verifyContract } from './deploy-utils';
-import { baseConfig, ethereumConfig, polygonConfig, sepoliaConfig, sepoliaFundoraConfig } from './network-config';
+import { baseConfig, ethereumConfig, polygonConfig, sepoliaConfig, sepoliaFundoraConfig, taramRedbellyConfig } from './network-config';
+import { ensurePrivateKey } from './private-key-utils';
 
 export type DeployBullaFactoringParams = {
     bullaClaim: string;
@@ -24,6 +25,7 @@ export type DeployBullaFactoringParams = {
     bullaFactoringAddress?: string;
     writeNewAddresses?: boolean;
     setImpairReserve?: boolean;
+    usePermissionsWithReconcile?: boolean;
 };
 
 export const deployBullaFactoring = async ({
@@ -45,12 +47,17 @@ export const deployBullaFactoring = async ({
     bullaFactoringAddress,
     writeNewAddresses = true,
     setImpairReserve = true,
+    usePermissionsWithReconcile = false,
 }: DeployBullaFactoringParams) => {
-    const { deployments, getNamedAccounts, getChainId } = hre;
-    const { deploy } = deployments;
-    const { deployer } = await getNamedAccounts();
+    // Ensure we have a valid private key for deployment
+    const privateKey = await ensurePrivateKey();
+
+    const { getChainId } = hre;
     const chainId = await getChainId();
 
+    // Create wallet with the prompted private key
+    const wallet = new ethers.Wallet(privateKey, ethers.provider);
+    console.log(`Deploying from address: ${wallet.address}`);
     let addresses = {};
     try {
         addresses = require('../addresses.json');
@@ -61,43 +68,104 @@ export const deployBullaFactoring = async ({
     // Deploy invoice provider contract if not provided
     if (!BullaClaimInvoiceProviderAdapterAddress) {
         console.log('Deploying BullaClaimInvoiceProviderAdapter...');
-        const { address: BullaClaimInvoiceProviderAdapterAddress } = await deploy('BullaClaimInvoiceProviderAdapter', {
-            from: deployer,
-            args: [bullaClaim],
-        });
+
+        // Deploy directly using ethers instead of hardhat-deploy to avoid signer issues
+        const BullaClaimInvoiceProviderAdapterFactory = await ethers.getContractFactory('BullaClaimInvoiceProviderAdapter', wallet);
+        const bullaClaimInvoiceProviderAdapter = await BullaClaimInvoiceProviderAdapterFactory.deploy(bullaClaim);
+        await bullaClaimInvoiceProviderAdapter.deployed();
+        BullaClaimInvoiceProviderAdapterAddress = bullaClaimInvoiceProviderAdapter.address;
         console.log(`BullaClaimInvoiceProviderAdapter deployed: ${BullaClaimInvoiceProviderAdapterAddress}`);
         console.log('Verifying BullaClaimInvoiceProviderAdapter...');
-        await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], network);
-        console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
+        try {
+            await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], network);
+            console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
+        } catch (error) {
+            console.log(`Verification failed for BullaClaimInvoiceProviderAdapter: ${error.message}`);
+            console.log('Continuing with deployment...');
+        }
     } else {
         console.log(`Using provided BullaClaimInvoiceProviderAdapterAddress: ${BullaClaimInvoiceProviderAdapterAddress}`);
     }
 
-    // Deploy mock permissions contracts if not provided
+    // Deploy permissions contracts if not provided
     if (!factoringPermissionsAddress) {
-        console.log('Deploying PermissionsWithReconcile...');
-        const { address: factoringPermissionsAddress } = await deploy('PermissionsWithReconcile', {
-            from: deployer,
-            args: [],
-        });
-        console.log(`PermissionsWithReconcile deployed: ${factoringPermissionsAddress}`);
-        console.log('Verifying PermissionsWithReconcile...');
-        await verifyContract(factoringPermissionsAddress, [], network, 'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile');
-        console.log(`PermissionsWithReconcile verified: ${factoringPermissionsAddress}`);
+        if (usePermissionsWithReconcile) {
+            console.log('Deploying PermissionsWithReconcile for factoring...');
+            const PermissionsWithReconcileFactory = await ethers.getContractFactory('PermissionsWithReconcile', wallet);
+            const factoringPermissions = await PermissionsWithReconcileFactory.deploy();
+            await factoringPermissions.deployed();
+            factoringPermissionsAddress = factoringPermissions.address;
+            console.log(`PermissionsWithReconcile deployed: ${factoringPermissionsAddress}`);
+            console.log('Verifying PermissionsWithReconcile...');
+            try {
+                await verifyContract(
+                    factoringPermissionsAddress,
+                    [],
+                    network,
+                    'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile',
+                );
+                console.log(`PermissionsWithReconcile verified: ${factoringPermissionsAddress}`);
+            } catch (error) {
+                console.log(`Verification failed for PermissionsWithReconcile: ${error.message}`);
+                console.log('Continuing with deployment...');
+            }
+        } else {
+            console.log('Deploying FactoringPermissions...');
+            const FactoringPermissionsFactory = await ethers.getContractFactory('FactoringPermissions', wallet);
+            const factoringPermissions = await FactoringPermissionsFactory.deploy();
+            await factoringPermissions.deployed();
+            factoringPermissionsAddress = factoringPermissions.address;
+            console.log(`FactoringPermissions deployed: ${factoringPermissionsAddress}`);
+            console.log('Verifying FactoringPermissions...');
+            try {
+                await verifyContract(factoringPermissionsAddress, [], network, 'contracts/FactoringPermissions.sol:FactoringPermissions');
+                console.log(`FactoringPermissions verified: ${factoringPermissionsAddress}`);
+            } catch (error) {
+                console.log(`Verification failed for FactoringPermissions: ${error.message}`);
+                console.log('Continuing with deployment...');
+            }
+        }
     } else {
         console.log(`Using provided factoringPermissionsAddress: ${factoringPermissionsAddress}`);
     }
 
     if (!depositPermissionsAddress) {
-        console.log('Deploying PermissionsWithReconcile...');
-        const { address: depositPermissionsAddress } = await deploy('PermissionsWithReconcile', {
-            from: deployer,
-            args: [],
-        });
-        console.log(`PermissionsWithReconcile deployed: ${depositPermissionsAddress}`);
-        console.log('Verifying PermissionsWithReconcile...');
-        await verifyContract(depositPermissionsAddress, [], network, 'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile');
-        console.log(`PermissionsWithReconcile verified: ${depositPermissionsAddress}`);
+        if (usePermissionsWithReconcile) {
+            console.log('Deploying PermissionsWithReconcile for deposits...');
+            const PermissionsWithReconcileFactory = await ethers.getContractFactory('PermissionsWithReconcile', wallet);
+            const depositPermissions = await PermissionsWithReconcileFactory.deploy();
+            await depositPermissions.deployed();
+            depositPermissionsAddress = depositPermissions.address;
+            console.log(`PermissionsWithReconcile deployed: ${depositPermissionsAddress}`);
+            console.log('Verifying PermissionsWithReconcile...');
+            try {
+                await verifyContract(
+                    depositPermissionsAddress,
+                    [],
+                    network,
+                    'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile',
+                );
+                console.log(`PermissionsWithReconcile verified: ${depositPermissionsAddress}`);
+            } catch (error) {
+                console.log(`Verification failed for PermissionsWithReconcile: ${error.message}`);
+                console.log('Continuing with deployment...');
+            }
+        } else {
+            console.log('Deploying DepositPermissions...');
+            const DepositPermissionsFactory = await ethers.getContractFactory('DepositPermissions', wallet);
+            const depositPermissions = await DepositPermissionsFactory.deploy();
+            await depositPermissions.deployed();
+            depositPermissionsAddress = depositPermissions.address;
+            console.log(`DepositPermissions deployed: ${depositPermissionsAddress}`);
+            console.log('Verifying DepositPermissions...');
+            try {
+                await verifyContract(depositPermissionsAddress, [], network, 'contracts/DepositPermissions.sol:DepositPermissions');
+                console.log(`DepositPermissions verified: ${depositPermissionsAddress}`);
+            } catch (error) {
+                console.log(`Verification failed for DepositPermissions: ${error.message}`);
+                console.log('Continuing with deployment...');
+            }
+        }
     } else {
         console.log(`Using provided depositPermissionsAddress: ${depositPermissionsAddress}`);
     }
@@ -105,67 +173,80 @@ export const deployBullaFactoring = async ({
     // Deploy bulla factoring contract if not provided
     if (!bullaFactoringAddress && factoringPermissionsAddress && depositPermissionsAddress) {
         console.log('Deploying Bulla Factoring Contract...');
-        const { address: bullaFactoringAddress } = await deploy('BullaFactoring', {
-            from: deployer,
-            args: [
-                underlyingAsset,
-                BullaClaimInvoiceProviderAdapterAddress,
-                underwriter,
-                depositPermissionsAddress,
-                factoringPermissionsAddress,
-                bullaDao,
-                protocolFeeBps,
-                adminFeeBps,
-                poolName,
-                taxBps,
-                targetYieldBps,
-                poolTokenName,
-                poolTokenSymbol,
-            ],
-        });
+        const BullaFactoringFactory = await ethers.getContractFactory('BullaFactoring', wallet);
+        const bullaFactoring = await BullaFactoringFactory.deploy(
+            underlyingAsset,
+            BullaClaimInvoiceProviderAdapterAddress,
+            underwriter,
+            depositPermissionsAddress,
+            factoringPermissionsAddress,
+            bullaDao,
+            protocolFeeBps,
+            adminFeeBps,
+            poolName,
+            taxBps,
+            targetYieldBps,
+            poolTokenName,
+            poolTokenSymbol,
+            {
+                gasLimit: 8000000, // 8M gas limit for large contract deployment
+            },
+        );
+        await bullaFactoring.deployed();
+        bullaFactoringAddress = bullaFactoring.address;
 
         console.log(`Bulla Factoring Contract deployed: ${bullaFactoringAddress}`);
 
-        // Set BullaFactoring pool address in permission contracts
-        const signer = await ethers.getSigner(deployer);
-        const factoringPermissionsContract = await ethers.getContractAt('PermissionsWithReconcile', factoringPermissionsAddress, signer);
-        const depositPermissionsContract = await ethers.getContractAt('PermissionsWithReconcile', depositPermissionsAddress, signer);
-        await factoringPermissionsContract.setBullaFactoringPool(bullaFactoringAddress);
-        await depositPermissionsContract.setBullaFactoringPool(bullaFactoringAddress);
+        // Set BullaFactoring pool address in permission contracts if using PermissionsWithReconcile
+        if (usePermissionsWithReconcile) {
+            const factoringPermissionsContract = await ethers.getContractAt(
+                'PermissionsWithReconcile',
+                factoringPermissionsAddress,
+                wallet,
+            );
+            const depositPermissionsContract = await ethers.getContractAt('PermissionsWithReconcile', depositPermissionsAddress, wallet);
+            await factoringPermissionsContract.setBullaFactoringPool(bullaFactoringAddress);
+            await depositPermissionsContract.setBullaFactoringPool(bullaFactoringAddress);
+            console.log('BullaFactoring pool address set in PermissionsWithReconcile contracts');
+        }
 
         console.log('Verifying Bulla Factoring Contract...');
-        await verifyContract(
-            bullaFactoringAddress,
-            [
-                underlyingAsset,
-                BullaClaimInvoiceProviderAdapterAddress,
-                underwriter,
-                depositPermissionsAddress,
-                factoringPermissionsAddress,
-                bullaDao,
-                protocolFeeBps,
-                adminFeeBps,
-                poolName,
-                taxBps,
-                targetYieldBps,
-                poolTokenName,
-                poolTokenSymbol,
-            ],
-            network,
-        );
-        console.log(`Bulla Factoring Contract verified: ${bullaFactoringAddress}`);
+        try {
+            await verifyContract(
+                bullaFactoringAddress,
+                [
+                    underlyingAsset,
+                    BullaClaimInvoiceProviderAdapterAddress,
+                    underwriter,
+                    depositPermissionsAddress,
+                    factoringPermissionsAddress,
+                    bullaDao,
+                    protocolFeeBps,
+                    adminFeeBps,
+                    poolName,
+                    taxBps,
+                    targetYieldBps,
+                    poolTokenName,
+                    poolTokenSymbol,
+                ],
+                network,
+            );
+            console.log(`Bulla Factoring Contract verified: ${bullaFactoringAddress}`);
+        } catch (error) {
+            console.log(`Verification failed for BullaFactoring: ${error.message}`);
+            console.log('Continuing with deployment...');
+        }
     } else {
         console.log(`Using provided bullaFactoringAddress: ${bullaFactoringAddress}`);
     }
 
     // Set Impair Reserve and approve token
     if (setImpairReserve && bullaFactoringAddress) {
-        const signer = await ethers.getSigner(deployer);
         const initialImpairReserve = 50000;
-        const underlyingTokenContract = new ethers.Contract(underlyingAsset, ERC20.abi, signer);
+        const underlyingTokenContract = new ethers.Contract(underlyingAsset, ERC20.abi, wallet);
         await underlyingTokenContract.approve(bullaFactoringAddress, initialImpairReserve);
 
-        const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, signer);
+        const bullaFactoringContract = new ethers.Contract(bullaFactoringAddress, bullaFactoringABI.abi, wallet);
         await bullaFactoringContract.setImpairReserve(initialImpairReserve);
 
         const impairReserve = await bullaFactoringContract.impairReserve();
@@ -192,7 +273,7 @@ export const deployBullaFactoring = async ({
 
     const now = new Date();
     const deployInfo = {
-        deployer,
+        deployer: wallet.address,
         chainId,
         currentTime: now.toISOString(),
         BullaClaimInvoiceProviderAdapterAddress,
@@ -216,6 +297,8 @@ if (require.main === module) {
             ? polygonConfig
             : network === 'base'
             ? baseConfig
+            : network === 'redbelly'
+            ? taramRedbellyConfig
             : ethereumConfig;
 
     deployBullaFactoring({

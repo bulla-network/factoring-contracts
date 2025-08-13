@@ -19,6 +19,7 @@ export const sepoliaConfig = {
     bullaFactoringAddress: '0xDF0fCe31285dcAB9124bF763AB9E5466723BeF35',
     writeNewAddresses: true,
     setImpairReserve: true,
+    usePermissionsWithReconcile: false,
 };
 
 export const sepoliaFundoraConfig = {
@@ -39,6 +40,7 @@ export const sepoliaFundoraConfig = {
     bullaFactoringAddress: '0x9efBa474E79e7e37C87AB5CAf3D32347Bb9e604F',
     writeNewAddresses: true,
     setImpairReserve: true,
+    usePermissionsWithReconcile: false,
 };
 
 export const polygonConfig = {
@@ -59,6 +61,7 @@ export const polygonConfig = {
     bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
     writeNewAddresses: true,
     setImpairReserve: false,
+    usePermissionsWithReconcile: false,
 };
 
 export const ethereumConfig = {
@@ -79,6 +82,7 @@ export const ethereumConfig = {
     bullaFactoringAddress: '0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5',
     writeNewAddresses: true,
     setImpairReserve: false,
+    usePermissionsWithReconcile: false,
 };
 
 export const baseConfig = {
@@ -99,6 +103,28 @@ export const baseConfig = {
     bullaFactoringAddress: '0x1968f9440724B3148C8152190eeCb18a2F3b2eec',
     writeNewAddresses: true,
     setImpairReserve: true,
+    usePermissionsWithReconcile: false,
+};
+
+export const taramRedbellyConfig = {
+    bullaClaim: '0x1c534661326b41c8b8aab5631ECED6D9755ff192',
+    underlyingAsset: '0x8201c02d4AB2214471E8C3AD6475C8b0CD9F2D06', // USDC.e
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+    bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+    protocolFeeBps: 1, // Minimum required by contract (>0)
+    adminFeeBps: 100,
+    poolName: 'TARAM Funding Pool - Redbelly',
+    taxBps: 0,
+    targetYieldBps: 1500, // 15%
+    poolTokenName: 'TARAM Funding Pool',
+    poolTokenSymbol: 'BFT-TARAM',
+    BullaClaimInvoiceProviderAdapterAddress: '0x6EB612cDEA6833bf3Df593f1F381043Be86543ee',
+    factoringPermissionsAddress: '0x03754cc78848FBc52130a8EEdD8d3d079F7Bb042',
+    depositPermissionsAddress: '0x772b675A4180B4F48d9D816619620664f90Cf281',
+    bullaFactoringAddress: '0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D',
+    writeNewAddresses: true,
+    setImpairReserve: false,
+    usePermissionsWithReconcile: true,
 };
 
 // Helper function to get config based on network
@@ -118,6 +144,8 @@ export function getNetworkConfig(network: string) {
             return ethereumConfig;
         case 'base':
             return baseConfig;
+        case 'redbelly':
+            return taramRedbellyConfig;
         default:
             throw new Error(`Unsupported network: ${network}`);
     }

@@ -2,13 +2,19 @@ import hre, { ethers } from 'hardhat';
 import permissionsABI from '../artifacts/contracts/Permissions.sol/Permissions.json';
 import { getNetworkFromEnv } from './deploy-utils';
 import { getNetworkConfig } from './network-config';
+import { ensurePrivateKey } from './private-key-utils';
 import { getLineReader } from './utils';
 
 export const updatePermissions = async function () {
+    // Ensure we have a valid private key for deployment
+    const privateKey = await ensurePrivateKey();
+    const wallet = new ethers.Wallet(privateKey, ethers.provider);
+
     const { getNamedAccounts, getChainId } = hre;
     const { deployer } = await getNamedAccounts();
     const lineReader = getLineReader();
-    const signer = await ethers.getSigner(deployer);
+
+    console.log(`Applying permissions from address: ${wallet.address}`);
 
     // Get the network from environment variable
     const network = getNetworkFromEnv();
@@ -18,15 +24,21 @@ export const updatePermissions = async function () {
     const config = getNetworkConfig(network);
 
     console.log(`Using addresses for ${network}:`);
-    console.log(`- Bulla Factoring: ${config.bullaFactoringAddress}`);
-    console.log(`- Deposit Permissions: ${config.depositPermissionsAddress}`);
-    console.log(`- Factoring Permissions: ${config.factoringPermissionsAddress}`);
+    console.log(`- Bulla Factoring: ${config.bullaFactoringAddress || 'Not deployed yet'}`);
+    console.log(`- Deposit Permissions: ${config.depositPermissionsAddress || 'Not deployed yet'}`);
+    console.log(`- Factoring Permissions: ${config.factoringPermissionsAddress || 'Not deployed yet'}`);
 
     const { bullaFactoringAddress, depositPermissionsAddress, factoringPermissionsAddress } = config;
 
+    // Check if addresses are available
+    if (!bullaFactoringAddress || !depositPermissionsAddress || !factoringPermissionsAddress) {
+        console.error('Some contract addresses are missing. Please deploy the contracts first.');
+        return;
+    }
+
     // Grant Deposit and Factoring Permissions
-    const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, permissionsABI.abi, signer);
-    const factoringPermissionsContract = new ethers.Contract(factoringPermissionsAddress, permissionsABI.abi, signer);
+    const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, permissionsABI.abi, wallet);
+    const factoringPermissionsContract = new ethers.Contract(factoringPermissionsAddress, permissionsABI.abi, wallet);
 
     let addressToApproveDeposit: string | undefined = await new Promise(resolve =>
         lineReader.question('deposit address to approve?: \n...\n', address => {
