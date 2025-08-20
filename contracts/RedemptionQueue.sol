@@ -178,24 +178,23 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     
     /// @inheritdoc IRedemptionQueue
     function getQueuedRedemptionsForOwner(address owner) external view returns (uint256[] memory queueIndexes) {
+        uint256 queueLength = queue.length;
+        
+        // Pre-allocate array with maximum possible size
+        queueIndexes = new uint256[](queueLength);
         uint256 validCount = 0;
         
-        // Count valid positions for this owner from head onwards
-        for (uint256 i = head; i < queue.length; i++) {
+        // Single pass to fill array and count valid entries
+        for (uint256 i = head; i < queueLength; i++) {
             if (queue[i].owner == owner) {
+                queueIndexes[validCount] = i;
                 validCount++;
             }
         }
         
-        // Build result array
-        queueIndexes = new uint256[](validCount);
-        uint256 resultIndex = 0;
-        
-        for (uint256 i = head; i < queue.length; i++) {
-            if (queue[i].owner == owner) {
-                queueIndexes[resultIndex] = i;
-                resultIndex++;
-            }
+        // Overwrite the length of the array
+        assembly {
+            mstore(queueIndexes, validCount)
         }
         
         return queueIndexes;
@@ -249,23 +248,23 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     function compactQueue() external onlyOwner {
         if (head == 0) return; // Nothing to compact
         
-        // Count active redemptions from head onwards
+        uint256 queueLength = queue.length;
+        
+        // Pre-allocate array with maximum possible size
+        QueuedRedemption[] memory newQueue = new QueuedRedemption[](queueLength);
         uint256 activeCount = 0;
-        for (uint256 i = head; i < queue.length; i++) {
+        
+        // Single pass to fill array and count active entries
+        for (uint256 i = head; i < queueLength; i++) {
             if (queue[i].owner != address(0)) {
+                newQueue[activeCount] = queue[i];
                 activeCount++;
             }
         }
         
-        // Create new array with only active redemptions
-        QueuedRedemption[] memory newQueue = new QueuedRedemption[](activeCount);
-        uint256 newIndex = 0;
-        
-        for (uint256 i = head; i < queue.length; i++) {
-            if (queue[i].owner != address(0)) {
-                newQueue[newIndex] = queue[i];
-                newIndex++;
-            }
+        // Overwrite the length of the array
+        assembly {
+            mstore(newQueue, activeCount)
         }
         
         // Replace the queue and reset head
