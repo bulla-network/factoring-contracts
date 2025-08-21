@@ -1186,9 +1186,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                         maxRedeemableShares -= sharesToRedeem;
                     } else {
                         // Owner doesn't have sufficient funds - remove from queue
-                        redemptionQueue.cancelQueuedRedemption(0);
-                        redemption = redemptionQueue.getNextRedemption();
-                        continue;
+                        amountProcessed = redemption.shares;
                     }
                 } else {
                     // No liquidity available - stop processing to maintain FIFO order
@@ -1212,9 +1210,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                         _totalAssets -= assetsToWithdraw;
                         maxRedeemableShares -= sharesToBurn;
                     } else {
-                        redemptionQueue.cancelQueuedRedemption(0);
-                        redemption = redemptionQueue.getNextRedemption();
-                        continue;
+                        // Owner doesn't have sufficient funds - remove from queue
+                        amountProcessed = redemption.assets;
                     }
                 } else {
                     // No liquidity available - stop processing to maintain FIFO order
