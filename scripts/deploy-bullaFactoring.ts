@@ -79,7 +79,7 @@ export const deployBullaFactoring = async ({
         try {
             await verifyContract(BullaClaimInvoiceProviderAdapterAddress, [bullaClaim], network);
             console.log(`BullaClaimInvoiceProviderAdapter verified: ${BullaClaimInvoiceProviderAdapterAddress}`);
-        } catch (error) {
+        } catch (error: any) {
             console.log(`Verification failed for BullaClaimInvoiceProviderAdapter: ${error.message}`);
             console.log('Continuing with deployment...');
         }
@@ -105,7 +105,7 @@ export const deployBullaFactoring = async ({
                     'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile',
                 );
                 console.log(`PermissionsWithReconcile verified: ${factoringPermissionsAddress}`);
-            } catch (error) {
+            } catch (error: any) {
                 console.log(`Verification failed for PermissionsWithReconcile: ${error.message}`);
                 console.log('Continuing with deployment...');
             }
@@ -120,7 +120,7 @@ export const deployBullaFactoring = async ({
             try {
                 await verifyContract(factoringPermissionsAddress, [], network, 'contracts/FactoringPermissions.sol:FactoringPermissions');
                 console.log(`FactoringPermissions verified: ${factoringPermissionsAddress}`);
-            } catch (error) {
+            } catch (error: any) {
                 console.log(`Verification failed for FactoringPermissions: ${error.message}`);
                 console.log('Continuing with deployment...');
             }
@@ -146,7 +146,7 @@ export const deployBullaFactoring = async ({
                     'contracts/PermissionsWithReconcile.sol:PermissionsWithReconcile',
                 );
                 console.log(`PermissionsWithReconcile verified: ${depositPermissionsAddress}`);
-            } catch (error) {
+            } catch (error: any) {
                 console.log(`Verification failed for PermissionsWithReconcile: ${error.message}`);
                 console.log('Continuing with deployment...');
             }
@@ -161,7 +161,7 @@ export const deployBullaFactoring = async ({
             try {
                 await verifyContract(depositPermissionsAddress, [], network, 'contracts/DepositPermissions.sol:DepositPermissions');
                 console.log(`DepositPermissions verified: ${depositPermissionsAddress}`);
-            } catch (error) {
+            } catch (error: any) {
                 console.log(`Verification failed for DepositPermissions: ${error.message}`);
                 console.log('Continuing with deployment...');
             }
@@ -232,7 +232,7 @@ export const deployBullaFactoring = async ({
                 network,
             );
             console.log(`Bulla Factoring Contract verified: ${bullaFactoringAddress}`);
-        } catch (error) {
+        } catch (error: any) {
             console.log(`Verification failed for BullaFactoring: ${error.message}`);
             console.log('Continuing with deployment...');
         }
