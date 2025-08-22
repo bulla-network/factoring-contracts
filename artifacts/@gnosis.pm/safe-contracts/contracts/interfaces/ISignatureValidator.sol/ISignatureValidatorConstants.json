@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "ISignatureValidatorConstants",
+  "sourceName": "@gnosis.pm/safe-contracts/contracts/interfaces/ISignatureValidator.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601357603a908160198239f35b600080fdfe600080fdfea264697066735822122026eabb788ae1b14dc1bc50f6e9e91f8230852fff715566a0ed33f87ed8040dcf64736f6c63430008140033",
+  "deployedBytecode": "0x600080fdfea264697066735822122026eabb788ae1b14dc1bc50f6e9e91f8230852fff715566a0ed33f87ed8040dcf64736f6c63430008140033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

@@ -1,0 +1,10 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "console",
+  "sourceName": "lib/forge-std/src/console.sol",
+  "abi": [],
+  "bytecode": "0x60808060405234601757603a9081601d823930815050f35b600080fdfe600080fdfea26469706673582212205afbb455ea03ca8c541615afe3e8be12f8d08136fc0f69430cbbd8bb2741431e64736f6c63430008140033",
+  "deployedBytecode": "0x600080fdfea26469706673582212205afbb455ea03ca8c541615afe3e8be12f8d08136fc0f69430cbbd8bb2741431e64736f6c63430008140033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

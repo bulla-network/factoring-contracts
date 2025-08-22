@@ -1,0 +1,560 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IBullaClaim",
+  "sourceName": "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "prevBullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newBullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "blocktime",
+          "type": "uint256"
+        }
+      ],
+      "name": "BullaManagerSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "bullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "parent",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "creditor",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "debtor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "origin",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "claimAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "paidAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum Status",
+              "name": "status",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "dueBy",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "debtor",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "claimToken",
+              "type": "address"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "bytes32",
+                  "name": "hash",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "hashFunction",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "size",
+                  "type": "uint8"
+                }
+              ],
+              "internalType": "struct Multihash",
+              "name": "attachment",
+              "type": "tuple"
+            }
+          ],
+          "indexed": false,
+          "internalType": "struct Claim",
+          "name": "claim",
+          "type": "tuple"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "blocktime",
+          "type": "uint256"
+        }
+      ],
+      "name": "ClaimCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "bullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "debtor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "paidBy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "paidByOrigin",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "paymentAmount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "blocktime",
+          "type": "uint256"
+        }
+      ],
+      "name": "ClaimPayment",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "bullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "blocktime",
+          "type": "uint256"
+        }
+      ],
+      "name": "ClaimRejected",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "bullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "blocktime",
+          "type": "uint256"
+        }
+      ],
+      "name": "ClaimRescinded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "bullaManager",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "collectionAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "paymentAmount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "transactionFee",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "blocktime",
+          "type": "uint256"
+        }
+      ],
+      "name": "FeePaid",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "bullaManager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "creditor",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "debtor",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "claimAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "dueBy",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "claimToken",
+          "type": "address"
+        },
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "hash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint8",
+              "name": "hashFunction",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint8",
+              "name": "size",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct Multihash",
+          "name": "attachment",
+          "type": "tuple"
+        }
+      ],
+      "name": "createClaim",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "newTokenId",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "creditor",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "debtor",
+          "type": "address"
+        },
+        {
+          "internalType": "string",
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "claimAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "dueBy",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "claimToken",
+          "type": "address"
+        },
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "hash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint8",
+              "name": "hashFunction",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint8",
+              "name": "size",
+              "type": "uint8"
+            }
+          ],
+          "internalType": "struct Multihash",
+          "name": "attachment",
+          "type": "tuple"
+        },
+        {
+          "internalType": "string",
+          "name": "_tokenUri",
+          "type": "string"
+        }
+      ],
+      "name": "createClaimWithURI",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "newTokenId",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getClaim",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "claimAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "paidAmount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum Status",
+              "name": "status",
+              "type": "uint8"
+            },
+            {
+              "internalType": "uint256",
+              "name": "dueBy",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "debtor",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "claimToken",
+              "type": "address"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "bytes32",
+                  "name": "hash",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "hashFunction",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint8",
+                  "name": "size",
+                  "type": "uint8"
+                }
+              ],
+              "internalType": "struct Multihash",
+              "name": "attachment",
+              "type": "tuple"
+            }
+          ],
+          "internalType": "struct Claim",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "paymentAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "payClaim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "rejectClaim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        }
+      ],
+      "name": "rescindClaim",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
