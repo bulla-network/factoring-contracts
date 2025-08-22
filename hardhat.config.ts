@@ -220,7 +220,10 @@ const config: CustomHardhatConfig = {
         src: './contracts',
     },
     etherscan: {
-        apiKey: ETHERSCAN_API_KEY,
+        apiKey: {
+            base: BASESCAN_API_KEY,
+            redbelly: 'redbelly',
+        },
         customChains: [
             {
                 network: 'base',
