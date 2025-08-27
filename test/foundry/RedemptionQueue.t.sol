@@ -246,23 +246,24 @@ contract RedemptionQueueTest is Test {
     }
     
     function test_CancelQueuedRedemption_MiddleItem_PreservesOrder() public {
-        // Setup queue with multiple items
+        // Setup queue with multiple items from different users
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);
         
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user2, receiver2, SHARES_AMOUNT_2, 0);
         
+        // Add another user to avoid automatic cancellation
         vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user1, receiver1, 150e18, 0);
+        redemptionQueue.queueRedemption(unauthorized, receiver1, 150e18, 0);
         
-        // Cancel middle item
+        // Cancel middle item (user2's item)
         vm.prank(user2);
         redemptionQueue.cancelQueuedRedemption(1);
         
         assertEq(redemptionQueue.getQueueLength(), 2);
         
-        // Verify first item is still user1's first redemption
+        // Verify first item is still user1's redemption
         IRedemptionQueue.QueuedRedemption memory firstRedemption = redemptionQueue.getNextRedemption();
         assertEq(firstRedemption.owner, user1);
         assertEq(firstRedemption.shares, SHARES_AMOUNT_1);
@@ -271,9 +272,9 @@ contract RedemptionQueueTest is Test {
         IRedemptionQueue.QueuedRedemption memory cancelledRedemption = redemptionQueue.getQueuedRedemption(1);
         assertEq(cancelledRedemption.owner, address(0));
 
-        // Verify cancelled item is marked as cancelled
+        // Verify third item is still unauthorized user's redemption
         IRedemptionQueue.QueuedRedemption memory thirdRedemption = redemptionQueue.getQueuedRedemption(2);
-        assertEq(thirdRedemption.owner, user1);
+        assertEq(thirdRedemption.owner, unauthorized);
         assertEq(thirdRedemption.shares, 150e18);
     }
     
@@ -455,7 +456,7 @@ contract RedemptionQueueTest is Test {
     }
     
     function test_GetQueueLength_WithCancelledItems() public {
-        // Add three items
+        // Add three items from different users
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);
         
@@ -463,7 +464,7 @@ contract RedemptionQueueTest is Test {
         redemptionQueue.queueRedemption(user2, receiver2, 0, ASSETS_AMOUNT_1);
         
         vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
+        redemptionQueue.queueRedemption(unauthorized, receiver1, SHARES_AMOUNT_2, 0);
         
         assertEq(redemptionQueue.getQueueLength(), 3);
         
@@ -471,7 +472,7 @@ contract RedemptionQueueTest is Test {
         vm.prank(user2);
         redemptionQueue.cancelQueuedRedemption(1);
         
-        // Length should still be 2 (first and third items are active)
+        // Length should be 2 (first and third items are active)
         assertEq(redemptionQueue.getQueueLength(), 2);
         
         // Cancel first item - this should advance head
@@ -520,40 +521,21 @@ contract RedemptionQueueTest is Test {
         assertEq(indexes[0], 0);
     }
     
-    function test_GetQueuedRedemptionsForOwner_MultipleMatches() public {
-        vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);
-        
-        vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user2, receiver2, 0, ASSETS_AMOUNT_1);
-        
-        vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
-        
-        uint256[] memory indexes = redemptionQueue.getQueuedRedemptionsForOwner(user1);
-        assertEq(indexes.length, 2);
-        assertEq(indexes[0], 0);
-        assertEq(indexes[1], 2);
-    }
-    
     function test_GetQueuedRedemptionsForOwner_SkipsCancelledItems() public {
+        // Setup entries for different users
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);
         
         vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user1, receiver1, 0, ASSETS_AMOUNT_1);
+        redemptionQueue.queueRedemption(user2, receiver1, 0, ASSETS_AMOUNT_1);
         
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
         
-        // Cancel middle item
-        vm.prank(user1);
-        redemptionQueue.cancelQueuedRedemption(1);
-        
+        // user1's first entry should be automatically cancelled, so only one active entry
         uint256[] memory indexes = redemptionQueue.getQueuedRedemptionsForOwner(user1);
-        assertEq(indexes.length, 2);
-        assertEq(indexes[0], 0);
-        assertEq(indexes[1], 2);
+        assertEq(indexes.length, 1);
+        assertEq(indexes[0], 2);
     }
     
     function test_GetTotalQueuedForOwner_EmptyQueue() public view {
@@ -581,9 +563,10 @@ contract RedemptionQueueTest is Test {
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
         
+        // With new implementation, only the latest entry should be active
         (uint256 totalShares, uint256 totalAssets) = redemptionQueue.getTotalQueuedForOwner(user1);
-        assertEq(totalShares, SHARES_AMOUNT_1 + SHARES_AMOUNT_2);
-        assertEq(totalAssets, ASSETS_AMOUNT_1);
+        assertEq(totalShares, SHARES_AMOUNT_2);
+        assertEq(totalAssets, 0);
     }
     
     function test_GetNextRedemption_EmptyQueue() public view {
@@ -622,9 +605,10 @@ contract RedemptionQueueTest is Test {
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
         
+        // With new implementation: user1's first entry is cancelled, so we have 2 active entries
         (uint256 queueLength, uint256 totalShares, uint256 totalAssets) = redemptionQueue.getQueueStats();
-        assertEq(queueLength, 3);
-        assertEq(totalShares, SHARES_AMOUNT_1 + SHARES_AMOUNT_2);
+        assertEq(queueLength, 2);
+        assertEq(totalShares, SHARES_AMOUNT_2);
         assertEq(totalAssets, ASSETS_AMOUNT_1);
     }
     
@@ -684,49 +668,42 @@ contract RedemptionQueueTest is Test {
         redemptionQueue.queueRedemption(user2, receiver2, SHARES_AMOUNT_2, 0); // index 1
         
         vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user1, receiver1, 150e18, 0); // index 2
+        redemptionQueue.queueRedemption(unauthorized, receiver1, 150e18, 0); // index 2
         
+        // With new implementation: user1 has only one entry at index 0, user2 at index 1, unauthorized at index 2
+        
+        // Process first item to advance head
         vm.prank(factoringContract);
-        redemptionQueue.queueRedemption(user2, receiver2, 0, ASSETS_AMOUNT_1); // index 3
+        redemptionQueue.removeAmountFromFirstOwner(SHARES_AMOUNT_1);
         
-        // Cancel first item (head) - this should advance head to index 1
-        vm.prank(user1);
-        redemptionQueue.cancelQueuedRedemption(0);
+        // Cancel user2's item manually
+        vm.prank(user2);
+        redemptionQueue.cancelQueuedRedemption(1);
         
-        // Cancel item at index 2
-        vm.prank(user1);
-        redemptionQueue.cancelQueuedRedemption(2);
+        // At this point: head=2, only unauthorized user's item is active
+        assertEq(redemptionQueue.getQueueLength(), 1);
         
-        // At this point: head=1, active items at indexes 1 and 3
-        assertEq(redemptionQueue.getQueueLength(), 2);
-        
-        // Verify current head is user2's first redemption
+        // Verify current head is unauthorized user's redemption
         IRedemptionQueue.QueuedRedemption memory currentHead = redemptionQueue.getNextRedemption();
-        assertEq(currentHead.owner, user2);
-        assertEq(currentHead.shares, SHARES_AMOUNT_2);
+        assertEq(currentHead.owner, unauthorized);
+        assertEq(currentHead.shares, 150e18);
         
         // Compact the queue
         vm.prank(owner);
         redemptionQueue.compactQueue();
         
-        // After compaction, should still have 2 active items but head should be reset to 0
-        assertEq(redemptionQueue.getQueueLength(), 2);
+        // After compaction, should still have 1 active item but head should be reset to 0
+        assertEq(redemptionQueue.getQueueLength(), 1);
         
-        // Verify first item after compaction is user2's first redemption (shares)
+        // Verify first item after compaction is unauthorized user's redemption
         IRedemptionQueue.QueuedRedemption memory firstAfterCompact = redemptionQueue.getNextRedemption();
-        assertEq(firstAfterCompact.owner, user2);
-        assertEq(firstAfterCompact.shares, SHARES_AMOUNT_2);
+        assertEq(firstAfterCompact.owner, unauthorized);
+        assertEq(firstAfterCompact.shares, 150e18);
         assertEq(firstAfterCompact.assets, 0);
         
-        // Verify second item is user2's second redemption (assets)
-        IRedemptionQueue.QueuedRedemption memory secondAfterCompact = redemptionQueue.getQueuedRedemption(1);
-        assertEq(secondAfterCompact.owner, user2);
-        assertEq(secondAfterCompact.shares, 0);
-        assertEq(secondAfterCompact.assets, ASSETS_AMOUNT_1);
-        
-        // Verify cancelled items are not accessible anymore (should revert for index 2+)
+        // Verify there's only one item in the compacted queue
         vm.expectRevert(RedemptionQueue.InvalidQueueIndex.selector);
-        redemptionQueue.getQueuedRedemption(2);
+        redemptionQueue.getQueuedRedemption(1);
     }
     
     function test_CompactQueue_RevertIfNotOwner() public {

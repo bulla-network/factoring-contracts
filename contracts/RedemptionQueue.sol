@@ -57,6 +57,10 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         if (receiver == address(0)) revert InvalidReceiver();
         if ((shares > 0) == (assets > 0)) revert InvalidRedemptionType();
         
+        // Cancel any existing queued redemptions for this owner
+        _cancelExistingRedemptionsForOwner(owner);
+        
+        // Add new redemption at the back of the queue
         QueuedRedemption memory redemption = QueuedRedemption({
             owner: owner,
             receiver: receiver,
@@ -240,6 +244,28 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         // Move head forward until we find a valid redemption or reach the end
         while (head < queue.length && queue[head].owner == address(0)) {
             head++;
+        }
+    }
+    
+    /// @notice Cancels all existing queued redemptions for a specific owner
+    /// @dev Called internally when the same owner queues a new redemption to prevent multiple queue spots
+    /// @param owner The owner whose existing redemptions should be cancelled
+    function _cancelExistingRedemptionsForOwner(address owner) private {
+        for (uint256 i = head; i < queue.length; i++) {
+            if (queue[i].owner == owner) {
+                // Mark as cancelled by setting owner to zero
+                queue[i].owner = address(0);
+                queue[i].receiver = address(0);
+                queue[i].shares = 0;
+                queue[i].assets = 0;
+                
+                emit RedemptionCancelled(owner, i);
+                
+                // If this is the head item, advance head to next valid item
+                if (i == head) {
+                    _advanceHead();
+                }
+            }
         }
     }
     
