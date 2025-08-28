@@ -623,4 +623,54 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         uint256 totalPaymentDifference = invoice1.invoiceAmount - invoice2.invoiceAmount;
         assertGt(totalPaymentDifference, 0, "Invoice 1 should have paid more due to penalty fees");
     }
+
+    function testInterestAccrualTimingPrecision() public {
+        uint256 initialDeposit = 200000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000;
+        uint256 _dueBy = block.timestamp + 60 days;
+
+        // Create, approve, and fund BullaInvoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, 0, 0);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        // Set minDays to 0 to ensure we're testing actual time-based interest
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Test 1: Interest at funding time (0 hours) should be 0
+        (, uint256 trueInterest0h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        assertEq(trueInterest0h, 0, "Interest should be 0 at funding time (0 hours)");
+
+        // Test 2: Interest after 1 hour should still be 0 (same day)
+        vm.warp(block.timestamp + 1 hours);
+        (, uint256 trueInterest1h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        assertEq(trueInterest1h, 0, "Interest should be 0 after 1 hour (same day)");
+
+        vm.warp(block.timestamp + 22 hours + 59 minutes);
+        (, uint256 trueInterest23h59m, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+
+        // This test documents the current (potentially buggy) behavior
+        assertEq(trueInterest23h59m, 0, "Interest should be 0 after 23h59m (still same day)");
+
+        // Test 3: Interest after 24 hours should be non-zero (next day)
+        vm.warp(block.timestamp + 1 minutes);
+        (, uint256 trueInterest24h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        assertGt(trueInterest24h, 0, "Interest should be non-zero after 24 hours (next day)");
+        
+        // Verify that interest increases with more time
+        vm.warp(block.timestamp + 24 hours);
+        (, uint256 trueInterest48h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        assertGt(trueInterest48h, trueInterest24h, "Interest should increase after 48 hours");
+    }
 } 
