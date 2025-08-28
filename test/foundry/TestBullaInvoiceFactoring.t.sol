@@ -673,4 +673,53 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         (, uint256 trueInterest48h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
         assertGt(trueInterest48h, trueInterest24h, "Interest should increase after 48 hours");
     }
+
+    function testTargetFeesVsActualFeesAtDueDate() public {
+        uint256 initialDeposit = 20000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 10000000;
+        uint256 interestRate = 1200; // 12% APR
+        uint256 periodsPerYear = 365;
+        uint256 _dueBy = block.timestamp + 30 days + 1 seconds; // 30 days from now due to floor rounding
+
+        // Create and approve invoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, interestRate, periodsPerYear);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        // Set minDays to 0 to ensure we're testing actual time-based calculations
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0, 0);
+        vm.stopPrank();
+
+        // Calculate target fees at funding time (t=0)
+        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, ) = 
+            bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+
+        // Fund the invoice
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Fast forward to due date 30 days, which if target fees are floored, it should be == 30 days + 1
+        vm.warp(block.timestamp + 30 days);
+
+        // Calculate actual fees at due date + 1 second
+        (, uint256 actualInterest, uint256 actualSpreadAmount, uint256 actualProtocolFee, uint256 actualAdminFee) = 
+            bullaFactoring.calculateKickbackAmount(invoiceId);
+
+        // These should be equal since we're comparing fees for the same time period
+        // Target fees are calculated based on days until due date at funding time
+        // Actual fees are calculated based on actual days elapsed at due date + 1s
+        
+        // The test documents potential discrepancies
+        assertEq(targetInterest, actualInterest, "Target interest should equal actual interest at due date");
+        assertEq(targetSpreadAmount, actualSpreadAmount, "Target spread should equal actual spread at due date");
+        assertEq(targetProtocolFee, actualProtocolFee, "Target protocol fee should equal actual protocol fee at due date");
+        assertEq(targetAdminFee, actualAdminFee, "Target admin fee should equal actual admin fee at due date");
+    }
 } 
