@@ -722,4 +722,302 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         assertEq(targetProtocolFee, actualProtocolFee, "Target protocol fee should equal actual protocol fee at due date");
         assertEq(targetAdminFee, actualAdminFee, "Target admin fee should equal actual admin fee at due date");
     }
-} 
+
+    function testPartialPaymentsConsideredInImpairedInvoiceRealizedGains() public {
+        uint256 initialDeposit = 300000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set impair reserve
+        uint256 impairReserveAmount = 100000;
+        vm.startPrank(address(this)); // Owner
+        asset.approve(address(bullaFactoring), impairReserveAmount);
+        bullaFactoring.setImpairReserve(impairReserveAmount);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000;
+        uint256 interestRate = 1000; // 10% APR
+        uint256 periodsPerYear = 365;
+        uint256 _dueBy = block.timestamp + 30 days;
+
+        // Create, approve, and fund BullaInvoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, interestRate, periodsPerYear);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Record initial price per share for comparison
+        uint256 pricePerShareAfterFunding = bullaFactoring.pricePerShare();
+
+        // Make a partial payment before the invoice becomes overdue
+        uint256 partialPaymentBeforeImpairment = 25000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), partialPaymentBeforeImpairment);
+        bullaInvoice.payInvoice(invoiceId, partialPaymentBeforeImpairment);
+        vm.stopPrank();
+
+        // Verify partial payment was recorded
+        IInvoiceProviderAdapterV2.Invoice memory invoiceAfterPartial = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        assertEq(invoiceAfterPartial.paidAmount, partialPaymentBeforeImpairment, "Partial payment should be recorded");
+        assertFalse(invoiceAfterPartial.isPaid, "Invoice should not be fully paid yet");
+
+        // Fast forward past due date + grace period to make invoice impaired
+        vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
+
+        // Owner impairs the invoice
+        vm.startPrank(address(this)); // Owner
+        bullaFactoring.impairInvoice(invoiceId);
+        vm.stopPrank();
+
+        // net funded amount
+       (,,,,,,, uint256 fundedAmountNet,,,)= bullaFactoring.approvedInvoices(invoiceId);
+
+        // Verify impairment was recorded
+                 (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
+         int256 realizedGainLoss = bullaFactoring.calculateRealizedGainLoss();
+         int256 expectedGainLoss = int256(gainAmount) + int256(partialPaymentBeforeImpairment) - int256(fundedAmountNet);
+         assertEq(expectedGainLoss, realizedGainLoss, "Partial payment should be considered in realized gain loss");
+     }
+
+    function testPartialPaymentBeforeApprovalConsideredInImpairedInvoiceRealizedGains() public {
+        uint256 initialDeposit = 300000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set impair reserve
+        uint256 impairReserveAmount = 100000;
+        vm.startPrank(address(this)); // Owner
+        asset.approve(address(bullaFactoring), impairReserveAmount);
+        bullaFactoring.setImpairReserve(impairReserveAmount);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000;
+        uint256 interestRate = 1000; // 10% APR
+        uint256 periodsPerYear = 365;
+        uint256 _dueBy = block.timestamp + 30 days;
+
+        // Create BullaInvoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, interestRate, periodsPerYear);
+        vm.stopPrank();
+
+        // Make a small partial payment BEFORE invoice approval
+        uint256 partialPaymentBeforeApproval = 15000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), partialPaymentBeforeApproval);
+        bullaInvoice.payInvoice(invoiceId, partialPaymentBeforeApproval);
+        vm.stopPrank();
+
+        // Verify partial payment was recorded before approval
+        IInvoiceProviderAdapterV2.Invoice memory invoiceAfterPrePayment = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        assertEq(invoiceAfterPrePayment.paidAmount, partialPaymentBeforeApproval, "Pre-approval partial payment should be recorded");
+        assertFalse(invoiceAfterPrePayment.isPaid, "Invoice should not be fully paid yet");
+
+        // Now approve and fund the invoice (this should capture the current paid amount as initialPaidAmount)
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Record initial price per share for comparison
+        uint256 pricePerShareAfterFunding = bullaFactoring.pricePerShare();
+
+        // Make another partial payment after funding but before impairment
+        uint256 partialPaymentAfterFunding = 20000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), partialPaymentAfterFunding);
+        bullaInvoice.payInvoice(invoiceId, partialPaymentAfterFunding);
+        vm.stopPrank();
+
+        // Verify both payments are recorded
+        IInvoiceProviderAdapterV2.Invoice memory invoiceAfterSecondPayment = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        assertEq(invoiceAfterSecondPayment.paidAmount, partialPaymentBeforeApproval + partialPaymentAfterFunding, 
+                "Both partial payments should be recorded");
+        assertFalse(invoiceAfterSecondPayment.isPaid, "Invoice should not be fully paid yet");
+
+        // Fast forward past due date + grace period to make invoice impaired
+        vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
+
+        // Owner impairs the invoice
+        vm.startPrank(address(this)); // Owner
+        bullaFactoring.impairInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Get net funded amount and initial paid amount to verify calculations
+        (,,,,,,, uint256 fundedAmountNet,, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
+
+        // Verify that initialPaidAmount captured the pre-approval payment
+        assertEq(initialPaidAmount, partialPaymentBeforeApproval, 
+                "Initial paid amount should equal pre-approval payment");
+
+        // Verify impairment calculation considers the payments made since funding
+        (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
+        int256 realizedGainLoss = bullaFactoring.calculateRealizedGainLoss();
+        
+        // Expected calculation: gainAmount (from impair reserve) + payments since funding - funded amount
+        // Payments since funding = current paid amount - initial paid amount
+        uint256 paymentsSinceFunding = invoiceAfterSecondPayment.paidAmount - initialPaidAmount;
+        int256 expectedGainLoss = int256(gainAmount) + int256(paymentsSinceFunding) - int256(fundedAmountNet);
+        
+        assertEq(expectedGainLoss, realizedGainLoss, 
+                "Realized gain loss should consider only payments made since funding, not pre-approval payments");
+    }
+
+    function testPartialPaymentsConsideredInImpairedInvoiceRealizedGains_NotByFund() public {
+        uint256 initialDeposit = 300000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set impair reserve
+        uint256 impairReserveAmount = 100000;
+        vm.startPrank(address(this)); // Owner
+        asset.approve(address(bullaFactoring), impairReserveAmount);
+        bullaFactoring.setImpairReserve(impairReserveAmount);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000;
+        uint256 interestRate = 1000; // 10% APR
+        uint256 periodsPerYear = 365;
+        uint256 _dueBy = block.timestamp + 30 days;
+
+        // Create, approve, and fund BullaInvoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, interestRate, periodsPerYear);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Record initial price per share for comparison
+        uint256 pricePerShareAfterFunding = bullaFactoring.pricePerShare();
+
+        // Make a partial payment before the invoice becomes overdue
+        uint256 partialPaymentBeforeImpairment = 25000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), partialPaymentBeforeImpairment);
+        bullaInvoice.payInvoice(invoiceId, partialPaymentBeforeImpairment);
+        vm.stopPrank();
+
+        // Verify partial payment was recorded
+        IInvoiceProviderAdapterV2.Invoice memory invoiceAfterPartial = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        assertEq(invoiceAfterPartial.paidAmount, partialPaymentBeforeImpairment, "Partial payment should be recorded");
+        assertFalse(invoiceAfterPartial.isPaid, "Invoice should not be fully paid yet");
+
+        // Fast forward past due date + grace period to make invoice impaired
+        vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
+
+        // net funded amount
+       (,,,,,,, uint256 fundedAmountNet,,,)= bullaFactoring.approvedInvoices(invoiceId);
+
+        // Verify impairment was recorded
+                 (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
+         int256 realizedGainLoss = bullaFactoring.calculateRealizedGainLoss();
+         int256 expectedGainLoss = int256(gainAmount) + int256(partialPaymentBeforeImpairment) - int256(fundedAmountNet);
+         assertEq(expectedGainLoss, realizedGainLoss, "Partial payment should be considered in realized gain loss");
+     }
+
+    function testPartialPaymentBeforeApprovalConsideredInImpairedInvoiceRealizedGains_NotByFund() public {
+        uint256 initialDeposit = 300000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Set impair reserve
+        uint256 impairReserveAmount = 100000;
+        vm.startPrank(address(this)); // Owner
+        asset.approve(address(bullaFactoring), impairReserveAmount);
+        bullaFactoring.setImpairReserve(impairReserveAmount);
+        vm.stopPrank();
+
+        uint256 invoiceAmount = 100000;
+        uint256 interestRate = 1000; // 10% APR
+        uint256 periodsPerYear = 365;
+        uint256 _dueBy = block.timestamp + 30 days;
+
+        // Create BullaInvoice
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, interestRate, periodsPerYear);
+        vm.stopPrank();
+
+        // Make a small partial payment BEFORE invoice approval
+        uint256 partialPaymentBeforeApproval = 15000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), partialPaymentBeforeApproval);
+        bullaInvoice.payInvoice(invoiceId, partialPaymentBeforeApproval);
+        vm.stopPrank();
+
+        // Verify partial payment was recorded before approval
+        IInvoiceProviderAdapterV2.Invoice memory invoiceAfterPrePayment = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        assertEq(invoiceAfterPrePayment.paidAmount, partialPaymentBeforeApproval, "Pre-approval partial payment should be recorded");
+        assertFalse(invoiceAfterPrePayment.isPaid, "Invoice should not be fully paid yet");
+
+        // Now approve and fund the invoice (this should capture the current paid amount as initialPaidAmount)
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Record initial price per share for comparison
+        uint256 pricePerShareAfterFunding = bullaFactoring.pricePerShare();
+
+        // Make another partial payment after funding but before impairment
+        uint256 partialPaymentAfterFunding = 20000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaInvoice), partialPaymentAfterFunding);
+        bullaInvoice.payInvoice(invoiceId, partialPaymentAfterFunding);
+        vm.stopPrank();
+
+        // Verify both payments are recorded
+        IInvoiceProviderAdapterV2.Invoice memory invoiceAfterSecondPayment = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
+        assertEq(invoiceAfterSecondPayment.paidAmount, partialPaymentBeforeApproval + partialPaymentAfterFunding, 
+                "Both partial payments should be recorded");
+        assertFalse(invoiceAfterSecondPayment.isPaid, "Invoice should not be fully paid yet");
+
+        // Fast forward past due date + grace period to make invoice impaired
+        vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
+
+        // Get net funded amount and initial paid amount to verify calculations
+        (,,,,,,, uint256 fundedAmountNet,, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
+
+        // Verify that initialPaidAmount captured the pre-approval payment
+        assertEq(initialPaidAmount, partialPaymentBeforeApproval, 
+                "Initial paid amount should equal pre-approval payment");
+
+        // Verify impairment calculation considers the payments made since funding
+        (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
+        int256 realizedGainLoss = bullaFactoring.calculateRealizedGainLoss();
+        
+        // Expected calculation: gainAmount (from impair reserve) + payments since funding - funded amount
+        // Payments since funding = current paid amount - initial paid amount
+        uint256 paymentsSinceFunding = invoiceAfterSecondPayment.paidAmount - initialPaidAmount;
+        int256 expectedGainLoss = int256(gainAmount) + int256(paymentsSinceFunding) - int256(fundedAmountNet);
+        
+        assertEq(expectedGainLoss, realizedGainLoss, 
+                "Realized gain loss should consider only payments made since funding, not pre-approval payments");
+    }
+}

@@ -404,16 +404,20 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Consider losses from impaired invoices by fund
         for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
             uint256 invoiceId = impairedByFundInvoicesIds[i];
-            realizedGains += int256(impairments[invoiceId].gainAmount);
-            realizedGains -= int256(impairments[invoiceId].lossAmount);
+            uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
+            uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
+            int256 lossAmount = int256(approvedInvoices[invoiceId].fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
+            realizedGains -= lossAmount;
         }
 
         // Consider losses from impaired invoices in activeInvoices
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
             if (isInvoiceImpaired(invoiceId)) {
-                uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
-                realizedGains -= int256(fundedAmount);
+                uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
+                uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
+                int256 lossAmount = int256(approvedInvoices[invoiceId].fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount);
+                realizedGains -= lossAmount;
             }
         }
 
