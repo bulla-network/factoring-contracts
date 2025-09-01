@@ -788,7 +788,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         delete originalCreditors[invoiceId];
 
-        // Process redemption queue after unfactoring, not reconciling here because it is somewhat done above.
+        _reconcileActivePaidInvoices();
         _processRedemptionQueue();
 
         emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
