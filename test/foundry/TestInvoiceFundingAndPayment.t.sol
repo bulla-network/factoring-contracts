@@ -499,7 +499,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
             description: "",
             token: address(bullaFactoring),
             binding: ClaimBinding.Unbound,
-            payerReceivesClaimOnPayment: true,
             impairmentGracePeriod: 15 days
         });
 

@@ -101,6 +101,7 @@ contract CommonSetup is Test {
 
         bullaFactoring = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
+        bullaFrendLend.addToCallbackWhitelist(address(bullaFactoring), bullaFactoring.onLoanOfferAccepted.selector);
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
         asset.mint(charlie, 1000 ether);
@@ -148,7 +149,6 @@ contract CommonSetup is Test {
             description: description,
             token: claimToken,
             binding: ClaimBinding.Unbound,
-            payerReceivesClaimOnPayment: true,
             dueBy: _dueBy,
             impairmentGracePeriod: 15 days
         });
@@ -173,7 +173,6 @@ contract CommonSetup is Test {
             dueBy: _dueBy,
             deliveryDate: 0, // No delivery date for simple invoices
             binding: ClaimBinding.Unbound,
-            payerReceivesClaimOnPayment: true,
             lateFeeConfig: InterestConfig({
                 interestRateBps: uint16(interestRateBps),
                 numberOfPeriodsPerYear: uint16(numberOfPeriodsPerYear)

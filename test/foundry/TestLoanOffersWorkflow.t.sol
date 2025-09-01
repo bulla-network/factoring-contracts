@@ -200,7 +200,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         vm.expectEmit(true, true, false, true);
         emit InvoiceFunded(
-            bullaClaim.currentClaimId() + 1,
+            bullaClaim.currentClaimId(),
             principalAmount,
             address(bullaFactoring),
             block.timestamp + termLength,
@@ -1004,7 +1004,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Expect InvoiceFunded event
         vm.expectEmit(true, true, false, true);
         emit InvoiceFunded(
-            bullaClaim.currentClaimId() + 1,
+            bullaClaim.currentClaimId(),
             principalAmount,
             address(bullaFactoring),
             expectedDueDate,
