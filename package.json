@@ -44,7 +44,7 @@
     },
     "dependencies": {
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
-        "@bulla/contracts-v2": "^1.23.0",
+        "@bulla/contracts-v2": "^1.24.0",
         "@gnosis.pm/safe-contracts": "^1.3.0",
         "@gnosis.pm/zodiac": "^1.0.3",
         "@types/node": "^16.9.1",

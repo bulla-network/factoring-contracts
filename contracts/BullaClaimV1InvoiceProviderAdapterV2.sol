@@ -28,7 +28,8 @@ contract BullaClaimV1InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
             tokenAddress: claim.claimToken,
             paidAmount: claim.paidAmount,
             isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded,
-            isPaid: claim.status == Status.Paid
+            isPaid: claim.status == Status.Paid,
+            isImpaired: false // This whole contract is deprecated
         });
 
         return invoice;
@@ -36,5 +37,10 @@ contract BullaClaimV1InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
 
     function getInvoiceContractAddress(uint256) external view returns (address) {
         return address(bullaClaim);
+    }
+
+    function getImpairTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
+        // BullaClaimV1 doesn't support impairment, so return zero values
+        return (address(0), bytes4(0));
     }
 }

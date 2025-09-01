@@ -150,7 +150,7 @@ contract CommonSetup is Test {
             token: claimToken,
             binding: ClaimBinding.Unbound,
             dueBy: _dueBy,
-            impairmentGracePeriod: 15 days
+            impairmentGracePeriod: 60 days
         });
 
         return bullaClaim.createClaim(params);
@@ -177,7 +177,7 @@ contract CommonSetup is Test {
                 interestRateBps: uint16(interestRateBps),
                 numberOfPeriodsPerYear: uint16(numberOfPeriodsPerYear)
             }),
-            impairmentGracePeriod: 15 days,
+            impairmentGracePeriod: 60 days,
             depositAmount: 0 // No deposit for simple invoices
         });
 
