@@ -60,6 +60,9 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         // Cancel any existing queued redemptions for this owner
         _cancelExistingRedemptionsForOwner(owner);
         
+        // Compact the queue to remove cancelled items and optimize storage
+        _compactQueue();
+        
         // Add new redemption at the back of the queue
         QueuedRedemption memory redemption = QueuedRedemption({
             owner: owner,
@@ -272,6 +275,12 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     /// @notice Compacts the queue by removing processed items before the head
     /// @dev Can be called to clean up memory and reduce gas costs for subsequent operations
     function compactQueue() external onlyOwner {
+        _compactQueue();
+    }
+    
+    /// @notice Internal function to compact the queue by removing processed items before the head
+    /// @dev Called internally during queue operations to optimize storage and gas costs
+    function _compactQueue() private {
         if (head == 0) return; // Nothing to compact
         
         uint256 queueLength = queue.length;

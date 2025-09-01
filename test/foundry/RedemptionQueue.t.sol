@@ -532,10 +532,11 @@ contract RedemptionQueueTest is Test {
         vm.prank(factoringContract);
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
         
-        // user1's first entry should be automatically cancelled, so only one active entry
+        // user1's first entry should be automatically cancelled and queue compacted, so only one active entry
+        // After compaction: user2 at index 0, user1's new entry at index 1
         uint256[] memory indexes = redemptionQueue.getQueuedRedemptionsForOwner(user1);
         assertEq(indexes.length, 1);
-        assertEq(indexes[0], 2);
+        assertEq(indexes[0], 1);
     }
     
     function test_GetTotalQueuedForOwner_EmptyQueue() public view {

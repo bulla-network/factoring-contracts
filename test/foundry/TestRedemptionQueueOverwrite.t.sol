@@ -54,18 +54,14 @@ contract TestRedemptionQueueOverwrite is Test {
         vm.prank(factoringContract);
         uint256 secondIndex = redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_2, 0);
         
-        // Should get new index at the back (index 1)
-        assertEq(secondIndex, 1, "Should get new index at back of queue");
+        // After compaction, should get index 0 (queue is compacted automatically)
+        assertEq(secondIndex, 0, "Should get index 0 after compaction");
         
-        // Queue length should still be 1 (old entry cancelled, new entry added)
+        // Queue length should still be 1 (old entry cancelled, new entry added, then compacted)
         assertEq(redemptionQueue.getQueueLength(), 1, "Queue length should remain 1 after cancellation and re-queueing");
         
-        // First position should be cancelled (owner = address(0))
-        IRedemptionQueue.QueuedRedemption memory cancelledRedemption = redemptionQueue.getQueuedRedemption(0);
-        assertEq(cancelledRedemption.owner, address(0), "First entry should be cancelled");
-        
-        // New position should have the updated amount
-        IRedemptionQueue.QueuedRedemption memory newRedemption = redemptionQueue.getQueuedRedemption(1);
+        // New position should have the updated amount (now at index 0 after compaction)
+        IRedemptionQueue.QueuedRedemption memory newRedemption = redemptionQueue.getQueuedRedemption(0);
         assertEq(newRedemption.owner, user1);
         assertEq(newRedemption.shares, SHARES_AMOUNT_2, "Should have new shares amount");
         
@@ -87,18 +83,14 @@ contract TestRedemptionQueueOverwrite is Test {
         vm.prank(factoringContract);
         uint256 secondIndex = redemptionQueue.queueRedemption(user1, receiver1, 0, ASSETS_AMOUNT_1);
         
-        // Should get new index at the back
-        assertEq(secondIndex, 1, "Should get new index at back of queue");
+        // After compaction, should get index 0 (queue is compacted automatically)
+        assertEq(secondIndex, 0, "Should get index 0 after compaction");
         
-        // Queue length should remain 1 (old cancelled, new added)
+        // Queue length should remain 1 (old cancelled, new added, then compacted)
         assertEq(redemptionQueue.getQueueLength(), 1, "Queue length should remain 1 after cancellation and re-queueing");
         
-        // First position should be cancelled
-        IRedemptionQueue.QueuedRedemption memory cancelledRedemption = redemptionQueue.getQueuedRedemption(0);
-        assertEq(cancelledRedemption.owner, address(0), "First entry should be cancelled");
-        
-        // New position should be assets withdrawal, not shares redemption
-        IRedemptionQueue.QueuedRedemption memory newRedemption = redemptionQueue.getQueuedRedemption(1);
+        // New position should be assets withdrawal, not shares redemption (now at index 0 after compaction)
+        IRedemptionQueue.QueuedRedemption memory newRedemption = redemptionQueue.getQueuedRedemption(0);
         assertEq(newRedemption.owner, user1);
         assertEq(newRedemption.shares, 0, "Should be asset withdrawal (shares = 0)");
         assertEq(newRedemption.assets, ASSETS_AMOUNT_1, "Should have assets amount");
@@ -109,24 +101,20 @@ contract TestRedemptionQueueOverwrite is Test {
     function test_QueueRedemption_SameAddress_DifferentReceiver_ShouldCancelAndRequeue() public {
         // First redemption request
         vm.prank(factoringContract);
-        uint256 firstIndex = redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);
+        redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);
         
         // Second redemption request from same address but different receiver - should cancel and go to back
         vm.prank(factoringContract);
         uint256 secondIndex = redemptionQueue.queueRedemption(user1, receiver2, SHARES_AMOUNT_2, 0);
         
-        // Should get new index at the back
-        assertEq(secondIndex, 1, "Should get new index at back of queue");
+        // After compaction, should get index 0 (queue is compacted automatically)
+        assertEq(secondIndex, 0, "Should get index 0 after compaction");
         
-        // Queue length should remain 1 (old cancelled, new added)
+        // Queue length should remain 1 (old cancelled, new added, then compacted)
         assertEq(redemptionQueue.getQueueLength(), 1, "Queue length should remain 1 after cancellation and re-queueing");
         
-        // First position should be cancelled
-        IRedemptionQueue.QueuedRedemption memory cancelledRedemption = redemptionQueue.getQueuedRedemption(0);
-        assertEq(cancelledRedemption.owner, address(0), "First entry should be cancelled");
-        
-        // New position should have updated receiver and shares
-        IRedemptionQueue.QueuedRedemption memory newRedemption = redemptionQueue.getQueuedRedemption(1);
+        // New position should have updated receiver and shares (now at index 0 after compaction)
+        IRedemptionQueue.QueuedRedemption memory newRedemption = redemptionQueue.getQueuedRedemption(0);
         assertEq(newRedemption.owner, user1);
         assertEq(newRedemption.receiver, receiver2, "Should have updated receiver");
         assertEq(newRedemption.shares, SHARES_AMOUNT_2, "Should have updated shares");
@@ -145,40 +133,36 @@ contract TestRedemptionQueueOverwrite is Test {
         // Add initial entries
         redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_1, 0);    // index 0
         redemptionQueue.queueRedemption(user2, receiver1, SHARES_AMOUNT_2, 0);    // index 1  
-        redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_3, 0);    // index 2
+        redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_3, 0);    // index 1 now, since it overwrites user1's entry at index 0
         
         // Process first entry completely to advance head to index 1
-        redemptionQueue.removeAmountFromFirstOwner(SHARES_AMOUNT_1);
+        redemptionQueue.removeAmountFromFirstOwner(SHARES_AMOUNT_2);
         
         vm.stopPrank();
         
         // Verify head is now at index 1
         IRedemptionQueue.QueuedRedemption memory nextRedemption = redemptionQueue.getNextRedemption();
-        assertEq(nextRedemption.owner, user2, "Head should be at user2's entry");
-        assertEq(redemptionQueue.getQueueLength(), 2, "Should have 2 active entries");
+        assertEq(nextRedemption.owner, user1, "Head should be at user1's entry");
+        assertEq(redemptionQueue.getQueueLength(), 1, "Should have 1 active entry");
         
         // Now user1 queues again - should cancel their existing entry at index 2 and go to back
         vm.prank(factoringContract);
         uint256 newIndex = redemptionQueue.queueRedemption(user1, receiver1, 400e18, 0);
         
-        // Should get new index at the back (index 3)
-        assertEq(newIndex, 3, "Should get new index at back of queue");
+        // After compaction, should get index 0 (user1's new entry at index 0, overwriting old entry)
+        assertEq(newIndex, 0, "Should get index 0 after compaction");
         
-        // Queue length should remain 2 (one cancelled, one added)
-        assertEq(redemptionQueue.getQueueLength(), 2, "Queue length should remain 2 after cancellation and re-queueing");
+        // Queue length should remain 1 (one cancelled, one added, then compacted)
+        assertEq(redemptionQueue.getQueueLength(), 1, "Queue length should remain 1 after cancellation and re-queueing");
         
-        // Entry at index 2 should be cancelled
-        IRedemptionQueue.QueuedRedemption memory cancelledEntry = redemptionQueue.getQueuedRedemption(2);
-        assertEq(cancelledEntry.owner, address(0), "Entry at index 2 should be cancelled");
-        
-        // New entry at index 3 should have updated amount
-        IRedemptionQueue.QueuedRedemption memory newEntry = redemptionQueue.getQueuedRedemption(3);
+        // New entry at index 1 should have updated amount
+        IRedemptionQueue.QueuedRedemption memory newEntry = redemptionQueue.getQueuedRedemption(0);
         assertEq(newEntry.owner, user1);
         assertEq(newEntry.shares, 400e18, "Should have updated shares amount");
         
         // Head should still be at user2's entry
         IRedemptionQueue.QueuedRedemption memory stillNextRedemption = redemptionQueue.getNextRedemption();
-        assertEq(stillNextRedemption.owner, user2, "Head should still be at user2's entry");
+        assertEq(stillNextRedemption.owner, user1, "Head should still be at user1's entry");
     }
     
     /// @notice Test cancel and re-queue when entries are already cancelled and head is advanced
@@ -205,22 +189,18 @@ contract TestRedemptionQueueOverwrite is Test {
         vm.prank(factoringContract);
         uint256 newIndex = redemptionQueue.queueRedemption(user1, receiver1, 500e18, 0);
         
-        // Should get new index at the back (index 2)
-        assertEq(newIndex, 2, "Should get new index at back of queue");
+        // After compaction, should get index 1 (user2 at index 0, user1's new entry at index 1)
+        assertEq(newIndex, 1, "Should get index 1 after compaction");
         
         // Queue length should be 2 (user2 + new user1 entry)
         assertEq(redemptionQueue.getQueueLength(), 2, "Should have 2 entries");
         
-        // Entry at index 0 should be cancelled
-        IRedemptionQueue.QueuedRedemption memory cancelledEntry = redemptionQueue.getQueuedRedemption(0);
-        assertEq(cancelledEntry.owner, address(0), "Entry at index 0 should be cancelled");
-        
-        // User2's entry should still be at index 1
-        IRedemptionQueue.QueuedRedemption memory user2Entry = redemptionQueue.getQueuedRedemption(1);
+        // User2's entry should be at index 0 (after compaction)
+        IRedemptionQueue.QueuedRedemption memory user2Entry = redemptionQueue.getQueuedRedemption(0);
         assertEq(user2Entry.owner, user2, "User2's entry should still be active");
         
-        // New entry should be at index 2
-        IRedemptionQueue.QueuedRedemption memory newEntry = redemptionQueue.getQueuedRedemption(2);
+        // New entry should be at index 1
+        IRedemptionQueue.QueuedRedemption memory newEntry = redemptionQueue.getQueuedRedemption(1);
         assertEq(newEntry.owner, user1);
         assertEq(newEntry.shares, 500e18, "Should have new shares amount");
         
@@ -249,33 +229,26 @@ contract TestRedemptionQueueOverwrite is Test {
         // Same address queuing again should cancel previous and go to back
         uint256 user1Index2 = redemptionQueue.queueRedemption(user1, receiver1, SHARES_AMOUNT_3, 0);
         
-        // user1 should get new index at back
-        assertEq(user1Index2, 2, "user1 should get new index at back");
+        // After compaction, user1 should get index 1 (user2 still at index 0, user1's new entry at index 1)
+        assertEq(user1Index2, 1, "user1 should get index 1 after compaction");
         
-        // Queue should still have 2 entries (one cancelled, one added)
+        // Queue should still have 2 entries (one cancelled, one added, then compacted)
         assertEq(redemptionQueue.getQueueLength(), 2, "Should still have 2 entries");
         
         // Different address queuing should cancel their own and go to back
         uint256 user2Index2 = redemptionQueue.queueRedemption(user2, receiver1, 0, ASSETS_AMOUNT_1);
         
-        // user2 should get new index at back
-        assertEq(user2Index2, 3, "user2 should get new index at back");
+        // After compaction, user2 should get index 1 (user1 at index 0, user2's new entry at index 1)
+        assertEq(user2Index2, 1, "user2 should get index 1 after compaction");
         
         // Queue should still have 2 entries
         assertEq(redemptionQueue.getQueueLength(), 2, "Should still have 2 entries after user2 re-queue");
         
         vm.stopPrank();
         
-        // Verify final state - old entries should be cancelled
-        IRedemptionQueue.QueuedRedemption memory user1Cancelled = redemptionQueue.getQueuedRedemption(0);
-        IRedemptionQueue.QueuedRedemption memory user2Cancelled = redemptionQueue.getQueuedRedemption(1);
-        
-        assertEq(user1Cancelled.owner, address(0), "user1 old entry should be cancelled");
-        assertEq(user2Cancelled.owner, address(0), "user2 old entry should be cancelled");
-        
-        // New entries should be at the back
-        IRedemptionQueue.QueuedRedemption memory user1Final = redemptionQueue.getQueuedRedemption(2);
-        IRedemptionQueue.QueuedRedemption memory user2Final = redemptionQueue.getQueuedRedemption(3);
+        // New entries should be in compacted queue
+        IRedemptionQueue.QueuedRedemption memory user1Final = redemptionQueue.getQueuedRedemption(0);
+        IRedemptionQueue.QueuedRedemption memory user2Final = redemptionQueue.getQueuedRedemption(1);
         
         assertEq(user1Final.owner, user1);
         assertEq(user1Final.shares, SHARES_AMOUNT_3, "user1 should have final shares amount");
