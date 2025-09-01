@@ -137,41 +137,4 @@ contract TestInvoiceImpairment is CommonSetup {
         
         assertTrue(capitalAccountAfterImpair < capitalAccountAfterPayment, "Realized gain increases when invoice impaired by fund gets paid");
     }
-
-    function testChangingGracePeriodChangesAbilityToImpairInvoice() public {
-        interestApr = 3000;
-        upfrontBps = 8000;
-
-        uint256 initialDeposit = 900000000;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        uint256 dueByNew = block.timestamp + 30 days;
-
-        vm.startPrank(bob);
-        uint invoiceId03Amount = 10000;
-        uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, minDays, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
-        vm.stopPrank();
-
-
-        // Fast forward 5 days after due date
-        vm.warp(block.timestamp + 35 days);
-
-        (, uint256[] memory impairedInvoicesBefore) = bullaFactoring.viewPoolStatus();
-        assertEq(impairedInvoicesBefore.length, 0);
-
-        vm.startPrank(address(this));
-        bullaFactoring.setGracePeriodDays(0);
-        vm.stopPrank();
-
-        (, uint256[] memory impairedInvoicesAfter) = bullaFactoring.viewPoolStatus();
-        assertEq(impairedInvoicesAfter.length, 1);
-       }
 }

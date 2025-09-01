@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import {IBullaClaimV2} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol";
+import {IBullaClaimCore} from "bulla-contracts-v2/src/interfaces/IBullaClaimCore.sol";
 import {Claim, Status} from "bulla-contracts-v2/src/types/Types.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
@@ -53,7 +54,8 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
             tokenAddress: claim.token,
             paidAmount: paidAmount,
             isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded,
-            isPaid: claim.status == Status.Paid
+            isPaid: claim.status == Status.Paid,
+            isImpaired: claim.dueBy != 0 && block.timestamp > claim.dueBy + claim.impairmentGracePeriod
         });
 
         return invoice;
@@ -63,5 +65,27 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         Claim memory claim = bullaClaimV2.getClaim(tokenId);
         
         return claim.controller == address(0) ? address(bullaClaimV2) : claim.controller;
+    }
+
+    /// @notice Gets the underlying contract address and selector for impairing an invoice
+    /// @param invoiceId The ID of the invoice to impair
+    /// @return target The contract address to call
+    /// @return selector The function selector to call
+    /// @dev This function returns the target and selector so the caller can make the call directly with proper msg.sender
+    function getImpairTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
+        Claim memory claim = bullaClaimV2.getClaim(invoiceId);
+        
+        if (claim.controller == address(0)) {
+            // BullaClaimV2 - use impairClaim function
+            return (address(bullaClaimV2), IBullaClaimCore.impairClaim.selector);
+        } else if (claim.controller == address(bullaFrendLend)) {
+            // BullaFrendLend - use impairLoan function
+            return (address(bullaFrendLend), IBullaFrendLendV2.impairLoan.selector);
+        } else if (claim.controller == address(bullaInvoice)) {
+            // BullaInvoice - use impairInvoice function
+            return (address(bullaInvoice), IBullaInvoice.impairInvoice.selector);
+        } else {
+            revert UnknownClaimType();
+        }
     }
 }

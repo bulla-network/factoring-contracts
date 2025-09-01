@@ -657,8 +657,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return True if the invoice is impaired, false otherwise
     function isInvoiceImpaired(uint256 invoiceId) private view returns (bool) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        uint256 DaysAfterDueDate = invoice.dueDate + (gracePeriodDays * 1 days); 
-        return block.timestamp > DaysAfterDueDate;
+        return invoice.isImpaired;
     }
 
     function getFundedAmount(uint invoiceId) public view returns (uint) {
@@ -1095,6 +1094,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             lossAmount: fundedAmount,
             isImpaired: true
         });
+
+        // Get the target contract and selector from the adapter, then call directly
+        // This preserves msg.sender == BullaFactoring for the underlying contract
+        (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
+        
+        if (target != address(0)) {
+            bytes memory callData = abi.encodeWithSelector(selector, invoiceId);
+            (bool success, ) = target.call(callData);
+            require(success, "Impair call failed");
+        }
 
         emit InvoiceImpaired(invoiceId, fundedAmount, impairAmount);
     }
