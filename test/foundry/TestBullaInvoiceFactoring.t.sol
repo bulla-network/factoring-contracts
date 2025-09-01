@@ -441,7 +441,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
             dueBy: block.timestamp + 60 days,
             deliveryDate: 0, // No delivery date for simple invoices
             binding: ClaimBinding.Unbound,
-            payerReceivesClaimOnPayment: true,
             lateFeeConfig: InterestConfig({
                 interestRateBps: uint16(1000),
                 numberOfPeriodsPerYear: uint16(365)

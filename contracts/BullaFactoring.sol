@@ -183,7 +183,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
         external returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
-        if (numberOfPeriodsPerYear > 365) revert InvalidPercentage();
 
         // probably doesn't need it here, but it can block in `onLoanOfferAccepted` so best to pre-empt any issues here
         _reconcileActivePaidInvoices();

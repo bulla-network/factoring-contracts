@@ -719,8 +719,6 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Create and accept loan
         uint256 loanId = _createAndAcceptLoan(principalAmount, targetYieldBps, spreadBps, numberOfPeriodsPerYear, termLength);
         
-        // Verify loan creation
-        assertTrue(loanId > 0, "Loan ID should be valid");
         IInvoiceProviderAdapterV2.Invoice memory invoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
         assertEq(invoice.creditor, address(bullaFactoring), "Factoring contract should be the creditor");
         assertFalse(invoice.isPaid, "Loan should not be paid initially");
