@@ -91,23 +91,23 @@ export const ethereumConfig: NetworkConfig = {
 
 // Complete configurations for deployments
 export const fundoraConfig: NetworkConfig = {
-    bullaClaim: '0xb4b455d4dd9832c2ae6042fa11ec82b114e8a7e4', // Sepolia Address
+    bullaClaim: '0x772b675A4180B4F48d9D816619620664f90Cf281', // Sepolia Address
     underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // WYST
     underwriter: '0x9D28ee39eAfa0727423126D93Cb0b889fc0aF971',
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
-    BullaClaimInvoiceProviderAdapterAddress: '0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5',
-    factoringPermissionsAddress: '0xce704a7Fae206ad009852258dDD8574B844eDa3b',
-    depositPermissionsAddress: '0x6985d6af038f177438a6681d1F64d4409Dc8AaC2',
-    redeemPermissionsAddress: '0xba80d22b532eb1a2326334f35565af551f9c8af7',
     protocolFeeBps: 100,
     adminFeeBps: 100,
-    poolName: 'Fundora Management Pool',
+    poolName: 'Fundora Management Pool V2',
     targetYieldBps: 900,
-    poolTokenName: 'Fundora Management Token',
-    poolTokenSymbol: 'FACT',
-    bullaFrendLendAddress: '0x330b6f37d9881ca4781ef70d662197ddb0d353b7',
-    bullaInvoiceAddress: '0x6c4044597f2be6e1dc92217a49b0571c91025379',
-    bullaFactoringAddress: '0xbe25a1086de2b587b2d20e4b14c442cda2437945',
+    poolTokenName: 'Fundora Management Token V2',
+    poolTokenSymbol: 'FACT-V2',
+    bullaFrendLendAddress: '0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D',
+    bullaInvoiceAddress: '0xD0e56674acfecDD9d310C27D79bE0587d879112e',
+    bullaFactoringAddress: '0xB3FdCc9CA5Ba76F0C36Ab8D0D2a7cDcB15E507f5',
+    depositPermissionsAddress: '0xb91652cEBDc3641eBF1941419d0e5D87967a0C94',
+    redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
+    factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
+    BullaClaimInvoiceProviderAdapterAddress: '0x8A6B12c9980249F4e52b1E2A31cdbC23D3354629',
     writeNewAddresses: true,
     setImpairReserve: false,
 };
