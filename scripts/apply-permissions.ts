@@ -25,6 +25,10 @@ export const updatePermissions = async function () {
 
     const { bullaFactoringAddress, depositPermissionsAddress, factoringPermissionsAddress } = config;
 
+    if (!depositPermissionsAddress || !factoringPermissionsAddress) {
+        throw new Error('Missing permission contract addresses in network config');
+    }
+
     // Grant Deposit and Factoring Permissions
     const depositPermissionsContract = new ethers.Contract(depositPermissionsAddress, depositPermissionsABI.abi, signer);
     const factoringPermissionsContract = new ethers.Contract(factoringPermissionsAddress, factoringPermissionsABI.abi, signer);
