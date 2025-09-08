@@ -2831,6 +2831,11 @@ bufferutil@^4.0.1:
   dependencies:
     node-gyp-build "^4.3.0"
 
+"bulla-contracts-v2@npm:@bulla/contracts-v2":
+  version "1.24.0"
+  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-1.24.0.tgz#6a5fe17009f004e7f3e57cb819bc711b2ff409ff"
+  integrity sha512-tS2VCOh1bHK2c8rg8zdIeqA+VXd7A/yZ15KY819oTThPiR6Bv4zHsJSO5yHzoaBQMolf5VIwlaeyBRCH1nfgOg==
+
 busboy@^1.6.0:
   version "1.6.0"
   resolved "https://registry.yarnpkg.com/busboy/-/busboy-1.6.0.tgz#966ea36a9502e43cdb9146962523b92f531f6893"

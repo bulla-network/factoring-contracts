@@ -1,12 +1,12 @@
 {
     "name": "@bulla-network/factoring-contract",
-    "version": "0.0.11-beta-0.3",
-    "license": "MIT",
+    "version": "2.0.0",
+    "license": "BUSL-1.1",
     "files": [
         "contracts/interfaces",
         "artifacts/contracts/**/*.json",
         "!artifacts/contracts/**/*.dbg.json",
-        "typechain"
+        "typechain-types"
     ],
     "scripts": {
         "compile": "npx hardhat compile && npx tsc --project tsconfig.json",
@@ -48,6 +48,7 @@
         "@gnosis.pm/safe-contracts": "^1.3.0",
         "@gnosis.pm/zodiac": "^1.0.3",
         "@types/node": "^16.9.1",
+        "bulla-contracts-v2": "npm:@bulla/contracts-v2",
         "ethers": "^5.4.2"
     },
     "devDependencies": {

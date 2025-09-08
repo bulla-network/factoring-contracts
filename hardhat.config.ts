@@ -9,14 +9,14 @@ import 'hardhat-gas-reporter';
 import { HardhatUserConfig } from 'hardhat/types';
 // import "hardhat-ethernal"
 
-const INFURA_API_KEY = process.env.INFURA_API_KEY!;
-const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY!;
-const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY!;
-const GET_BLOCK_API_KEY = process.env.GET_BLOCK_API_KEY!;
-const MAINNET_GETBLOCK_API_KEY = process.env.MAINNET_GETBLOCK_API_KEY!;
-const DEPLOY_PK = process.env.DEPLOY_PK!;
-const COINMARKETCAP_API = process.env.COINMARKETCAP_API!;
-const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS!;
+const INFURA_API_KEY = process.env.INFURA_API_KEY || '';
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || '';
+const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || '';
+const GET_BLOCK_API_KEY = process.env.GET_BLOCK_API_KEY || '';
+const MAINNET_GETBLOCK_API_KEY = process.env.MAINNET_GETBLOCK_API_KEY || '';
+const DEPLOY_PK = process.env.DEPLOY_PK || '0x0000000000000000000000000000000000000000000000000000000000000000';
+const COINMARKETCAP_API = process.env.COINMARKETCAP_API || '';
+const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS || '0x0000000000000000000000000000000000000000';
 
 const config: HardhatUserConfig = {
     defaultNetwork: 'hardhat',
@@ -27,6 +27,12 @@ const config: HardhatUserConfig = {
             { version: '0.8.20', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
             { version: '0.8.30', settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true } },
         ],
+    },
+    paths: {
+        sources: './contracts',
+        artifacts: './artifacts',
+        cache: './cache',
+        tests: './test',
     },
     networks: {
         /** comment out this hardhat config if running tests */
@@ -148,6 +154,11 @@ const config: HardhatUserConfig = {
         noColors: true,
         excludeContracts: [],
         src: './contracts',
+    },
+    typechain: {
+        outDir: 'typechain-types',
+        target: 'ethers-v5',
+        alwaysGenerateOverloads: false,
     },
     etherscan: {
         apiKey: {
