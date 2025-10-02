@@ -85,12 +85,11 @@ contract DeployBullaFactoring is Script {
             console.log("Using existing DepositPermissions:", config.depositPermissionsAddress);
         }
 
-        // Deploy DepositPermissions if not provided
+        // Reuse DepositPermissions for RedeemPermissions if not provided
         if (config.redeemPermissionsAddress == address(0)) {
-            console.log("Deploying RedeemPermissions...");
-            DepositPermissions redeemPermissions = new DepositPermissions(); // reuse DepositPermissions
-            config.redeemPermissionsAddress = address(redeemPermissions);
-            console.log("RedeemPermissions deployed at:", address(redeemPermissions));
+            console.log("Reusing DepositPermissions for RedeemPermissions...");
+            config.redeemPermissionsAddress = config.depositPermissionsAddress;
+            console.log("RedeemPermissions set to DepositPermissions address:", config.redeemPermissionsAddress);
         } else {
             console.log("Using existing RedeemPermissions:", config.redeemPermissionsAddress);
         }

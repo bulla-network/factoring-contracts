@@ -20,10 +20,12 @@
         "deploy:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia npx ts-node scripts/deploy-bullaFactoring.ts",
         "deploy:polygon": "dotenv -e .env -- cross-env NETWORK=polygon npx ts-node scripts/deploy-bullaFactoring.ts",
         "deploy:mainnet": "dotenv -e .env -- cross-env NETWORK=mainnet npx ts-node scripts/deploy-bullaFactoring.ts",
+        "deploy:base": "dotenv -e .env -- cross-env NETWORK=base npx ts-node scripts/deploy-bullaFactoring.ts",
         "deploy:fundora-sepolia": "dotenv -e .env -- cross-env NETWORK=fundora-sepolia npx ts-node scripts/deploy-bullaFactoring.ts",
         "deploy:adapter:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia npx ts-node scripts/deploy-adapter.ts",
         "deploy:adapter:polygon": "dotenv -e .env -- cross-env NETWORK=polygon npx ts-node scripts/deploy-adapter.ts",
         "deploy:adapter:mainnet": "dotenv -e .env -- cross-env NETWORK=mainnet npx ts-node scripts/deploy-adapter.ts",
+        "deploy:adapter:base": "dotenv -e .env -- cross-env NETWORK=base npx ts-node scripts/deploy-adapter.ts",
         "deploy:adapter:fundora-sepolia": "dotenv -e .env -- cross-env NETWORK=fundora-sepolia npx ts-node scripts/deploy-adapter.ts",
         "verify:all": "dotenv -e .env -- npx ts-node scripts/verify-all-contracts.ts",
         "verify:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia npx ts-node scripts/verify-all-contracts.ts",
@@ -40,7 +42,14 @@
         "deploy:fundmanager:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/deploy-bullaFactoringFundManager.ts",
         "change-underwriter:sepolia": "cross-env NETWORK=sepolia npx hardhat run --network sepolia scripts/change-underwriter.ts",
         "change-underwriter:polygon": "cross-env NETWORK=polygon npx hardhat run --network polygon scripts/change-underwriter.ts",
-        "change-underwriter:mainnet": "cross-env NETWORK=mainnet npx hardhat run --network mainnet scripts/change-underwriter.ts"
+        "change-underwriter:mainnet": "cross-env NETWORK=mainnet npx hardhat run --network mainnet scripts/change-underwriter.ts",
+        "set-impair-reserve:sepolia": "dotenv -e .env -- cross-env NETWORK=sepolia npx ts-node scripts/set-impair-reserve.ts",
+        "set-impair-reserve:polygon": "dotenv -e .env -- cross-env NETWORK=polygon npx ts-node scripts/set-impair-reserve.ts",
+        "set-impair-reserve:mainnet": "dotenv -e .env -- cross-env NETWORK=mainnet npx ts-node scripts/set-impair-reserve.ts",
+        "set-impair-reserve:base": "dotenv -e .env -- cross-env NETWORK=base npx ts-node scripts/set-impair-reserve.ts",
+        "set-impair-reserve:fundora-sepolia": "dotenv -e .env -- cross-env NETWORK=fundora-sepolia npx ts-node scripts/set-impair-reserve.ts",
+        "whitelist-callback:fundora-sepolia": "dotenv -e .env -- cross-env NETWORK=fundora-sepolia npx ts-node scripts/whitelist-callback.ts",
+        "whitelist-callback:base": "dotenv -e .env -- cross-env NETWORK=base npx ts-node scripts/whitelist-callback.ts"
     },
     "dependencies": {
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
