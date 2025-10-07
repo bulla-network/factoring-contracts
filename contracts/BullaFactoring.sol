@@ -618,10 +618,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Check active invoices
         for (uint256 i = 0; i < activeCount; i++) {
             uint256 invoiceId = activeInvoices[i];
-            
-            if (isInvoicePaid(invoiceId)) {
+
+            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+            if (invoice.isPaid) {
                 paidInvoices[paidCount++] = invoiceId;
-            } else if (isInvoiceImpaired(invoiceId)) {
+            } else if (invoice.isImpaired) {
                 impairedInvoices[impairedCount++] = invoiceId;
             }
         }
@@ -696,6 +697,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     function _reconcileActivePaidInvoices() internal {
+
         (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
@@ -1169,6 +1171,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             // Queue the remaining assets for future withdrawal
             redemptionQueue.queueRedemption(_owner, receiver, 0, queuedAssets);
         }
+    }
+
+    function processRedemptionQueue() external onlyOwner {
+        _processRedemptionQueue();
     }
 
     /// @notice Process queued redemptions when liquidity becomes available
