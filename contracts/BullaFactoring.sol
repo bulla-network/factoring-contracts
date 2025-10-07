@@ -184,10 +184,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         external returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
 
-        // probably doesn't need it here, but it can block in `onLoanOfferAccepted` so best to pre-empt any issues here
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
-
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
             interestConfig: InterestConfig({
@@ -237,6 +233,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         PendingLoanOfferInfo memory pendingLoanOffer = pendingLoanOffersByLoanOfferId[loanOfferId];
         if (!pendingLoanOffer.exists) revert LoanOfferNotExists();
         if (approvedInvoices[loanId].approved) revert LoanOfferAlreadyAccepted();
+        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
 
         // even though the funds have left, `totalAssets` only updates once the invoice has been added as an active invoice
         // which reduces totalAssets
@@ -266,7 +263,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         originalCreditors[loanId] = address(this);
         activeInvoices.push(loanId);
-        
+        invoiceProviderAdapter.initializeInvoice(loanId);
+
         emit InvoiceFunded(loanId, pendingLoanOffer.principalAmount, address(this), block.timestamp + pendingLoanOffer.termLength, pendingLoanOffer.feeParams.upfrontBps);
     }
 
@@ -281,6 +279,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
+        invoiceProviderAdapter.initializeInvoice(invoiceId);
         IInvoiceProviderAdapterV2.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
         // if invoice already got approved and funded (creditor/owner of invoice is this contract), do not override storage
@@ -412,9 +411,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Consider losses from impaired invoices in activeInvoices
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
-            if (isInvoiceImpaired(invoiceId)) {
+            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+            uint256 currentPaidAmount = invoice.paidAmount;
+            if (invoice.isImpaired) {
                 uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
-                uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
                 int256 lossAmount = int256(approvedInvoices[invoiceId].fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount);
                 realizedGains -= lossAmount;
             }
@@ -567,9 +567,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
-
         (uint256 fundedAmountGross,,,,,uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         uint256 _totalAssets = totalAssets();
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
@@ -697,7 +694,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     function _reconcileActivePaidInvoices() internal {
-
         (uint256[] memory paidInvoiceIds, ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
@@ -828,17 +824,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return deployedCapital;
     }
 
-    /// @notice Calculates all payments of active invoices since funding
-    /// @return The sum of all payments of active invoices since funding
-    function getAllIncomingPaymentsForActiveInvoices() private view returns (uint256) {
-        uint256 incomingFunds = 0;
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            incomingFunds += getPaymentsOnInvoiceSinceFunding(invoiceId);
-        }
-        return incomingFunds;
-    }
-
     /// @notice Sums the target fees for all active invoices
     /// @return targetFees The total fees for all active invoices
     function sumTargetFeesForActiveInvoices() private view returns (uint256 targetFees) {
@@ -853,7 +838,14 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Calculates the available assets in the fund net of fees and impair reserve
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
-        return calculateCapitalAccount()
+        return _totalAssetsOptimized(calculateCapitalAccount());
+    }
+    
+    /// @notice Calculates the total assets of the fund
+    /// @param capitalAccount The capital account of the fund
+    /// @return The total assets of the fund
+    function _totalAssetsOptimized(uint256 capitalAccount) private view returns (uint256) {
+        return capitalAccount
                 - deployedCapitalForActiveInvoicesExcludingImpaired()
                 - sumTargetFeesForActiveInvoices(); // withheld projected fees, accounted for in total assets but not available for profit distribution;
     }
@@ -861,10 +853,15 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
-        uint256 _totalAssets = totalAssets();
-        uint256 capitalAccount = calculateCapitalAccount();
-
-        if (capitalAccount == 0) {
+        return _maxRedeemOptimized(calculateCapitalAccount(), totalAssets());
+    }
+    
+    /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
+    /// @param _capitalAccount The capital account of the fund
+    /// @param _totalAssets The total assets of the fund
+    /// @return The maximum number of shares that can be redeemed
+    function _maxRedeemOptimized(uint256 _capitalAccount, uint256 _totalAssets) private view returns (uint256) {
+        if (_capitalAccount == 0) {
             return 0;
         }
 
@@ -1180,8 +1177,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Process queued redemptions when liquidity becomes available
     function _processRedemptionQueue() private {
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
-        uint256 _totalAssets = totalAssets();
-        uint256 maxRedeemableShares = maxRedeem();
+        uint256 _capitalAccount = calculateCapitalAccount();
+        uint256 _totalAssets = _totalAssetsOptimized(_capitalAccount);
+        uint256 maxRedeemableShares = _maxRedeemOptimized(_capitalAccount, _totalAssets);
         
         while (redemption.owner != address(0) && _totalAssets > 0) {
             uint256 amountProcessed = 0; // this is shares or assets depending on the investor

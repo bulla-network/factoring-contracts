@@ -16,6 +16,7 @@ interface IInvoiceProviderAdapterV2 {
         bool isPaid;
     }
 
+    function initializeInvoice(uint256 invoiceId) external;
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory);
     function getInvoiceContractAddress(uint256 invoiceId) external view returns (address);
     

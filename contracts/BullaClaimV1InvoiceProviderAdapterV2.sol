@@ -14,6 +14,10 @@ contract BullaClaimV1InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         bullaClaim = _bullaClaimAddress;
     }
 
+    function initializeInvoice(uint256 invoiceId) external {
+        // Nothing to do
+    }
+
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory) {
         Claim memory claim = bullaClaim.getClaim(invoiceId);
         if (claim.claimToken == address(0)) revert InexistentInvoice();
