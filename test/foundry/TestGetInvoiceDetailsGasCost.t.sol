@@ -34,67 +34,6 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         });
     }
     
-
-
-
-
-
-    function testViewPoolStatusVsReconcileOverhead() public {
-        console.log("\n=== viewPoolStatus() vs reconcileActivePaidInvoices() Overhead ===\n");
-
-        uint256[] memory testSizes = new uint256[](4);
-        testSizes[0] = 10;
-        testSizes[1] = 25;
-        testSizes[2] = 50;
-        testSizes[3] = 100;
-
-        for (uint256 t = 0; t < testSizes.length; t++) {
-            uint256 numInvoices = testSizes[t];
-            
-            // Setup: deposit funds and create/approve/fund invoices
-            uint256 depositAmount = numInvoices * 200000;
-            vm.startPrank(alice);
-            bullaFactoring.deposit(depositAmount, alice);
-            vm.stopPrank();
-
-            vm.startPrank(bob);
-            for (uint256 i = 0; i < numInvoices; i++) {
-                uint256 invoiceId = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR late fee
-                vm.stopPrank();
-                
-                vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
-                vm.stopPrank();
-                
-                vm.startPrank(bob);
-                IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId); // Approve BullaInvoice NFT
-                bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-            }
-            vm.stopPrank();
-
-            // Measure viewPoolStatus (just checking invoices)
-            uint256 gasBefore = gasleft();
-            bullaFactoring.viewPoolStatus();
-            uint256 gasAfter = gasleft();
-            uint256 viewPoolStatusGas = gasBefore - gasAfter;
-
-            // Measure reconcileActivePaidInvoices (checking + processing)
-            gasBefore = gasleft();
-            bullaFactoring.reconcileActivePaidInvoices();
-            gasAfter = gasleft();
-            uint256 reconcileGas = gasBefore - gasAfter;
-
-            uint256 processingOverhead = reconcileGas - viewPoolStatusGas;
-            
-            console.log("Active Invoices:", numInvoices);
-            console.log("  viewPoolStatus() gas:", viewPoolStatusGas);
-            console.log("  reconcileActivePaidInvoices() gas:", reconcileGas);
-            console.log("  Processing overhead:", processingOverhead);
-            console.log("  % overhead:", (processingOverhead * 100) / viewPoolStatusGas, "%");
-            console.log("");
-        }
-    }
-
     function testViewPoolStatusVsReconcileWithPaidInvoices() public {
         console.log("\n=== Overhead WITH Paid Invoices (actual work) ===\n");
 
@@ -1160,66 +1099,6 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - ZERO ACTIVE INVOICES ===");
         console.log("Measuring baseline costs when no invoices are active\n");
         _measureThreeComponentGasBreakdown(0, 0);
-    }
-
-    function testScalingOfThreeComponents() public {
-        console.log("\n=== SCALING OF THREE COMPONENTS ===\n");
-
-        uint256[] memory testSizes = new uint256[](4);
-        testSizes[0] = 10;
-        testSizes[1] = 20;
-        testSizes[2] = 40;
-        testSizes[3] = 80;
-
-        for (uint256 t = 0; t < testSizes.length; t++) {
-            uint256 numInvoices = testSizes[t];
-            
-            // Fresh setup for each test size
-            uint256 depositAmount = numInvoices * 200000;
-            vm.startPrank(alice);
-            bullaFactoring.deposit(depositAmount, alice);
-            vm.stopPrank();
-
-            // Create and fund invoices
-            vm.startPrank(bob);
-            for (uint256 i = 0; i < numInvoices; i++) {
-                uint256 invoiceId = createClaim(bob, alice, 100000, dueBy);
-                vm.stopPrank();
-                
-                vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
-                vm.stopPrank();
-                
-                vm.startPrank(bob);
-                bullaClaim.approve(address(bullaFactoring), invoiceId);
-                bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-            }
-            vm.stopPrank();
-
-            console.log("=== Test Size:", numInvoices, "invoices ===");
-
-            // Measure viewPoolStatus
-            uint256 gasBefore = gasleft();
-            bullaFactoring.viewPoolStatus();
-            uint256 gasAfter = gasleft();
-            uint256 viewPoolGas = gasBefore - gasAfter;
-
-            // Measure full reconcile
-            gasBefore = gasleft();
-            bullaFactoring.reconcileActivePaidInvoices();
-            gasAfter = gasleft();
-            uint256 reconcileGas = gasBefore - gasAfter;
-
-            uint256 reconcileOverhead = reconcileGas - viewPoolGas;
-
-            console.log("  viewPoolStatus():", viewPoolGas, "gas");
-            console.log("  reconcileActivePaidInvoices():", reconcileGas, "gas");
-            console.log("  reconcile overhead:", reconcileOverhead, "gas");
-            console.log("  % overhead:", (reconcileOverhead * 100) / viewPoolGas, "%");
-            console.log("  Gas per invoice (view):", viewPoolGas / numInvoices);
-            console.log("  Gas per invoice (reconcile):", reconcileGas / numInvoices);
-            console.log("");
-        }
     }
 }
 

@@ -525,18 +525,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function deposit(uint256 assets,address receiver) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
-
         uint256 shares = super.deposit(assets, receiver);
         totalDeposits += assets;
 
-        // it might look strange to call this twice, but I think it is the way to go.
-        // the first processing of the queue is due to paid invoices. If we only call it once after the deposit, it is unfair to the depositor,
-        // due to the accured interest that is paid by them leaking out to redemptioners.
-        // This assures they get to keep the extra accrued interest value that they paid for when entering the pool, so to not enter at a loss.
-        _processRedemptionQueue();
-        
         return shares;
     }
 
@@ -703,12 +694,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
-    function reconcileActivePaidInvoices() external {
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
-    }
-
-    function _reconcileActivePaidInvoices() internal {
+    function reconcileActivePaidInvoices() public {
         (uint256[] memory paidInvoiceIds, IInvoiceProviderAdapterV2.Invoice[] memory paidInvoices, , ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
@@ -804,8 +790,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         delete originalCreditors[invoiceId];
 
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
+        reconcileActivePaidInvoices();
+        processRedemptionQueue();
 
         emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
     }
@@ -849,7 +835,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         capitalAccount = _calculateCapitalAccountWithCache(realizedGainLoss);
         totalAssetsAmount = _totalAssetsOptimized(capitalAccount);
     }
-    
+
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
@@ -892,8 +878,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
+        reconcileActivePaidInvoices();
+        processRedemptionQueue();
         
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
  
@@ -912,8 +898,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
+        reconcileActivePaidInvoices();
+        processRedemptionQueue();
 
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
         
@@ -1133,8 +1119,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
+        reconcileActivePaidInvoices();
+        processRedemptionQueue();
 
         uint256 maxRedeemableShares = maxRedeem(_owner);
         uint256 sharesToRedeem = Math.min(shares, maxRedeemableShares);
@@ -1161,8 +1147,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
-        _reconcileActivePaidInvoices();
-        _processRedemptionQueue();
+        reconcileActivePaidInvoices();
+        processRedemptionQueue();
 
         uint256 maxWithdrawableAssets = maxWithdraw(_owner);
         uint256 assetsToWithdraw = Math.min(assets, maxWithdrawableAssets);
@@ -1179,12 +1165,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
     }
 
-    function processRedemptionQueue() external onlyOwner {
-        _processRedemptionQueue();
-    }
-
     /// @notice Process queued redemptions when liquidity becomes available
-    function _processRedemptionQueue() private {
+    function processRedemptionQueue() public {
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
         // Memory-optimized: Calculate capital account and total assets with single realized gain/loss calculation
         (uint256 _capitalAccount, uint256 _totalAssets) = _calculateCapitalAccountAndTotalAssets();
