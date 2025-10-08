@@ -509,8 +509,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if(sharesOutstanding == 0) {
             shares = assets;
         } else {
-            // Memory-optimized: Calculate capital account and accrued profits with single pass through invoices
-            (uint256 capitalAccount, , uint256 accruedProfits) = _calculateAllFinancialMetricsOptimized();
+            // Calculate capital account and accrued profits
+            uint256 capitalAccount = calculateCapitalAccount();
+            uint256 accruedProfits = calculateAccruedProfits();
             shares = Math.mulDiv(assets, sharesOutstanding, (capitalAccount + accruedProfits), Math.Rounding.Floor);
         }
 
@@ -821,29 +822,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
     }
 
-    /// @notice Calculates the total funded amount for all active invoices.
-    /// @return The total funded amount for all active invoices
-    function deployedCapitalForActiveInvoicesExcludingImpaired() public view returns (uint256) {
-        uint256 deployedCapital = 0;
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            deployedCapital += (invoice.isImpaired) ? 0 : approvedInvoices[invoiceId].fundedAmountNet;
-        }
-        return deployedCapital;
-    }
-
-    /// @notice Sums the target fees for all active invoices
-    /// @return targetFees The total fees for all active invoices
-    function sumTargetFeesForActiveInvoices() private view returns (uint256 targetFees) {
-        targetFees = 0;
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            targetFees += approvedInvoices[invoiceId].fundedAmountGross - approvedInvoices[invoiceId].fundedAmountNet;
-        }
-        return targetFees;
-    }
-
     /// @notice Calculates the available assets in the fund net of fees and impair reserve
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
@@ -871,85 +849,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         capitalAccount = _calculateCapitalAccountWithCache(realizedGainLoss);
         totalAssetsAmount = _totalAssetsOptimized(capitalAccount);
     }
-
-    /// @notice Memory-optimized version that fetches all active invoice details once and calculates multiple metrics
-    /// @return realizedGainLoss The realized gain/loss value
-    /// @return accruedProfits The accrued profits from active invoices
-    /// @return deployedCapital The deployed capital excluding impaired invoices
-    /// @return targetFees The sum of target fees for active invoices
-    function _calculateInvoiceMetricsOptimized() internal view returns (
-        int256 realizedGainLoss,
-        uint256 accruedProfits, 
-        uint256 deployedCapital,
-        uint256 targetFees
-    ) {
-        // Calculate paid invoices gain first (doesn't require external calls)
-        realizedGainLoss = 0;
-        for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
-            uint256 invoiceId = paidInvoicesIds[i];
-            realizedGainLoss += int256(paidInvoicesGain[invoiceId]);
-        }
-
-        // Handle impaired invoices by fund (requires external calls)
-        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
-            uint256 invoiceId = impairedByFundInvoicesIds[i];
-            uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
-            uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
-            int256 lossAmount = int256(approvedInvoices[invoiceId].fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
-            realizedGainLoss -= lossAmount;
-        }
-
-        // Process active invoices once - fetch all invoice details and calculate multiple metrics
-        accruedProfits = 0;
-        deployedCapital = 0;
-        targetFees = 0;
-
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
-            uint256 invoiceTargetFees = approvedInvoices[invoiceId].fundedAmountGross - fundedAmountNet;
-            
-            // Add to target fees
-            targetFees += invoiceTargetFees;
-            
-            if (invoice.isImpaired) {
-                // Calculate loss for realized gain/loss
-                uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
-                int256 lossAmount = int256(fundedAmountNet) - int256(invoice.paidAmount - initialPaidAmount);
-                realizedGainLoss -= lossAmount;
-                // Impaired invoices don't contribute to deployed capital or accrued profits
-            } else {
-                // Add to deployed capital
-                deployedCapital += fundedAmountNet;
-                // Calculate accrued profits
-                (, uint256 trueInterest, , , ) = _calculateKickbackAmount(invoiceId, invoice);
-                accruedProfits += trueInterest;
-            }
-        }
-    }
-
-    /// @notice Ultra-optimized function that calculates all key financial metrics with minimal external calls
-    /// @return capitalAccount The calculated capital account balance
-    /// @return totalAssetsAmount The total assets of the fund
-    /// @return accruedProfits The accrued profits from active invoices
-    function _calculateAllFinancialMetricsOptimized() internal view returns (
-        uint256 capitalAccount,
-        uint256 totalAssetsAmount,
-        uint256 accruedProfits
-    ) {
-        // Get all invoice metrics with single pass through active invoices
-        (int256 realizedGainLoss, uint256 _accruedProfits, uint256 deployedCapital, uint256 targetFees) = _calculateInvoiceMetricsOptimized();
-        
-        // Calculate capital account using cached realized gain/loss
-        capitalAccount = _calculateCapitalAccountWithCache(realizedGainLoss);
-        
-        // Calculate total assets using pre-calculated components
-        totalAssetsAmount = capitalAccount - deployedCapital - targetFees;
-        
-        accruedProfits = _accruedProfits;
-    }
-
+    
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
     /// @return The maximum number of shares that can be redeemed
     function maxRedeem() public view returns (uint256) {
@@ -1147,9 +1047,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Retrieves the fund information
     /// @return FundInfo The fund information
     function getFundInfo() external view returns (FundInfo memory) {
-        uint256 fundBalance = totalAssets();
-        uint256 deployedCapital = deployedCapitalForActiveInvoicesExcludingImpaired();
+        uint256 sumOfTargetFees = 0;
+
+        for (uint256 i = 0; i < activeInvoices.length; i++) {
+            uint256 invoiceId = activeInvoices[i];
+            sumOfTargetFees += approvedInvoices[invoiceId].fundedAmountGross - approvedInvoices[invoiceId].fundedAmountNet;
+        }
+
         uint256 capitalAccount = calculateCapitalAccount();
+        uint256 fundBalance = _totalAssetsOptimized(capitalAccount);
+        uint256 deployedCapital = capitalAccount - sumOfTargetFees - fundBalance;
         uint256 price = pricePerShare();
         uint256 tokensAvailableForRedemption = maxRedeem();
 

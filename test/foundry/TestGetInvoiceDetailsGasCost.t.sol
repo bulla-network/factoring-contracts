@@ -449,6 +449,24 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         bullaFactoring.totalAssets();
     }
 
+    function testTotalAssets125Invoices() public {
+        _setupInvoicesOnly(125);
+        console.log("Testing totalAssets() with 125 invoices");
+        uint256 gasBefore = gasleft();
+        bullaFactoring.totalAssets();
+        uint256 gasUsed = gasBefore - gasleft();
+        console.log("totalAssets() with 125 invoices used:", gasUsed, "gas");
+    }
+
+    function testTotalAssets250Invoices() public {
+        _setupInvoicesOnly(250);
+        console.log("Testing totalAssets() with 250 invoices");
+        uint256 gasBefore = gasleft();
+        bullaFactoring.totalAssets();
+        uint256 gasUsed = gasBefore - gasleft();
+        console.log("totalAssets() with 250 invoices used:", gasUsed, "gas");
+    }
+
     // maxRedeem() tests
     function testMaxRedeemZeroInvoices() public {
         _setupInvoicesOnly(0);
