@@ -620,7 +620,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         bullaFrendLend.payLoan(loanId, totalAmountDue);
         vm.stopPrank();
 
-        (uint256[] memory invoicesPaid, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory invoicesPaid, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(invoicesPaid.length, 1, "There should be one paid invoice");
 
         // Reconcile

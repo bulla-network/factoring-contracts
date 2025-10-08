@@ -111,7 +111,7 @@ export const fundoraConfig: NetworkConfig = {
 export const baseConfig: NetworkConfig = {
     bullaClaim: '0x9d4EB59D166841FfbC66197ECAd8E70f2339905D',
     underlyingAsset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
-    underwriter: '0x9D28ee39eAfa0727423126D93Cb0b889fc0aF971',
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
     bullaDao: '0xca591b3b53521ccde47d2da4e0ea151f8b81f6c1', // Bulla Safe's address
     protocolFeeBps: 10,
     adminFeeBps: 50,

@@ -75,7 +75,7 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         vm.stopPrank();
 
         // Verify that the first invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid but unreconciled invoice");
         assertEq(paidInvoicesBefore[0], invoiceId1, "First invoice should be the paid one");
 
@@ -108,7 +108,7 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         assertLt(bobBalanceAfter, bobBalanceBefore, "Bob should have paid to unfactor the second invoice");
 
         // CRITICAL TEST: Verify that the first invoice was reconciled during unfactoring
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
 
         // Verify gain was recorded for the first invoice (indicating reconciliation occurred)

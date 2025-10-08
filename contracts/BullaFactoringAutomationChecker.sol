@@ -8,7 +8,7 @@ contract BullaFactoringAutomationCheckerV2 {
         view
         returns (bool canExec, bytes memory execPayload)
     {
-        (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) = BullaFactoringV2(poolAddress).viewPoolStatus();
+        (uint256[] memory paidInvoices, , uint256[] memory impairedInvoices, ) = BullaFactoringV2(poolAddress).viewPoolStatus();
 
         canExec = paidInvoices.length + impairedInvoices.length > 0;
 

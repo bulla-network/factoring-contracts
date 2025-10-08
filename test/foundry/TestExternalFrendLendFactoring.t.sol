@@ -110,6 +110,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             interestRateBps,
             365
         );
+
+        invoiceAdapterBulla.initializeInvoice(loanId);
         
         // Verify loan was created
         IInvoiceProviderAdapterV2.Invoice memory invoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
@@ -156,6 +158,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
             interestRateBps,
             365
         );
+
+        invoiceAdapterBulla.initializeInvoice(loanId);
         
         // Verify initial state - starts at principal amount
         IInvoiceProviderAdapterV2.Invoice memory initialInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
