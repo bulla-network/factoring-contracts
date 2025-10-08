@@ -34,145 +34,10 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         });
     }
     
-    function testMeasureGetInvoiceDetailsGasCost() public {
-        // Create a single invoice WITH late fee configuration
-        vm.startPrank(bob);
-        uint256 invoiceId = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR, monthly
-        vm.stopPrank();
 
-        // Measure gas for getInvoiceDetails
-        uint256 gasBefore = gasleft();
-        invoiceAdapterBulla.getInvoiceDetails(invoiceId);
-        uint256 gasAfter = gasleft();
-        
-        uint256 gasUsed = gasBefore - gasAfter;
-        
-        console.log("=== getInvoiceDetails Gas Cost ===");
-        console.log("Gas used for getInvoiceDetails():", gasUsed);
-        
-        // Also measure the underlying getClaim call
-        vm.startPrank(bob);
-        gasBefore = gasleft();
-        bullaClaim.getClaim(invoiceId);
-        gasAfter = gasleft();
-        vm.stopPrank();
-        
-        uint256 getClaimGas = gasBefore - gasAfter;
-        console.log("Gas used for getClaim():", getClaimGas);
-        console.log("Adapter overhead:", gasUsed - getClaimGas);
-    }
 
-    function testCompareStaticVsNonStaticCall() public {
-        // Create a single invoice WITH late fee configuration
-        vm.startPrank(bob);
-        uint256 invoiceId = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR, monthly
-        vm.stopPrank();
 
-        console.log("\n=== Static vs Non-Static Call Comparison ===");
-        
-        // This is how it's called in viewPoolStatus (via isInvoicePaid)
-        // It's a view function, so it should use staticcall
-        uint256 gasBefore = gasleft();
-        invoiceAdapterBulla.getInvoiceDetails(invoiceId);
-        uint256 gasAfter = gasleft();
-        
-        console.log("View call gas (staticcall):", gasBefore - gasAfter);
-    }
 
-    function testGetInvoiceDetailsInLoop() public {
-        uint256 numInvoices = 10;
-        uint256[] memory invoiceIds = new uint256[](numInvoices);
-        
-        // Create multiple invoices WITH late fee configuration
-        vm.startPrank(bob);
-        for (uint256 i = 0; i < numInvoices; i++) {
-            invoiceIds[i] = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR, monthly
-        }
-        vm.stopPrank();
-
-        console.log("\n=== Gas Cost in Loop ===");
-        
-        // Measure gas for calling getInvoiceDetails in a loop
-        uint256 gasBefore = gasleft();
-        for (uint256 i = 0; i < numInvoices; i++) {
-            invoiceAdapterBulla.getInvoiceDetails(invoiceIds[i]);
-        }
-        uint256 gasAfter = gasleft();
-        
-        uint256 totalGas = gasBefore - gasAfter;
-        uint256 averageGasPerCall = totalGas / numInvoices;
-        
-        console.log("Total gas for", numInvoices, "calls:", totalGas);
-        console.log("Average gas per call:", averageGasPerCall);
-        console.log("First call overhead:", totalGas - (averageGasPerCall * numInvoices));
-    }
-
-    function testGetInvoiceDetailsCostBreakdown() public {
-        // Create invoices with different states WITH late fee configuration
-        vm.startPrank(bob);
-        uint256 unpaidInvoice = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR, monthly
-        uint256 partiallyPaidInvoice = createInvoice(bob, alice, 100000, dueBy, 1000, 12);
-        vm.stopPrank();
-
-        // Make a partial payment
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), 50000);
-        bullaClaim.payClaim(partiallyPaidInvoice, 50000);
-        vm.stopPrank();
-
-        console.log("\n=== Gas Cost by Invoice State ===");
-        
-        // Unpaid invoice
-        uint256 gasBefore = gasleft();
-        invoiceAdapterBulla.getInvoiceDetails(unpaidInvoice);
-        uint256 gasAfter = gasleft();
-        console.log("Unpaid invoice gas:", gasBefore - gasAfter);
-        
-        // Partially paid invoice
-        gasBefore = gasleft();
-        invoiceAdapterBulla.getInvoiceDetails(partiallyPaidInvoice);
-        gasAfter = gasleft();
-        console.log("Partially paid invoice gas:", gasBefore - gasAfter);
-    }
-
-    function testCumulativeGasCostAtScale() public {
-        console.log("\n=== Cumulative Gas Cost Analysis ===");
-        console.log("Simulating the viewPoolStatus() loop overhead\n");
-
-        uint256[] memory testSizes = new uint256[](5);
-        testSizes[0] = 10;
-        testSizes[1] = 25;
-        testSizes[2] = 50;
-        testSizes[3] = 100;
-        testSizes[4] = 200;
-
-        for (uint256 t = 0; t < testSizes.length; t++) {
-            uint256 numInvoices = testSizes[t];
-            uint256[] memory invoiceIds = new uint256[](numInvoices);
-            
-            // Create invoices WITH late fees
-            vm.startPrank(bob);
-            for (uint256 i = 0; i < numInvoices; i++) {
-                invoiceIds[i] = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR, monthly
-            }
-            vm.stopPrank();
-
-            // Simulate the viewPoolStatus loop
-            uint256 gasBefore = gasleft();
-            for (uint256 i = 0; i < numInvoices; i++) {
-                invoiceAdapterBulla.getInvoiceDetails(invoiceIds[i]);
-            }
-            uint256 gasAfter = gasleft();
-            
-            uint256 totalGas = gasBefore - gasAfter;
-            
-            console.log("Active Invoices:", numInvoices);
-            console.log("  Total gas:", totalGas);
-            console.log("  Gas per invoice:", totalGas / numInvoices);
-            console.log("  Estimated cost @ 50 gwei:", (totalGas * 50) / 1e9, "ETH (in wei)");
-            console.log("");
-        }
-    }
 
     function testViewPoolStatusVsReconcileOverhead() public {
         console.log("\n=== viewPoolStatus() vs reconcileActivePaidInvoices() Overhead ===\n");
@@ -274,7 +139,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
 
         // Measure viewPoolStatus (just checking)
         uint256 gasBefore = gasleft();
-        (uint256[] memory paidInvoices,) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoices, , , ) = bullaFactoring.viewPoolStatus();
         uint256 gasAfter = gasleft();
         uint256 viewPoolStatusGas = gasBefore - gasAfter;
 
@@ -332,7 +197,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
 
         // STEP 1: Measure viewPoolStatus alone
         uint256 gasBefore = gasleft();
-        (uint256[] memory paidInvoiceIds,) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoiceIds, , , ) = bullaFactoring.viewPoolStatus();
         uint256 gasAfter = gasleft();
         uint256 viewPoolStatusGas = gasBefore - gasAfter;
 
@@ -386,73 +251,6 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         }
     }
 
-    function testLateFeeImpactOnGasCosts() public {
-        console.log("\n=== Late Fee Configuration Impact on Gas Costs ===\n");
-
-        // Test 1: Invoice without late fees (simple claim)
-        vm.startPrank(bob);
-        uint256 simpleInvoice = createClaim(bob, alice, 100000, dueBy);
-        vm.stopPrank();
-
-        uint256 gasBefore = gasleft();
-        invoiceAdapterBulla.getInvoiceDetails(simpleInvoice);
-        uint256 gasAfter = gasleft();
-        uint256 simpleGas = gasBefore - gasAfter;
-
-        console.log("Simple claim (no late fees):");
-        console.log("  getInvoiceDetails() gas:", simpleGas);
-        console.log("");
-
-        // Test 2: Invoice WITH late fees (BullaInvoice)
-        vm.startPrank(bob);
-        uint256 lateFeeInvoice = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR, monthly
-        vm.stopPrank();
-
-        gasBefore = gasleft();
-        invoiceAdapterBulla.getInvoiceDetails(lateFeeInvoice);
-        gasAfter = gasleft();
-        uint256 lateFeeGas = gasBefore - gasAfter;
-
-        console.log("BullaInvoice (with late fees):");
-        console.log("  getInvoiceDetails() gas:", lateFeeGas);
-        console.log("  Extra gas vs simple:", lateFeeGas > simpleGas ? lateFeeGas - simpleGas : 0);
-        console.log("  % increase:", lateFeeGas > simpleGas ? ((lateFeeGas - simpleGas) * 100) / simpleGas : 0, "%");
-        console.log("");
-
-        // Test 3: Measure in a loop scenario (realistic)
-        uint256 numInvoices = 20;
-        uint256[] memory simpleInvoices = new uint256[](numInvoices);
-        uint256[] memory lateFeeInvoices = new uint256[](numInvoices);
-
-        vm.startPrank(bob);
-        for (uint256 i = 0; i < numInvoices; i++) {
-            simpleInvoices[i] = createClaim(bob, alice, 100000, dueBy);
-            lateFeeInvoices[i] = createInvoice(bob, alice, 100000, dueBy, 1000, 12);
-        }
-        vm.stopPrank();
-
-        // Loop through simple invoices
-        gasBefore = gasleft();
-        for (uint256 i = 0; i < numInvoices; i++) {
-            invoiceAdapterBulla.getInvoiceDetails(simpleInvoices[i]);
-        }
-        gasAfter = gasleft();
-        uint256 simpleLoopGas = gasBefore - gasAfter;
-
-        // Loop through late fee invoices
-        gasBefore = gasleft();
-        for (uint256 i = 0; i < numInvoices; i++) {
-            invoiceAdapterBulla.getInvoiceDetails(lateFeeInvoices[i]);
-        }
-        gasAfter = gasleft();
-        uint256 lateFeeLoopGas = gasBefore - gasAfter;
-
-        console.log("Loop through", numInvoices, "invoices:");
-        console.log("  Simple claims total:", simpleLoopGas, "gas");
-        console.log("  Late fee invoices total:", lateFeeLoopGas, "gas");
-        console.log("  Extra cost for late fees:", lateFeeLoopGas - simpleLoopGas, "gas");
-        console.log("  Per-invoice late fee cost:", (lateFeeLoopGas - simpleLoopGas) / numInvoices, "gas");
-    }
 
     function _measureThreeComponentGasBreakdown(uint256 numInvoices, uint256 numPaid) internal {
         // Setup: Create funded invoices using simple claims (not BullaInvoice)
@@ -793,26 +591,6 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 200 paid invoices gas used:", gasUsed);
-    }
-
-    function testReconcileGasLimit300Invoices() public {
-        uint256[] memory invoiceIds = _setupAndPayInvoices(300, 300);
-        
-        uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        uint256 gasUsed = gasBefore - gasleft();
-        
-        console.log("Reconcile 300 paid invoices gas used:", gasUsed);
-    }
-
-    function testReconcileGasLimit500Invoices() public {
-        uint256[] memory invoiceIds = _setupAndPayInvoices(500, 500);
-        
-        uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        uint256 gasUsed = gasBefore - gasleft();
-        
-        console.log("Reconcile 500 paid invoices gas used:", gasUsed);
     }
 
     // ========================================
@@ -1329,21 +1107,6 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         console.log("Optimized reconcile 200 paid invoices gas used:", gasUsed);
     }
 
-    function testOptimizedReconcileGasLimit250Invoices() public {
-        uint256[] memory invoiceIds = _setupAndPayCachedInvoices(250, 250);
-        uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        uint256 gasUsed = gasBefore - gasleft();
-        console.log("Optimized reconcile 250 paid invoices gas used:", gasUsed);
-    }
-
-    function testOptimizedReconcileGasLimit300Invoices() public {
-        uint256[] memory invoiceIds = _setupAndPayCachedInvoices(300, 300);
-        uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        uint256 gasUsed = gasBefore - gasleft();
-        console.log("Optimized reconcile 300 paid invoices gas used:", gasUsed);
-    }
 
     function testThreeComponentGasBreakdownWithFifteenInvoicesAndAllPaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 15 INVOICES ===");

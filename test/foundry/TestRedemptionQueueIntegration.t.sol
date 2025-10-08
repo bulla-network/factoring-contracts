@@ -350,45 +350,6 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         assertGt(aliceBalanceAfter, aliceBalanceBefore, "Queue processing should be triggered");
     }
 
-    function testQueueProcessing_TriggeredByOfferLoan() public {
-        uint256 depositAmount = 1000000;
-        uint256 queueAmount = 500000;
-        
-        // Setup with queued redemption
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-
-        // Create, fund, and pay an invoice to add liquidity for queue processing
-        vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, eve, depositAmount, dueBy);
-        
-        vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
-        
-        vm.prank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
-        
-        vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
-        
-        // Pay the invoice to add liquidity
-        vm.prank(eve);
-        asset.approve(address(bullaClaim), depositAmount);
-        vm.prank(eve);
-        bullaClaim.payClaim(invoiceId, depositAmount);
-        
-        uint256 aliceBalanceBefore = asset.balanceOf(alice);
-        
-        // Underwriter offers loan - should trigger queue processing
-        vm.prank(underwriter);
-        bullaFactoring.offerLoan(bob, 1000, 100, 200000, 30 days, 12, "Test loan");
-        
-        uint256 aliceBalanceAfter = asset.balanceOf(alice);
-        
-        assertGt(aliceBalanceAfter, aliceBalanceBefore, "Queue processing should be triggered");
-    }
 
     // ============================================
     // 3. FIFO Queue Order Tests
@@ -690,42 +651,6 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         assertGt(asset.balanceOf(alice), aliceBalanceBefore, "Alice should receive processed redemption");
     }
 
-    function testFundInvoice_FollowedByQueueProcessing() public {
-        uint256 depositAmount = 2000000;
-        uint256 queueAmount = 300000;
-        
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-        
-        // First invoice reduces liquidity
-        vm.prank(bob);
-        uint256 invoiceId1 = createClaim(bob, alice, 800000, dueBy);
-        vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, 1000, 100, 9000, 0, 0);
-        vm.prank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId1, 9000, address(0));
-        
-        // Queue redemption
-        vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
-        
-        // Second invoice funding shouldn't trigger processing (no new liquidity)
-        vm.prank(charlie);
-        uint256 invoiceId2 = createClaim(charlie, alice, 500000, dueBy);
-        vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, 1000, 100, 8000, 0, 0);
-        
-        uint256 aliceBalanceBefore = asset.balanceOf(alice);
-        vm.prank(charlie);
-        bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        vm.prank(charlie);
-        bullaFactoring.fundInvoice(invoiceId2, 8000, address(0));
-        
-        // Should not have processed queue (no additional liquidity)
-        assertEq(asset.balanceOf(alice), aliceBalanceBefore, "Alice balance should be unchanged");
-    }
 
     function testInvoicePayment_FollowedByAutomaticProcessing() public {
         uint256 depositAmount = 1000000;

@@ -17,6 +17,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
 
     // Cache for controller addresses (immutable once set)
     mapping(uint256 => address) private controllerCache;
+    mapping(uint256 => uint256) private impairmentGracePeriodCache;
     mapping(uint256 => bool) private isCached;
     
     error InexistentInvoice();
@@ -36,6 +37,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         if (claim.creditor == address(0) && claim.debtor == address(0)) revert InexistentInvoice();
 
         controllerCache[invoiceId] = claim.controller;
+        impairmentGracePeriodCache[invoiceId] = claim.impairmentGracePeriod;
         isCached[invoiceId] = true;
     }
 
@@ -96,7 +98,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
                 paidAmount: paidAmount,
                 isCanceled: loan.status == Status.Rejected || loan.status == Status.Rescinded,
                 isPaid: loan.status == Status.Paid,
-                isImpaired: loan.dueBy != 0 && block.timestamp > loan.dueBy + 0 // TODO: add loan.impairmentGracePeriod
+                isImpaired: loan.dueBy != 0 && block.timestamp > loan.dueBy + impairmentGracePeriodCache[invoiceId]
             });
 
             return invoice;
@@ -118,7 +120,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
                 paidAmount: paidAmount,
                 isCanceled: _bullaInvoice.status == Status.Rejected || _bullaInvoice.status == Status.Rescinded,
                 isPaid: _bullaInvoice.status == Status.Paid,
-                isImpaired: _bullaInvoice.dueBy != 0 && block.timestamp > _bullaInvoice.dueBy + 0 // TODO: add _bullaInvoice.impairmentGracePeriod
+                isImpaired: _bullaInvoice.dueBy != 0 && block.timestamp > _bullaInvoice.dueBy + impairmentGracePeriodCache[invoiceId]
             });
 
             return invoice;

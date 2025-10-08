@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./IInvoiceProviderAdapter.sol";
 import "./IRedemptionQueue.sol";
+import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2 {
@@ -92,7 +93,12 @@ interface IBullaFactoringV2 {
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _principalAmountOverride) external;
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
-    function viewPoolStatus() external view returns (uint256[] memory paidInvoices, uint256[] memory impairedInvoices);
+    function viewPoolStatus() external view returns (
+        uint256[] memory paidInvoiceIds,
+        IInvoiceProviderAdapterV2.Invoice[] memory paidInvoices,
+        uint256[] memory impairedInvoiceIds, 
+        IInvoiceProviderAdapterV2.Invoice[] memory impairedInvoices
+    );
     function reconcileActivePaidInvoices() external;
     function setGracePeriodDays(uint256 _days) external;
     function setApprovalDuration(uint256 _duration) external;

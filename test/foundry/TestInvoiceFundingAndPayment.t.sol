@@ -141,8 +141,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId2, factorerUpfrontBps, address(0));
         vm.stopPrank();
 
-        uint256 actualFundedAmount = bullaFactoring.getFundedAmount(invoiceId);
-        uint256 actualFundedAmountLowerUpfrontBps = bullaFactoring.getFundedAmount(invoiceId2);
+        (, , , , , , uint256 actualFundedAmount, , , , ) = bullaFactoring.approvedInvoices(invoiceId);
+        (, , , , , , uint256 actualFundedAmountLowerUpfrontBps, , , , ) = bullaFactoring.approvedInvoices(invoiceId2);
 
         assertTrue(actualFundedAmount > actualFundedAmountLowerUpfrontBps, "Funded amounts should reflect the actual upfront bps chosen by the factorer" );
     }
@@ -244,7 +244,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // automation will signal that we have some paid invoices
-        (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoices, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoices.length, 1);
 
         // Calculate expected kickback amount before reconciliation
@@ -260,12 +260,12 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Check if the kickback and funded amount were correctly transferred
-        uint256 fundedAmount = bullaFactoring.getFundedAmount(invoiceId01);
+        (, , , , , , , uint256 fundedAmountNet, , , ) = bullaFactoring.approvedInvoices(invoiceId01);
         (uint256 kickbackAmount,,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
 
-        assertEq(finalBalanceOwner, initialFactorerBalance + kickbackAmount + fundedAmount, "Kickback amount was not dispersed correctly");
+        assertEq(finalBalanceOwner, initialFactorerBalance + kickbackAmount + fundedAmountNet, "Kickback amount was not dispersed correctly");
     }
 
     function testZeroKickbackAmount() public {

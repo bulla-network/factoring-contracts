@@ -110,7 +110,7 @@ contract TestGasProfiler is CommonSetup {
         uint256 gasBefore = gasleft();
         uint256 callsBefore = _getInvoiceDetailsCallCount;
         
-        (uint256[] memory paidIds, uint256[] memory impairedIds) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidIds, , uint256[] memory impairedIds, ) = bullaFactoring.viewPoolStatus();
         
         uint256 gasUsed = gasBefore - gasleft();
         uint256 callsUsed = _getInvoiceDetailsCallCount - callsBefore;
@@ -219,7 +219,7 @@ contract TestGasProfiler is CommonSetup {
         
         // Calculate theoretical scaling - get number of active invoices
         // Since activeInvoices is a dynamic array, we need to get its length through viewPoolStatus
-        (uint256[] memory paidInvoices, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoices, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
         uint256 numActiveInvoices = paidInvoices.length + impairedInvoices.length + 15; // Rough estimate including unpaid
         
         console.log("");

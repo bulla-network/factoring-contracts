@@ -444,7 +444,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // Simulate impairment
         vm.warp(block.timestamp + 100 days);
 
-        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
 
         assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
 

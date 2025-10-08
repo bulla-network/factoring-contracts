@@ -83,7 +83,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         for (uint256 i = 0; i < paymentTimes.length; i++) {
             vm.warp(block.timestamp + paymentTimes[i]);
             
-            (, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
             
             // Interest should increase with time
             if (i > 0) {

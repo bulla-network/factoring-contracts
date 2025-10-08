@@ -55,7 +55,9 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
 
-        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + bullaFactoring.getFundedAmount(invoiceId01) + bullaFactoring.getFundedAmount(invoiceId02));
+        (, , , , , , , uint256 fundedAmountNet01, , , ) = bullaFactoring.approvedInvoices(invoiceId01);
+        (, , , , , , , uint256 fundedAmountNet02, , , ) = bullaFactoring.approvedInvoices(invoiceId02);
+        assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + fundedAmountNet01 + fundedAmountNet02);
 
         // Simulate debtor paying in 30 days
         vm.warp(block.timestamp + 30 days);
@@ -71,7 +73,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.stopPrank();
 
         // automation will signal that we have some paid invoices
-        (uint256[] memory paidInvoices, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoices, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoices.length, 2);
 
         // owner will reconcile paid invoices to account for any realized gains or losses
@@ -139,7 +141,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
 
-        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
         // Check the impact on the price per share due to the impaired invoice
@@ -172,7 +174,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.warp(block.timestamp + 100 days);
 
         // automation will signal that we have an impaired invoice
-        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
 

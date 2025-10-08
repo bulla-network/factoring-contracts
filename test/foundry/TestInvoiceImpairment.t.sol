@@ -97,7 +97,7 @@ contract TestInvoiceImpairment is CommonSetup {
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
 
-        (, uint256[] memory impairedInvoices) = bullaFactoring.viewPoolStatus();
+        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
         vm.expectEmit(true, false, false, false);
@@ -106,7 +106,7 @@ contract TestInvoiceImpairment is CommonSetup {
         // fund impares the third invoice
         bullaFactoring.impairInvoice(invoiceId03);
 
-        (, uint256[] memory impairedInvoicesAfter) = bullaFactoring.viewPoolStatus();
+        (, , uint256[] memory impairedInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoicesAfter.length, 0);
 
         // reconcile redeemed invoice to make accounting adjustments
@@ -128,7 +128,7 @@ contract TestInvoiceImpairment is CommonSetup {
         bullaClaim.payClaim(invoiceId03, invoiceId03Amount);
         vm.stopPrank();
 
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesAfter.length, 1);
 
         bullaFactoring.reconcileActivePaidInvoices();

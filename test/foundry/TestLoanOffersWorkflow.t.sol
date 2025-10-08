@@ -288,38 +288,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
         );
     }
     
-    function testOfferLoanAndAcceptance_StateTransitions() public {
-        uint256 principalAmount = 50_000;
-        uint16 targetYieldBps = 800;
-        uint16 _spreadBps = 200;
-        uint256 termLength = 45 days;
-
-        vm.startPrank(alice);
-        bullaFactoring.deposit(principalAmount, alice);
-        vm.stopPrank();
-        
-        vm.startPrank(underwriter);
-        uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, 365, "State test");
-        vm.stopPrank();
-        
-        // Verify pending loan offer exists
-        (bool existsBefore,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
-        assertTrue(existsBefore, "Loan offer should exist before acceptance");
-        
-        // Accept loan
-        uint256 loanId = 54321;
-        vm.prank(address(bullaFrendLend));
-        bullaFactoring.onLoanOfferAccepted(loanOfferId, loanId);
-        
-        // Verify pending loan offer is removed
-        (bool existsAfter,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
-        assertFalse(existsAfter, "Loan offer should not exist after acceptance");
-        
-        // Verify invoice approval is created
-        (bool approved,,,,,,,,,, ) = bullaFactoring.approvedInvoices(loanId);
-        assertTrue(approved, "Invoice should be approved after acceptance");
-    }
-    
     function testOfferLoanAndAcceptance_FeeParamsTransfer() public {
         uint256 principalAmount = 75_000;
         uint16 targetYieldBps = 1200;

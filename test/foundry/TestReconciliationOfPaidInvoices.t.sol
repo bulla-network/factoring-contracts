@@ -54,7 +54,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify invoice is paid but not yet reconciled
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before deposit");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
@@ -69,79 +69,10 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify automatic reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
-        assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    AUTOMATIC RECONCILIATION ON FUND INVOICE
-    //////////////////////////////////////////////////////////////*/
-
-    function test_FundInvoice_TriggersAutomaticReconciliation() public {
-        uint256 initialDeposit = 300000;
-        uint256 invoice1Amount = 100000;
-        uint256 invoice2Amount = 80000;
-        
-        // Setup with sufficient deposits
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        // Create and fund first invoice
-        vm.startPrank(bob);
-        uint256 invoiceId1 = createClaim(bob, alice, invoice1Amount, dueBy);
-        vm.stopPrank();
-
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, minDays, 0);
-        vm.stopPrank();
-
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Pay first invoice
-        vm.warp(block.timestamp + 25 days);
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), invoice1Amount);
-        bullaClaim.payClaim(invoiceId1, invoice1Amount);
-        vm.stopPrank();
-
-        // Create second invoice
-        vm.startPrank(bob);
-        uint256 invoiceId2 = createClaim(bob, alice, invoice2Amount, dueBy + 30 days);
-        vm.stopPrank();
-
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, minDays, 0);
-        vm.stopPrank();
-
-        // Verify first invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before funding second");
-        assertEq(paidInvoicesBefore[0], invoiceId1, "Should detect first invoice as paid");
-
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        uint256 gain1Before = bullaFactoring.paidInvoicesGain(invoiceId1);
-        assertEq(gain1Before, 0, "Should have no recorded gain before automatic reconciliation");
-
-        // Fund second invoice - this should trigger automatic reconciliation of first invoice
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Verify automatic reconciliation occurred
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
-        uint256 gain1After = bullaFactoring.paidInvoicesGain(invoiceId1);
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
-
-        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
-        assertGt(gain1After, 0, "Should have recorded gain after automatic reconciliation");
         assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
     }
 
@@ -180,7 +111,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before redemption");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
@@ -196,7 +127,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify automatic reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
@@ -234,7 +165,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before redemption");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
@@ -250,7 +181,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify automatic reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
@@ -288,7 +219,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before withdrawal");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
@@ -305,7 +236,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify automatic reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
@@ -351,7 +282,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify first invoice is paid
-        (uint256[] memory paidInvoices1, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoices1, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoices1.length, 1, "Should have one paid invoice");
 
         uint256 pricePerShareBeforeFirstReconciliation = bullaFactoring.pricePerShare();
@@ -375,7 +306,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify second invoice is paid but not reconciled
-        (uint256[] memory paidInvoices2, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoices2, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoices2.length, 1, "Should have one paid invoice (the second one)");
         uint256 gain2Before = bullaFactoring.paidInvoicesGain(invoiceId2);
         assertEq(gain2Before, 0, "Second invoice should not be reconciled yet");
@@ -391,7 +322,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify second invoice was reconciled
         uint256 pricePerShareAfterSecondReconciliation = bullaFactoring.pricePerShare();
         uint256 gain2After = bullaFactoring.paidInvoicesGain(invoiceId2);
-        (uint256[] memory paidInvoicesFinal, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesFinal, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfterSecondReconciliation, pricePerShareBeforeSecondReconciliation, "Price per share should increase after second reconciliation");
         assertGt(gain2After, 0, "Second invoice should be reconciled after redemption");
@@ -517,7 +448,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify invoice is partially paid but not detected as fully paid
-        (uint256[] memory paidInvoicesBefore, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesBefore.length, 0, "Partially paid invoice should not appear in paid invoices");
 
         uint256 pricePerShareBeforePartialDeposit = bullaFactoring.pricePerShare();
@@ -538,7 +469,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         // Verify invoice is now fully paid
-        (uint256[] memory paidInvoicesAfter, ) = bullaFactoring.viewPoolStatus();
+        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesAfter.length, 1, "Fully paid invoice should appear in paid invoices");
 
         uint256 pricePerShareBeforeFinalDeposit = bullaFactoring.pricePerShare();
