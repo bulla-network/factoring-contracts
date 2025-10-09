@@ -6,8 +6,8 @@ import "./CommonSetup.t.sol";
 /**
  * @title TestReconciliationOfPaidInvoices
  * @notice Tests automatic reconciliation behavior triggered by state-changing functions
- * @dev Tests scenarios where _reconcileActivePaidInvoices() is called internally by deposit(), fundInvoice(), redeemAndOrQueue(), etc.
- *      Focus is on automatic reconciliation, not manual reconcileActivePaidInvoices() calls
+ * @dev Tests scenarios where _reconcilePaid() is called internally by deposit(), fundInvoice(), redeem(), etc.
+ *      Focus is on automatic reconciliation, not manual reconcilePaid() calls
  */
 contract TestReconciliationOfPaidInvoices is CommonSetup {
 
@@ -64,7 +64,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Alice redeems shares - this should trigger automatic reconciliation
         vm.startPrank(alice);
         uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 2;
-        bullaFactoring.redeemAndOrQueue(sharesToRedeem, alice, alice);
+        bullaFactoring.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
         // Verify automatic reconciliation occurred

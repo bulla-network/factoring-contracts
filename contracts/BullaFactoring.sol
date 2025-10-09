@@ -5,7 +5,6 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
-import {console} from "../lib/forge-std/src/console.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
@@ -869,46 +868,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return Math.min(super.maxWithdraw(_owner), totalAssets());
     }
 
-    /// @notice Helper function to handle the logic of withdrawing assets in exchange for fund shares
-    /// @param receiver The address to receive the assets
-    /// @param _owner The address who owns the shares to redeem
-    /// @param assets The amount of assets to withdraw
-    /// @return The number of shares redeemed
-    function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
-        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
-        reconcileActivePaidInvoices();
-        processRedemptionQueue();
-        
-        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
- 
-        uint256 shares = super.withdraw(assets, receiver, _owner);
-
-        totalWithdrawals += assets;
-        return shares;
-    }
-
-    /// @notice Helper function to handle the logic of redeeming shares in exchange for assets
-    /// @param shares The number of shares to redeem
-    /// @param receiver The address to receive the assets
-    /// @param _owner The owner of the shares being redeemed
-    /// @return The number of shares redeemed
-    function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
-        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
-
-        reconcileActivePaidInvoices();
-        processRedemptionQueue();
-
-        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
-        
-        uint256 assets = super.redeem(shares, receiver, _owner);
-
-        totalWithdrawals += assets;
-
-        return assets;
-    }
 
     /// @notice Sets the grace period in days for determining if an invoice is impaired
     /// @param _days The number of days for the grace period
@@ -1109,13 +1069,12 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     // Redemption Queue Functions
 
-    /// @notice Attempt to redeem shares, queuing excess if insufficient liquidity
+    /// @notice Redeem shares, queuing excess if insufficient liquidity
     /// @param shares The number of shares to redeem
     /// @param receiver The address to receive the redeemed assets
     /// @param _owner The owner of the shares being redeemed
-    /// @return redeemedAssets The amount of assets actually redeemed
-    /// @return queuedShares The amount of shares queued for future redemption
-    function redeemAndOrQueue(uint256 shares, address receiver, address _owner) external returns (uint256 redeemedAssets, uint256 queuedShares) {
+    /// @return The amount of assets redeemed
+    function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
@@ -1124,26 +1083,29 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         uint256 maxRedeemableShares = maxRedeem(_owner);
         uint256 sharesToRedeem = Math.min(shares, maxRedeemableShares);
+        uint256 redeemedAssets = 0;
         
         if (sharesToRedeem > 0) {
             redeemedAssets = super.redeem(sharesToRedeem, receiver, _owner);
             totalWithdrawals += redeemedAssets;
         }
 
-        queuedShares = shares - sharesToRedeem;
+        uint256 queuedShares = shares - sharesToRedeem;
         if (queuedShares > 0) {
             // Queue the remaining shares for future redemption
+            // The RedemptionQueued event is emitted by the redemptionQueue.queueRedemption call
             redemptionQueue.queueRedemption(_owner, receiver, queuedShares, 0);
         }
+        
+        return redeemedAssets;
     }
 
-    /// @notice Attempt to withdraw assets, queuing excess if insufficient liquidity
+    /// @notice Withdraw assets, queuing excess if insufficient liquidity
     /// @param assets The amount of assets to withdraw
     /// @param receiver The address to receive the withdrawn assets
     /// @param _owner The owner of the shares being redeemed
-    /// @return redeemedShares The amount of shares actually redeemed
-    /// @return queuedAssets The amount of assets queued for future withdrawal
-    function withdrawAndOrQueue(uint256 assets, address receiver, address _owner) external returns (uint256 redeemedShares, uint256 queuedAssets) {
+    /// @return The amount of shares redeemed
+    function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
 
@@ -1152,17 +1114,21 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         uint256 maxWithdrawableAssets = maxWithdraw(_owner);
         uint256 assetsToWithdraw = Math.min(assets, maxWithdrawableAssets);
+        uint256 redeemedShares = 0;
         
         if (assetsToWithdraw > 0) {
             redeemedShares = super.withdraw(assetsToWithdraw, receiver, _owner);
             totalWithdrawals += assetsToWithdraw;
         }
 
-        queuedAssets = assets - assetsToWithdraw;
+        uint256 queuedAssets = assets - assetsToWithdraw;
         if (queuedAssets > 0) {
             // Queue the remaining assets for future withdrawal
+            // The RedemptionQueued event is emitted by the redemptionQueue.queueRedemption call
             redemptionQueue.queueRedemption(_owner, receiver, 0, queuedAssets);
         }
+        
+        return redeemedShares;
     }
 
     /// @notice Process queued redemptions when liquidity becomes available

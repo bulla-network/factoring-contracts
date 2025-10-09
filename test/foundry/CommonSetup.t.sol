@@ -183,4 +183,18 @@ contract CommonSetup is Test {
 
         return bullaInvoice.createInvoice(params);
     }
+
+    /// @dev Helper function to extract queued shares and assets from RedemptionQueued events
+    /// @return queuedShares Amount of shares queued (0 if none)
+    /// @return queuedAssets Amount of assets queued (0 if none)
+    function getQueuedSharesAndAssetsFromEvent() internal returns (uint256 queuedShares, uint256 queuedAssets) {
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == keccak256("RedemptionQueued(address,address,uint256,uint256,uint256)")) {
+                (uint256 shares, uint256 assets, ) = abi.decode(entries[i].data, (uint256, uint256, uint256));
+                return (shares, assets);
+            }
+        }
+        return (0, 0);
+    }
 }

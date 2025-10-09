@@ -12,6 +12,7 @@ import {EIP712Helper} from "./utils/EIP712Helper.sol";
  * @dev Tests automatic queue processing, FIFO ordering, and integration with other contract functions
  */
 contract TestRedemptionQueueIntegration is CommonSetup {
+    
     EIP712Helper public sigHelper;
     // Additional test users
     address david = address(0x4);
@@ -96,7 +97,10 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Alice attempts to redeem - should fully redeem
         vm.prank(alice);
-        (uint256 redeemedAssets, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(redeemShares, alice, alice);
+        vm.recordLogs();
+        uint256 redeemedAssets = bullaFactoring.redeem(redeemShares, alice, alice);
+
+        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
         
         assertEq(redeemedAssets, redeemShares, "Should redeem full amount");
         assertEq(queuedShares, 0, "Should not queue any shares");
@@ -124,8 +128,12 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
         
         // Alice attempts to redeem more than available - should partially redeem and queue
+        vm.recordLogs();
         vm.prank(alice);
-        (uint256 redeemedAssets, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(redeemShares, alice, alice);
+        uint256 redeemedAssets = bullaFactoring.redeem(redeemShares, alice, alice);
+        
+        // Parse the RedemptionQueued event to get actual queued shares
+        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
         
         assertTrue(redeemedAssets > 0, "Should redeem some amount");
         assertTrue(queuedShares > 0, "Should queue remaining shares");
@@ -153,11 +161,13 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
         // Alice attempts to redeem - should queue all shares
+        vm.expectEmit(true, true, false, true);
+        emit IRedemptionQueue.RedemptionQueued(alice, alice, redeemShares, 0, 0);
+        
         vm.prank(alice);
-        (uint256 redeemedAssets, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(redeemShares, alice, alice);
+        uint256 redeemedAssets = bullaFactoring.redeem(redeemShares, alice, alice);
         
         assertEq(redeemedAssets, 0, "Should redeem nothing");
-        assertEq(queuedShares, redeemShares, "Should queue all shares");
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should not be empty");
     }
 
@@ -170,8 +180,10 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.deposit(depositAmount, alice);
         
         // Alice attempts to withdraw - should fully withdraw
+        vm.recordLogs();
         vm.prank(alice);
-        (uint256 redeemedShares, uint256 queuedAssets) = bullaFactoring.withdrawAndOrQueue(withdrawAssets, alice, alice);
+        uint256 redeemedShares = bullaFactoring.withdraw(withdrawAssets, alice, alice);
+        (, uint256 queuedAssets) = getQueuedSharesAndAssetsFromEvent();
         
         assertEq(redeemedShares, withdrawAssets, "Should redeem equivalent shares");
         assertEq(queuedAssets, 0, "Should not queue any assets");
@@ -199,8 +211,12 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
         
         // Alice attempts to withdraw more than available - should partially withdraw and queue
+        vm.recordLogs();
         vm.prank(alice);
-        (uint256 redeemedShares, uint256 queuedAssets) = bullaFactoring.withdrawAndOrQueue(withdrawAssets, alice, alice);
+        uint256 redeemedShares = bullaFactoring.withdraw(withdrawAssets, alice, alice);
+        
+        // Parse the RedemptionQueued event to get actual queued assets
+        (, uint256 queuedAssets) = getQueuedSharesAndAssetsFromEvent();
         
         assertTrue(redeemedShares > 0, "Should redeem some shares");
         assertTrue(queuedAssets > 0, "Should queue remaining assets");
@@ -226,9 +242,14 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
+        vm.recordLogs();
         // Alice attempts to withdraw - should queue all assets
+        vm.expectEmit(true, true, false, true);
+        emit IRedemptionQueue.RedemptionQueued(alice, alice, 0, withdrawAssets, 0);
+        
         vm.prank(alice);
-        (uint256 redeemedShares, uint256 queuedAssets) = bullaFactoring.withdrawAndOrQueue(withdrawAssets, alice, alice);
+        uint256 redeemedShares = bullaFactoring.withdraw(withdrawAssets, alice, alice);
+        (, uint256 queuedAssets) = getQueuedSharesAndAssetsFromEvent();
         
         assertEq(redeemedShares, 0, "Should redeem no shares");
         assertEq(queuedAssets, withdrawAssets, "Should queue all assets");
@@ -263,13 +284,13 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Users queue redemptions in order: Alice, Bob, Charlie
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        bullaFactoring.redeem(queueAmount, alice, alice);
         
         vm.prank(bob);
-        bullaFactoring.redeemAndOrQueue(queueAmount, bob, bob);
+        bullaFactoring.redeem(queueAmount, bob, bob);
         
         vm.prank(charlie);
-        bullaFactoring.redeemAndOrQueue(queueAmount, charlie, charlie);
+        bullaFactoring.redeem(queueAmount, charlie, charlie);
         
         // Read balances before triggering queue processing
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
@@ -319,11 +340,16 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         uint256 maxRedeemableShares = bullaFactoring.maxRedeem(alice);
         
+        vm.recordLogs();
         vm.prank(alice);
-        (uint256 redeemedAssets, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(excessiveRedeemAmount, alice, alice);
+        uint256 redeemedAssets = bullaFactoring.redeem(excessiveRedeemAmount, alice, alice);
+        
+        // Parse the RedemptionQueued event to get actual queued shares
+        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
         
         assertTrue(redeemedAssets <= maxRedeemableShares, "Should not exceed max redeemable");
-        assertEq(queuedShares, excessiveRedeemAmount - redeemedAssets, "Should queue excess");
+        assertEq(queuedShares, excessiveRedeemAmount - redeemedAssets, "Should queue excess shares");
+        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Should have queued excess");
     }
 
     // ============================================
@@ -333,12 +359,15 @@ contract TestRedemptionQueueIntegration is CommonSetup {
     function testQueueRedemption_WithZeroShares() public {
         vm.prank(alice);
         bullaFactoring.deposit(1000000, alice);
-        
+            
+        vm.recordLogs();
         vm.prank(alice);
-        (uint256 redeemedAssets, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(0, alice, alice);
+        uint256 redeemedAssets = bullaFactoring.redeem(0, alice, alice);
         
-        assertEq(redeemedAssets, 0, "Should redeem nothing");
+        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
+        
         assertEq(queuedShares, 0, "Should queue nothing");
+        assertEq(redeemedAssets, 0, "Should redeem nothing");
         assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should remain empty");
     }
 
@@ -361,7 +390,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
         
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        bullaFactoring.redeem(queueAmount, alice, alice);
         
         uint256 aliceShares = bullaFactoring.balanceOf(alice);
 
@@ -404,8 +433,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
         
+        vm.recordLogs();
         vm.prank(alice);
-        (, uint256 queuedShares) = bullaFactoring.redeemAndOrQueue(queueAmount, alice, alice);
+        bullaFactoring.redeem(queueAmount, alice, alice);
+        
+        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
         
         IRedemptionQueue.QueuedRedemption memory redemption = bullaFactoring.getRedemptionQueue().getNextRedemption();
         
@@ -442,19 +474,18 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Mixed redemption types
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(depositAmount, alice, alice); // Share-based
+        bullaFactoring.redeem(depositAmount, alice, alice); // Share-based
         
         vm.prank(bob);
-        bullaFactoring.withdrawAndOrQueue(depositAmount, bob, bob); // Asset-based
+        bullaFactoring.withdraw(depositAmount, bob, bob); // Asset-based
         
         vm.prank(charlie);
-        bullaFactoring.redeemAndOrQueue(depositAmount, charlie, charlie); // Share-based
+        bullaFactoring.redeem(depositAmount, charlie, charlie); // Share-based
         
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should have mixed redemptions");
         
         // Read balances before triggering queue processing
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
-        uint256 bobBalanceBefore = asset.balanceOf(bob);
         uint256 charlieBalanceBefore = asset.balanceOf(charlie);
         
         // Add limited liquidity through deposits - enough for only Alice's redemption (1M + buffer)
@@ -466,7 +497,6 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Verify FIFO processing works with mixed types
         uint256 aliceIncrease = asset.balanceOf(alice) - aliceBalanceBefore;
-        uint256 bobIncrease = asset.balanceOf(bob) - bobBalanceBefore;  
         uint256 charlieIncrease = asset.balanceOf(charlie) - charlieBalanceBefore;
         
         // Alice should be processed first (FIFO), Charlie should not be processed
@@ -490,7 +520,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Queue redemption
         vm.prank(alice);
-        bullaFactoring.redeemAndOrQueue(500000, alice, alice);
+        bullaFactoring.redeem(500000, alice, alice);
         
         // Remove Alice's redeem permissions
         vm.prank(address(this));
@@ -499,7 +529,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         // Attempt to queue another redemption should fail
         vm.prank(alice);
         vm.expectRevert();
-        bullaFactoring.redeemAndOrQueue(200000, alice, alice);
+        bullaFactoring.redeem(200000, alice, alice);
     }
 
     // ============================================
