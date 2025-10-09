@@ -13,6 +13,7 @@ import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {IBullaFrendLendV2, LoanRequestParams} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {InterestConfig} from "@bulla/contracts-v2/src/libraries/CompoundInterestLib.sol";
 import "./RedemptionQueue.sol";
+import "./libraries/FeeCalculations.sol";
 
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
@@ -313,59 +314,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         emit InvoiceApproved(invoiceId, _validUntil, feeParams);
     }
 
-    /// @notice Calculates the interest, protocol fee, admin fee, and spread for a given invoice approval over a specified number of days
-    /// @param approval The invoice approval details
-    /// @param daysOfInterest The number of days over which interest is calculated
-    /// @return interest The calculated base interest amount (target yield portion)
-    /// @return spreadAmount The calculated spread amount
-    /// @return protocolFee The calculated protocol fee amount
-    /// @return adminFee The calculated admin fee amount
-    function calculateFees(InvoiceApproval memory approval, uint256 daysOfInterest, IInvoiceProviderAdapterV2.Invoice memory invoice) private pure returns (uint256 interest, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee, uint256 kickbackAmount) {
-        // Calculate the APR discount for the payment period
-        // millibips used due to the small nature of the fees
-        uint256 _targetYieldMbps = Math.mulDiv(uint256(approval.feeParams.targetYieldBps) * 1000, daysOfInterest, 365);
-        uint256 spreadRateMbps = Math.mulDiv(uint256(approval.feeParams.spreadBps) * 1000, daysOfInterest, 365);
-        
-        // Calculate the admin fee rate
-        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.adminFeeBps) * 1000, daysOfInterest, 365);
-
-        uint256 protocolFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.protocolFeeBps) * 1000, daysOfInterest, 365);
-        
-        // Calculate the total fee rate Mbps (base yield + spread + protocol fee + admin fee)
-        uint256 totalFeeRateMbps = _targetYieldMbps + spreadRateMbps + adminFeeRateMbps + protocolFeeRateMbps;
-
-        // cap kickback amount to the principal amount
-        uint256 capKickbackAmount = approval.initialInvoiceValue > approval.fundedAmountNet ? approval.initialInvoiceValue - approval.fundedAmountNet : 0;
-        
-        // cap total fees to max available to distribute
-        // invoice amount includes interest
-        // Handle case where override amount might be higher than invoice amount
-        uint256 availableFromInvoice = invoice.invoiceAmount - approval.initialPaidAmount;
-        uint256 capTotalFees =
-            availableFromInvoice > approval.fundedAmountNet
-            ? availableFromInvoice - approval.fundedAmountNet
-            : 0;
-
-        uint256 minimumFees = capTotalFees > capKickbackAmount ? capTotalFees - capKickbackAmount : 0;
-
-        // Calculate total fees on the principal amount only
-        uint256 totalFees = Math.max(Math.min(capTotalFees, Math.mulDiv(approval.initialInvoiceValue, totalFeeRateMbps, 10_000_000)), minimumFees);
-        
-        adminFee = totalFeeRateMbps == 0 || totalFees == 0 ? 0 : Math.mulDiv(totalFees, adminFeeRateMbps, totalFeeRateMbps);
-        interest = totalFeeRateMbps == 0 || totalFees == 0 ? 0 : Math.mulDiv(totalFees, _targetYieldMbps, totalFeeRateMbps);
-        spreadAmount = totalFeeRateMbps == 0 || totalFees == 0 ? 0 : Math.mulDiv(totalFees, spreadRateMbps, totalFeeRateMbps);
-        protocolFee = totalFees - adminFee - interest - spreadAmount;
-
-        // Handle case where total fees might exceed available amount from invoice
-        uint256 totalDueToCreditor =
-            availableFromInvoice > totalFees
-            ? availableFromInvoice - totalFees
-            : 0;
-
-        kickbackAmount = totalDueToCreditor > approval.fundedAmountNet ? totalDueToCreditor - approval.fundedAmountNet : 0;
-
-        return (interest, spreadAmount, protocolFee, adminFee, kickbackAmount);
-    }
 
     /// @notice Calculates the kickback amount for a given funded amount allowing early payment
     /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
@@ -376,28 +324,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return trueAdminFee The true admin fee amount
     function calculateKickbackAmount(uint256 invoiceId) external view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        return _calculateKickbackAmount(invoiceId, invoice);
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        return FeeCalculations.calculateKickbackAmount(approval, invoice);
     }
 
-    /// @notice Internal optimized version of calculateKickbackAmount when invoice data is already available
-    /// @param invoiceId The ID of the invoice for which to calculate the kickback amount
-    /// @param invoice The invoice data to avoid external call
-    /// @return kickbackAmount The calculated kickback amount
-    /// @return trueInterest The true interest amount
-    /// @return trueSpreadAmount The true spread amount
-    /// @return trueProtocolFee The true protocol fee amount
-    /// @return trueAdminFee The true admin fee amount
-    function _calculateKickbackAmount(uint256 invoiceId, IInvoiceProviderAdapterV2.Invoice memory invoice) internal view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) {
-        InvoiceApproval memory approval = approvedInvoices[invoiceId];
-
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        
-        uint256 daysOfInterest = daysSinceFunded = Math.max(daysSinceFunded, approval.feeParams.minDaysInterestApplied);
-
-        (trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, kickbackAmount) = calculateFees(approval, daysOfInterest, invoice);
-
-        return (kickbackAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
-    }
 
     /// @notice Calculates the total realized gain or loss from paid and impaired invoices
     /// @return The total realized gain adjusted for losses
@@ -492,7 +422,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
             
             if(!invoice.isImpaired) {
-                (,uint256 trueInterest,,,) = _calculateKickbackAmount(invoiceId, invoice);
+                IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+                (,uint256 trueInterest,,,) = FeeCalculations.calculateKickbackAmount(approval, invoice);
                 accruedProfits += trueInterest;
             }
         }
@@ -540,25 +471,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return targetProtocolFee The calculated protocol fee
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
     function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, uint256 netFundedAmount) {
-        InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        fundedAmountGross = Math.mulDiv(approval.initialInvoiceValue, factorerUpfrontBps, 10000);
-
-        uint256 daysUntilDue =  Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Floor);
-
-        /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
-        daysUntilDue = Math.max(daysUntilDue, approval.feeParams.minDaysInterestApplied);
-
-        (targetInterest, targetSpreadAmount, targetProtocolFee, adminFee, ) = calculateFees(approval, daysUntilDue, invoice);
-
-        uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + targetProtocolFee;
-        netFundedAmount = fundedAmountGross > totalFees ? fundedAmountGross - totalFees : 0;
-
-        return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, targetProtocolFee, netFundedAmount);
+        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps);
     }
 
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
@@ -701,7 +620,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             IInvoiceProviderAdapterV2.Invoice memory invoice = paidInvoices[i];
             
             // calculate kickback amount adjusting for true interest, protocol and admin fees
-            (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = _calculateKickbackAmount(invoiceId, invoice);
+            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+            (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
  
             incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
 
@@ -724,8 +644,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 removeActivePaidInvoice(invoiceId);   
             }
 
-            InvoiceApproval memory approval = approvedInvoices[invoiceId];
-            emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
+            IBullaFactoringV2.InvoiceApproval memory approval2 = approvedInvoices[invoiceId];
+            emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, approval2.fundedAmountNet, kickbackAmount, receiverAddress);
         }
         
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
@@ -760,13 +680,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         address originalCreditor = originalCreditors[invoiceId];
         if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
 
-        InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         // Calculate the funded amount for the invoice
         uint256 fundedAmount = approval.fundedAmountNet;
 
         // Calculate the number of days since funding
          uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, ) = calculateFees(approval, daysSinceFunded, invoice);
+        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
         // Need to subtract payments since funding start
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
         int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueProtocolFee + trueAdminFee) - int256(paymentSinceFunding);
