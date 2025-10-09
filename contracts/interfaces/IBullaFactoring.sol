@@ -105,8 +105,6 @@ interface IBullaFactoringV2 {
     function assetAddress() external view returns (IERC20);
 
     // Redemption queue functions
-    function redeemAndOrQueue(uint256 shares, address receiver, address _owner) external returns (uint256 redeemedAssets, uint256 queuedShares);
-    function withdrawAndOrQueue(uint256 assets, address receiver, address _owner) external returns (uint256 redeemedShares, uint256 queuedAssets);
     function getRedemptionQueue() external view returns (IRedemptionQueue);
     function setRedemptionQueue(address _redemptionQueue) external;
 }

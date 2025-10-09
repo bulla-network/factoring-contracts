@@ -154,7 +154,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         uint256 aliceRedemptionShares = bullaFactoring.previewWithdraw(aliceTargetAssets);
         
         vm.startPrank(alice);
-        (uint256 aliceRedeemed, uint256 aliceQueued) = bullaFactoring.redeemAndOrQueue(aliceRedemptionShares, alice, alice);
+        uint256 aliceRedeemed = bullaFactoring.redeem(aliceRedemptionShares, alice, alice);
         vm.stopPrank();
         
         // Charlie redeems after Alice, should also process immediately  
@@ -163,11 +163,11 @@ contract TestEmptyRedemptionGas is CommonSetup {
         uint256 charlieRedemptionShares = bullaFactoring.previewWithdraw(charlieTargetAssets);
         
         vm.startPrank(charlie);
-        (uint256 charlieRedeemed, uint256 charlieQueued) = bullaFactoring.redeemAndOrQueue(charlieRedemptionShares, charlie, charlie);
+        uint256 charlieRedeemed = bullaFactoring.redeem(charlieRedemptionShares, charlie, charlie);
         vm.stopPrank();
         
-        console.log("  Alice: redeemed", aliceRedeemed, "queued", aliceQueued);
-        console.log("  Charlie: redeemed", charlieRedeemed, "queued", charlieQueued);
+        console.log("  Alice: redeemed", aliceRedeemed);
+        console.log("  Charlie: redeemed", charlieRedeemed);
         
         // Verify both users actually got liquidity
         bool aliceGotLiquidity = aliceRedeemed > 0;

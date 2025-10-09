@@ -94,8 +94,8 @@ contract TestGasProfiler is CommonSetup {
         // Profile viewPoolStatus
         _profileViewPoolStatus();
         
-        // Profile reconcileActivePaidInvoices  
-        _profileReconcileActivePaidInvoices();
+        // Profile reconcilePaid  
+        _profilereconcilePaid();
         
         // Profile individual expensive functions
         _profileExpensiveFunctions();
@@ -131,8 +131,8 @@ contract TestGasProfiler is CommonSetup {
         console.log("");
     }
     
-    function _profileReconcileActivePaidInvoices() internal {
-        console.log("=== 2. reconcileActivePaidInvoices() Deep Dive ===");
+    function _profilereconcilePaid() internal {
+        console.log("=== 2. reconcilePaid() Deep Dive ===");
         
         uint256 gasBefore = gasleft();
         uint256 callsBefore = _getInvoiceDetailsCallCount;

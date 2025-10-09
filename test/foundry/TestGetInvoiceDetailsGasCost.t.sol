@@ -85,13 +85,13 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         console.log("Found", paidInvoices.length, "paid invoices");
         console.log("viewPoolStatus() gas:", viewPoolStatusGas);
 
-        // Measure reconcileActivePaidInvoices (checking + processing payments)
+        // Measure reconcilePaid (checking + processing payments)
         gasBefore = gasleft();
         bullaFactoring.reconcileActivePaidInvoices();
         gasAfter = gasleft();
         uint256 reconcileGas = gasBefore - gasAfter;
 
-        console.log("reconcileActivePaidInvoices() gas:", reconcileGas);
+        console.log("reconcilePaid() gas:", reconcileGas);
         console.log("Processing overhead:", reconcileGas - viewPoolStatusGas);
         console.log("Gas per paid invoice processed:", (reconcileGas - viewPoolStatusGas) / paidInvoices.length);
     }
@@ -145,17 +145,17 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         console.log("  Found", paidInvoiceIds.length, "paid invoices");
         console.log("");
 
-        // STEP 2: Measure full reconcileActivePaidInvoices (includes both _reconcile and _processQueue)
+        // STEP 2: Measure full reconcilePaid (includes both _reconcile and _processQueue)
         gasBefore = gasleft();
         bullaFactoring.reconcileActivePaidInvoices();
         gasAfter = gasleft();
         uint256 fullReconcileGas = gasBefore - gasAfter;
 
-        console.log("Step 2: reconcileActivePaidInvoices() [full function]");
+        console.log("Step 2: reconcilePaid() [full function]");
         console.log("  Gas cost:", fullReconcileGas);
         console.log("");
 
-        // STEP 3: Calculate _reconcileActivePaidInvoices overhead
+        // STEP 3: Calculate _reconcilePaid overhead
         // Since there's no redemption queue activity, we can estimate:
         uint256 reconcileOnlyOverhead = fullReconcileGas - viewPoolStatusGas;
         
@@ -234,8 +234,8 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         console.log("  Paid invoices:", numPaid);
         console.log("");
 
-        // COMPONENT 3: Full reconcileActivePaidInvoices() (includes _reconcile + _processQueue)
-        console.log("=== COMPONENT 3: reconcileActivePaidInvoices() ===");
+        // COMPONENT 3: Full reconcilePaid() (includes _reconcile + _processQueue)
+        console.log("=== COMPONENT 3: reconcilePaid() ===");
         uint256 gasBefore = gasleft();
         bullaFactoring.reconcileActivePaidInvoices();
         uint256 gasAfter = gasleft();
@@ -246,37 +246,37 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
 
     function testThreeComponentGasBreakdownWithOneInvoiceAndAllPaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 1 INVOICE ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(1, 1);
     }
 
     function testThreeComponentGasBreakdownWithOneInvoiceNonePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 1 INVOICE, 0 PAID ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(1, 0);
     }
 
     function testThreeComponentGasBreakdownWithFifteenInvoicesNonePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 15 INVOICES, 0 PAID ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(15, 0);
     }
 
     function testThreeComponentGasBreakdownWithThirtyInvoicesNonePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 30 INVOICES, 0 PAID ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(30, 0);
     }
 
     function testThreeComponentGasBreakdownWithSixtyInvoicesNonePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 60 INVOICES, 0 PAID ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(60, 0);
     }
 
     function testThreeComponentGasBreakdownWithNinetyInvoicesNonePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 90 INVOICES, 0 PAID ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(90, 0);
     }
 
@@ -1067,31 +1067,31 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
 
     function testThreeComponentGasBreakdownWithFifteenInvoicesAndAllPaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 15 INVOICES ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(15, 15);
     }
 
     function testThreeComponentGasBreakdownWith90InvoicesAndAllPaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN - 90 INVOICES ===");
-        console.log("Measuring: reconcileActivePaidInvoices only\n");
+        console.log("Measuring: reconcilePaid only\n");
         _measureThreeComponentGasBreakdown(90, 90);
     }
 
     function testThreeComponentGasBreakdownWith60InvoicesAndAllPaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN ===");
-        console.log("Measuring: viewPoolStatus, _reconcileActivePaidInvoices, _processRedemptionQueue\n");
+        console.log("Measuring: viewPoolStatus, _reconcilePaid, _processRedemptionQueue\n");
         _measureThreeComponentGasBreakdown(60, 60);
     }
 
     function testThreeComponentGasBreakdownWithThirtyInvoicesAndFivePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN ===");
-        console.log("Measuring: viewPoolStatus, _reconcileActivePaidInvoices, _processRedemptionQueue\n");
+        console.log("Measuring: viewPoolStatus, _reconcilePaid, _processRedemptionQueue\n");
         _measureThreeComponentGasBreakdown(30, 30);
     }
 
     function testThreeComponentGasBreakdownWith15InvoicesAndFivePaid() public {
         console.log("\n=== THREE COMPONENT GAS BREAKDOWN ===");
-        console.log("Measuring: viewPoolStatus, _reconcileActivePaidInvoices, _processRedemptionQueue\n");
+        console.log("Measuring: viewPoolStatus, _reconcilePaid, _processRedemptionQueue\n");
         _measureThreeComponentGasBreakdown(15, 15);
     }
 

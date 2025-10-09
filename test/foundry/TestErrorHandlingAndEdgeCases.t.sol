@@ -267,10 +267,14 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
 
         // if Alice tries to redeem more shares than she owns, it will revert
+        vm.recordLogs();
         vm.startPrank(alice);
-        vm.expectRevert(abi.encodeWithSignature("ERC4626ExceededMaxRedeem(address,uint256,uint256)", alice, sharesToRedeemIncludingKickback, maxRedeem));
         bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
         vm.stopPrank();
+
+        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
+        
+        assertGt(queuedShares, 0, "Should queue excess shares");
     }
 
     function testGainLossCanBeNegative() public {

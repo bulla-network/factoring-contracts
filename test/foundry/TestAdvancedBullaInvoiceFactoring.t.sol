@@ -302,55 +302,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
-
-    function testBullaInvoiceRedemptionConstraints() public {
-        uint256 initialDeposit = 200000;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        uint256 invoiceAmount = 150000;
-        uint256 interestRate = 1000;
-        uint256 periodsPerYear = 365;
-        uint256 _dueBy = block.timestamp + 60 days;
-
-        // Create and fund large invoice
-        vm.startPrank(bob);
-        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, interestRate, periodsPerYear);
-        vm.stopPrank();
-
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
-        vm.stopPrank();
-
-        vm.startPrank(bob);
-        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Try to redeem more than available after funding
-        uint256 aliceShares = bullaFactoring.balanceOf(alice);
-        uint256 maxRedeemableShares = bullaFactoring.maxRedeem(alice);
-        uint256 maxWithdrawableAssets = bullaFactoring.maxWithdraw(alice);
-
-        // Max redeemable should be less than total shares due to active invoice
-        assertLt(maxRedeemableShares, aliceShares);
-        assertLt(maxWithdrawableAssets, initialDeposit);
-
-        // Try to redeem all shares (should fail)
-        vm.startPrank(alice);
-        vm.expectRevert();
-        bullaFactoring.redeem(aliceShares, alice, alice);
-        vm.stopPrank();
-
-        // Redeem only what's allowed
-        vm.startPrank(alice);
-        if (maxRedeemableShares > 0) {
-            bullaFactoring.redeem(maxRedeemableShares, alice, alice);
-        }
-        vm.stopPrank();
-    }
-
+    
     function testBullaInvoiceGracePeriodEdgeCases() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);

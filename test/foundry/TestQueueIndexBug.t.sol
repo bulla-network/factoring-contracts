@@ -81,17 +81,17 @@ contract TestQueueIndexBug is CommonSetup {
         
         // Step 3: Queue multiple redemption requests (all will be queued due to insufficient liquidity)
         vm.startPrank(alice_investor);
-        (uint256 aliceRedeemed, uint256 aliceQueued) = bullaFactoring.redeemAndOrQueue(aliceShares, alice_investor, alice_investor);
+        uint256 aliceRedeemed = bullaFactoring.redeem(aliceShares, alice_investor, alice_investor);
         vm.stopPrank();
         
         // vm.startPrank(bob_investor);
-        // (uint256 bobRedeemed, uint256 bobQueued) = bullaFactoring.redeemAndOrQueue(bobShares, bob_investor, bob_investor);
+        // uint256 bobRedeemed = bullaFactoring.redeem(bobShares, bob_investor, bob_investor);
         // vm.stopPrank();
         
-        console.log("Alice redeemed:", aliceRedeemed, "queued:", aliceQueued);
+        console.log("Alice redeemed:", aliceRedeemed);
         
-        // Verify all redemptions are mostly queued (limited liquidity available)
-        assertTrue(aliceQueued > 0, "Some redemptions should be queued");
+        // Verify some redemptions are queued (limited liquidity available)
+        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Some redemptions should be queued");
         
         // Check queue state
         IRedemptionQueue.QueuedRedemption memory nextRedemption = bullaFactoring.getRedemptionQueue().getNextRedemption();
@@ -116,7 +116,7 @@ contract TestQueueIndexBug is CommonSetup {
         // THIS MOVES THE HEAD to index 1
         // this is a second redemption, it will fail. This will cause the deposit to fail next.
         vm.prank(alice_investor);
-        bullaFactoring.redeemAndOrQueue(aliceShares, alice_investor, alice_investor);
+        bullaFactoring.redeem(aliceShares, alice_investor, alice_investor);
 
         // Bob deposits, but no longer fails after the code change
         vm.startPrank(bob_investor);
