@@ -697,7 +697,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        (, uint targetAdminFeeAfterFeeChange, , , uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, uint targetAdminFeeAfterFeeChange, , uint targetSpreadAfterFeeChange, uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         vm.warp(dueBy - 1);
@@ -707,8 +707,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         bullaFactoring.reconcileActivePaidInvoices();
+        
+        // Note: Since spread is now added to adminFeeBalance, we need to compare against the combined amount
+        uint256 targetCombinedAdminFeeAfterFeeChange = targetAdminFeeAfterFeeChange + targetSpreadAfterFeeChange;
         assertLt(bullaFactoring.protocolFeeBalance(), targetProtocolFeeAfterFeeChange, "Protocol fee balance should be less than new protocol fee");
-        assertLt(bullaFactoring.adminFeeBalance(), targetAdminFeeAfterFeeChange, "Admin fee balance should be less than new admin fee");
+        assertLt(bullaFactoring.adminFeeBalance(), targetCombinedAdminFeeAfterFeeChange, "Admin fee balance should be less than new combined admin+spread fee");
     }
 }
 

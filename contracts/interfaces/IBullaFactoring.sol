@@ -80,7 +80,6 @@ interface IBullaFactoringV2 {
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
-    event SpreadGainsWithdrawn(address indexed owner, uint256 amount);
     event DepositPermissionsChanged(address newAddress);
     event RedeemPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);

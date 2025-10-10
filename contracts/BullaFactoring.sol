@@ -32,8 +32,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint256 public protocolFeeBalance;
     /// @notice Accumulated admin fee balance
     uint256 public adminFeeBalance;
-    /// @notice Accumulated spread gains balance
-    uint256 public spreadGainsBalance;
     /// @notice Address of the underlying asset token (e.g., USDC)
     IERC20 public assetAddress;
     /// @notice Address of the invoice provider contract adapter
@@ -65,10 +63,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     IRedemptionQueue public redemptionQueue;
 
     /// Mapping of paid invoices ID to track gains/losses
-    mapping(uint256 => uint256) public paidInvoicesGain;
-
-    /// Mapping of paid invoices ID to track spread gains, that belong to pool owner and are not part of the pool's yield
-    mapping(uint256 => uint256) public paidInvoicesSpreadGain;
+    uint256 public paidInvoicesGain = 0;
 
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
@@ -333,12 +328,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Calculates the total realized gain or loss from paid and impaired invoices
     /// @return The total realized gain adjusted for losses
     function calculateRealizedGainLoss() public view returns (int256) {
-        int256 realizedGains = 0;
-        // Consider gains from paid invoices
-        for (uint256 i = 0; i < paidInvoicesIds.length; i++) {
-            uint256 invoiceId = paidInvoicesIds[i];
-            realizedGains += int256(paidInvoicesGain[invoiceId]);
-        }
+        int256 realizedGains = int256(paidInvoicesGain);
 
         // Consider losses from impaired invoices by fund
         for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
@@ -602,14 +592,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param trueAdminFee The true admin fee amount for the invoice
     function incrementProfitAndFeeBalances(uint256 invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) private {
         // Add the admin fee to the balance
-        adminFeeBalance += trueAdminFee;
+        adminFeeBalance += trueAdminFee + trueSpreadAmount;
 
         // store factoring gain (base yield only)
-        paidInvoicesGain[invoiceId] = trueInterest;
-
-        // store spread gain separately
-        paidInvoicesSpreadGain[invoiceId] = trueSpreadAmount;
-        spreadGainsBalance += trueSpreadAmount;
+        paidInvoicesGain += trueInterest;
 
         // Update protocol fee balance
         protocolFeeBalance += trueProtocolFee;
@@ -839,18 +825,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Allows the Pool Owner to withdraw accumulated admin fees and spread gains.
     function withdrawAdminFeesAndSpreadGains() external onlyOwner {
-        uint256 adminFeeAmount = adminFeeBalance;
-        uint256 spreadAmount = spreadGainsBalance;
-        uint256 totalAmount = adminFeeAmount + spreadAmount;
-        
-        if (totalAmount == 0) revert NoFeesToWithdraw();
+        if (adminFeeBalance == 0) revert NoFeesToWithdraw();
+        uint256 _adminFeeBalance = adminFeeBalance;
         
         adminFeeBalance = 0;
-        spreadGainsBalance = 0;
         
-        assetAddress.safeTransfer(msg.sender, totalAmount);
-        emit AdminFeesWithdrawn(msg.sender, adminFeeAmount);
-        emit SpreadGainsWithdrawn(msg.sender, spreadAmount);
+        assetAddress.safeTransfer(msg.sender, _adminFeeBalance);
+        emit AdminFeesWithdrawn(msg.sender, _adminFeeBalance);
     }
 
     /// @notice Updates the Bulla DAO address

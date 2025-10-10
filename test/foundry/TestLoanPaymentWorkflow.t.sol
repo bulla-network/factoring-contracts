@@ -139,7 +139,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Record balances before payment
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
-        uint256 spreadGainsBalanceBefore = bullaFactoring.spreadGainsBalance();
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
         uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
         
@@ -155,7 +154,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Record balances after payment and reconciliation
         uint256 bobBalanceAfter = asset.balanceOf(bob);
         uint256 factoringBalanceAfter = asset.balanceOf(address(bullaFactoring));
-        uint256 spreadGainsBalanceAfter = bullaFactoring.spreadGainsBalance();
         uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
         uint256 adminFeeBalanceAfter = bullaFactoring.adminFeeBalance();
         
@@ -175,11 +173,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Verify fee balances increased
         assertGt(
-            spreadGainsBalanceAfter,
-            spreadGainsBalanceBefore,
-            "Spread gains should have increased"
-        );
-        assertGt(
             protocolFeeBalanceAfter,
             protocolFeeBalanceBefore,
             "Protocol fee balance should have increased"
@@ -196,7 +189,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Verify kickback was sent to factoring contract (original creditor)
         assertGt(
-            bullaFactoring.paidInvoicesGain(loanId),
+            bullaFactoring.paidInvoicesGain(),
             0,
             "Should have recorded gain for paid loan"
         );
@@ -226,6 +219,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Record balances before payment
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain(); // Record cumulative gain before payment
         
         // Bob pays the loan early
         vm.startPrank(bob);
@@ -249,19 +243,21 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Early payment should result in lower interest charges than full term
         // Calculate expected interest for half the term (annualized rates)
+        // Note: paidInvoicesGain now only tracks the target yield portion (not spread)
         uint256 actualDays = termLength / 2 / 1 days; // 30 days for early payment
         uint256 fullTermDays = termLength / 1 days; // 60 days for full term
         uint256 expectedEarlyInterest = Math.mulDiv(
-            Math.mulDiv(principalAmount, targetYieldBps + spreadBps, 10000),
+            Math.mulDiv(principalAmount, targetYieldBps, 10000),
             actualDays,
             365
         );
         uint256 expectedFullTermInterest = Math.mulDiv(
-            Math.mulDiv(principalAmount, targetYieldBps + spreadBps, 10000),
+            Math.mulDiv(principalAmount, targetYieldBps, 10000),
             fullTermDays,
             365
         );
-        uint256 actualInterest = bullaFactoring.paidInvoicesGain(loanId) + bullaFactoring.paidInvoicesSpreadGain(loanId);
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
+        uint256 actualInterest = gainAfter - gainBefore; // Calculate gain from this payment
         
         assertLt(
             actualInterest,
@@ -306,6 +302,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Record balances before payment
         uint256 charlieBalanceBefore = asset.balanceOf(charlie);
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain(); // Record cumulative gain before payment
         
         // Charlie pays the loan late
         vm.startPrank(charlie);
@@ -329,19 +326,21 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Late payment should include additional interest
         // Calculate expected interest for the basic term (45 days) and late term (45 + 15 = 60 days) - annualized
+        // Note: paidInvoicesGain now only tracks the target yield portion (not spread)
         uint256 basicTermDays = termLength / 1 days; // 45 days
         uint256 lateTermDays = (termLength + 15 days) / 1 days; // 60 days
         uint256 expectedBasicTermInterest = Math.mulDiv(
-            Math.mulDiv(principalAmount, targetYieldBps + spreadBps, 10000),
+            Math.mulDiv(principalAmount, targetYieldBps, 10000),
             basicTermDays,
             365
         );
         uint256 expectedLateTermInterest = Math.mulDiv(
-            Math.mulDiv(principalAmount, targetYieldBps + spreadBps, 10000),
+            Math.mulDiv(principalAmount, targetYieldBps, 10000),
             lateTermDays,
             365
         );
-        uint256 actualInterest = bullaFactoring.paidInvoicesGain(loanId) + bullaFactoring.paidInvoicesSpreadGain(loanId);
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
+        uint256 actualInterest = gainAfter - gainBefore; // Calculate gain from this payment
         
         assertGt(
             actualInterest,
@@ -470,10 +469,13 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         (remainingPrincipal, interest) = bullaFrendLend.getTotalAmountDue(loanId1);
         uint256 loan1AmountDue = remainingPrincipal + interest;
         
+        uint256 gainBeforeLoan1 = bullaFactoring.paidInvoicesGain();
         vm.startPrank(bob);
         asset.approve(address(bullaFrendLend), loan1AmountDue);
         bullaFrendLend.payLoan(loanId1, loan1AmountDue);
         vm.stopPrank();
+        bullaFactoring.reconcileActivePaidInvoices(); // Reconcile to update gains
+        uint256 gainAfterLoan1 = bullaFactoring.paidInvoicesGain();
         
         // Fast forward to due date and pay loan 2 on time
         vm.warp(block.timestamp + (termLength / 2));
@@ -484,6 +486,8 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         asset.approve(address(bullaFrendLend), loan2AmountDue);
         bullaFrendLend.payLoan(loanId2, loan2AmountDue);
         vm.stopPrank();
+        bullaFactoring.reconcileActivePaidInvoices(); // Reconcile to update gains
+        uint256 gainAfterLoan2 = bullaFactoring.paidInvoicesGain();
         
         // Fast forward past due date and pay loan 3 late
         vm.warp(block.timestamp + 10 days);
@@ -494,6 +498,8 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         asset.approve(address(bullaFrendLend), loan3AmountDue);
         bullaFrendLend.payLoan(loanId3, loan3AmountDue);
         vm.stopPrank();
+        bullaFactoring.reconcileActivePaidInvoices(); // Reconcile to update gains
+        uint256 gainAfterLoan3 = bullaFactoring.paidInvoicesGain();
         
         // Reconcile all payments
         bullaFactoring.reconcileActivePaidInvoices();
@@ -519,17 +525,23 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         assertTrue(invoice2.isPaid, "Loan 2 should be paid");
         assertTrue(invoice3.isPaid, "Loan 3 should be paid");
         
-        // Verify late payment (loan 3) had higher interest than early payment (loan 1)
-        uint256 loan1Interest = bullaFactoring.paidInvoicesGain(loanId1) + bullaFactoring.paidInvoicesSpreadGain(loanId1);
-        uint256 loan3Interest = bullaFactoring.paidInvoicesGain(loanId3) + bullaFactoring.paidInvoicesSpreadGain(loanId3);
+        // Verify gains increased with each payment and that late payments contribute to total gains
+        assertGt(gainAfterLoan1, gainBeforeLoan1, "Loan 1 payment should contribute to gains");
+        assertGt(gainAfterLoan2, gainAfterLoan1, "Loan 2 payment should increase total gains");
+        assertGt(gainAfterLoan3, gainAfterLoan2, "Loan 3 payment should further increase total gains");
+        
+        // Calculate individual loan gains
+        uint256 loan1Interest = gainAfterLoan1 - gainBeforeLoan1;
+        uint256 loan3Interest = gainAfterLoan3 - gainAfterLoan2;
         
         assertGt(loan3Interest, loan1Interest, "Late payment should have higher interest than early payment");
         
         // Verify approximate expected interests based on payment timing (annualized)
+        // Note: paidInvoicesGain now only tracks the target yield portion (not spread)
         // Loan 1: paid after 15 days (termLength/2)
         uint256 loan1Days = (termLength / 2) / 1 days; // 15 days
         uint256 expectedLoan1Interest = Math.mulDiv(
-            Math.mulDiv(principalAmount, targetYieldBps + spreadBps, 10000),
+            Math.mulDiv(principalAmount, targetYieldBps, 10000),
             loan1Days,
             365
         );
@@ -537,7 +549,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Loan 3: paid after 40 days (termLength + 10 days late)
         uint256 loan3Days = (termLength + 10 days) / 1 days; // 40 days  
         uint256 expectedLoan3Interest = Math.mulDiv(
-            Math.mulDiv(principalAmount, targetYieldBps + spreadBps, 10000),
+            Math.mulDiv(principalAmount, targetYieldBps, 10000),
             loan3Days,
             365
         );
@@ -607,7 +619,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.warp(block.timestamp + termLength);
         
         // Get detailed balance information before payment
-        uint256 spreadGainsBalanceBefore = bullaFactoring.spreadGainsBalance();
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
         uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
         uint256 totalAssetsBefore = bullaFactoring.totalAssets();
@@ -627,18 +638,15 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
         
         // Get detailed balance information after payment
-        uint256 spreadGainsBalanceAfter = bullaFactoring.spreadGainsBalance();
         uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
         uint256 adminFeeBalanceAfter = bullaFactoring.adminFeeBalance();
         uint256 totalAssetsAfter = bullaFactoring.totalAssets();
         
         // Verify fee balances increased appropriately
-        uint256 spreadGainsIncrease = spreadGainsBalanceAfter - spreadGainsBalanceBefore;
         uint256 protocolFeeIncrease = protocolFeeBalanceAfter - protocolFeeBalanceBefore;
         uint256 adminFeeIncrease = adminFeeBalanceAfter - adminFeeBalanceBefore;
         
         assertGt(protocolFeeIncrease, 0, "Protocol fee should have increased");
-        assertGt(spreadGainsIncrease, 0, "Spread gains should have increased");
         assertGt(adminFeeIncrease, 0, "Admin fee should have increased");
         
         // Verify total assets increased due to interest earned
@@ -646,26 +654,27 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Verify fee calculations are proportional (annualized rates)
         uint256 loanDays = termLength / 1 days; // 90 days
-        uint256 expectedSpreadGains = Math.mulDiv(
-            Math.mulDiv(principalAmount, spreadBps, 10000),
-            loanDays,
-            365
-        );
         uint256 expectedProtocolFee = Math.mulDiv(
             Math.mulDiv(principalAmount, protocolFeeBps, 10000),
             loanDays,
             365
         );
+        // Note: Admin fee balance now includes both admin fee and spread
         uint256 expectedAdminFee = Math.mulDiv(
             Math.mulDiv(principalAmount, adminFeeBps, 10000),
             loanDays,
             365
         );
+        uint256 expectedSpread = Math.mulDiv(
+            Math.mulDiv(principalAmount, spreadBps, 10000),
+            loanDays,
+            365
+        );
+        uint256 expectedCombinedAdminFee = expectedAdminFee + expectedSpread;
         
         // Allow for some variance due to time-based calculations and rounding
-        assertApproxEqRel(spreadGainsIncrease, expectedSpreadGains, 0.1e18, "Spread gains should match expected annualized amount");
         assertApproxEqRel(protocolFeeIncrease, expectedProtocolFee, 0.1e18, "Protocol fee should match expected annualized amount");
-        assertApproxEqRel(adminFeeIncrease, expectedAdminFee, 0.1e18, "Admin fee should match expected annualized amount");
+        assertApproxEqRel(adminFeeIncrease, expectedCombinedAdminFee, 0.1e18, "Admin fee should match expected annualized amount (includes spread)");
     }
 
     // ============= EDGE CASES =============
@@ -693,6 +702,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Record balances
         uint256 bobBalanceBefore = asset.balanceOf(bob);
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain(); // Record cumulative gain before payment
         
         // Pay loan
         vm.startPrank(bob);
@@ -708,7 +718,8 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         assertEq(bobBalanceBefore - bobBalanceAfter, totalAmountDue, "Bob should have paid the amount due");
         
         // Verify minimal interest earned (only protocol/admin fees)
-        uint256 totalInterest = bullaFactoring.paidInvoicesGain(loanId) + bullaFactoring.paidInvoicesSpreadGain(loanId);
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
+        uint256 totalInterest = gainAfter - gainBefore; // Calculate gain from this payment
         assertEq(totalInterest, 0, "Should have zero target yield and spread gains");
         
         // But protocol and admin fees should still apply
@@ -732,18 +743,15 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Record balances before reconciliation
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
-        uint256 spreadGainsBalanceBefore = bullaFactoring.spreadGainsBalance();
         
         // Reconcile without any payments
         bullaFactoring.reconcileActivePaidInvoices();
         
         // Record balances after reconciliation
         uint256 factoringBalanceAfter = asset.balanceOf(address(bullaFactoring));
-        uint256 spreadGainsBalanceAfter = bullaFactoring.spreadGainsBalance();
         
         // Verify no changes occurred
         assertEq(factoringBalanceAfter, factoringBalanceBefore, "Factoring balance should not change");
-        assertEq(spreadGainsBalanceAfter, spreadGainsBalanceBefore, "Spread gains should not change");
         
         // Loan should still be active
         IInvoiceProviderAdapterV2.Invoice memory invoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);

@@ -13,7 +13,6 @@ import {Loan} from '@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol';
 import {Status} from '@bulla/contracts-v2/src/types/Types.sol';
 
 contract TestLoanOffersWorkflow is CommonSetup {
-
     EIP712Helper public sigHelper;
     
     event InvoiceFunded(
@@ -1157,26 +1156,38 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertGe(interest365 - interest0, minExpectedDifference, "Interest difference should be meaningful");
         
         // Test that payments work correctly for both loan types
+        uint256 gainBeforePayments = bullaFactoring.paidInvoicesGain();
+        
         vm.startPrank(bob);
         
-        // Pay both loans in full
+        // Pay first loan (365-period)
         asset.approve(address(bullaFrendLend), totalDue365);
         bullaFrendLend.payLoan(loanId365, totalDue365);
+        vm.stopPrank();
         
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint256 gainAfterLoan365 = bullaFactoring.paidInvoicesGain();
+        
+        vm.startPrank(bob);
+        // Pay second loan (0-period)
         asset.approve(address(bullaFrendLend), totalDue0);
         bullaFrendLend.payLoan(loanId0, totalDue0);
-        
         vm.stopPrank();
+        
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint256 gainAfterLoan0 = bullaFactoring.paidInvoicesGain();
         
         // Verify both loans are paid
         Loan memory paidLoan365 = bullaFrendLend.getLoan(loanId365);
         Loan memory paidLoan0 = bullaFrendLend.getLoan(loanId0);
-        
-        bullaFactoring.reconcileActivePaidInvoices();
 
         assertTrue(paidLoan365.status == Status.Paid, "365-period loan should be paid");
         assertTrue(paidLoan0.status == Status.Paid, "0-period loan should be paid");
 
-        assertGt(bullaFactoring.paidInvoicesGain(loanId365), bullaFactoring.paidInvoicesGain(loanId0), "Paid invoices gain should be greater for 365-period loan");
+        // Calculate individual gains and compare
+        uint256 gainFromLoan365 = gainAfterLoan365 - gainBeforePayments;
+        uint256 gainFromLoan0 = gainAfterLoan0 - gainAfterLoan365;
+        
+        assertGt(gainFromLoan365, gainFromLoan0, "Paid invoices gain should be greater for 365-period loan");
     }
 } 
