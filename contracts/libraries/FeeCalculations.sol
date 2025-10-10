@@ -108,25 +108,36 @@ library FeeCalculations {
     /// @param approval The invoice approval data
     /// @param invoice The invoice data
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
+    /// @param processingFeeBps The processing fee in basis points (taken off the top)
     /// @return fundedAmountGross The gross amount to be funded to the factorer
     /// @return adminFee The target calculated admin fee
     /// @return targetInterest The calculated interest fee
     /// @return targetSpreadAmount The calculated spread amount
     /// @return targetProtocolFee The calculated protocol fee
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
+    /// @return processingFee The processing fee amount
     function calculateTargetFees(
         IBullaFactoringV2.InvoiceApproval memory approval,
         IInvoiceProviderAdapterV2.Invoice memory invoice,
-        uint16 factorerUpfrontBps
+        uint16 factorerUpfrontBps,
+        uint16 processingFeeBps
     ) internal view returns (
         uint256 fundedAmountGross, 
         uint256 adminFee, 
         uint256 targetInterest, 
         uint256 targetSpreadAmount, 
         uint256 targetProtocolFee, 
-        uint256 netFundedAmount
+        uint256 netFundedAmount,
+        uint256 processingFee
     ) {
-        fundedAmountGross = Math.mulDiv(approval.initialInvoiceValue, factorerUpfrontBps, 10000);
+        // Calculate processing fee (taken off the top)
+        processingFee = Math.mulDiv(approval.initialInvoiceValue, processingFeeBps, 10000);
+        
+        // Calculate available amount after processing fee
+        uint256 availableAmount = approval.initialInvoiceValue - processingFee;
+        
+        // Calculate funded amount gross from the available amount
+        fundedAmountGross = Math.mulDiv(availableAmount, factorerUpfrontBps, 10000);
 
         uint256 daysUntilDue = Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Floor);
 
@@ -139,6 +150,6 @@ library FeeCalculations {
         uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + targetProtocolFee;
         netFundedAmount = fundedAmountGross > totalFees ? fundedAmountGross - totalFees : 0;
 
-        return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, targetProtocolFee, netFundedAmount);
+        return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, targetProtocolFee, netFundedAmount, processingFee);
     }
 }

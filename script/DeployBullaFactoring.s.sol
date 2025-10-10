@@ -108,6 +108,7 @@ contract DeployBullaFactoring is Script {
                 config.bullaDao,
                 uint16(config.protocolFeeBps),
                 uint16(config.adminFeeBps),
+                0, // processingFeeBps
                 config.poolName,
                 uint16(config.targetYieldBps),
                 config.poolTokenName,

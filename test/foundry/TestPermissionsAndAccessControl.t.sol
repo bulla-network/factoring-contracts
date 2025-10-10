@@ -38,7 +38,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, 0, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -50,7 +50,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringAragon = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, 0, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -63,7 +63,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, 0, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
@@ -75,7 +75,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringV2 bullaFactoringSafe = new BullaFactoringV2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, 0, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);

@@ -168,7 +168,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
-        (, , uint targetInterest01, , ,) = bullaFactoring.calculateTargetFees(invoiceId01, upfrontBps);
+        (, , uint targetInterest01, , ,,) = bullaFactoring.calculateTargetFees(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         dueBy = block.timestamp + 30 days;
@@ -182,7 +182,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        (, , uint targetInterest02, , ,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, , uint targetInterest02, , ,,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         assertEq(targetInterest02, targetInterest01, "Target interest should be the same for both invoices as min days for interest to be charged is 30 days");
@@ -541,8 +541,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Calculate target fees for both invoices
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,,) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
 
         // Protocol fee should be the same regardless of interest rate
         assertApproxEqAbs(targetProtocolFee1, targetProtocolFee2, 1, "Protocol fee should be the same whether interest rate is 10% or 0%");

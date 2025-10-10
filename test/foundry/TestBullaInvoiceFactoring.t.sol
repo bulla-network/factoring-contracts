@@ -18,7 +18,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     
     // Events to test
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps, uint256 processingFee);
     event InvoicePaid(uint256 indexed invoiceId, uint256 targetInterest, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee, uint256 fundedAmount, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
 
@@ -106,14 +106,14 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate expected fees
-        (, , uint256 targetInterest, uint256 targetSpreadAmount, , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , uint256 targetInterest, uint256 targetSpreadAmount, , uint256 netFundedAmount,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
         
         vm.expectEmit(true, false, false, true);
-        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps);
+        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, 0);
         
         uint256 actualFundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
@@ -422,8 +422,8 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         assertGt(fundedAmount1, fundedAmount2, "Higher upfront bps should result in higher funded amount");
 
         // Verify fee calculations reflect the chosen upfront percentage
-        (uint256 fundedAmountGross1, , , , , uint256 netFundedAmount1) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
-        (uint256 fundedAmountGross2, , , , , uint256 netFundedAmount2) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
+        (uint256 fundedAmountGross1, , , , , uint256 netFundedAmount1,) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
+        (uint256 fundedAmountGross2, , , , , uint256 netFundedAmount2,) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
 
         assertEq(fundedAmount1, netFundedAmount1);
         assertEq(fundedAmount2, netFundedAmount2);
@@ -700,7 +700,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate target fees at funding time (t=0)
-        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, ) = 
+        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, ,) = 
             bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice

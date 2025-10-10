@@ -20,7 +20,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 fundedAmount,
         address indexed originalCreditor,
         uint256 invoiceDueDate,
-        uint16 upfrontBps
+        uint16 upfrontBps,
+        uint256 processingFee
     );
 
     function setUp() public override {
@@ -203,7 +204,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
             principalAmount,
             address(bullaFactoring),
             block.timestamp + termLength,
-            100_00
+            100_00,
+            0
         );
         
         // Accept loan
@@ -975,7 +977,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
             principalAmount,
             address(bullaFactoring),
             expectedDueDate,
-            100_00 // upfrontBps is always 100%
+            100_00, // upfrontBps is always 100%
+            0 // processingFee is always 0 for loans
         );
         
         vm.prank(bob);

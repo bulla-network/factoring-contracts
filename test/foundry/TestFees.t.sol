@@ -157,7 +157,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
@@ -170,7 +170,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
         bullaFactoring.fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
@@ -225,7 +225,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 targetAdminFee1,,,,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        (, uint256 targetAdminFee1,,,,,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -249,7 +249,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 targetAdminFee2,,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+        (, uint256 targetAdminFee2,,,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 

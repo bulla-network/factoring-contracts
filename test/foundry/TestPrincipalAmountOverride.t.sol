@@ -119,7 +119,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
         vm.stopPrank();
         
-        (uint256 fundedAmountGross,,,,,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
+        (uint256 fundedAmountGross,,,,,,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
         
         // Should be 80% of overrideAmount amount, not original invoice amount
         uint256 expectedGross = (overrideAmount * upfrontPercentage) / 10000;

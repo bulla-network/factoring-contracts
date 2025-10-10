@@ -66,7 +66,7 @@ interface IBullaFactoringV2 {
 
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 processingFee);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newDuration);
@@ -80,6 +80,7 @@ interface IBullaFactoringV2 {
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
+    event ProcessingFeeBpsChanged(uint16 indexed oldFeeBps, uint16 indexed newFeeBps);
     event DepositPermissionsChanged(address newAddress);
     event RedeemPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);

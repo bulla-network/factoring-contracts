@@ -295,7 +295,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
 
 
-        (uint256 fundedAmountGross,,,,,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (uint256 fundedAmountGross,,,,,,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         // Should revert due to insufficient funds
         vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, initialDeposit, fundedAmountGross));
