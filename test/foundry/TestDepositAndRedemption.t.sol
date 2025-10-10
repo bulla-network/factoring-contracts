@@ -88,7 +88,7 @@ contract TestDepositAndRedemption is CommonSetup {
     
         bullaFactoring.reconcileActivePaidInvoices();
 
-        uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve() + bullaFactoring.spreadGainsBalance();
+        uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve();
 
         assertEq(asset.balanceOf(address(bullaFactoring)), bullaFactoring.totalAssets() + fees, "Available Assets should be lower than total assets by the sum of fees");
     }
@@ -175,15 +175,10 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Expect fee withdrawal events
         uint256 adminFeeAmount = bullaFactoring.adminFeeBalance();
-        uint256 spreadAmount = bullaFactoring.spreadGainsBalance();
         
         if (adminFeeAmount > 0) {
             vm.expectEmit(true, true, true, true);
             emit AdminFeesWithdrawn(address(this), adminFeeAmount);
-        }
-        if (spreadAmount > 0) {
-            vm.expectEmit(true, true, true, true);
-            emit SpreadGainsWithdrawn(address(this), spreadAmount);
         }
         bullaFactoring.withdrawAdminFeesAndSpreadGains(); 
     }

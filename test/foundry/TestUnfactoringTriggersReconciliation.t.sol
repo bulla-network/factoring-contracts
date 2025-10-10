@@ -79,9 +79,9 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid but unreconciled invoice");
         assertEq(paidInvoicesBefore[0], invoiceId1, "First invoice should be the paid one");
 
-        // Verify no gain has been recorded yet (indicating no reconciliation)
-        uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId1);
-        assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
+        // Verify gain state before reconciliation (paidInvoicesGain is now cumulative)
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain();
+        // Store the current total gain before unfactoring triggers reconciliation
 
         // Record price per share before unfactoring
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
@@ -113,9 +113,9 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
         assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
 
-        // Verify gain was recorded for the first invoice (indicating reconciliation occurred)
-        uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId1);
-        assertGt(gainAfter, 0, "Should have recorded gain after reconciliation of first invoice");
+        // Verify gain was recorded (indicating reconciliation occurred)
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
+        assertGt(gainAfter, gainBefore, "Should have recorded gain after reconciliation");
 
         // Verify price per share increased due to reconciliation
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();

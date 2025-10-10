@@ -250,7 +250,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Record initial fee balances before any payments
         uint256 initialAdminFeeBalance = bullaFactoring.adminFeeBalance();
         uint256 initialProtocolFeeBalance = bullaFactoring.protocolFeeBalance();
-        uint256 initialSpreadGainsBalance = bullaFactoring.spreadGainsBalance();
+        uint256 gainBeforeLoans = bullaFactoring.paidInvoicesGain(); // Record initial cumulative gain
         
         // Pay and reconcile loan 1 (monthly compounding) first
         vm.startPrank(charlie);
@@ -265,9 +265,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Capture fee balances after loan 1 payment
         uint256 adminFeeAfterLoan1 = bullaFactoring.adminFeeBalance();
         uint256 protocolFeeAfterLoan1 = bullaFactoring.protocolFeeBalance();
-        uint256 spreadGainsAfterLoan1 = bullaFactoring.spreadGainsBalance();
-        uint256 gainFromLoan1 = bullaFactoring.paidInvoicesGain(loanId1);
-        uint256 spreadGainFromLoan1 = bullaFactoring.paidInvoicesSpreadGain(loanId1);
+        uint256 gainAfterLoan1 = bullaFactoring.paidInvoicesGain();
         
         // Pay and reconcile loan 2 (daily compounding)
         vm.startPrank(charlie);
@@ -282,27 +280,20 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Capture final fee balances after loan 2 payment
         uint256 finalAdminFeeBalance = bullaFactoring.adminFeeBalance();
         uint256 finalProtocolFeeBalance = bullaFactoring.protocolFeeBalance();
-        uint256 finalSpreadGainsBalance = bullaFactoring.spreadGainsBalance();
-        uint256 gainFromLoan2 = bullaFactoring.paidInvoicesGain(loanId2);
-        uint256 spreadGainFromLoan2 = bullaFactoring.paidInvoicesSpreadGain(loanId2);
+        uint256 gainAfterLoan2 = bullaFactoring.paidInvoicesGain();
         
-        // Calculate individual loan contributions to fees
+        // Calculate individual loan contributions to fees and gains
         uint256 adminFeeFromLoan1 = adminFeeAfterLoan1 - initialAdminFeeBalance;
         uint256 adminFeeFromLoan2 = finalAdminFeeBalance - adminFeeAfterLoan1;
         uint256 protocolFeeFromLoan1 = protocolFeeAfterLoan1 - initialProtocolFeeBalance;
         uint256 protocolFeeFromLoan2 = finalProtocolFeeBalance - protocolFeeAfterLoan1;
-        uint256 spreadGainFromLoan1Calculated = spreadGainsAfterLoan1 - initialSpreadGainsBalance;
-        uint256 spreadGainFromLoan2Calculated = finalSpreadGainsBalance - spreadGainsAfterLoan1;
+        uint256 gainFromLoan1 = gainAfterLoan1 - gainBeforeLoans;
+        uint256 gainFromLoan2 = gainAfterLoan2 - gainAfterLoan1;
         
         // Critical validation: daily compounding loan should generate higher gains and fees than monthly compounding
         assertGt(gainFromLoan2, gainFromLoan1, "Daily compounding loan should generate higher pool gains");
-        assertGt(spreadGainFromLoan2, spreadGainFromLoan1, "Daily compounding loan should generate higher spread gains");
         assertGt(adminFeeFromLoan2, adminFeeFromLoan1, "Daily compounding loan should generate higher admin fees");
         assertGt(protocolFeeFromLoan2, protocolFeeFromLoan1, "Daily compounding loan should generate higher protocol fees");
-        
-        // Verify spread gain mappings match calculated values
-        assertEq(spreadGainFromLoan1, spreadGainFromLoan1Calculated, "Spread gain mapping should match calculated value for loan 1");
-        assertEq(spreadGainFromLoan2, spreadGainFromLoan2Calculated, "Spread gain mapping should match calculated value for loan 2");
         
         // Get final invoice details to check total amounts
         IInvoiceProviderAdapterV2.Invoice memory finalInvoice1 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
@@ -374,7 +365,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         assertTrue(invoice.isPaid, "Loan should be paid");
         
         // Verify pool gained from the loan
-        uint256 gain = bullaFactoring.paidInvoicesGain(loanId);
+        uint256 gain = bullaFactoring.paidInvoicesGain();
         assertGt(gain, 0, "Pool should have gained from the loan");
         
         // Early payment should result in lower factoring gain than full term
@@ -450,7 +441,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         IInvoiceProviderAdapterV2.Invoice memory finalInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
         assertTrue(finalInvoice.isPaid, "Loan should be fully paid");
         
-        uint256 gain = bullaFactoring.paidInvoicesGain(loanId);
+        uint256 gain = bullaFactoring.paidInvoicesGain();
         assertGt(gain, 0, "Pool should have gained from the loan");
     }
     
@@ -503,7 +494,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         assertLt(bobBalanceAfter, bobBalanceBefore, "Bob should have paid to unfactor the loan");
         
         // Verify pool gained from the unfactoring
-        uint256 gain = bullaFactoring.paidInvoicesGain(loanId);
+        uint256 gain = bullaFactoring.paidInvoicesGain();
         assertGt(gain, 0, "Pool should have gained from unfactoring");
     }
     
@@ -549,28 +540,35 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Charlie pays all loans
         vm.startPrank(charlie);
-        
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain();
+
         (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(loanId1);
         asset.approve(address(bullaFrendLend), principal1 + interest1);
         bullaFrendLend.payLoan(loanId1, principal1 + interest1);
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint256 gainAfterLoan1 = bullaFactoring.paidInvoicesGain();
+        uint256 gain1 = gainAfterLoan1 - gainBefore;
         
         (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(loanId2);
         asset.approve(address(bullaFrendLend), principal2 + interest2);
         bullaFrendLend.payLoan(loanId2, principal2 + interest2);
         
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint256 gainAfterLoan2 = bullaFactoring.paidInvoicesGain();
+        uint256 gain2 = gainAfterLoan2 - gainAfterLoan1;
+
         (uint256 principal3, uint256 interest3) = bullaFrendLend.getTotalAmountDue(loanId3);
         asset.approve(address(bullaFrendLend), principal3 + interest3);
         bullaFrendLend.payLoan(loanId3, principal3 + interest3);
+
+        bullaFactoring.reconcileActivePaidInvoices();
+        uint256 gainAfterLoan3 = bullaFactoring.paidInvoicesGain();
+        uint256 gain3 = gainAfterLoan3 - gainAfterLoan2;
         
         vm.stopPrank();
         
         // Reconcile
         bullaFactoring.reconcileActivePaidInvoices();
-        
-        // Verify all loans are paid and pool gained from each
-        uint256 gain1 = bullaFactoring.paidInvoicesGain(loanId1);
-        uint256 gain2 = bullaFactoring.paidInvoicesGain(loanId2);
-        uint256 gain3 = bullaFactoring.paidInvoicesGain(loanId3);
         
         assertGt(gain1, 0, "Pool should have gained from loan 1");
         assertGt(gain2, 0, "Pool should have gained from loan 2");
@@ -744,7 +742,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         assertEq(poolBalanceIncrease, trueInterest, "Pool balance should increase by exactly the target yield interest");
         
         // Verify pool gains
-        uint256 poolGain = bullaFactoring.paidInvoicesGain(loanId);
+        uint256 poolGain = bullaFactoring.paidInvoicesGain();
         assertGt(poolGain, 0, "Pool should have recorded gains from the loan");
     }
 } 

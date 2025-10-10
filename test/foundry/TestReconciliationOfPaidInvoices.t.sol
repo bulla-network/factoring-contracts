@@ -58,8 +58,8 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before redemption");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId);
-        assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain();
+        // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
         bullaFactoring.reconcileActivePaidInvoices();
@@ -72,7 +72,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
 
         // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
-        uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
@@ -115,8 +115,8 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before redemption");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId);
-        assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain();
+        // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
         bullaFactoring.reconcileActivePaidInvoices();
@@ -129,7 +129,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
 
         // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
-        uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
@@ -172,8 +172,8 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before withdrawal");
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId);
-        assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
+        uint256 gainBefore = bullaFactoring.paidInvoicesGain();
+        // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Manually trigger reconciliation first (since withdraw now blocks when active paid invoices exist)
         bullaFactoring.reconcileActivePaidInvoices();
@@ -187,7 +187,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
 
         // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
-        uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
+        uint256 gainAfter = bullaFactoring.paidInvoicesGain();
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
