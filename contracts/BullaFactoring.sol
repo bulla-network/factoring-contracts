@@ -106,6 +106,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error FunctionNotSupported();
     error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
+    error ActivePaidInvoicesExist();
     error UnpaidInvoice();
     error InvoiceNotImpaired();
     error InvoiceAlreadyPaid();
@@ -275,7 +276,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _upfrontBps The maximum upfront percentage the factorer can request
     /// @param minDaysInterestApplied The minimum number of days interest must be applied
     /// @param _initialInvoiceValueOverride The initial invoice value to override the invoice amount. For example in cases of loans or bonds.
-    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _initialInvoiceValueOverride) public {
+    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _initialInvoiceValueOverride) external {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
@@ -586,6 +587,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return (paidInvoiceIds, paidInvoices, impairedInvoiceIds, impairedInvoices);
     }
 
+    /// @notice Checks if there are any active paid invoices that need reconciliation
+    /// @return true if there are active paid invoices, false otherwise
+    function _hasActivePaidInvoices() private view returns (bool) {
+        (uint256[] memory paidInvoiceIds, , , ) = viewPoolStatus();
+        return paidInvoiceIds.length > 0;
+    }
+
     /// @notice Increments the profit, and fee balances for a given invoice
     /// @param invoiceId The ID of the invoice
     /// @param trueInterest The true interest amount for the invoice
@@ -612,43 +620,53 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
     /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
-    function reconcileActivePaidInvoices() public {
+    function reconcileActivePaidInvoices() external {
         (uint256[] memory paidInvoiceIds, IInvoiceProviderAdapterV2.Invoice[] memory paidInvoices, , ) = viewPoolStatus();
 
         for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
             uint256 invoiceId = paidInvoiceIds[i];
             IInvoiceProviderAdapterV2.Invoice memory invoice = paidInvoices[i];
             
-            // calculate kickback amount adjusting for true interest, protocol and admin fees
-            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-            (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
- 
-            incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
-
-            address receiverAddress = approvedInvoices[invoiceId].receiverAddress;
-            
-            if (kickbackAmount != 0) {
-                assetAddress.safeTransfer(receiverAddress, kickbackAmount);
-                emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
-            }
-
-            // Check if the invoice was previously marked as impaired by the fund
-            if (impairments[invoiceId].isImpaired) {
-                // Remove the invoice from impaired array
-                removeImpairedByFundInvoice(invoiceId);
-
-                // Adjust impairment in fund records
-                delete impairments[invoiceId];
-            } else {
-                // Remove the invoice from activeInvoices array
-                removeActivePaidInvoice(invoiceId);   
-            }
-
-            IBullaFactoringV2.InvoiceApproval memory approval2 = approvedInvoices[invoiceId];
-            emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, approval2.fundedAmountNet, kickbackAmount, receiverAddress);
+            _reconcileSingleInvoice(invoiceId, invoice);
         }
         
         emit ActivePaidInvoicesReconciled(paidInvoiceIds);
+    }
+
+    function reconcileSingleInvoice(uint256 invoiceId) external {
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        
+        if (invoice.isPaid) revert InvoiceAlreadyPaid();
+        _reconcileSingleInvoice(invoiceId, invoice);
+    }
+
+    function _reconcileSingleInvoice(uint256 invoiceId, IInvoiceProviderAdapterV2.Invoice memory invoice) private {
+        // calculate kickback amount adjusting for true interest, protocol and admin fees
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
+
+        incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
+
+        address receiverAddress = approval.receiverAddress;
+        
+        if (kickbackAmount != 0) {
+            assetAddress.safeTransfer(receiverAddress, kickbackAmount);
+            emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
+        }
+
+        // Check if the invoice was previously marked as impaired by the fund
+        if (impairments[invoiceId].isImpaired) {
+            // Remove the invoice from impaired array
+            removeImpairedByFundInvoice(invoiceId);
+
+            // Adjust impairment in fund records
+            delete impairments[invoiceId];
+        } else {
+            // Remove the invoice from activeInvoices array
+            removeActivePaidInvoice(invoiceId);   
+        }
+
+        emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
@@ -708,9 +726,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
 
         delete originalCreditors[invoiceId];
-
-        reconcileActivePaidInvoices();
-        processRedemptionQueue();
 
         emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
     }
@@ -787,8 +802,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function maxWithdraw(address _owner) public view override returns (uint256) {
         return Math.min(super.maxWithdraw(_owner), totalAssets());
     }
-
-
 
     /// @notice Sets the grace period in days for determining if an invoice is impaired
     /// @param _days The number of days for the grace period
@@ -997,12 +1010,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+        
+        // Check that there are no active paid invoices that need reconciliation
+        if (_hasActivePaidInvoices()) revert ActivePaidInvoicesExist();
 
-        reconcileActivePaidInvoices();
-        processRedemptionQueue();
-
-        uint256 maxRedeemableShares = maxRedeem(_owner);
-        uint256 sharesToRedeem = Math.min(shares, maxRedeemableShares);
+        uint256 sharesToRedeem = redemptionQueue.isQueueEmpty() ? Math.min(shares, maxRedeem(_owner)) : 0;
         uint256 redeemedAssets = 0;
         
         if (sharesToRedeem > 0) {
@@ -1028,12 +1040,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
-
-        reconcileActivePaidInvoices();
-        processRedemptionQueue();
-
-        uint256 maxWithdrawableAssets = maxWithdraw(_owner);
-        uint256 assetsToWithdraw = Math.min(assets, maxWithdrawableAssets);
+        
+        // Check that there are no active paid invoices that need reconciliation
+        if (_hasActivePaidInvoices()) revert ActivePaidInvoicesExist();
+        
+        uint256 assetsToWithdraw = redemptionQueue.isQueueEmpty() ? Math.min(assets, maxWithdraw(_owner)) : 0;
         uint256 redeemedShares = 0;
         
         if (assetsToWithdraw > 0) {
@@ -1052,7 +1063,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Process queued redemptions when liquidity becomes available
-    function processRedemptionQueue() public {
+    function processRedemptionQueue() external {
+        // Check that there are no active paid invoices that need reconciliation
+        if (_hasActivePaidInvoices()) revert ActivePaidInvoicesExist();
+        
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
         // Memory-optimized: Calculate capital account and total assets with single realized gain/loss calculation
         (uint256 _capitalAccount, uint256 _totalAssets) = _calculateCapitalAccountAndTotalAssets();

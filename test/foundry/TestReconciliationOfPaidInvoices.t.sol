@@ -61,19 +61,22 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId);
         assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
 
-        // Alice redeems shares - this should trigger automatic reconciliation
+        // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Alice redeems shares
         vm.startPrank(alice);
         uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 2;
         bullaFactoring.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
-        // Verify automatic reconciliation occurred
+        // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
-        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
-        assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
+        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
+        assertGt(gainAfter, 0, "Should have recorded gain after reconciliation");
         assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
     }
 
@@ -115,19 +118,22 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId);
         assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
 
-        // Alice redeems shares using regular redeem() - this should trigger automatic reconciliation
+        // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Alice redeems shares using regular redeem()
         vm.startPrank(alice);
         uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 3;
         bullaFactoring.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
-        // Verify automatic reconciliation occurred
+        // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
-        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
-        assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
+        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
+        assertGt(gainAfter, 0, "Should have recorded gain after reconciliation");
         assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
     }
 
@@ -169,20 +175,23 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         uint256 gainBefore = bullaFactoring.paidInvoicesGain(invoiceId);
         assertEq(gainBefore, 0, "Should have no recorded gain before reconciliation");
 
-        // Alice withdraws assets using regular withdraw() - this should trigger automatic reconciliation
+        // Manually trigger reconciliation first (since withdraw now blocks when active paid invoices exist)
+        bullaFactoring.reconcileActivePaidInvoices();
+
+        // Alice withdraws assets using regular withdraw()
         vm.startPrank(alice);
         uint256 maxWithdraw = bullaFactoring.maxWithdraw(alice);
         uint256 assetsToWithdraw = maxWithdraw / 3;
         bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
-        // Verify automatic reconciliation occurred
+        // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain(invoiceId);
         (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
 
-        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to automatic reconciliation");
-        assertGt(gainAfter, 0, "Should have recorded gain after automatic reconciliation");
+        assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
+        assertGt(gainAfter, 0, "Should have recorded gain after reconciliation");
         assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
     }
 

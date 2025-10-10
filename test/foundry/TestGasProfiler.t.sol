@@ -324,6 +324,9 @@ contract TestGasProfiler is CommonSetup {
         } else if (nameHash == keccak256("calculateRealizedGainLoss")) {
             bullaFactoring.calculateRealizedGainLoss();
         } else if (nameHash == keccak256("processRedemptionQueue")) {
+            // Reconcile any active paid invoices first (since processRedemptionQueue now blocks when active paid invoices exist)
+            try bullaFactoring.reconcileActivePaidInvoices() {} catch {}
+            gasBefore = gasleft();
             bullaFactoring.processRedemptionQueue();
         }
         
