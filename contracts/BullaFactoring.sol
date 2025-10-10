@@ -76,9 +76,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
 
-    /// Array to track IDs of paid invoices
-    uint256[] private paidInvoicesIds;
-
     /// Array to track IDs of impaired invoices by fund
     uint256[] private impairedByFundInvoicesIds;
 
@@ -93,7 +90,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// Errors
     error CallerNotUnderwriter();
-    error DeductionsExceedsRealisedGains();
     error InvoiceNotApproved();
     error ApprovalExpired();
     error InvoiceCanceled();
@@ -102,7 +98,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
     error ActivePaidInvoicesExist();
-    error UnpaidInvoice();
     error InvoiceNotImpaired();
     error InvoiceAlreadyPaid();
     error InvoiceAlreadyImpairedByFund();
@@ -122,7 +117,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error LoanOfferAlreadyAccepted();
     error InsufficientFunds(uint256 available, uint256 required);
     error RedemptionQueueNotEmpty();
-    error ReconciliationNeeded();
 
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -282,8 +276,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // we assume that invoices are always from the bulla protocol and the creditor is always the NFT owner
         if (invoiceSnapshot.creditor == address(this)) revert InvoiceAlreadyFunded();
         // check claim token is equal to pool token
-        address claimToken = invoiceSnapshot.tokenAddress;
-        if (claimToken != address(assetAddress)) revert InvoiceTokenMismatch();
+        if (invoiceSnapshot.tokenAddress != address(assetAddress)) revert InvoiceTokenMismatch();
 
         FeeParams memory feeParams = FeeParams({
             targetYieldBps: _targetYieldBps,
@@ -359,13 +352,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function calculateCapitalAccount() public view returns (uint256) {
         int256 realizedGainLoss = calculateRealizedGainLoss();
 
-        return _calculateCapitalAccountWithCache(realizedGainLoss);
-    }
-
-    /// @notice Memory-cached version of calculateCapitalAccount that calculates realized gain/loss once
-    /// @param realizedGainLoss Pre-calculated realized gain/loss value
-    /// @return The calculated capital account balance
-    function _calculateCapitalAccountWithCache(int256 realizedGainLoss) internal view returns (uint256) {
         int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
         int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
 
@@ -585,12 +571,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Increments the profit, and fee balances for a given invoice
-    /// @param invoiceId The ID of the invoice
     /// @param trueInterest The true interest amount for the invoice
     /// @param trueSpreadAmount The true spread amount for the invoice
     /// @param trueProtocolFee The true protocol fee amount for the invoice
     /// @param trueAdminFee The true admin fee amount for the invoice
-    function incrementProfitAndFeeBalances(uint256 invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) private {
+    function incrementProfitAndFeeBalances(uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) private {
         // Add the admin fee to the balance
         adminFeeBalance += trueAdminFee + trueSpreadAmount;
 
@@ -599,9 +584,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Update protocol fee balance
         protocolFeeBalance += trueProtocolFee;
-
-        // Add the invoice ID to the paidInvoicesIds array
-        paidInvoicesIds.push(invoiceId);
     }
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
@@ -631,7 +613,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
 
-        incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
 
         address receiverAddress = approval.receiverAddress;
         
@@ -709,7 +691,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Update the contract's state to reflect the unfactoring
         removeActivePaidInvoice(invoiceId);
-        incrementProfitAndFeeBalances(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
 
         delete originalCreditors[invoiceId];
 
@@ -751,8 +733,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return totalAssetsAmount The total assets of the fund
     function _calculateCapitalAccountAndTotalAssets() internal view returns (uint256 capitalAccount, uint256 totalAssetsAmount) {
         // Calculate realized gain/loss once and reuse
-        int256 realizedGainLoss = calculateRealizedGainLoss();
-        capitalAccount = _calculateCapitalAccountWithCache(realizedGainLoss);
+        capitalAccount = calculateCapitalAccount();
         totalAssetsAmount = _totalAssetsOptimized(capitalAccount);
     }
 
