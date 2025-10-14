@@ -724,7 +724,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
             IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            capitalAccount -= (invoice.isImpaired ? 0 : approvedInvoices[invoiceId].fundedAmountNet) + (approvedInvoices[invoiceId].fundedAmountGross - approvedInvoices[invoiceId].fundedAmountNet);
+            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+            capitalAccount -= (invoice.isImpaired ? 0 : approval.fundedAmountNet) + (approval.protocolFee + approval.fundedAmountGross - approval.fundedAmountNet);
         }
         return capitalAccount;
     }

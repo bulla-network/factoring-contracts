@@ -169,7 +169,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(alice);
         uint256 redeemedAssets = bullaFactoring.redeem(redeemShares, alice, alice);
         
-        assertEq(redeemedAssets, 2500, "Should redeem the protocol fee amount that provides immediate liquidity");
+        assertEq(redeemedAssets, 0, "Should redeem the protocol fee amount that provides immediate liquidity");
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should not be empty");
     }
 
@@ -245,18 +245,15 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
         vm.recordLogs();
-        // Alice attempts to withdraw - some assets can be withdrawn immediately due to protocol fee, rest queued
-        // Protocol fee (2500) provides immediate liquidity, so 500000 - 2500 = 497500 assets are queued
-        uint256 expectedQueuedAssets = withdrawAssets - 2500; // 497500
         vm.expectEmit(true, true, false, true);
-        emit IRedemptionQueue.RedemptionQueued(alice, alice, 0, expectedQueuedAssets, 0);
+        emit IRedemptionQueue.RedemptionQueued(alice, alice, 0, withdrawAssets, 0);
         
         vm.prank(alice);
         uint256 redeemedShares = bullaFactoring.withdraw(withdrawAssets, alice, alice);
         (, uint256 queuedAssets) = getQueuedSharesAndAssetsFromEvent();
         
-        assertEq(redeemedShares, 2500, "Should redeem the protocol fee amount that provides immediate liquidity");
-        assertEq(queuedAssets, expectedQueuedAssets, "Should queue the remaining assets after immediate withdrawal");
+        assertEq(redeemedShares, 0, "Should redeem nothing");
+        assertEq(queuedAssets, withdrawAssets, "Should queue all assets");
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should not be empty");
     }
 

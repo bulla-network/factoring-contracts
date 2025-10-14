@@ -16,7 +16,7 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 constructor-args := 
 
 build  :; forge build --via-ir
-test   :; forge test -vvv --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
+test   :; forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
 test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" $(ARGS)
 test-s   :; forge test --match-test "testFuzz_OfferLoanNeverFailsNorGeneratesKickback" -vv --via-ir
 trace   :; forge test -vvvv --via-ir
