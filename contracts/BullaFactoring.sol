@@ -28,8 +28,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint16 public protocolFeeBps;
     /// @notice Admin fee in basis points
     uint16 public adminFeeBps;
-    /// @notice Processing fee in basis points (taken off the top before funding)
-    uint16 public processingFeeBps;
     /// @notice Accumulated protocol fee balance
     uint256 public protocolFeeBalance;
     /// @notice Accumulated admin fee balance
@@ -134,15 +132,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         address _bullaDao,
         uint16 _protocolFeeBps,
         uint16 _adminFeeBps,
-        uint16 _processingFeeBps,
         string memory _poolName,
         uint16 _targetYieldBps,
         string memory _tokenName, 
         string memory _tokenSymbol
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
-        if (_protocolFeeBps <= 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
-        if (_adminFeeBps <= 0 || _adminFeeBps > 10000) revert InvalidPercentage();
-        if (_processingFeeBps > 10000) revert InvalidPercentage();
+        if (_protocolFeeBps < 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
+        if (_adminFeeBps < 0 || _adminFeeBps > 10000) revert InvalidPercentage();
 
         assetAddress = _asset;
         invoiceProviderAdapter = _invoiceProviderAdapter;
@@ -153,8 +149,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         factoringPermissions = _factoringPermissions;
         bullaDao = _bullaDao;
         protocolFeeBps = _protocolFeeBps;
-        adminFeeBps = _adminFeeBps; 
-        processingFeeBps = _processingFeeBps;
+        adminFeeBps = _adminFeeBps;
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
@@ -253,7 +248,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             initialPaidAmount: 0,
             invoiceDueDate: block.timestamp + pendingLoanOffer.termLength,
             receiverAddress: address(this),
-            creditor: address(this)
+            creditor: address(this),
+            protocolFee: 0
         });
 
         originalCreditors[loanId] = address(this);
@@ -303,7 +299,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             initialInvoiceValue: _initialInvoiceValueOverride != 0 ? _initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount,
             initialPaidAmount: invoiceSnapshot.paidAmount,
             receiverAddress: address(0),
-            invoiceDueDate: invoiceSnapshot.dueDate
+            invoiceDueDate: invoiceSnapshot.dueDate,
+            protocolFee: 0
         });
         emit InvoiceApproved(invoiceId, _validUntil, feeParams);
     }
@@ -314,9 +311,8 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return kickbackAmount The calculated kickback amount
     /// @return trueInterest The true interest amount
     /// @return trueSpreadAmount The true spread amount
-    /// @return trueProtocolFee The true protocol fee amount
     /// @return trueAdminFee The true admin fee amount
-    function calculateKickbackAmount(uint256 invoiceId) external view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) {
+    function calculateKickbackAmount(uint256 invoiceId) external view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         return FeeCalculations.calculateKickbackAmount(approval, invoice);
@@ -405,7 +401,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             
             if(!invoice.isImpaired) {
                 IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-                (,uint256 trueInterest,,,) = FeeCalculations.calculateKickbackAmount(approval, invoice);
+                (,uint256 trueInterest,,) = FeeCalculations.calculateKickbackAmount(approval, invoice);
                 accruedProfits += trueInterest;
             }
         }
@@ -450,17 +446,16 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return adminFee The target calculated admin fee
     /// @return targetInterest The calculated interest fee
     /// @return targetSpreadAmount The calculated spread amount
-    /// @return targetProtocolFee The calculated protocol fee
+    /// @return protocolFee The protocol fee amount
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
-    /// @return processingFee The processing fee amount
-    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, uint256 netFundedAmount, uint256 processingFee) {
+    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 netFundedAmount) {
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, processingFeeBps);
+        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, protocolFeeBps);
     }
 
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
@@ -479,20 +474,21 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approvedInvoices[invoiceId].initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approvedInvoices[invoiceId].creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross,,,,,uint256 fundedAmountNet, uint256 processingFee) = calculateTargetFees(invoiceId, factorerUpfrontBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         uint256 _totalAssets = totalAssets();
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
-        if(fundedAmountGross > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross);
+        if(fundedAmountGross + protocolFee > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross + protocolFee);
         
-        // Collect processing fee to admin fee balance
-        protocolFeeBalance += processingFee;
+        // Collect protocol fee to protocol fee balance
+        protocolFeeBalance += protocolFee;
 
         // store values in approvedInvoices
         approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
         approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
         approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
         // update upfrontBps with what was passed in the arg by the factorer
-        approvedInvoices[invoiceId].feeParams.upfrontBps = factorerUpfrontBps; 
+        approvedInvoices[invoiceId].feeParams.upfrontBps = factorerUpfrontBps;
+        approvedInvoices[invoiceId].protocolFee = protocolFee;
 
         // Determine the actual receiver address - use msg.sender if receiverAddress is address(0)
         address actualReceiver = receiverAddress == address(0) ? msg.sender : receiverAddress;
@@ -510,7 +506,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
 
-        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approvedInvoices[invoiceId].invoiceDueDate, factorerUpfrontBps, processingFee);
+        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approvedInvoices[invoiceId].invoiceDueDate, factorerUpfrontBps, protocolFee);
         return fundedAmountNet;
     }
 
@@ -582,17 +578,13 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Increments the profit, and fee balances for a given invoice
     /// @param trueInterest The true interest amount for the invoice
     /// @param trueSpreadAmount The true spread amount for the invoice
-    /// @param trueProtocolFee The true protocol fee amount for the invoice
     /// @param trueAdminFee The true admin fee amount for the invoice
-    function incrementProfitAndFeeBalances(uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) private {
+    function incrementProfitAndFeeBalances(uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) private {
         // Add the admin fee to the balance
         adminFeeBalance += trueAdminFee + trueSpreadAmount;
 
         // store factoring gain (base yield only)
         paidInvoicesGain += trueInterest;
-
-        // Update protocol fee balance
-        protocolFeeBalance += trueProtocolFee;
     }
 
     /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
@@ -620,9 +612,9 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function _reconcileSingleInvoice(uint256 invoiceId, IInvoiceProviderAdapterV2.Invoice memory invoice) private {
         // calculate kickback amount adjusting for true interest, protocol and admin fees
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
+        (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
 
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);   
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);   
 
         address receiverAddress = approval.receiverAddress;
         
@@ -643,7 +635,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             removeActivePaidInvoice(invoiceId);   
         }
 
-        emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
+        emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
     }
 
     function removeImpairedByFundInvoice(uint256 invoiceId) private {
@@ -681,10 +673,10 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Calculate the number of days since funding
          uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
+        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
         // Need to subtract payments since funding start
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
-        int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueProtocolFee + trueAdminFee) - int256(paymentSinceFunding);
+        int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueAdminFee) - int256(paymentSinceFunding);
 
         // positive number means the original creditor owes us the amount
         if(totalRefundOrPaymentAmount > 0) {
@@ -700,11 +692,11 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Update the contract's state to reflect the unfactoring
         removeActivePaidInvoice(invoiceId);
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
 
         delete originalCreditors[invoiceId];
 
-        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueProtocolFee, trueAdminFee);
+        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueAdminFee);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
@@ -849,15 +841,6 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint16 oldAdminFeeBps = adminFeeBps;
         adminFeeBps = _newAdminFeeBps;
         emit AdminFeeBpsChanged(oldAdminFeeBps, _newAdminFeeBps);
-    }
-
-    /// @notice Sets the processing fee in basis points
-    /// @param _newProcessingFeeBps The new processing fee in basis points
-    function setProcessingFeeBps(uint16 _newProcessingFeeBps) external onlyOwner {
-        if (_newProcessingFeeBps > 10000) revert InvalidPercentage();
-        uint16 oldProcessingFeeBps = processingFeeBps;
-        processingFeeBps = _newProcessingFeeBps;
-        emit ProcessingFeeBpsChanged(oldProcessingFeeBps, _newProcessingFeeBps);
     }
 
     function mint(uint256, address) public pure override returns (uint256){

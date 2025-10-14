@@ -61,7 +61,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
         
         // Should use original calculation (invoice amount - paid amount)
-        (,,,,,,,, uint256 initialInvoiceValue, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,, uint256 initialInvoiceValue, uint256 initialPaidAmount,,) = bullaFactoring.approvedInvoices(invoiceId);
         assertEq(initialInvoiceValue, invoiceAmount - paidAmount);
         assertEq(initialPaidAmount, paidAmount);
     }
@@ -80,7 +80,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
         vm.stopPrank();
         
-        (,,,,,,,, uint256 initialInvoiceValue,,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,, uint256 initialInvoiceValue,,,) = bullaFactoring.approvedInvoices(invoiceId);
         assertEq(initialInvoiceValue, overrideAmount);
         assertTrue(initialInvoiceValue > invoiceAmount);
     }
@@ -98,7 +98,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
         vm.stopPrank();
         
-        (,,,,,,,, uint256 initialInvoiceValue,,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,, uint256 initialInvoiceValue,,,) = bullaFactoring.approvedInvoices(invoiceId);
         assertEq(initialInvoiceValue, overrideAmount);
         assertTrue(initialInvoiceValue < invoiceAmount);
     }
@@ -119,7 +119,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
         vm.stopPrank();
         
-        (uint256 fundedAmountGross,,,,,,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
+        (uint256 fundedAmountGross, , , , , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
         
         // Should be 80% of overrideAmount amount, not original invoice amount
         uint256 expectedGross = (overrideAmount * upfrontPercentage) / 10000;
@@ -146,7 +146,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
         
         // Verify funding is based on overrideAmount amount
-        (,,,,,, uint256 fundedAmountGross, uint256 fundedAmountNet,,,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,, uint256 fundedAmountGross, uint256 fundedAmountNet,,,,) = bullaFactoring.approvedInvoices(invoiceId);
         assertTrue(fundedAmountGross > 0);
         assertTrue(fundedAmountNet > 0);
         assertEq(fundedAmount, fundedAmountNet);
@@ -168,7 +168,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         // Should revert due to insufficient funds
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, 500000, 560000));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, 500000, 560350));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
@@ -198,7 +198,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.warp(block.timestamp + 30 days);
         payInvoice(invoiceId, invoiceAmount);
         
-        (uint256 kickbackAmount,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
         
         // Should have kickback since overrideAmount was higher than actual payment
         assertTrue(kickbackAmount > 0);
@@ -227,7 +227,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.warp(block.timestamp + 30 days);
         payInvoice(invoiceId, invoiceAmount);
         
-        (uint256 kickbackAmount,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
         
         // Should have significant kickback since payment exceeds overrideAmount
         assertTrue(kickbackAmount > 0);
@@ -293,7 +293,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         
         // Verify each invoice uses its respective overrideAmount for calculations
         for (uint i = 0; i < 3; i++) {
-            (,,,,,,,, uint256 initialInvoiceValue,,) = bullaFactoring.approvedInvoices(invoiceIds[i]);
+            (,,,,,,,, uint256 initialInvoiceValue,,,) = bullaFactoring.approvedInvoices(invoiceIds[i]);
             if (overrides[i] == 0) {
                 assertEq(initialInvoiceValue, invoiceAmount); // Original amount
             } else {
@@ -322,7 +322,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
         vm.stopPrank();
         
-        (,,,,,,,, uint256 initialInvoiceValue, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,, uint256 initialInvoiceValue, uint256 initialPaidAmount,,) = bullaFactoring.approvedInvoices(invoiceId);
         assertEq(initialInvoiceValue, overrideAmount);
         assertEq(initialPaidAmount, partialPayment);
     }
@@ -435,7 +435,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
         
         // Should allow partial exposure to high-risk invoice
-        (,,,,, IBullaFactoringV2.FeeParams memory feeParams,,, uint256 initialInvoiceValue,,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,, IBullaFactoringV2.FeeParams memory feeParams,,, uint256 initialInvoiceValue,,,) = bullaFactoring.approvedInvoices(invoiceId);
         assertEq(initialInvoiceValue, conservativeOverrideAmount);
         assertEq(feeParams.targetYieldBps, higherInterestApr);
         assertEq(feeParams.spreadBps, higherSpreadBps);

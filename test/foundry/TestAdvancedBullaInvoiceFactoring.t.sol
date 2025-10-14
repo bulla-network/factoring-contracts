@@ -83,7 +83,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         for (uint256 i = 0; i < paymentTimes.length; i++) {
             vm.warp(block.timestamp + paymentTimes[i]);
             
-        (, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = bullaFactoring.calculateKickbackAmount(invoiceId);
             
             // Interest should increase with time
             if (i > 0) {
@@ -94,7 +94,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
             // Verify all fees are positive
             assertGt(trueInterest, 0, "True interest should be positive");
             assertGt(trueSpreadAmount, 0, "Spread amount should be positive");
-            assertGt(trueProtocolFee, 0, "Protocol fee should be positive");
+            // Protocol fee is now taken upfront at funding time, not part of kickback calculation
             assertGt(trueAdminFee, 0, "Admin fee should be positive");
             
             // Reset time for next iteration
@@ -295,10 +295,10 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
 
 
-        (uint256 fundedAmountGross,,,,,,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         // Should revert due to insufficient funds
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, initialDeposit, fundedAmountGross));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, initialDeposit, fundedAmountGross + protocolFee));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }

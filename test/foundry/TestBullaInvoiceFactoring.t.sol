@@ -18,8 +18,8 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     
     // Events to test
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps, uint256 processingFee);
-    event InvoicePaid(uint256 indexed invoiceId, uint256 targetInterest, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee, uint256 fundedAmount, uint256 kickbackAmount, address indexed originalCreditor);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps, uint256 protocolFee);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 targetInterest, uint256 spreadAmount, uint256 adminFee, uint256 fundedAmount, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
 
     function setUp() public override {
@@ -81,7 +81,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Verify approval
-        (bool approved, , , , , , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
+        (bool approved, , , , , , , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
         assertTrue(approved);
     }
 
@@ -106,14 +106,14 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate expected fees
-        (, , uint256 targetInterest, uint256 targetSpreadAmount, , uint256 netFundedAmount,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
         
         vm.expectEmit(true, false, false, true);
-        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, 0);
+        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, protocolFee);
         
         uint256 actualFundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
@@ -217,7 +217,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate expected kickback
-        (uint256 kickbackAmount, , , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 kickbackAmount, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
         // Reconcile and check for kickback payment
         if (kickbackAmount > 0) {
@@ -422,8 +422,8 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         assertGt(fundedAmount1, fundedAmount2, "Higher upfront bps should result in higher funded amount");
 
         // Verify fee calculations reflect the chosen upfront percentage
-        (uint256 fundedAmountGross1, , , , , uint256 netFundedAmount1,) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
-        (uint256 fundedAmountGross2, , , , , uint256 netFundedAmount2,) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
+        (uint256 fundedAmountGross1, , , , , uint256 netFundedAmount1) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
+        (uint256 fundedAmountGross2, , , , , uint256 netFundedAmount2) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
 
         assertEq(fundedAmount1, netFundedAmount1);
         assertEq(fundedAmount2, netFundedAmount2);
@@ -530,7 +530,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         for (uint256 i = 0; i < paymentTimes.length; i++) {
             vm.warp(block.timestamp + paymentTimes[i]);
             
-            (, uint256 trueInterest, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+            (, uint256 trueInterest, , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
             
             // Earlier payments should have lower true interest and higher kickback
             assertGt(trueInterest, 0, "True interest should be positive");
@@ -653,28 +653,28 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Test 1: Interest at funding time (0 hours) should be 0
-        (, uint256 trueInterest0h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest0h, , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
         assertEq(trueInterest0h, 0, "Interest should be 0 at funding time (0 hours)");
 
         // Test 2: Interest after 1 hour should still be 0 (same day)
         vm.warp(block.timestamp + 1 hours);
-        (, uint256 trueInterest1h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest1h, , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
         assertEq(trueInterest1h, 0, "Interest should be 0 after 1 hour (same day)");
 
         vm.warp(block.timestamp + 22 hours + 59 minutes);
-        (, uint256 trueInterest23h59m, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest23h59m, , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
         // This test documents the current (potentially buggy) behavior
         assertEq(trueInterest23h59m, 0, "Interest should be 0 after 23h59m (still same day)");
 
         // Test 3: Interest after 24 hours should be non-zero (next day)
         vm.warp(block.timestamp + 1 minutes);
-        (, uint256 trueInterest24h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest24h, , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
         assertGt(trueInterest24h, 0, "Interest should be non-zero after 24 hours (next day)");
         
         // Verify that interest increases with more time
         vm.warp(block.timestamp + 24 hours);
-        (, uint256 trueInterest48h, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (, uint256 trueInterest48h, , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
         assertGt(trueInterest48h, trueInterest24h, "Interest should increase after 48 hours");
     }
 
@@ -700,7 +700,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate target fees at funding time (t=0)
-        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, ,) = 
+        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, ) = 
             bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice
@@ -713,7 +713,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.warp(block.timestamp + 30 days);
 
         // Calculate actual fees at due date + 1 second
-        (, uint256 actualInterest, uint256 actualSpreadAmount, uint256 actualProtocolFee, uint256 actualAdminFee) = 
+        (, uint256 actualInterest, uint256 actualSpreadAmount, uint256 actualAdminFee) = 
             bullaFactoring.calculateKickbackAmount(invoiceId);
 
         // These should be equal since we're comparing fees for the same time period
@@ -723,7 +723,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         // The test documents potential discrepancies
         assertEq(targetInterest, actualInterest, "Target interest should equal actual interest at due date");
         assertEq(targetSpreadAmount, actualSpreadAmount, "Target spread should equal actual spread at due date");
-        assertEq(targetProtocolFee, actualProtocolFee, "Target protocol fee should equal actual protocol fee at due date");
+        // Protocol fee is now taken upfront at funding time, not part of kickback calculation
         assertEq(targetAdminFee, actualAdminFee, "Target admin fee should equal actual admin fee at due date");
     }
 
@@ -783,7 +783,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // net funded amount
-       (,,,,,,, uint256 fundedAmountNet,,,)= bullaFactoring.approvedInvoices(invoiceId);
+       (,,,,,,, uint256 fundedAmountNet,,,,)= bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify impairment was recorded
                  (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
@@ -866,7 +866,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Get net funded amount and initial paid amount to verify calculations
-        (,,,,,,, uint256 fundedAmountNet,, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,, uint256 fundedAmountNet,, uint256 initialPaidAmount,,) = bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify that initialPaidAmount captured the pre-approval payment
         assertEq(initialPaidAmount, partialPaymentBeforeApproval, 
@@ -936,7 +936,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
 
         // net funded amount
-       (,,,,,,, uint256 fundedAmountNet,,,)= bullaFactoring.approvedInvoices(invoiceId);
+       (,,,,,,, uint256 fundedAmountNet,,,,)= bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify impairment was recorded
                  (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
@@ -1012,7 +1012,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
 
         // Get net funded amount and initial paid amount to verify calculations
-        (,,,,,,, uint256 fundedAmountNet,, uint256 initialPaidAmount,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,, uint256 fundedAmountNet,, uint256 initialPaidAmount,,) = bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify that initialPaidAmount captured the pre-approval payment
         assertEq(initialPaidAmount, partialPaymentBeforeApproval, 

@@ -21,9 +21,9 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestDepositAndRedemption is CommonSetup {
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 processingFee);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
-    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
 
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);
     event AdminFeesWithdrawn(address indexed bullaDao, uint256 amount);
@@ -135,10 +135,10 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
         // Calculate expected funded amount
-        (, , , , , uint256 expectedFundedAmount,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , , uint256 expectedFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         vm.expectEmit(true, true, true, true);
-        emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps, 0);
+        emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps, 250);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -434,7 +434,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee,,) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
 
         // Simulate impairment
         vm.warp(block.timestamp + 100 days);
