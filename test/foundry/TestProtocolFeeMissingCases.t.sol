@@ -245,6 +245,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.warp(block.timestamp + 15 days);
         
         vm.startPrank(bob);
+        vm.expectEmit(true, true, false, false);
+        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0); // Protocol fee not in event
         bullaFactoring.unfactorInvoice(invoiceId);
         vm.stopPrank();
         
@@ -252,42 +254,6 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         // Protocol fee should remain in the system (not refunded during unfactoring)
         assertEq(protocolFeeBalanceAfterUnfactoring, protocolFeeBalanceAfterFunding, "Protocol fee should not be refunded during unfactoring");
-    }
-
-    function testUnfactoringProtocolFeeAccounting() public {
-        uint256 invoiceAmount = 100000;
-        
-        vm.startPrank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-        
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
-        vm.stopPrank();
-        
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-        
-        uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
-        
-        // Fast forward and unfactor
-        vm.warp(block.timestamp + 20 days);
-        
-        vm.startPrank(bob);
-        // Note: InvoiceUnfactored event signature is: (invoiceId, originalCreditor, totalRefundOrPaymentAmount, interestToCharge, spreadAmount, adminFee)
-        // Protocol fee is not included in the event as it's already collected upfront
-        vm.expectEmit(true, true, false, false);
-        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0); // Protocol fee not in event
-        bullaFactoring.unfactorInvoice(invoiceId);
-        vm.stopPrank();
-        
-        uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
-        
-        // Verify protocol fee remains collected (not refunded during unfactoring)
-        assertEq(protocolFeeBalanceAfter, protocolFeeBalanceBefore, "Protocol fee should not be refunded during unfactoring");
     }
 
     // ==================== INSUFFICIENT FUNDS FOR PROTOCOL FEE COLLECTION ====================
@@ -381,6 +347,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         assertEq(protocolFeeBalanceAfter, protocolFeeBalanceBefore, "No protocol fee should be collected on dust amounts");
+        assertEq(protocolFeeBalanceAfter, 0, "Protocol fee should be 0 on dust amounts");
     }
 
     function testProtocolFeeRoundingBehavior() public {
