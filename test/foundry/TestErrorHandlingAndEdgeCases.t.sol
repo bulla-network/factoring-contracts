@@ -22,7 +22,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
-    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
     event DepositPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
 
@@ -257,10 +257,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Test InvoicePaid event emission
         vm.expectEmit(true, true, false, false);
-        emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, 0, bob);
+        emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, bob);
         bullaFactoring.reconcileActivePaidInvoices();
 
-        (uint256 kickbackAmount,,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
         uint maxRedeem = bullaFactoring.maxRedeem();
 
@@ -419,7 +419,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee,) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -438,9 +438,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint availableAssetsAfter = bullaFactoring.totalAssets();
         uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
-        uint targetFees = adminFee + targetInterest + targetProtocolFee + targetSpread;
+        // Protocol fees are collected upfront during funding, not as part of realized gains
+        uint targetFees = adminFee + targetInterest + targetSpread + targetProtocolFee;
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
+
         assertEq(realizedFees + gainLoss, targetFees, "Realized fees + realised gains should match target fees when invoice is paid on time");
     }
 
@@ -697,7 +699,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        (, uint targetAdminFeeAfterFeeChange, , uint targetSpreadAfterFeeChange, uint targetProtocolFeeAfterFeeChange,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, uint targetAdminFeeAfterFeeChange, , uint targetSpreadAfterFeeChange, uint targetProtocolFeeAfterFeeChange, ) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         vm.warp(dueBy - 1);
@@ -708,9 +710,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
         
-        // Note: Since spread is now added to adminFeeBalance, we need to compare against the combined amount
+        // Protocol fees are now collected upfront during funding, so we expect the sum of both invoices' protocol fees
+        // First invoice: 2500 (old 25 bps rate), Second invoice: 5000 (new 50 bps rate)
+        uint256 expectedProtocolFeeBalance = 2500 + targetProtocolFeeAfterFeeChange; // 2500 + 5000 = 7500
+        assertEq(bullaFactoring.protocolFeeBalance(), expectedProtocolFeeBalance, "Protocol fee balance should equal sum of both invoices' upfront protocol fees");
+        
+        // Admin fees are still collected during reconciliation, so only the paid invoice should contribute
         uint256 targetCombinedAdminFeeAfterFeeChange = targetAdminFeeAfterFeeChange + targetSpreadAfterFeeChange;
-        assertLt(bullaFactoring.protocolFeeBalance(), targetProtocolFeeAfterFeeChange, "Protocol fee balance should be less than new protocol fee");
         assertLt(bullaFactoring.adminFeeBalance(), targetCombinedAdminFeeAfterFeeChange, "Admin fee balance should be less than new combined admin+spread fee");
     }
 }

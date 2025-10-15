@@ -55,8 +55,8 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
 
-        (, , , , , , , uint256 fundedAmountNet01, , , ) = bullaFactoring.approvedInvoices(invoiceId01);
-        (, , , , , , , uint256 fundedAmountNet02, , , ) = bullaFactoring.approvedInvoices(invoiceId02);
+        (, , , , , , , uint256 fundedAmountNet01, , , , ) = bullaFactoring.approvedInvoices(invoiceId01);
+        (, , , , , , , uint256 fundedAmountNet02, , , , ) = bullaFactoring.approvedInvoices(invoiceId02);
         assertEq(factorerBalanceAfterFactoring, initialFactorerBalance + fundedAmountNet01 + fundedAmountNet02);
 
         // Simulate debtor paying in 30 days

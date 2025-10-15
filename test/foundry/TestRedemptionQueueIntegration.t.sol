@@ -159,7 +159,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
-        
+
         // Alice attempts to redeem - should queue all shares
         vm.expectEmit(true, true, false, true);
         emit IRedemptionQueue.RedemptionQueued(alice, alice, redeemShares, 0, 0);
@@ -243,7 +243,6 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
         vm.recordLogs();
-        // Alice attempts to withdraw - should queue all assets
         vm.expectEmit(true, true, false, true);
         emit IRedemptionQueue.RedemptionQueued(alice, alice, 0, withdrawAssets, 0);
         
@@ -251,7 +250,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         uint256 redeemedShares = bullaFactoring.withdraw(withdrawAssets, alice, alice);
         (, uint256 queuedAssets) = getQueuedSharesAndAssetsFromEvent();
         
-        assertEq(redeemedShares, 0, "Should redeem no shares");
+        assertEq(redeemedShares, 0, "Should redeem nothing");
         assertEq(queuedAssets, withdrawAssets, "Should queue all assets");
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should not be empty");
     }

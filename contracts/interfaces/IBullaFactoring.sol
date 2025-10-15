@@ -43,6 +43,7 @@ interface IBullaFactoringV2 {
         uint256 initialInvoiceValue; // takes into account the principal amount override and the initial paid amount. Do not subtract the initial paid amount from this value.
         uint256 initialPaidAmount;
         address receiverAddress;
+        uint256 protocolFee;
     }
 
     struct FundInfo {
@@ -66,14 +67,14 @@ interface IBullaFactoringV2 {
 
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newDuration);
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
-    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueProtocolFee, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
-    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 protocolFee, uint256 adminFee);
+    event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee);
 
     event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);

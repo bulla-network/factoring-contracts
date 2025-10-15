@@ -141,8 +141,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId2, factorerUpfrontBps, address(0));
         vm.stopPrank();
 
-        (, , , , , , uint256 actualFundedAmount, , , , ) = bullaFactoring.approvedInvoices(invoiceId);
-        (, , , , , , uint256 actualFundedAmountLowerUpfrontBps, , , , ) = bullaFactoring.approvedInvoices(invoiceId2);
+        (, , , , , , uint256 actualFundedAmount, , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
+        (, , , , , , uint256 actualFundedAmountLowerUpfrontBps, , , , , ) = bullaFactoring.approvedInvoices(invoiceId2);
 
         assertTrue(actualFundedAmount > actualFundedAmountLowerUpfrontBps, "Funded amounts should reflect the actual upfront bps chosen by the factorer" );
     }
@@ -168,7 +168,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
         bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
-        (, , uint targetInterest01, , ,) = bullaFactoring.calculateTargetFees(invoiceId01, upfrontBps);
+        (, , uint targetInterest01, , , ) = bullaFactoring.calculateTargetFees(invoiceId01, upfrontBps);
         vm.stopPrank();
 
         dueBy = block.timestamp + 30 days;
@@ -182,7 +182,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
         vm.startPrank(bob);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        (, , uint targetInterest02, , ,) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, , uint targetInterest02, , , ) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         assertEq(targetInterest02, targetInterest01, "Target interest should be the same for both invoices as min days for interest to be charged is 30 days");
@@ -248,7 +248,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertEq(paidInvoices.length, 1);
 
         // Calculate expected kickback amount before reconciliation
-        (uint256 expectedKickbackAmount,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 expectedKickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
         
         // Expect InvoiceKickbackAmountSent event if kickback amount > 0
         if (expectedKickbackAmount > 0) {
@@ -260,8 +260,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Check if the kickback and funded amount were correctly transferred
-        (, , , , , , , uint256 fundedAmountNet, , , ) = bullaFactoring.approvedInvoices(invoiceId01);
-        (uint256 kickbackAmount,,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (, , , , , , , uint256 fundedAmountNet, , , , ) = bullaFactoring.approvedInvoices(invoiceId01);
+        (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
 
@@ -304,7 +304,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaFactoring.reconcileActivePaidInvoices();
 
-        (uint256 kickbackAmount,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint balanceAfterReconciliation = asset.balanceOf(bob);
 
@@ -390,8 +390,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Simulate debtor paying on time
         vm.warp(dueBy - 1);
 
-        (uint256 kickbackAmount01,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
-        (uint256 kickbackAmount02,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId02);
+        (uint256 kickbackAmount01,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
+        (uint256 kickbackAmount02,,,) = bullaFactoring.calculateKickbackAmount(invoiceId02);
         assertLt(kickbackAmount01, kickbackAmount02, "Kickback amount for partially paid invoice should be less than kickback amount for fully unpaid invoice");
     }
 
@@ -541,8 +541,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Calculate target fees for both invoices
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, ) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
 
         // Protocol fee should be the same regardless of interest rate
         assertApproxEqAbs(targetProtocolFee1, targetProtocolFee2, 1, "Protocol fee should be the same whether interest rate is 10% or 0%");
@@ -577,11 +577,10 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Get actual realized fees
-        (,uint256 realizedInterest1, uint256 realizedSpread1, uint256 realizedProtocolFee1, uint256 realizedAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
-        (,uint256 realizedInterest2, uint256 realizedSpread2, uint256 realizedProtocolFee2, uint256 realizedAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId2);
+        (,uint256 realizedInterest1, uint256 realizedSpread1, uint256 realizedAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,uint256 realizedInterest2, uint256 realizedSpread2, uint256 realizedAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId2);
 
-        // Realized protocol fees should be the same
-        assertApproxEqAbs(realizedProtocolFee1, realizedProtocolFee2, 1, "Realized protocol fee should be the same whether interest rate is 10% or 0%");
+        // Protocol fees are now taken upfront at funding time, so no longer part of the kickback calculation
         
         // Realized admin fees should be the same
         assertEq(realizedAdminFee1, realizedAdminFee2, "Realized admin fee should be the same regardless of interest rate");
@@ -935,7 +934,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Calculate expected kickback amount
-        (uint256 expectedKickback,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
         // Reconcile to trigger kickback payment
         bullaFactoring.reconcileActivePaidInvoices();
@@ -989,7 +988,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Calculate expected kickback amount
-        (uint256 expectedKickback,,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
+        (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
         // Reconcile to trigger kickback payment
         bullaFactoring.reconcileActivePaidInvoices();

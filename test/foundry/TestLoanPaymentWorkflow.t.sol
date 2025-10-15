@@ -23,7 +23,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 indexed invoiceId,
         uint256 trueInterest,
         uint256 trueSpreadAmount,
-        uint256 trueProtocolFee,
         uint256 trueAdminFee,
         uint256 fundedAmountNet,
         uint256 kickbackAmount,
@@ -172,10 +171,11 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         );
         
         // Verify fee balances increased
-        assertGt(
+        // Note: Loan offers do not generate protocol fees - only admin fees apply
+        assertEq(
             protocolFeeBalanceAfter,
             protocolFeeBalanceBefore,
-            "Protocol fee balance should have increased"
+            "Protocol fees do not apply to loan offers"
         );
         assertGt(
             adminFeeBalanceAfter,
@@ -587,8 +587,9 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Expect events during reconciliation
+        // Note: Since this is a loan payment, we need to expect the actual calculated fees
         vm.expectEmit(true, false, false, false);
-        emit InvoicePaid(loanId, 0, 0, 0, 0, principalAmount, 0, address(bullaFactoring));
+        emit InvoicePaid(loanId, 0, 0, 0, principalAmount, 0, address(bullaFactoring));
         
         vm.expectEmit(false, false, false, true);
         uint256[] memory expectedInvoiceIds = new uint256[](1);
@@ -646,7 +647,8 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 protocolFeeIncrease = protocolFeeBalanceAfter - protocolFeeBalanceBefore;
         uint256 adminFeeIncrease = adminFeeBalanceAfter - adminFeeBalanceBefore;
         
-        assertGt(protocolFeeIncrease, 0, "Protocol fee should have increased");
+        // Loan offers do not generate protocol fees
+        assertEq(protocolFeeIncrease, 0, "Protocol fees do not apply to loan offers");
         assertGt(adminFeeIncrease, 0, "Admin fee should have increased");
         
         // Verify total assets increased due to interest earned
@@ -654,11 +656,8 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         
         // Verify fee calculations are proportional (annualized rates)
         uint256 loanDays = termLength / 1 days; // 90 days
-        uint256 expectedProtocolFee = Math.mulDiv(
-            Math.mulDiv(principalAmount, protocolFeeBps, 10000),
-            loanDays,
-            365
-        );
+        // Note: Protocol fees do not apply to loan offers, so expected is 0
+        uint256 expectedProtocolFee = 0;
         // Note: Admin fee balance now includes both admin fee and spread
         uint256 expectedAdminFee = Math.mulDiv(
             Math.mulDiv(principalAmount, adminFeeBps, 10000),
@@ -673,7 +672,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 expectedCombinedAdminFee = expectedAdminFee + expectedSpread;
         
         // Allow for some variance due to time-based calculations and rounding
-        assertApproxEqRel(protocolFeeIncrease, expectedProtocolFee, 0.1e18, "Protocol fee should match expected annualized amount");
+        assertEq(protocolFeeIncrease, expectedProtocolFee, "Protocol fees do not apply to loan offers");
         assertApproxEqRel(adminFeeIncrease, expectedCombinedAdminFee, 0.1e18, "Admin fee should match expected annualized amount (includes spread)");
     }
 
@@ -722,8 +721,8 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 totalInterest = gainAfter - gainBefore; // Calculate gain from this payment
         assertEq(totalInterest, 0, "Should have zero target yield and spread gains");
         
-        // But protocol and admin fees should still apply
-        assertGt(bullaFactoring.protocolFeeBalance(), 0, "Protocol fees should still apply");
+        // Only admin fees apply to loan offers - protocol fees do not
+        assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fees do not apply to loan offers");
         assertGt(bullaFactoring.adminFeeBalance(), 0, "Admin fees should still apply");
     }
     

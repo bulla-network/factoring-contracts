@@ -141,7 +141,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, 0, 64000000000)); // Should fail due to insufficient funds (0 available, net funded amount required)
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, 0, 64040000000)); // Should fail due to insufficient funds (0 available, net funded amount required)
         bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
         
         // Capital call to fund the pool

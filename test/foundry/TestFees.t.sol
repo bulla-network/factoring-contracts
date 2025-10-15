@@ -157,7 +157,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1,) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, ) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
@@ -170,7 +170,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2,) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, ) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
         bullaFactoring.fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
@@ -199,8 +199,8 @@ contract TestFees is CommonSetup {
         // Calculate realized fees
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
 
-        // Calculate expected fees
-        uint256 expectedFees = (adminFee1 + targetInterest1 + targetProtocolFee1 + targetSpread1) + (adminFee2 + targetInterest2 + targetProtocolFee2 + targetSpread2);
+        // Calculate expected fees (protocol fees are now taken upfront at funding time, so excluded here)
+        uint256 expectedFees = (adminFee1 + targetInterest1 + targetSpread1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetSpread2 + targetProtocolFee2);
 
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees
@@ -225,7 +225,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 targetAdminFee1,,,,) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        (, uint256 targetAdminFee1, , , , ) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -234,7 +234,7 @@ contract TestFees is CommonSetup {
         vm.warp(dueDate - 14 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        (,,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,,,uint trueAdminFee1) = bullaFactoring.calculateKickbackAmount(invoiceId1);
         bullaClaim.payClaim(invoiceId1, invoiceAmount);
         vm.stopPrank();
 
@@ -249,7 +249,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 targetAdminFee2,,,, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+        (, uint256 targetAdminFee2, , , , ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -258,7 +258,7 @@ contract TestFees is CommonSetup {
         vm.warp(block.timestamp + 29 days);
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        (,,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
+        (,,,uint trueAdminFee2) = bullaFactoring.calculateKickbackAmount(invoiceId1);
 
         assertGt(trueAdminFee2, trueAdminFee1, "Admin fee should increase overtime");
     }
