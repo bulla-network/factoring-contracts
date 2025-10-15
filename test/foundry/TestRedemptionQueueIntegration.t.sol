@@ -155,12 +155,10 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(underwriter);
         bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
         
-        console.log("pre total assets", bullaFactoring.totalAssets());
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
-        console.log("post total assets", bullaFactoring.totalAssets());
 
         // Alice attempts to redeem - should queue all shares
         vm.expectEmit(true, true, false, true);
@@ -169,7 +167,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(alice);
         uint256 redeemedAssets = bullaFactoring.redeem(redeemShares, alice, alice);
         
-        assertEq(redeemedAssets, 0, "Should redeem the protocol fee amount that provides immediate liquidity");
+        assertEq(redeemedAssets, 0, "Should redeem nothing");
         assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should not be empty");
     }
 

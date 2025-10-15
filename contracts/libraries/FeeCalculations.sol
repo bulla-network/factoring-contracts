@@ -121,10 +121,10 @@ library FeeCalculations {
         uint256 protocolFee,
         uint256 netFundedAmount
     ) {
-        // Calculate processing fee (taken off the top)
+        // Calculate protocol fee (taken off the top)
         protocolFee = Math.mulDiv(approval.initialInvoiceValue, protocolFeeBps, 10000);
         
-        // Calculate available amount after processing fee
+        // Calculate available amount after protocol fee
         uint256 availableAmount = approval.initialInvoiceValue - protocolFee;
         
         // Calculate funded amount gross from the available amount
