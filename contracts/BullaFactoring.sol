@@ -676,7 +676,7 @@ contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
         // Need to subtract payments since funding start
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
-        int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueAdminFee) - int256(paymentSinceFunding);
+        int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
 
         // positive number means the original creditor owes us the amount
         if(totalRefundOrPaymentAmount > 0) {
