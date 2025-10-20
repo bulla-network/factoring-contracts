@@ -1,0 +1,80 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "PermissionsWithSafe",
+  "sourceName": "contracts/PermissionsWithSafe.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_safeAddress",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "AccessGranted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "AccessRevoked",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "isAllowed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "safe",
+      "outputs": [
+        {
+          "internalType": "contract GnosisSafe",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60803460b957601f61023d38819003918201601f19168301916001600160401b0383118484101760bd5780849260209460405283398101031260b957516001600160a01b0381169081900360b95780156074575f80546001600160a01b03191691909117905560405161016b90816100d28239f35b60405162461bcd60e51b815260206004820152601460248201527f496e76616c6964205361666520616464726573730000000000000000000000006044820152606490fd5b5f80fd5b634e487b7160e01b5f52604160045260245ffdfe6080806040526004361015610012575f80fd5b5f3560e01c908163186f035414610113575063babcc53914610032575f80fd5b346100e95760203660031901126100e9576004356001600160a01b038116908190036100e9575f546040516317aa5fb760e11b81526004810192909252602090829060249082906001600160a01b03165afa8015610108575f9061009e575b6020906040519015158152f35b5060203d602011610101575b601f8101601f1916820167ffffffffffffffff8111838210176100ed576020918391604052810103126100e9575180151581036100e957602090610091565b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b503d6100aa565b6040513d5f823e3d90fd5b346100e9575f3660031901126100e9575f546001600160a01b03168152602090f3fea2646970667358221220a7f6486beb518b18eccb5d1a1fde7f787e1cc51cec31196a8e06474ee299191364736f6c634300081e0033",
+  "deployedBytecode": "0x6080806040526004361015610012575f80fd5b5f3560e01c908163186f035414610113575063babcc53914610032575f80fd5b346100e95760203660031901126100e9576004356001600160a01b038116908190036100e9575f546040516317aa5fb760e11b81526004810192909252602090829060249082906001600160a01b03165afa8015610108575f9061009e575b6020906040519015158152f35b5060203d602011610101575b601f8101601f1916820167ffffffffffffffff8111838210176100ed576020918391604052810103126100e9575180151581036100e957602090610091565b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b503d6100aa565b6040513d5f823e3d90fd5b346100e9575f3660031901126100e9575f546001600160a01b03168152602090f3fea2646970667358221220a7f6486beb518b18eccb5d1a1fde7f787e1cc51cec31196a8e06474ee299191364736f6c634300081e0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

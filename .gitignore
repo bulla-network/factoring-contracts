@@ -1,4 +1,5 @@
 /artifacts
+!/artifacts/contracts
 /typechain/
 /typechain-types/
 /node_modules
