@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import "./CommonSetup.t.sol";
 import "forge-std/console.sol";
-import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
 
 contract TestActivePaidInvoicesCheck is CommonSetup {
     
@@ -49,7 +49,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         vm.startPrank(alice);
         uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 2;
         
-        vm.expectRevert(BullaFactoringV2.ActivePaidInvoicesExist.selector);
+        vm.expectRevert(BullaFactoringV2_1.ActivePaidInvoicesExist.selector);
         bullaFactoring.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
@@ -102,7 +102,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         uint256 maxWithdraw = bullaFactoring.maxWithdraw(alice);
         uint256 assetsToWithdraw = maxWithdraw / 2;
         
-        vm.expectRevert(BullaFactoringV2.ActivePaidInvoicesExist.selector);
+        vm.expectRevert(BullaFactoringV2_1.ActivePaidInvoicesExist.selector);
         bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
@@ -162,7 +162,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before reconciliation");
 
         // Try to process redemption queue - should revert due to active paid invoices
-        vm.expectRevert(BullaFactoringV2.ActivePaidInvoicesExist.selector);
+        vm.expectRevert(BullaFactoringV2_1.ActivePaidInvoicesExist.selector);
         bullaFactoring.processRedemptionQueue();
 
         // After reconciliation, processing queue should work

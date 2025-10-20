@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
 import { BullaFactoringFundManager, IBullaFactoringFundManager } from 'contracts/FactoringFundManager.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -141,7 +141,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, 0, 64040000000)); // Should fail due to insufficient funds (0 available, net funded amount required)
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, 0, 64040000000)); // Should fail due to insufficient funds (0 available, net funded amount required)
         bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
         
         // Capital call to fund the pool
@@ -362,7 +362,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         
         // Capital call should fail due to lack of permissions
         vm.prank(capitalCaller);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.UnauthorizedDeposit.selector, address(fundManager))); // Should revert due to unauthorized deposit
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.UnauthorizedDeposit.selector, address(fundManager))); // Should revert due to unauthorized deposit
         fundManager.capitalCall(INVESTOR1_COMMITMENT);
         
         // Re-enable permissions

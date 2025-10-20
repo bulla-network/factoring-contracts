@@ -39,7 +39,7 @@ export const sepoliaConfig: NetworkConfig = {
     redeemPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
     bullaFrendLendAddress: '0x330b6f37d9881ca4781ef70d662197ddb0d353b7',
     bullaInvoiceAddress: '0x6c4044597f2be6e1dc92217a49b0571c91025379',
-    bullaFactoringAddress: '0x078Dc29cDaf3B3c7F616109Ac6e752c846490BAf',
+    bullaFactoringAddress: '0xbc1dd527c3CF1302Cb189CaB9683Ef5CF27F0308',
     writeNewAddresses: true,
 };
 

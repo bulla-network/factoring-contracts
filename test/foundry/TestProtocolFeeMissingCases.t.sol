@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
@@ -35,7 +35,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
     function testConstructorProtocolFeeValidation() public {
         // Test constructor validation with invalid protocol fee rates
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        new BullaFactoringV2(
+        new BullaFactoringV2_1(
             asset, 
             invoiceAdapterBulla, 
             bullaFrendLend, 
@@ -53,7 +53,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         );
         
         // Test constructor with maximum valid rate (should succeed)
-        BullaFactoringV2 validFactoring = new BullaFactoringV2(
+        BullaFactoringV2_1 validFactoring = new BullaFactoringV2_1(
             asset, 
             invoiceAdapterBulla, 
             bullaFrendLend, 
@@ -283,7 +283,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         uint256 totalRequired = fundedAmountGross + protocolFee;
         uint256 availableFunds = bullaFactoring.totalAssets();
         
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, availableFunds, totalRequired));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, availableFunds, totalRequired));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }

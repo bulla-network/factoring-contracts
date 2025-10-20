@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import "contracts/interfaces/IBullaFactoring.sol";
 import {CreateClaimApprovalType} from '@bulla/contracts-v2/src/types/Types.sol';

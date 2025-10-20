@@ -17,7 +17,7 @@ contract WhitelistCallback is Script {
         console.log("BullaFactoring Address:", bullaFactoringAddress);
 
         // Get the callback selector
-        BullaFactoringV2 factoring = BullaFactoringV2(bullaFactoringAddress);
+        BullaFactoringV2_1 factoring = BullaFactoringV2_1(bullaFactoringAddress);
         bytes4 callbackSelector = factoring.onLoanOfferAccepted.selector;
         
         console.log("Callback Selector:", vm.toString(callbackSelector));

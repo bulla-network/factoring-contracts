@@ -1,0 +1,405 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "DAOMock",
+  "sourceName": "contracts/mocks/DAOMock.sol",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "_reference",
+          "type": "string"
+        }
+      ],
+      "name": "Deposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "actor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "callId",
+          "type": "bytes32"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "indexed": false,
+          "internalType": "struct IDAO.Action[]",
+          "name": "actions",
+          "type": "tuple[]"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "allowFailureMap",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "failureMap",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes[]",
+          "name": "execResults",
+          "type": "bytes[]"
+        }
+      ],
+      "name": "Executed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "metadata",
+          "type": "bytes"
+        }
+      ],
+      "name": "MetadataSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "NativeTokenDeposited",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes4",
+          "name": "callbackSelector",
+          "type": "bytes4"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes4",
+          "name": "magicNumber",
+          "type": "bytes4"
+        }
+      ],
+      "name": "StandardCallbackRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "forwarder",
+          "type": "address"
+        }
+      ],
+      "name": "TrustedForwarderSet",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "_reference",
+          "type": "string"
+        }
+      ],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "callId",
+          "type": "bytes32"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "to",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct IDAO.Action[]",
+          "name": "_actions",
+          "type": "tuple[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "allowFailureMap",
+          "type": "uint256"
+        }
+      ],
+      "name": "execute",
+      "outputs": [
+        {
+          "internalType": "bytes[]",
+          "name": "execResults",
+          "type": "bytes[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "failureMap",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getTrustedForwarder",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_where",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_who",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_data",
+          "type": "bytes"
+        }
+      ],
+      "name": "hasPermission",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "hasPermissionReturnValueMock",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_hash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_signature",
+          "type": "bytes"
+        }
+      ],
+      "name": "isValidSignature",
+      "outputs": [
+        {
+          "internalType": "bytes4",
+          "name": "",
+          "type": "bytes4"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interfaceId",
+          "type": "bytes4"
+        },
+        {
+          "internalType": "bytes4",
+          "name": "_callbackSelector",
+          "type": "bytes4"
+        },
+        {
+          "internalType": "bytes4",
+          "name": "_magicNumber",
+          "type": "bytes4"
+        }
+      ],
+      "name": "registerStandardCallback",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bool",
+          "name": "_hasPermissionReturnValueMock",
+          "type": "bool"
+        }
+      ],
+      "name": "setHasPermissionReturnValueMock",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "_metadata",
+          "type": "bytes"
+        }
+      ],
+      "name": "setMetadata",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_signatureValidator",
+          "type": "address"
+        }
+      ],
+      "name": "setSignatureValidator",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_trustedForwarder",
+          "type": "address"
+        }
+      ],
+      "name": "setTrustedForwarder",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60808060405234601557610613908161001a8239f35b5f80fdfe6080806040526004361015610012575f80fd5b5f3560e01c9081630a1f41ca14610413575080631626ba7e146103d75780633e2ab0d91461012157806380e4cbe1146103a9578063bfe07da614610374578063c4a5014514610349578063c71bf32414610140578063ce1b815f14610126578063da74222814610121578063ee57e36f146100ee5763fdef910614610095575f80fd5b346100ea5760803660031901126100ea576100ae6104a9565b506100b76104bf565b5060643567ffffffffffffffff81116100ea576100d8903690600401610457565b50602060ff5f54166040519015158152f35b5f80fd5b346100ea5760203660031901126100ea5760043567ffffffffffffffff81116100ea5761011f9036906004016104ee565b005b6104d5565b346100ea575f3660031901126100ea5760206040515f8152f35b346100ea5760603660031901126100ea5760243567ffffffffffffffff81116100ea57366023820112156100ea57806004013567ffffffffffffffff8111610335578060051b916020610194818501610431565b80938152019060248294820101903682116100ea5760248101925b82841061029c5785856040519060a0820190600435835260a060208401525180915260c082019060c08160051b84010193915f905b82821061024f5760443560408601525f60608601528486036080860152337fd4e57c2049f004fb297ef78591cd409503ceb6b2c722d7ffed032fc99e5f3b58868061022e8a610585565b0390a2604051604081528061024560408201610585565b5f60208301520390f35b9091929460208061028e60019360bf19898203018652606060408b51878060a01b03815116845285810151868501520151918160408201520190610561565b9701920192019092916101e4565b833567ffffffffffffffff81116100ea578201606060231982360301126100ea57604051916060830183811067ffffffffffffffff8211176103355760405260248201356001600160a01b03811681036100ea5783526044820135602084015260648201359267ffffffffffffffff84116100ea57610325602094936024869536920101610457565b60408201528152019301926101af565b634e487b7160e01b5f52604160045260245ffd5b346100ea5760603660031901126100ea5761036261051c565b5061036b610533565b5061011f61054a565b60603660031901126100ea576103886104a9565b5060443567ffffffffffffffff81116100ea5761011f9036906004016104ee565b346100ea5760203660031901126100ea576004358015158091036100ea5760ff80195f54169116175f555f80f35b346100ea5760403660031901126100ea5760243567ffffffffffffffff81116100ea57610408903690600401610457565b5060206040515f8152f35b346100ea575f3660031901126100ea5760209060ff5f541615158152f35b6040519190601f01601f1916820167ffffffffffffffff81118382101761033557604052565b81601f820112156100ea5780359067ffffffffffffffff821161033557610487601f8301601f1916602001610431565b92828452602083830101116100ea57815f926020809301838601378301015290565b600435906001600160a01b03821682036100ea57565b602435906001600160a01b03821682036100ea57565b346100ea5760203660031901126100ea5761011f6104a9565b9181601f840112156100ea5782359167ffffffffffffffff83116100ea57602083818601950101116100ea57565b600435906001600160e01b0319821682036100ea57565b602435906001600160e01b0319821682036100ea57565b604435906001600160e01b0319821682036100ea57565b805180835260209291819084018484015e5f828201840152601f01601f1916010190565b80602060605191828152019060208160051b840101926080925f915b8383106105b057505050505090565b90919293946020806105ce600193601f198682030187528951610561565b970193019301919392906105a156fea264697066735822122010d9945b9c0602c1a3787c4757f4cefdc4e4237c7b281237cbc668431824b93064736f6c634300081e0033",
+  "deployedBytecode": "0x6080806040526004361015610012575f80fd5b5f3560e01c9081630a1f41ca14610413575080631626ba7e146103d75780633e2ab0d91461012157806380e4cbe1146103a9578063bfe07da614610374578063c4a5014514610349578063c71bf32414610140578063ce1b815f14610126578063da74222814610121578063ee57e36f146100ee5763fdef910614610095575f80fd5b346100ea5760803660031901126100ea576100ae6104a9565b506100b76104bf565b5060643567ffffffffffffffff81116100ea576100d8903690600401610457565b50602060ff5f54166040519015158152f35b5f80fd5b346100ea5760203660031901126100ea5760043567ffffffffffffffff81116100ea5761011f9036906004016104ee565b005b6104d5565b346100ea575f3660031901126100ea5760206040515f8152f35b346100ea5760603660031901126100ea5760243567ffffffffffffffff81116100ea57366023820112156100ea57806004013567ffffffffffffffff8111610335578060051b916020610194818501610431565b80938152019060248294820101903682116100ea5760248101925b82841061029c5785856040519060a0820190600435835260a060208401525180915260c082019060c08160051b84010193915f905b82821061024f5760443560408601525f60608601528486036080860152337fd4e57c2049f004fb297ef78591cd409503ceb6b2c722d7ffed032fc99e5f3b58868061022e8a610585565b0390a2604051604081528061024560408201610585565b5f60208301520390f35b9091929460208061028e60019360bf19898203018652606060408b51878060a01b03815116845285810151868501520151918160408201520190610561565b9701920192019092916101e4565b833567ffffffffffffffff81116100ea578201606060231982360301126100ea57604051916060830183811067ffffffffffffffff8211176103355760405260248201356001600160a01b03811681036100ea5783526044820135602084015260648201359267ffffffffffffffff84116100ea57610325602094936024869536920101610457565b60408201528152019301926101af565b634e487b7160e01b5f52604160045260245ffd5b346100ea5760603660031901126100ea5761036261051c565b5061036b610533565b5061011f61054a565b60603660031901126100ea576103886104a9565b5060443567ffffffffffffffff81116100ea5761011f9036906004016104ee565b346100ea5760203660031901126100ea576004358015158091036100ea5760ff80195f54169116175f555f80f35b346100ea5760403660031901126100ea5760243567ffffffffffffffff81116100ea57610408903690600401610457565b5060206040515f8152f35b346100ea575f3660031901126100ea5760209060ff5f541615158152f35b6040519190601f01601f1916820167ffffffffffffffff81118382101761033557604052565b81601f820112156100ea5780359067ffffffffffffffff821161033557610487601f8301601f1916602001610431565b92828452602083830101116100ea57815f926020809301838601378301015290565b600435906001600160a01b03821682036100ea57565b602435906001600160a01b03821682036100ea57565b346100ea5760203660031901126100ea5761011f6104a9565b9181601f840112156100ea5782359167ffffffffffffffff83116100ea57602083818601950101116100ea57565b600435906001600160e01b0319821682036100ea57565b602435906001600160e01b0319821682036100ea57565b604435906001600160e01b0319821682036100ea57565b805180835260209291819084018484015e5f828201840152601f01601f1916010190565b80602060605191828152019060208160051b840101926080925f915b8383106105b057505050505090565b90919293946020806105ce600193601f198682030187528951610561565b970193019301919392906105a156fea264697066735822122010d9945b9c0602c1a3787c4757f4cefdc4e4237c7b281237cbc668431824b93064736f6c634300081e0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

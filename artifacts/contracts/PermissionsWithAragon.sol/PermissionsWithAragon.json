@@ -1,0 +1,85 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "PermissionsWithAragon",
+  "sourceName": "contracts/PermissionsWithAragon.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_daoAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_permissionsId",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "AccessGranted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "_account",
+          "type": "address"
+        }
+      ],
+      "name": "AccessRevoked",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "aragonDao",
+      "outputs": [
+        {
+          "internalType": "contract IDAO",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_address",
+          "type": "address"
+        }
+      ],
+      "name": "isAllowed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60803460c257601f61026438819003918201601f19168301916001600160401b0383118484101760c657808492604094855283398101031260c25780516001600160a01b038116919082900360c25760200151908015607d575f80546001600160a01b03191691909117905560015560405161018990816100db8239f35b60405162461bcd60e51b815260206004820152601360248201527f496e76616c69642044414f2061646472657373000000000000000000000000006044820152606490fd5b5f80fd5b634e487b7160e01b5f52604160045260245ffdfe6080806040526004361015610012575f80fd5b5f3560e01c90816329b9ea1414610131575063babcc53914610032575f80fd5b34610107576020366003190112610107576004356001600160a01b03811690819003610107575f8054600154604051637ef7c88360e11b815230600482015260248101949094526044840152608060648401526084830191909152602090829060a49082906001600160a01b03165afa8015610126575f906100bc575b6020906040519015158152f35b5060203d60201161011f575b601f8101601f1916820167ffffffffffffffff81118382101761010b5760209183916040528101031261010757518015158103610107576020906100af565b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b503d6100c8565b6040513d5f823e3d90fd5b34610107575f366003190112610107575f546001600160a01b03168152602090f3fea264697066735822122039b5ba68a58bf602a8bbc7cd52fc0527310c6204ca0dabb9cc9a894ea77c2e9664736f6c634300081e0033",
+  "deployedBytecode": "0x6080806040526004361015610012575f80fd5b5f3560e01c90816329b9ea1414610131575063babcc53914610032575f80fd5b34610107576020366003190112610107576004356001600160a01b03811690819003610107575f8054600154604051637ef7c88360e11b815230600482015260248101949094526044840152608060648401526084830191909152602090829060a49082906001600160a01b03165afa8015610126575f906100bc575b6020906040519015158152f35b5060203d60201161011f575b601f8101601f1916820167ffffffffffffffff81118382101761010b5760209183916040528101031261010757518015158103610107576020906100af565b5f80fd5b634e487b7160e01b5f52604160045260245ffd5b503d6100c8565b6040513d5f823e3d90fd5b34610107575f366003190112610107575f546001600160a01b03168152602090f3fea264697066735822122039b5ba68a58bf602a8bbc7cd52fc0527310c6204ca0dabb9cc9a894ea77c2e9664736f6c634300081e0033",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}

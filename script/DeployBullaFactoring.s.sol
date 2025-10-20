@@ -96,8 +96,8 @@ contract DeployBullaFactoring is Script {
 
         // Deploy BullaFactoring if not provided
         if (config.bullaFactoringAddress == address(0)) {
-            console.log("Deploying BullaFactoringV2...");
-            BullaFactoringV2 bullaFactoring = new BullaFactoringV2(
+            console.log("Deploying BullaFactoringV2_1...");
+            BullaFactoringV2_1 bullaFactoring = new BullaFactoringV2_1(
                 IERC20(config.underlyingAsset),
                 IInvoiceProviderAdapterV2(config.bullaClaimInvoiceProviderAdapterAddress),
                 IBullaFrendLendV2(config.bullaFrendLendAddress),
@@ -114,9 +114,9 @@ contract DeployBullaFactoring is Script {
                 config.poolTokenSymbol
             );
             config.bullaFactoringAddress = address(bullaFactoring);
-            console.log("BullaFactoringV2 deployed at:", address(bullaFactoring));
+            console.log("BullaFactoringV2_1 deployed at:", address(bullaFactoring));
         } else {
-            console.log("Using existing BullaFactoringV2:", config.bullaFactoringAddress);
+            console.log("Using existing BullaFactoringV2_1:", config.bullaFactoringAddress);
         }
 
         vm.stopBroadcast();
@@ -126,7 +126,7 @@ contract DeployBullaFactoring is Script {
         console.log("BullaClaimV2InvoiceProviderAdapterV2:", config.bullaClaimInvoiceProviderAdapterAddress);
         console.log("FactoringPermissions:", config.factoringPermissionsAddress);
         console.log("DepositPermissions:", config.depositPermissionsAddress);
-        console.log("BullaFactoringV2:", config.bullaFactoringAddress);
+        console.log("BullaFactoringV2_1:", config.bullaFactoringAddress);
     }
 
     function _loadConfig() internal {

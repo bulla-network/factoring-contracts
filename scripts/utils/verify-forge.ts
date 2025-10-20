@@ -218,7 +218,7 @@ export async function verifyBroadcastContracts(scriptName: string, network: stri
  */
 function getContractPath(contractName: string): string | null {
     const contractPaths: Record<string, string> = {
-        BullaFactoringV2: 'contracts/BullaFactoring.sol:BullaFactoringV2',
+        BullaFactoringV2_1: 'contracts/BullaFactoring.sol:BullaFactoringV2_1',
         BullaClaimV2InvoiceProviderAdapterV2: 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol:BullaClaimV2InvoiceProviderAdapterV2',
         BullaClaimV1InvoiceProviderAdapterV2: 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol:BullaClaimV1InvoiceProviderAdapterV2',
         DepositPermissions: 'contracts/DepositPermissions.sol:DepositPermissions',
