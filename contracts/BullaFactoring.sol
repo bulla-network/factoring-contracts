@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "./interfaces/IInvoiceProviderAdapter.sol";
-import "./interfaces/IBullaFactoring.sol";
+import {IBullaFactoringV2} from "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
@@ -18,7 +18,7 @@ import "./libraries/FeeCalculations.sol";
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoringV2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
+contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
 

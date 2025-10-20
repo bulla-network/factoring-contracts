@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import "contracts/interfaces/IBullaFactoring.sol";
 import {CreateClaimApprovalType} from '@bulla/contracts-v2/src/types/Types.sol';
@@ -138,7 +138,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, totalAssetsAfterFactoring, remainingAmount));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, totalAssetsAfterFactoring, remainingAmount));
         bullaFactoring.fundInvoice(invoiceId3, 10000, address(0));
         vm.stopPrank();
 
@@ -162,7 +162,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         // Calculate the CallbackFailed error selector manually: bytes4(keccak256("CallbackFailed(bytes)"))
         bytes4 callbackFailedSelector = bytes4(keccak256("CallbackFailed(bytes)"));
         bytes memory expectedCallbackData = abi.encodeWithSelector(
-            BullaFactoringV2.InsufficientFunds.selector,
+            BullaFactoringV2_1.InsufficientFunds.selector,
             totalAssetsAfterFactoring,
             loanAmount
         );

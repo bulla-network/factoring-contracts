@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
 import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
@@ -168,7 +168,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         // Should revert due to insufficient funds
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2.InsufficientFunds.selector, 500000, 560350));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, 500000, 560350));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
