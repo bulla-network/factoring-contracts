@@ -89,21 +89,21 @@ export const ethereumConfig: NetworkConfig = {
 export const fundoraConfig: NetworkConfig = {
     bullaClaim: '0x772b675A4180B4F48d9D816619620664f90Cf281', // Sepolia Address
     underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // WYST
-    underwriter: '0x9D28ee39eAfa0727423126D93Cb0b889fc0aF971',
+    underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
     protocolFeeBps: 100,
     adminFeeBps: 100,
-    poolName: 'Fundora Management Pool V2',
+    poolName: 'Fundora Management Pool V2.1',
     targetYieldBps: 900,
-    poolTokenName: 'Fundora Management Token V2',
-    poolTokenSymbol: 'FACT-V2',
-    bullaFrendLendAddress: '0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D',
+    poolTokenName: 'Fundora Management Token V2.1',
+    poolTokenSymbol: 'FACT-V2_1',
+    bullaFrendLendAddress: '0x8948a00fac01110210f97f8f9fa107aa07e6f46c',
+    BullaClaimInvoiceProviderAdapterAddress: '0x06ad08aae6ae5703bbcef98ec55f0bb95bde398e',
     bullaInvoiceAddress: '0xD0e56674acfecDD9d310C27D79bE0587d879112e',
-    bullaFactoringAddress: '0xB3FdCc9CA5Ba76F0C36Ab8D0D2a7cDcB15E507f5',
+    bullaFactoringAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
     depositPermissionsAddress: '0xb91652cEBDc3641eBF1941419d0e5D87967a0C94',
     redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
     factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-    BullaClaimInvoiceProviderAdapterAddress: '0x8A6B12c9980249F4e52b1E2A31cdbC23D3354629',
     writeNewAddresses: true,
 };
 
@@ -121,7 +121,6 @@ export const baseConfig: NetworkConfig = {
     poolTokenSymbol: 'BFT-TCS-V2',
     bullaFrendLendAddress: '0x03754cc78848FBc52130a8EEdD8d3d079F7Bb042',
     bullaInvoiceAddress: '0x662303A841C0DDe7383939417581cBf34BE9f01D',
-    BullaClaimInvoiceProviderAdapterAddress: '0xf446785EB5e7eBeAFd89E7A0ec1fE4ec37686486',
     bullaFactoringAddress: '0x7c2Cc85Cb30844B81524E703f04a5eE98e3313FB',
     depositPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
     redeemPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
