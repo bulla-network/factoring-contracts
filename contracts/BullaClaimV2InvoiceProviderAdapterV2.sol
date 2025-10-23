@@ -76,7 +76,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
                 paidAmount: paidAmount,
                 isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded,
                 isPaid: claim.status == Status.Paid,
-                isImpaired: claim.dueBy != 0 && block.timestamp > claim.dueBy + claim.impairmentGracePeriod
+                impairmentGracePeriod: claim.impairmentGracePeriod
             });
 
             return invoice;
@@ -98,7 +98,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
                 paidAmount: paidAmount,
                 isCanceled: loan.status == Status.Rejected || loan.status == Status.Rescinded,
                 isPaid: loan.status == Status.Paid,
-                isImpaired: loan.dueBy != 0 && block.timestamp > loan.dueBy + impairmentGracePeriodCache[invoiceId]
+                impairmentGracePeriod: impairmentGracePeriodCache[invoiceId]
             });
 
             return invoice;
@@ -120,7 +120,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
                 paidAmount: paidAmount,
                 isCanceled: _bullaInvoice.status == Status.Rejected || _bullaInvoice.status == Status.Rescinded,
                 isPaid: _bullaInvoice.status == Status.Paid,
-                isImpaired: _bullaInvoice.dueBy != 0 && block.timestamp > _bullaInvoice.dueBy + impairmentGracePeriodCache[invoiceId]
+                impairmentGracePeriod: impairmentGracePeriodCache[invoiceId]
             });
 
             return invoice;

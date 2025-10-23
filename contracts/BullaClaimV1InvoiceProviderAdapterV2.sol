@@ -33,7 +33,7 @@ contract BullaClaimV1InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
             paidAmount: claim.paidAmount,
             isCanceled: claim.status == Status.Rejected || claim.status == Status.Rescinded,
             isPaid: claim.status == Status.Paid,
-            isImpaired: false // This whole contract is deprecated
+            impairmentGracePeriod: 0 // V1 doesn't support impairment
         });
 
         return invoice;
