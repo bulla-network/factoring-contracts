@@ -41,10 +41,10 @@
     "@types/node" "^16.9.1"
     ethers "^5.4.2"
 
-"@bulla/contracts-v2@^1.24.0":
-  version "1.24.0"
-  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-1.24.0.tgz#6a5fe17009f004e7f3e57cb819bc711b2ff409ff"
-  integrity sha512-tS2VCOh1bHK2c8rg8zdIeqA+VXd7A/yZ15KY819oTThPiR6Bv4zHsJSO5yHzoaBQMolf5VIwlaeyBRCH1nfgOg==
+"@bulla/contracts-v2@^2.3.0":
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-2.3.0.tgz#4ac647afea3dacad8db78c57945f2d19d0b006cb"
+  integrity sha512-qzGjY7rCKNoIaY/vGDLv3qVMrfYq5NWyqWQuInMAIw6jGCvD7Y2F3JL6zxv6APOts0E6KyNWZP237JPJGv3ljw==
 
 "@colors/colors@1.5.0":
   version "1.5.0"

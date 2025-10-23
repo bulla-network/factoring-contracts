@@ -12,8 +12,8 @@ interface IInvoiceProviderAdapterV2 {
         address tokenAddress;
         uint256 paidAmount;
         bool isCanceled;
-        bool isImpaired;
         bool isPaid;
+        uint256 impairmentGracePeriod;
     }
 
     function initializeInvoice(uint256 invoiceId) external;

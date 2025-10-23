@@ -78,7 +78,7 @@ contract CommonSetup is Test {
         bullaControllerRegistry = new BullaControllerRegistry();
         bullaApprovalRegistry = new BullaApprovalRegistry(address(bullaControllerRegistry));
         bullaClaim = new BullaClaimV2(address(bullaApprovalRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 50);
+        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 50, 0);
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 50);
         invoiceAdapterBulla = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
         bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);
