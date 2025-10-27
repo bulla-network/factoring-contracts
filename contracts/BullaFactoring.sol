@@ -329,9 +329,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Consider losses from impaired invoices by fund
         for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
             uint256 invoiceId = impairedByFundInvoicesIds[i];
-            uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
+            // Cache approval in memory to reduce storage reads
+            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
             uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
-            int256 lossAmount = int256(approvedInvoices[invoiceId].fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
+            int256 lossAmount = int256(approval.fundedAmountNet) - int256(currentPaidAmount - approval.initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
             realizedGains -= lossAmount;
         }
 
@@ -339,10 +340,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
             if (_isInvoiceImpaired(invoiceId)) {
+                // Cache approval in memory to reduce storage reads
+                IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
                 IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-                uint256 currentPaidAmount = invoice.paidAmount;
-                uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
-                int256 lossAmount = int256(approvedInvoices[invoiceId].fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount);
+                int256 lossAmount = int256(approval.fundedAmountNet) - int256(invoice.paidAmount - approval.initialPaidAmount);
                 realizedGains -= lossAmount;
             }
         }
@@ -468,13 +469,17 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns(uint256) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
-        if (!approvedInvoices[invoiceId].approved) revert InvoiceNotApproved();
-        if (factorerUpfrontBps > approvedInvoices[invoiceId].feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
-        if (block.timestamp > approvedInvoices[invoiceId].validUntil) revert ApprovalExpired();
+        
+        // Cache approvedInvoices in memory to reduce storage reads
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        
+        if (!approval.approved) revert InvoiceNotApproved();
+        if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
+        if (block.timestamp > approval.validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
-        if (approvedInvoices[invoiceId].initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
-        if (approvedInvoices[invoiceId].creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
+        if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
+        if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
         (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
         uint256 _totalAssets = totalAssets();
@@ -484,19 +489,22 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Collect protocol fee to protocol fee balance
         protocolFeeBalance += protocolFee;
 
-        // store values in approvedInvoices
-        approvedInvoices[invoiceId].fundedAmountGross = fundedAmountGross;
-        approvedInvoices[invoiceId].fundedAmountNet = fundedAmountNet;
-        approvedInvoices[invoiceId].fundedTimestamp = block.timestamp;
+        // Update memory struct
+        approval.fundedAmountGross = fundedAmountGross;
+        approval.fundedAmountNet = fundedAmountNet;
+        approval.fundedTimestamp = block.timestamp;
         // update upfrontBps with what was passed in the arg by the factorer
-        approvedInvoices[invoiceId].feeParams.upfrontBps = factorerUpfrontBps;
-        approvedInvoices[invoiceId].protocolFee = protocolFee;
+        approval.feeParams.upfrontBps = factorerUpfrontBps;
+        approval.protocolFee = protocolFee;
 
         // Determine the actual receiver address - use msg.sender if receiverAddress is address(0)
         address actualReceiver = receiverAddress == address(0) ? msg.sender : receiverAddress;
 
         // Store the receiver address for future kickback payments
-        approvedInvoices[invoiceId].receiverAddress = actualReceiver;
+        approval.receiverAddress = actualReceiver;
+
+        // Write back to storage once
+        approvedInvoices[invoiceId] = approval;
 
         // transfer net funded amount to caller to the actual receiver
         assetAddress.safeTransfer(actualReceiver, fundedAmountNet);
@@ -508,7 +516,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
 
-        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approvedInvoices[invoiceId].invoiceDueDate, factorerUpfrontBps, protocolFee);
+        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, factorerUpfrontBps, protocolFee);
         return fundedAmountNet;
     }
 
@@ -895,7 +903,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
-            sumOfTargetFees += approvedInvoices[invoiceId].fundedAmountGross - approvedInvoices[invoiceId].fundedAmountNet;
+            // Cache approval in memory to reduce storage reads
+            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+            sumOfTargetFees += approval.fundedAmountGross - approval.fundedAmountNet;
         }
 
         uint256 capitalAccount = calculateCapitalAccount();
