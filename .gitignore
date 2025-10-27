@@ -1,5 +1,6 @@
 /artifacts
 !/artifacts/foundry
+artifacts/foundry/**.t.sol/
 /typechain/
 /typechain-types/
 /node_modules
