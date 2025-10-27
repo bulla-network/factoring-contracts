@@ -6,14 +6,14 @@ interface IInvoiceProviderAdapterV2 {
 
     struct Invoice {
         uint256 invoiceAmount;
-        address creditor;
-        address debtor;
         uint256 dueDate;
-        address tokenAddress;
         uint256 paidAmount;
-        bool isCanceled;
-        bool isPaid;
         uint256 impairmentGracePeriod;
+        address creditor;           // 20 bytes
+        bool isCanceled;            // 1 byte
+        bool isPaid;                // 1 byte - packed in slot 4 (22 bytes total)
+        address debtor;             // 20 bytes - slot 5
+        address tokenAddress;       // 20 bytes - slot 6
     }
 
     function initializeInvoice(uint256 invoiceId) external;

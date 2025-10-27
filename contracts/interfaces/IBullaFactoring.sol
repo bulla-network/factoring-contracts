@@ -24,27 +24,27 @@ interface IBullaFactoringV2 {
 
     // The rest of the info can be retrieved from the loan offer
     struct PendingLoanOfferInfo {
-        bool exists;
         uint256 offeredAt;
         uint256 principalAmount;
         uint256 termLength;
-        FeeParams feeParams;
+        bool exists;            // 1 byte
+        FeeParams feeParams;    // 12 bytes - packed in slot 3 (13 bytes total)
     }
 
     struct InvoiceApproval {
-        bool approved;
-        address creditor;
+        bool approved;              // 1 byte
+        address creditor;           // 20 bytes - packed in slot 0 (21 bytes total)
         uint256 validUntil;
         uint256 invoiceDueDate;
         uint256 impairmentGracePeriod;
         uint256 fundedTimestamp;
-        FeeParams feeParams;
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
         uint256 initialInvoiceValue; // takes into account the principal amount override and the initial paid amount. Do not subtract the initial paid amount from this value.
         uint256 initialPaidAmount;
-        address receiverAddress;
         uint256 protocolFee;
+        address receiverAddress;    // 20 bytes
+        FeeParams feeParams;        // 12 bytes - packed in slot 11 (32 bytes total)
     }
 
     struct FundInfo {

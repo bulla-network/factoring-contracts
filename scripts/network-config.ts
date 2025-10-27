@@ -101,7 +101,7 @@ export const fundoraConfig: NetworkConfig = {
     bullaFrendLendAddress: '0x8948a00fac01110210f97f8f9fa107aa07e6f46c',
     bullaInvoiceAddress: '0xD0e56674acfecDD9d310C27D79bE0587d879112e',
     bullaFactoringAddress: '0xd4116f515A6958da851080B390DDE4B81f408978',
-    depositPermissionsAddress: '0xb91652cEBDc3641eBF1941419d0e5D87967a0C94',
+    depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
     redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
     factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
     writeNewAddresses: true,

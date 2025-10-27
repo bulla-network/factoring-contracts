@@ -171,10 +171,10 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Verify pending loan offer details
         (
-            bool exists,
             uint256 offeredAt,
             uint256 storedPrincipal,
             uint256 storedTermLength,
+            bool exists,
             IBullaFactoringV2.FeeParams memory feeParams
         ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -237,7 +237,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             "Pending loan offer should be removed"
         );
         
-        (bool removedExists,,,, ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,bool removedExists, ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertFalse(removedExists, "Loan offer should not exist after acceptance");
         
         // Invoice approval should be created
@@ -248,13 +248,13 @@ contract TestLoanOffersWorkflow is CommonSetup {
             uint256 invoiceDueDate,
             uint256 impairmentGracePeriod,
             uint256 fundedTimestamp,
-            IBullaFactoringV2.FeeParams memory approvalFeeParams,
             uint256 fundedAmountGross,
             uint256 fundedAmountNet,
             uint256 initialInvoiceValue,
             uint256 initialPaidAmount,
+            uint256 protocolFee,
             address receiverAddress,
-            uint256 protocolFee
+            IBullaFactoringV2.FeeParams memory approvalFeeParams
         ) = bullaFactoring.approvedInvoices(loanOfferId);
         
         assertTrue(approved, "Invoice should be approved");
@@ -335,7 +335,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         );
         
         // Get transferred fee params
-        (,,,,, , IBullaFactoringV2.FeeParams memory transferredFeeParams,,,,,,) = bullaFactoring.approvedInvoices(loanOfferId);
+        (,,,,,,,,,,,, IBullaFactoringV2.FeeParams memory transferredFeeParams) = bullaFactoring.approvedInvoices(loanOfferId);
         
         // Verify all fee params transferred correctly
         assertEq(transferredFeeParams.targetYieldBps, originalFeeParams.targetYieldBps, "Target yield should transfer");
@@ -401,12 +401,12 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers left");
         
         // Verify the specific offer was removed
-        (bool removedExists,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferIds[1]);
+        (,,,bool removedExists,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferIds[1]);
         assertFalse(removedExists, "Middle loan offer should be removed");
         
         // Verify other offers still exist
-        (bool exists0,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferIds[0]);
-        (bool exists2,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferIds[2]);
+        (,,,bool exists0,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferIds[0]);
+        (,,,bool exists2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferIds[2]);
         
         assertTrue(exists0, "First loan offer should still exist");
         assertTrue(exists2, "Third loan offer should still exist");
@@ -483,7 +483,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Verify pending loan offer exists
-        (bool existsBefore,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,bool existsBefore,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertTrue(existsBefore, "Loan offer should exist before expiration");
         
         // Warp time past the expiration
@@ -492,7 +492,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // BullaFrendLend should not call onLoanOfferAccepted for expired offers
         // This test verifies that the pending loan offer remains in storage 
         // since BullaFrendLend prevents acceptance of expired offers
-        (bool existsAfterExpiration,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,bool existsAfterExpiration,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertTrue(existsAfterExpiration, "Expired loan offer should remain in storage until cleaned up");
         
         // Alice makes a deposit to fund the pool
@@ -558,10 +558,10 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Verify pending loan offer details
         (
-            bool exists,
             uint256 offeredAt,
             uint256 storedPrincipal,
             uint256 storedTermLength,
+            bool exists,
             IBullaFactoringV2.FeeParams memory feeParams
         ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -622,7 +622,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // This should work as validation might be in BullaFrendLend
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 0, 30 days, 365, "Zero principal test");
         vm.stopPrank();
-        (,, uint256 principalAmount,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (, uint256 principalAmount,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(principalAmount, 0, "Principal amount should be 0");
     }
@@ -633,7 +633,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, largePrincipal, 30 days, 365, "Large principal test");
         vm.stopPrank();
-        (,, uint256 principalAmount,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (, uint256 principalAmount,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(principalAmount, largePrincipal, "Principal amount should match large value");
     }
@@ -651,7 +651,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, longTerm, 365, "Long term test");
         vm.stopPrank();
-        (,,, uint256 termLength,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,, uint256 termLength,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(termLength, longTerm, "Term length should match long value");
     }
@@ -669,10 +669,10 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, targetYieldBps, _spreadBps, principalAmount, termLength, 365, "Storage test");
         vm.stopPrank();
         (
-            bool exists,
             uint256 offeredAt,
             uint256 storedPrincipal,
             uint256 storedTermLength,
+            bool exists,
             IBullaFactoringV2.FeeParams memory feeParams
         ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
@@ -707,7 +707,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Verify each offer has correct details
         for (uint i = 0; i < 3; i++) {
             uint256 loanOfferId = bullaFactoring.pendingLoanOffersIds(i);
-            (bool exists,,,, ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+            (,,,bool exists, ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
             assertTrue(exists, "Each offer should exist");
         }
     }
@@ -760,13 +760,13 @@ contract TestLoanOffersWorkflow is CommonSetup {
             uint256 invoiceDueDate,
             ,
             uint256 fundedTimestamp,
-            ,
             uint256 fundedAmountGross,
             uint256 fundedAmountNet,
             uint256 initialInvoiceValue,
             uint256 initialPaidAmount,
+            uint256 protocolFee,
             address receiverAddress,
-            uint256 protocolFee
+            
         ) = bullaFactoring.approvedInvoices(loanOfferId);
         
         assertTrue(approved, "Should be approved");
@@ -787,7 +787,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Timestamp test");
         vm.stopPrank();
-        (bool exists, uint256 offeredAt,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (uint256 offeredAt,,,bool exists,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertTrue(exists, "Offer should exist");
         assertGe(offeredAt, offerTime, "Offered timestamp should be set");
@@ -914,8 +914,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(getActiveInvoicesCount(), 3, "Should have 3 active invoices");
         
         // Verify remaining offers still exist
-        (bool exists0,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerIds[0]);
-        (bool exists2,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerIds[2]);
+        (,,,bool exists0,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerIds[0]);
+        (,,,bool exists2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerIds[2]);
         
         assertTrue(exists0, "Offer 0 should still exist");
         assertTrue(exists2, "Offer 2 should still exist");
@@ -927,7 +927,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Verify pending mapping exists
-        (bool existsBefore,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,bool existsBefore,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertTrue(existsBefore, "Pending offer should exist");
         
         // Alice makes a deposit to fund the pool
@@ -940,7 +940,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 loanId = bullaFrendLend.acceptLoan(loanOfferId);
         
         // Verify pending mapping is cleaned up
-        (bool existsAfter,,,,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,bool existsAfter,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertFalse(existsAfter, "Pending offer should not exist after acceptance");
         
         // Verify invoice approval mapping is populated
@@ -1044,7 +1044,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Verify the loan was created correctly by checking the due date calculation
         // The due date should be funding timestamp + term length
-        (,,,uint256 invoiceDueDate,,uint256 fundedTimestamp, IBullaFactoringV2.FeeParams memory feeParams,,,,,,) = bullaFactoring.approvedInvoices(loanOfferId);
+        (,,,uint256 invoiceDueDate,,uint256 fundedTimestamp,,,,,,,IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.approvedInvoices(loanOfferId);
         
         assertEq(
             invoiceDueDate,
