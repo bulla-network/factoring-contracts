@@ -1,63 +1,84 @@
 import { writeFileSync } from 'fs';
-import hre from 'hardhat';
-import addresses from '../automation-addresses.json';
-import { getNetworkFromEnv, verifyContract } from './deploy-utils';
+import automationAddresses from '../automation-addresses.json';
+import { getChainId, getRpcUrl } from './network-config';
+import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit, validateNetwork } from './utils/interactive-deploy';
+import { readLatestBroadcast, verifyBroadcastContracts } from './utils/verify-forge';
 
-export const deployBullaFactoringAutomationChecker = async function () {
-    const { deployments, getNamedAccounts, getChainId } = hre;
-    const { deploy } = deployments;
-    const { deployer } = await getNamedAccounts();
+async function deployAutomationChecker(): Promise<void> {
+    try {
+        const network = validateNetwork(process.env.NETWORK);
 
-    // Get the network from environment variable
-    const network = getNetworkFromEnv();
-    console.log(`Using network: ${network}`);
+        console.log(`🚀 Deploying BullaFactoringAutomationCheckerV2_1 to ${network}...\n`);
 
-    console.log('Deploying Bulla Factoring Automation Checker...');
+        const privateKey = await getPrivateKeyInteractively();
+        const rpcUrl = getRpcUrl(network);
 
-    // deploy factoring automation checker
-    const { address: bullaFactoringAutomationCheckerAddress } = await deploy('BullaFactoringAutomationChecker', {
-        from: deployer,
-        args: [],
-    });
+        const env: NodeJS.ProcessEnv = {
+            ...process.env,
+            NETWORK: network,
+            PRIVATE_KEY: privateKey,
+            DEPLOY_PK: privateKey,
+        };
 
-    console.log(`Bulla Factoring Automation Checker deployed: ${bullaFactoringAutomationCheckerAddress}`);
+        const forgeProcess = runForgeScript(
+            'script/DeployBullaFactoringAutomationChecker.s.sol:DeployBullaFactoringAutomationChecker',
+            rpcUrl,
+            privateKey,
+            env,
+            network,
+        );
 
-    // Add verification step
-    console.log('Verifying Bulla Factoring Automation Checker...');
-    await verifyContract(
-        bullaFactoringAutomationCheckerAddress,
-        [], // No constructor arguments
-        network,
-        'contracts/BullaFactoringAutomationChecker.sol:BullaFactoringAutomationChecker',
-    );
-    console.log(`Bulla Factoring Automation Checker verified: ${bullaFactoringAutomationCheckerAddress}`);
+        forgeProcess.on('close', async code => {
+            if (code === 0) {
+                console.log('\n✅ Automation checker deployment completed successfully!');
 
-    const chainId = await getChainId();
+                await verifyBroadcastContracts('DeployBullaFactoringAutomationChecker.s.sol', network, false);
 
-    const newAddresses: Record<number, string> = {
-        ...addresses,
-        [chainId]: bullaFactoringAutomationCheckerAddress,
-    };
+                const broadcast = readLatestBroadcast('DeployBullaFactoringAutomationChecker.s.sol', network);
+                if (broadcast) {
+                    const deploymentTx = broadcast.transactions.find(
+                        tx => tx.contractName === 'BullaFactoringAutomationCheckerV2_1' && tx.contractAddress,
+                    );
 
-    writeFileSync('./automation-addresses.json', JSON.stringify(newAddresses, null, 2));
+                    if (deploymentTx?.contractAddress) {
+                        const chainIdKey = getChainId(network).toString();
+                        const updatedAddresses: Record<string, string> = {
+                            ...(automationAddresses as Record<string, string>),
+                            [chainIdKey]: deploymentTx.contractAddress,
+                        };
 
-    const now = new Date();
-    const deployInfo = {
-        deployer,
-        chainId: await getChainId(),
-        currentTime: now.toISOString(),
-        bullaFactoringAutomationCheckerAddress,
-    };
+                        writeFileSync('./automation-addresses.json', JSON.stringify(updatedAddresses, null, 2));
+                        console.log(`💾 Updated automation-addresses.json with ${deploymentTx.contractAddress}`);
+                    } else {
+                        console.log('⚠️  Could not determine deployed contract address from broadcast file.');
+                    }
+                } else {
+                    console.log('⚠️  No broadcast data available to update automation-addresses.json.');
+                }
 
-    return deployInfo;
-};
+                console.log('\n📝 Next steps:');
+                console.log('   1. Review automation-addresses.json for the deployed address.');
+                console.log('   2. Confirm verification status on the block explorer.');
+            } else {
+                console.error(`\n❌ Automation checker deployment failed with exit code ${code}`);
+                process.exit(code || 1);
+            }
+        });
 
-// Only run the function if this script is being executed directly
-if (require.main === module) {
-    deployBullaFactoringAutomationChecker()
-        .then(() => process.exit(0))
-        .catch(error => {
-            console.error(error);
+        forgeProcess.on('error', error => {
+            if ((error as any).code === 'ENOENT') {
+                console.error('❌ Forge not found. Make sure Foundry is installed and in your PATH.');
+                console.error('   Install from: https://getfoundry.sh/');
+            } else {
+                console.error('❌ Failed to start forge:', (error as Error).message);
+            }
             process.exit(1);
         });
+    } catch (error: any) {
+        console.error('❌ Deployment error:', error.message);
+        process.exit(1);
+    }
 }
+
+setupGracefulExit();
+deployAutomationChecker();
