@@ -45,6 +45,7 @@ interface IBullaFactoringV2 {
         uint256 protocolFee;
         address receiverAddress;    // 20 bytes
         FeeParams feeParams;        // 12 bytes - packed in slot 11 (32 bytes total)
+        uint256 dailyInterestRate;  // Pre-calculated daily interest for gas optimization (slot 12)
     }
 
     struct FundInfo {

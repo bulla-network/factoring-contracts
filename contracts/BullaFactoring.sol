@@ -237,6 +237,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         pendingLoanOffersByLoanOfferId[loanOfferId].exists = false;
         removePendingLoanOffer(loanOfferId);
 
+        uint256 invoiceDueDate = block.timestamp + pendingLoanOffer.termLength;
+
         approvedInvoices[loanId] = InvoiceApproval({
             approved: true,
             validUntil: pendingLoanOffer.offeredAt,
@@ -246,11 +248,16 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             fundedAmountNet: pendingLoanOffer.principalAmount,
             initialInvoiceValue: pendingLoanOffer.principalAmount,
             initialPaidAmount: 0,
-            invoiceDueDate: block.timestamp + pendingLoanOffer.termLength,
-            impairmentDate: block.timestamp + pendingLoanOffer.termLength + gracePeriodDays * 1 days,
+            invoiceDueDate: invoiceDueDate,
+            impairmentDate: invoiceDueDate + gracePeriodDays * 1 days,
             receiverAddress: address(this),
             creditor: address(this),
-            protocolFee: 0
+            protocolFee: 0,
+            dailyInterestRate: Math.mulDiv(
+                pendingLoanOffer.principalAmount,
+                pendingLoanOffer.feeParams.targetYieldBps,
+                3_650_000
+            )
         });
 
         originalCreditors[loanId] = address(this);
@@ -289,6 +296,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             minDaysInterestApplied: minDaysInterestApplied
         });
 
+        uint256 _initialInvoiceValue = _initialInvoiceValueOverride != 0 ? _initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount;
+        
         approvedInvoices[invoiceId] = InvoiceApproval({
             approved: true,
             validUntil: _validUntil,
@@ -297,12 +306,13 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             feeParams: feeParams,
             fundedAmountGross: 0,
             fundedAmountNet: 0,
-            initialInvoiceValue: _initialInvoiceValueOverride != 0 ? _initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount,
+            initialInvoiceValue: _initialInvoiceValue,
             initialPaidAmount: invoiceSnapshot.paidAmount,
             receiverAddress: address(0),
             invoiceDueDate: invoiceSnapshot.dueDate,
             impairmentDate: invoiceSnapshot.dueDate + invoiceSnapshot.impairmentGracePeriod,
-            protocolFee: 0
+            protocolFee: 0,
+            dailyInterestRate: Math.mulDiv(_initialInvoiceValue, _targetYieldBps, 3_650_000)
         });
         emit InvoiceApproved(invoiceId, _validUntil, feeParams);
     }
@@ -406,10 +416,23 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             uint256 invoiceId = activeInvoices[i];
             
             if(!_isInvoiceImpaired(invoiceId)) {
-                IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-                IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-                (,uint256 trueInterest,,) = FeeCalculations.calculateKickbackAmount(approval, invoice);
-                accruedProfits += trueInterest;
+                // Use pre-calculated daily interest rate for gas optimization
+                uint256 dailyRate = approvedInvoices[invoiceId].dailyInterestRate;
+                uint256 fundedTime = approvedInvoices[invoiceId].fundedTimestamp;
+                uint256 dueDate = approvedInvoices[invoiceId].invoiceDueDate;
+                uint16 minDays = approvedInvoices[invoiceId].feeParams.minDaysInterestApplied;
+                
+                // Calculate days of interest (capped at due date)
+                uint256 daysElapsed = Math.mulDiv(
+                    Math.min(block.timestamp, dueDate) - fundedTime,
+                    1,
+                    1 days,
+                    Math.Rounding.Floor
+                );
+                uint256 daysOfInterest = Math.max(daysElapsed, minDays);
+                
+                // Simple multiplication instead of complex fee calculations
+                accruedProfits += dailyRate * daysOfInterest;
             }
         }
 
@@ -506,6 +529,13 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Store the receiver address for future kickback payments
         approval.receiverAddress = actualReceiver;
+
+        // Calculate daily interest rate for gas-optimized accrued profit calculations
+        approval.dailyInterestRate = Math.mulDiv(
+            approval.initialInvoiceValue,
+            approval.feeParams.targetYieldBps,
+            3_650_000
+        );
 
         // Write back to storage once
         approvedInvoices[invoiceId] = approval;

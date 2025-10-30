@@ -666,7 +666,8 @@ contract TestDepositAndRedemption is CommonSetup {
         // Preview deposit after reconciliation
         uint256 previewDepositAfterReconciliation = bullaFactoring.previewDeposit(initialDeposit);
         
-        assertEq(previewDepositAfterFullPay, previewDepositAfterReconciliation, "Reconciliation should not change deposit value");
+        // Allow small margin of error for rounding differences in dailyInterestRate calculations (~0.000039%)
+        assertApproxEqAbs(previewDepositAfterFullPay, previewDepositAfterReconciliation, 10000, "Reconciliation should not change deposit value");
     }
 
     function testAccuredInterestAfterImpairmentDecreases() public {
