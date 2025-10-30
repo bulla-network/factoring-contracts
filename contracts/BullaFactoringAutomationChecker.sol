@@ -7,6 +7,9 @@ contract BullaFactoringAutomationCheckerV2_1 {
     mapping(address => uint256) public lastReconcileBlock;
     mapping(address => uint256) public lastQueueProcessBlock;
 
+    error ReconcileAlreadyProcessed();
+    error RedemptionQueueAlreadyProcessed();
+
     function checkerReconcile(address poolAddress)
         external
         view
@@ -19,16 +22,16 @@ contract BullaFactoringAutomationCheckerV2_1 {
             return (false, bytes(''));
         }
 
-        if (lastReconcileBlock[poolAddress] == block.number) {
-            return (false, bytes(''));
-        }
-
         execPayload = abi.encodeCall(BullaFactoringAutomationCheckerV2_1.executeReconcile, (poolAddress));
-        canExec = !(lastQueueProcessBlock[poolAddress] == block.number);
+        canExec = true;
     }
 
     function executeReconcile(address poolAddress) external {
         BullaFactoringV2_1 factoring = BullaFactoringV2_1(poolAddress);
+
+        if (lastReconcileBlock[poolAddress] == block.number) {
+            revert ReconcileAlreadyProcessed();
+        }
 
         lastReconcileBlock[poolAddress] = block.number;
 
@@ -88,11 +91,15 @@ contract BullaFactoringAutomationCheckerV2_1 {
         }
         
         execPayload = abi.encodeCall(BullaFactoringAutomationCheckerV2_1.executeProcessRedemptionQueue, (poolAddress));
-        canExec = !(lastQueueProcessBlock[poolAddress] == block.number);
+        canExec = true;
     }
 
     function executeProcessRedemptionQueue(address poolAddress) external {
         BullaFactoringV2_1 factoring = BullaFactoringV2_1(poolAddress);
+
+        if (lastQueueProcessBlock[poolAddress] == block.number) {
+            revert RedemptionQueueAlreadyProcessed();
+        }
 
         lastQueueProcessBlock[poolAddress] = block.number;
 
