@@ -36,7 +36,7 @@ interface IBullaFactoringV2 {
         address creditor;           // 20 bytes - packed in slot 0 (21 bytes total)
         uint256 validUntil;
         uint256 invoiceDueDate;
-        uint256 impairmentGracePeriod;
+        uint256 impairmentDate;
         uint256 fundedTimestamp;
         uint256 fundedAmountGross;
         uint256 fundedAmountNet;
