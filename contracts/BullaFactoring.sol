@@ -247,7 +247,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             initialInvoiceValue: pendingLoanOffer.principalAmount,
             initialPaidAmount: 0,
             invoiceDueDate: block.timestamp + pendingLoanOffer.termLength,
-            impairmentGracePeriod: gracePeriodDays * 1 days,
+            impairmentDate: block.timestamp + pendingLoanOffer.termLength + gracePeriodDays * 1 days,
             receiverAddress: address(this),
             creditor: address(this),
             protocolFee: 0
@@ -301,7 +301,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             initialPaidAmount: invoiceSnapshot.paidAmount,
             receiverAddress: address(0),
             invoiceDueDate: invoiceSnapshot.dueDate,
-            impairmentGracePeriod: invoiceSnapshot.impairmentGracePeriod,
+            impairmentDate: invoiceSnapshot.dueDate + invoiceSnapshot.impairmentGracePeriod,
             protocolFee: 0
         });
         emit InvoiceApproved(invoiceId, _validUntil, feeParams);
@@ -330,9 +330,12 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
             uint256 invoiceId = impairedByFundInvoicesIds[i];
             // Cache approval in memory to reduce storage reads
-            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
             uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
-            int256 lossAmount = int256(approval.fundedAmountNet) - int256(currentPaidAmount - approval.initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
+
+            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
+            uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
+            
+            int256 lossAmount = int256(fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
             realizedGains -= lossAmount;
         }
 
@@ -340,10 +343,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
             if (_isInvoiceImpaired(invoiceId)) {
-                // Cache approval in memory to reduce storage reads
-                IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-                IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-                int256 lossAmount = int256(approval.fundedAmountNet) - int256(invoice.paidAmount - approval.initialPaidAmount);
+                uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
+                uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
+
+                uint256 paidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
+                int256 lossAmount = int256(fundedAmountNet) - int256(paidAmount - initialPaidAmount);
                 realizedGains -= lossAmount;
             }
         }
@@ -733,8 +737,12 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function _totalAssetsOptimized(uint256 capitalAccount) private view returns (uint256) {
         for (uint256 i = 0; i < activeInvoices.length; i++) {
             uint256 invoiceId = activeInvoices[i];
-            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-            capitalAccount -= (_isInvoiceImpaired(invoiceId) ? 0 : approval.fundedAmountNet) + (approval.protocolFee + approval.fundedAmountGross - approval.fundedAmountNet);
+
+            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
+            uint256 fundedAmountGross = approvedInvoices[invoiceId].fundedAmountGross;
+            uint256 protocolFee = approvedInvoices[invoiceId].protocolFee;
+
+            capitalAccount -= (_isInvoiceImpaired(invoiceId) ? 0 : fundedAmountNet) + (protocolFee + fundedAmountGross - fundedAmountNet);
         }
         return capitalAccount;
     }
@@ -976,10 +984,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Helper function to check if an invoice is impaired based on approved invoice data
     /// @param invoiceId The ID of the invoice to check
-    /// @return true if the invoice is past its due date + grace period, false otherwise
+    /// @return true if the invoice is past its impairment date, false otherwise
     function _isInvoiceImpaired(uint256 invoiceId) private view returns (bool) {
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        return approval.invoiceDueDate != 0 && block.timestamp > approval.invoiceDueDate + approval.impairmentGracePeriod;
+        uint256 impairmentDate = approvedInvoices[invoiceId].impairmentDate;
+        return impairmentDate != 0 && block.timestamp > impairmentDate;
     }
 
     // Redemption Queue Functions
