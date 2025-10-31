@@ -224,9 +224,6 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         vm.prank(alice);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         
-        // Reconcile to process payment
-        
-        
         // Pool should have more assets due to interest earned
         assertGt(bullaFactoring.totalAssets(), initialPoolAssets);
         

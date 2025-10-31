@@ -108,8 +108,6 @@ contract TestInvoiceImpairment is CommonSetup {
         uint256[] memory impairedInvoicesAfter = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoicesAfter.length, 0);
 
-        // reconcile redeemed invoice to make accounting adjustments
-        
         IBullaFactoringV2.FundInfo memory fundInfoAfterImpairmentyFund = bullaFactoring.getFundInfo();
         uint256 capitalAccountAfterImpair = bullaFactoring.calculateCapitalAccount();
 

@@ -166,9 +166,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         bullaInvoice.payInvoice(invoiceId, totalAmountDue);
         vm.stopPrank();
 
-        // Reconcile and verify payment processing
-        
-
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after profitable invoice payment");
 
@@ -216,7 +213,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         // Calculate expected kickback
         (uint256 kickbackAmount, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
-        // Reconcile and check for kickback payment
+        // check for kickback payment
         if (kickbackAmount > 0) {
             vm.expectEmit(true, false, false, true);
             emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, bob);
@@ -593,8 +590,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         asset.approve(address(bullaInvoice), invoice1.invoiceAmount);
         bullaInvoice.payInvoice(invoiceId1, invoice1.invoiceAmount);
         vm.stopPrank();
-
-        // Reconcile first payment and record gain
         
         uint256 gainAfterInvoice1 = bullaFactoring.paidInvoicesGain();
         
@@ -603,8 +598,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         asset.approve(address(bullaInvoice), invoice2.invoiceAmount);
         bullaInvoice.payInvoice(invoiceId2, invoice2.invoiceAmount);
         vm.stopPrank();
-
-        // Reconcile second payment and record final gain
         
         uint256 gainAfterInvoice2 = bullaFactoring.paidInvoicesGain();
 

@@ -250,7 +250,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
-        
+
         // Check if the kickback and funded amount were correctly transferred
         (, , , , , , , uint256 fundedAmountNet, , , , , , ) = bullaFactoring.approvedInvoices(invoiceId01);
         (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
@@ -928,9 +928,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Calculate expected kickback amount
         (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
-        // Reconcile to trigger kickback payment
-        
-
         // Verify kickback went to charlie (the receiver), not bob (the original creditor)
         assertEq(asset.balanceOf(bob), bobBalanceBeforePayment, "Bob should not have received any kickback");
         assertEq(asset.balanceOf(charlie), charlieBalanceBeforePayment + expectedKickback, "Charlie should have received the kickback amount");
@@ -981,9 +978,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Calculate expected kickback amount
         (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
-
-        // Reconcile to trigger kickback payment
-        
 
         // Verify kickback went to bob (msg.sender when receiver was address(0))
         assertEq(asset.balanceOf(bob), bobBalanceBeforePayment + expectedKickback, "Bob should have received the kickback amount when receiver was address(0)");

@@ -360,9 +360,6 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         bullaFrendLend.payLoan(loanId, totalDue);
         vm.stopPrank();
         
-        // Reconcile
-        
-        
         // Verify loan is paid
         IInvoiceProviderAdapterV2.Invoice memory invoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
         assertTrue(invoice.isPaid, "Loan should be paid");
@@ -436,9 +433,6 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         asset.approve(address(bullaFrendLend), remainingDue);
         bullaFrendLend.payLoan(loanId, remainingDue);
         vm.stopPrank();
-        
-        // Reconcile
-        
         
         // Verify final payment
         IInvoiceProviderAdapterV2.Invoice memory finalInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
@@ -569,9 +563,6 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         uint256 gain3 = gainAfterLoan3 - gainAfterLoan2;
         
         vm.stopPrank();
-        
-        // Reconcile
-        
         
         assertGt(gain1, 0, "Pool should have gained from loan 1");
         assertGt(gain2, 0, "Pool should have gained from loan 2");

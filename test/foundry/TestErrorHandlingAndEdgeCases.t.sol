@@ -475,8 +475,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
-        // reconcile redeemed invoice to adjust the price
-        
 
         uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
 
@@ -512,9 +510,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
-
-        // reconcile redeemed invoice to adjust the price
-        
 
         uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");

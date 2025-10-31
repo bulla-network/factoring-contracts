@@ -71,12 +71,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
-        // Note: With the new model, active invoices are always unpaid.
-        // Once paid, invoices are automatically reconciled and removed from active invoices.
-
-        // owner will reconcile paid invoices to account for any realized gains or losses
-        
-
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
 
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
@@ -132,8 +126,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
-        // we reconcile redeemed invoice to adjust the price
-        
         uint pricePerShareBeforeImpairment = bullaFactoring.pricePerShare();
 
         // Fast forward time by 100 days to simulate the invoice becoming impaired
@@ -262,9 +254,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
-        // reconcile redeemed invoice to adjust the price
-        
-
+      
         uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
 
         assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
@@ -297,9 +287,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
-
-        // reconcile redeemed invoice to adjust the price
-        
 
         uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");

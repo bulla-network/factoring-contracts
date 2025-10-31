@@ -375,9 +375,6 @@ contract TestPrincipalAmountOverride is CommonSetup {
         // 5. Pay invoice
         payInvoice(invoiceId, invoiceAmount);
         
-        // 6. Reconcile
-        
-        
         // Verify all calculations were based on overrideAmount amount
         assertTrue(bullaFactoring.paidInvoicesGain() > 0);
     }

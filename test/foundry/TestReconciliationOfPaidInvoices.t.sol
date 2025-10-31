@@ -60,9 +60,6 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
-        // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
-        
-
         // Alice redeems shares
         vm.startPrank(alice);
         uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 2;
@@ -116,9 +113,6 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
-        // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
-        
-
         // Alice redeems shares using regular redeem()
         vm.startPrank(alice);
         uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 3;
@@ -171,9 +165,6 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
-
-        // Manually trigger reconciliation first (since withdraw now blocks when active paid invoices exist)
-        
 
         // Alice withdraws assets using regular withdraw()
         vm.startPrank(alice);

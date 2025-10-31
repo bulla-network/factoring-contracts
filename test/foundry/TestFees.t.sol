@@ -118,9 +118,6 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
-        // owner will reconcile paid invoices to account for any realized gains or losses, and fees
-        
-
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
         // Withdraw admin fees

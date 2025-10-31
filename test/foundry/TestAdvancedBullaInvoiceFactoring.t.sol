@@ -209,9 +209,6 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         bullaInvoice.payInvoice(invoiceId, invoice.invoiceAmount);
         vm.stopPrank();
 
-        // Reconcile and verify the impairment is reversed
-        
-
         // Verify invoice is no longer marked as impaired
         (, , bool isImpaired) = bullaFactoring.impairments(invoiceId);
         assertFalse(isImpaired);
