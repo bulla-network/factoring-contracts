@@ -120,7 +120,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(alice);
         uint256 invoiceId = createClaim(alice, bob, invoiceAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(alice);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -153,7 +153,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, depositAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -203,7 +203,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -235,7 +235,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, depositAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -275,7 +275,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(david);
         uint256 invoiceId = createClaim(david, eve, 2500000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
         vm.prank(david);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(david);
@@ -382,7 +382,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0);
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
@@ -426,7 +426,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0);
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
@@ -465,7 +465,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(david);
         uint256 invoiceId = createClaim(david, eve, 2500000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
         vm.prank(david);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(david);

@@ -134,7 +134,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
@@ -183,7 +183,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -224,7 +224,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
@@ -272,7 +272,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -302,7 +302,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -330,7 +330,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -364,7 +364,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -397,7 +397,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -433,7 +433,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -474,7 +474,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
@@ -525,7 +525,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             vm.startPrank(bob);
@@ -566,7 +566,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -590,7 +590,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -633,7 +633,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         // Calculate expected protocol fee
@@ -738,7 +738,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
@@ -889,7 +889,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         // Approve invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         // Calculate expected fees
@@ -1122,7 +1122,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays, 0);
+            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             // Calculate expected protocol fee
@@ -1169,7 +1169,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);

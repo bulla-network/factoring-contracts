@@ -43,7 +43,7 @@ contract TestWithdraw is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -96,7 +96,7 @@ contract TestWithdraw is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, 10000, minDays, 0); // 100% upfront
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, 10000, 0); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -131,7 +131,7 @@ contract TestWithdraw is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, 10000, minDays, 0); // 100% upfront
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, 10000, 0); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -177,7 +177,7 @@ contract TestWithdraw is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -229,7 +229,7 @@ contract TestWithdraw is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice

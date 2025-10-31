@@ -50,7 +50,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
 
         // Fund invoice to reduce liquidity
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 730, 1000, 8000, 30, 0);
+        bullaFactoring.approveInvoice(invoiceId, 730, 1000, 8000, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -92,7 +92,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 730, 1000, 8000, 30, 0);
+        bullaFactoring.approveInvoice(invoiceId, 730, 1000, 8000, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);

@@ -205,7 +205,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 upfrontBps: 100_00,
                 protocolFeeBps: protocolFeeBps,
                 adminFeeBps: adminFeeBps,
-                minDaysInterestApplied: 0,
                 targetYieldBps: _targetYieldBps
             }),
             principalAmount: principalAmount,
@@ -277,9 +276,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _targetYieldBps The target yield in basis points
     /// @param _spreadBps The spread in basis points to add on top of target yield
     /// @param _upfrontBps The maximum upfront percentage the factorer can request
-    /// @param minDaysInterestApplied The minimum number of days interest must be applied
     /// @param _initialInvoiceValueOverride The initial invoice value to override the invoice amount. For example in cases of loans or bonds.
-    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _initialInvoiceValueOverride) external {
+    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint256 _initialInvoiceValueOverride) external {
         if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
         uint256 _validUntil = block.timestamp + approvalDuration;
@@ -297,8 +295,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             spreadBps: _spreadBps,
             upfrontBps: _upfrontBps,
             protocolFeeBps: protocolFeeBps,
-            adminFeeBps: adminFeeBps,
-            minDaysInterestApplied: minDaysInterestApplied
+            adminFeeBps: adminFeeBps
         });
 
         uint256 _initialInvoiceValue = _initialInvoiceValueOverride != 0 ? _initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount;
@@ -425,16 +422,14 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 uint256 dailyRate = approvedInvoices[invoiceId].dailyInterestRate;
                 uint256 fundedTime = approvedInvoices[invoiceId].fundedTimestamp;
                 uint256 dueDate = approvedInvoices[invoiceId].invoiceDueDate;
-                uint16 minDays = approvedInvoices[invoiceId].feeParams.minDaysInterestApplied;
                 
                 // Calculate days of interest (capped at due date)
-                uint256 daysElapsed = Math.mulDiv(
+                uint256 daysOfInterest = Math.mulDiv(
                     Math.min(block.timestamp, dueDate) - fundedTime,
                     1,
                     1 days,
                     Math.Rounding.Floor
                 );
-                uint256 daysOfInterest = Math.max(daysElapsed, minDays);
                 
                 // Simple multiplication instead of complex fee calculations
                 accruedProfits += dailyRate * daysOfInterest;

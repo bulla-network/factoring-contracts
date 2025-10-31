@@ -53,7 +53,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays, 0);
+            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             vm.startPrank(bob);
@@ -103,7 +103,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
                 vm.stopPrank();
                 
                 vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays, 0);
+                bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
                 vm.stopPrank();
                 
                 vm.startPrank(bob);
@@ -192,7 +192,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
                 vm.stopPrank();
                 
                 vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
                 vm.stopPrank();
                 
                 vm.startPrank(bob);
@@ -353,7 +353,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
                 vm.stopPrank();
                 
                 vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
                 vm.stopPrank();
                 
                 vm.startPrank(bob);
@@ -859,7 +859,6 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint16 interestApr = 1000;
         uint16 spreadBps = 100;
         uint16 upfrontBps = 500;
-        uint16 minDays = 30;
         uint256 dueBy = block.timestamp + 365 days;
 
         // Setup liquidity
@@ -879,7 +878,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
                 vm.stopPrank();
                 
                 vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+                bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
                 vm.stopPrank();
                 
                 vm.startPrank(bob);

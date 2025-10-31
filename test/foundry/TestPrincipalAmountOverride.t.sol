@@ -57,7 +57,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
 
         // Approve with zero overrideAmount
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         // Should use original calculation (invoice amount - paid amount)
@@ -77,7 +77,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
 
         // Should allow overrideAmount higher than invoice amount
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
         (,,,,,,,,uint256 initialInvoiceValue,,,,,) = bullaFactoring.approvedInvoices(invoiceId);
@@ -95,7 +95,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
         (,,,,,,,,uint256 initialInvoiceValue,,,,,) = bullaFactoring.approvedInvoices(invoiceId);
@@ -116,7 +116,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
         (uint256 fundedAmountGross, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
@@ -136,7 +136,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         // Fund the invoice
@@ -162,7 +162,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         // Should revert due to insufficient funds
@@ -185,7 +185,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         // Fund the invoice
@@ -214,7 +214,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         // Fund the invoice
@@ -247,7 +247,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -282,7 +282,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
             vm.stopPrank();
 
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays, overrides[i]);
+            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, overrides[i]);
             vm.stopPrank();
 
             vm.startPrank(bob);
@@ -319,7 +319,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         
         // Then approve with overrideAmount
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
         (,,,,,,,,uint256 initialInvoiceValue, uint256 initialPaidAmount,,,,) = bullaFactoring.approvedInvoices(invoiceId);
@@ -341,7 +341,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         // Should revert when trying to approve fully paid invoice
         vm.startPrank(underwriter);
         vm.expectRevert();
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 50000);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 50000);
         vm.stopPrank();
     }
 
@@ -358,7 +358,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
 
         // 2. Approve with overrideAmount
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
         // 3. Fund
@@ -389,7 +389,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -428,7 +428,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
 
         // Approve with conservative overrideAmount for risk management
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, higherInterestApr, higherSpreadBps, upfrontBps, minDays, conservativeOverrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, higherInterestApr, higherSpreadBps, upfrontBps, conservativeOverrideAmount);
         vm.stopPrank();
         
         // Should allow partial exposure to high-risk invoice
@@ -453,7 +453,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, overrideAmount);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -481,8 +481,8 @@ contract TestPrincipalAmountOverride is CommonSetup {
 
         // Approve both with different overrides
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, minDays, overrideAmountoverride1);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, minDays, overrideAmountoverride2);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, overrideAmountoverride1);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, overrideAmountoverride2);
         vm.stopPrank();
 
         // Fund both

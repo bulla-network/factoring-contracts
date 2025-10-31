@@ -98,7 +98,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -116,7 +116,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
 
         uint16 highSpread = 1500; // 15%
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, highSpread, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, highSpread, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(charlie);
@@ -134,7 +134,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId3, interestApr, 0, 10000, minDays, 0); // High fees
+        bullaFactoring.approveInvoice(invoiceId3, interestApr, 0, 10000, 0); // High fees
         vm.stopPrank();
 
         vm.startPrank(bob);

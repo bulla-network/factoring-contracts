@@ -186,7 +186,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(feeParams.upfrontBps, 100_00, "Upfront should be 100%");
         assertEq(feeParams.protocolFeeBps, protocolFeeBps, "Protocol fee should match");
         assertEq(feeParams.adminFeeBps, adminFeeBps, "Admin fee should match");
-        assertEq(feeParams.minDaysInterestApplied, 0, "Min days should be 0");
         assertGt(offeredAt, 0, "Offered timestamp should be set");
         
         // Alice deposits to fund the pool
@@ -275,7 +274,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(approvalFeeParams.upfrontBps, 100_00, "Upfront should transfer");
         assertEq(approvalFeeParams.protocolFeeBps, protocolFeeBps, "Protocol fee should transfer");
         assertEq(approvalFeeParams.adminFeeBps, adminFeeBps, "Admin fee should transfer");
-        assertEq(approvalFeeParams.minDaysInterestApplied, 0, "Min days should transfer");
         
         // Active invoices should be updated
         assertEq(
@@ -344,7 +342,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(transferredFeeParams.upfrontBps, originalFeeParams.upfrontBps, "Upfront should transfer");
         assertEq(transferredFeeParams.protocolFeeBps, originalFeeParams.protocolFeeBps, "Protocol fee should transfer");
         assertEq(transferredFeeParams.adminFeeBps, originalFeeParams.adminFeeBps, "Admin fee should transfer");
-        assertEq(transferredFeeParams.minDaysInterestApplied, originalFeeParams.minDaysInterestApplied, "Min days should transfer");
     }
     
     function testOfferLoanAndAcceptance_MultipleLoansCascade() public {
@@ -689,7 +686,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(feeParams.upfrontBps, 100_00, "Upfront should be 100%");
         assertEq(feeParams.protocolFeeBps, protocolFeeBps, "Protocol fee should match contract setting");
         assertEq(feeParams.adminFeeBps, adminFeeBps, "Admin fee should match contract setting");
-        assertEq(feeParams.minDaysInterestApplied, 0, "Min days should be 0");
     }
     
     function testOfferLoan_MultipleOffers() public {
