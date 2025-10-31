@@ -530,13 +530,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Store the receiver address for future kickback payments
         approval.receiverAddress = actualReceiver;
 
-        // Calculate daily interest rate for gas-optimized accrued profit calculations
-        approval.dailyInterestRate = Math.mulDiv(
-            approval.initialInvoiceValue,
-            approval.feeParams.targetYieldBps,
-            3_650_000
-        );
-
         // Write back to storage once
         approvedInvoices[invoiceId] = approval;
 
