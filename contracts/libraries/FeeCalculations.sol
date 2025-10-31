@@ -86,10 +86,8 @@ library FeeCalculations {
         uint256 trueSpreadAmount,
         uint256 trueAdminFee
     ) {
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? 
+        uint256 daysOfInterest = (block.timestamp > approval.fundedTimestamp) ? 
             Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        
-        uint256 daysOfInterest = Math.max(daysSinceFunded, approval.feeParams.minDaysInterestApplied);
 
         (trueInterest, trueSpreadAmount, trueAdminFee, kickbackAmount) = 
             calculateFees(approval, daysOfInterest, invoice);
@@ -131,9 +129,6 @@ library FeeCalculations {
         fundedAmountGross = Math.mulDiv(availableAmount, factorerUpfrontBps, 10000);
 
         uint256 daysUntilDue = Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Floor);
-
-        /// @dev minDaysInterestApplied is the minimum number of days the invoice can be funded for, set by the underwriter during approval
-        daysUntilDue = Math.max(daysUntilDue, approval.feeParams.minDaysInterestApplied);
 
         (targetInterest, targetSpreadAmount, adminFee, ) = 
             calculateFees(approval, daysUntilDue, invoice);

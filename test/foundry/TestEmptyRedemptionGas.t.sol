@@ -111,7 +111,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0); // 10% APR, 1% spread, 100% upfront
+            bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0); // 10% APR, 1% spread, 100% upfront
             vm.stopPrank();
             
             vm.startPrank(bob);
@@ -207,7 +207,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0, 0); // 10% APR, 1% spread, 100% upfront
+            bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0); // 10% APR, 1% spread, 100% upfront
             vm.stopPrank();
             
             vm.startPrank(bob);
