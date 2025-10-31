@@ -80,7 +80,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Verify approval
-        (bool approved, , , , , , , , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
+        (bool approved, , , , , , , , , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
         assertTrue(approved);
     }
 
@@ -782,7 +782,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // net funded amount
-       (,,,,,,,uint256 fundedAmountNet,,,,,)= bullaFactoring.approvedInvoices(invoiceId);
+       (,,,,,,,uint256 fundedAmountNet,,,,,,)= bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify impairment was recorded
                  (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
@@ -865,7 +865,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Get net funded amount and initial paid amount to verify calculations
-        (,,,,,,,uint256 fundedAmountNet,, uint256 initialPaidAmount,,,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,uint256 fundedAmountNet,, uint256 initialPaidAmount,,,,) = bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify that initialPaidAmount captured the pre-approval payment
         assertEq(initialPaidAmount, partialPaymentBeforeApproval, 
@@ -935,7 +935,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
 
         // net funded amount
-       (,,,,,,,uint256 fundedAmountNet,,,,,)= bullaFactoring.approvedInvoices(invoiceId);
+       (,,,,,,,uint256 fundedAmountNet,,,,,,)= bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify impairment was recorded
                  (uint256 gainAmount, , ) = bullaFactoring.impairments(invoiceId);
@@ -1011,7 +1011,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.warp(block.timestamp + 30 days + bullaFactoring.gracePeriodDays() * 1 days + 1);
 
         // Get net funded amount and initial paid amount to verify calculations
-        (,,,,,,,uint256 fundedAmountNet,, uint256 initialPaidAmount,,,) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,uint256 fundedAmountNet,, uint256 initialPaidAmount,,,,) = bullaFactoring.approvedInvoices(invoiceId);
 
         // Verify that initialPaidAmount captured the pre-approval payment
         assertEq(initialPaidAmount, partialPaymentBeforeApproval, 

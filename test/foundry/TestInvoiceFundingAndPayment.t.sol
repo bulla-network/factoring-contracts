@@ -140,8 +140,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId2, factorerUpfrontBps, address(0));
         vm.stopPrank();
 
-        (, , , , , , uint256 actualFundedAmount, , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
-        (, , , , , , uint256 actualFundedAmountLowerUpfrontBps, , , , , , ) = bullaFactoring.approvedInvoices(invoiceId2);
+        (, , , , , , uint256 actualFundedAmount, , , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
+        (, , , , , , uint256 actualFundedAmountLowerUpfrontBps, , , , , , , ) = bullaFactoring.approvedInvoices(invoiceId2);
 
         assertTrue(actualFundedAmount > actualFundedAmountLowerUpfrontBps, "Funded amounts should reflect the actual upfront bps chosen by the factorer" );
     }
@@ -259,7 +259,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.reconcileActivePaidInvoices();
 
         // Check if the kickback and funded amount were correctly transferred
-        (, , , , , , , uint256 fundedAmountNet, , , , , ) = bullaFactoring.approvedInvoices(invoiceId01);
+        (, , , , , , , uint256 fundedAmountNet, , , , , , ) = bullaFactoring.approvedInvoices(invoiceId01);
         (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
         uint256 finalBalanceOwner = asset.balanceOf(address(bob));
