@@ -90,10 +90,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// Errors
     error CallerNotUnderwriter();
-    error InvoiceNotApproved();
-    error ApprovalExpired();
-    error InvoiceCanceled();
-    error InvoicePaidAmountChanged();
     error FunctionNotSupported();
     error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
@@ -103,12 +99,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvoiceAlreadyImpairedByFund();
     error CallerNotOriginalCreditor();
     error CallerNotBullaFrendLend();
-    error InvalidPercentage();
     error CallerNotBullaDao();
     error NoFeesToWithdraw();
     error InvalidAddress();
     error ImpairReserveMustBeGreater();
-    error InvoiceCreditorChanged();
     error ImpairReserveNotSet();
     error InvoiceCannotBePaid();
     error InvoiceTokenMismatch();
@@ -117,7 +111,17 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error LoanOfferAlreadyAccepted();
     error InsufficientFunds(uint256 available, uint256 required);
     error RedemptionQueueNotEmpty();
-
+    error CallerNotInvoiceContract();
+    error InvoiceNotActive();
+    error InvoiceSetPaidCallbackFailed();
+    error InvoiceNotApproved();
+    error ApprovalExpired();
+    error InvoiceCanceled();
+    error InvoicePaidAmountChanged();
+    error InvalidPercentage();
+    error InvoiceCreditorChanged();
+    error InvoiceNotPaid();
+    
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
     /// @param _underwriter address of the underwriter
@@ -263,7 +267,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         originalCreditors[loanId] = address(this);
         activeInvoices.push(loanId);
         invoiceProviderAdapter.initializeInvoice(loanId);
-
+        _registerInvoiceCallback(loanId);
+        
         emit InvoiceFunded(loanId, pendingLoanOffer.principalAmount, address(this), block.timestamp + pendingLoanOffer.termLength, pendingLoanOffer.feeParams.upfrontBps, 0);
     }
 
@@ -488,6 +493,14 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, protocolFeeBps);
     }
 
+    /// @notice Registers the reconcile callback with the invoice provider
+    /// @param invoiceId The ID of the invoice to register callback for
+    function _registerInvoiceCallback(uint256 invoiceId) internal {
+        (address target, bytes4 selector) = invoiceProviderAdapter.getSetPaidInvoiceTarget(invoiceId);
+        (bool success, ) = target.call(abi.encodeWithSelector(selector, invoiceId, address(this), this.reconcileSingleInvoice.selector));
+        if (!success) revert InvoiceSetPaidCallbackFailed();
+    }
+
     /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
     /// @dev No checks needed for the creditor, as transferFrom will revert unless it gets executed by the nft owner (i.e. claim creditor)
     /// @param invoiceId The ID of the invoice to fund
@@ -536,80 +549,39 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // transfer net funded amount to caller to the actual receiver
         assetAddress.safeTransfer(actualReceiver, fundedAmountNet);
 
-        // transfer invoice nft ownership to vault
-        address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress(invoiceId);
-        IERC721(invoiceContractAddress).transferFrom(msg.sender, address(this), invoiceId);
+        IERC721(invoiceProviderAdapter.getInvoiceContractAddress(invoiceId)).transferFrom(msg.sender, address(this), invoiceId);
 
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
+
+        _registerInvoiceCallback(invoiceId);
 
         emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, factorerUpfrontBps, protocolFee);
         return fundedAmountNet;
     }
 
     /// @notice Provides a view of the pool's status, listing paid and impaired invoices, to be called by Gelato or alike
-    /// @return paidInvoiceIds An array of paid invoice IDs
-    /// @return paidInvoices An array of paid invoice data
     /// @return impairedInvoiceIds An array of impaired invoice IDs
-    /// @return impairedInvoices An array of impaired invoice data
-    function viewPoolStatus() public view returns (
-        uint256[] memory paidInvoiceIds,
-        IInvoiceProviderAdapterV2.Invoice[] memory paidInvoices,
-        uint256[] memory impairedInvoiceIds, 
-        IInvoiceProviderAdapterV2.Invoice[] memory impairedInvoices
-    ) {
+    function viewPoolStatus() external view returns (uint256[] memory impairedInvoiceIds) {
         uint256 activeCount = activeInvoices.length;
-        uint256 impairedByFundCount = impairedByFundInvoicesIds.length;
         
-        paidInvoiceIds = new uint256[](activeCount + impairedByFundCount);
-        paidInvoices = new IInvoiceProviderAdapterV2.Invoice[](activeCount + impairedByFundCount);
         impairedInvoiceIds = new uint256[](activeCount);
-        impairedInvoices = new IInvoiceProviderAdapterV2.Invoice[](activeCount);
         
-        uint256 paidCount = 0;
         uint256 impairedCount = 0;
 
         // Check active invoices
         for (uint256 i = 0; i < activeCount; i++) {
             uint256 invoiceId = activeInvoices[i];
 
-            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            if (invoice.isPaid) {
-                paidInvoiceIds[paidCount] = invoiceId;
-                paidInvoices[paidCount++] = invoice;
-            } else if (_isInvoiceImpaired(invoiceId)) {
-                impairedInvoiceIds[impairedCount] = invoiceId;
-                impairedInvoices[impairedCount++] = invoice;
-            }
-        }
-
-        // Check impaired invoices by the fund
-        for (uint256 i = 0; i < impairedByFundCount; i++) {
-            uint256 invoiceId = impairedByFundInvoicesIds[i];
-            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-            
-            if (invoice.isPaid) {
-                paidInvoiceIds[paidCount] = invoiceId;
-                paidInvoices[paidCount++] = invoice;
+            if (_isInvoiceImpaired(invoiceId)) {
+                impairedInvoiceIds[impairedCount++] = invoiceId;
             }
         }
 
         // Overwrite the length of the arrays
         assembly {
-            mstore(paidInvoiceIds, paidCount)
-            mstore(paidInvoices, paidCount)
             mstore(impairedInvoiceIds, impairedCount)
-            mstore(impairedInvoices, impairedCount)
         }
-
-        return (paidInvoiceIds, paidInvoices, impairedInvoiceIds, impairedInvoices);
-    }
-
-    /// @notice Checks if there are any active paid invoices that need reconciliation
-    /// @return true if there are active paid invoices, false otherwise
-    function _hasActivePaidInvoices() private view returns (bool) {
-        (uint256[] memory paidInvoiceIds, , , ) = viewPoolStatus();
-        return paidInvoiceIds.length > 0;
     }
 
     /// @notice Increments the profit, and fee balances for a given invoice
@@ -624,41 +596,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         paidInvoicesGain += trueInterest;
     }
 
-    /// @notice Reconciles the list of active invoices with those that have been paid, updating the fund's records
-    /// @dev This function should be called when viewPoolStatus returns some updates, to ensure accurate accounting
-    function reconcileActivePaidInvoices() external {
-        (uint256[] memory paidInvoiceIds, IInvoiceProviderAdapterV2.Invoice[] memory paidInvoices, , ) = viewPoolStatus();
-
-        for (uint256 i = 0; i < paidInvoiceIds.length; i++) {
-            uint256 invoiceId = paidInvoiceIds[i];
-            IInvoiceProviderAdapterV2.Invoice memory invoice = paidInvoices[i];
-            
-            _reconcileSingleInvoice(invoiceId, invoice);
-        }
-        
-        emit ActivePaidInvoicesReconciled(paidInvoiceIds);
-    }
-
     function reconcileSingleInvoice(uint256 invoiceId) external {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        
-        if (invoice.isPaid) revert InvoiceAlreadyPaid();
-        _reconcileSingleInvoice(invoiceId, invoice);
-    }
-
-    function _reconcileSingleInvoice(uint256 invoiceId, IInvoiceProviderAdapterV2.Invoice memory invoice) private {
-        // calculate kickback amount adjusting for true interest, protocol and admin fees
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
-
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);   
-
-        address receiverAddress = approval.receiverAddress;
-        
-        if (kickbackAmount != 0) {
-            assetAddress.safeTransfer(receiverAddress, kickbackAmount);
-            emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
-        }
+        if (!invoice.isPaid) revert InvoiceNotPaid();
 
         // Check if the invoice was previously marked as impaired by the fund
         if (impairments[invoiceId].isImpaired) {
@@ -671,7 +611,20 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             // Remove the invoice from activeInvoices array
             removeActivePaidInvoice(invoiceId);   
         }
+        
+        // calculate kickback amount adjusting for true interest, protocol and admin fees
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
 
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);   
+
+        address receiverAddress = approval.receiverAddress;
+        
+        if (kickbackAmount != 0) {
+            assetAddress.safeTransfer(receiverAddress, kickbackAmount);
+            emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
+        }
+        
         emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
     }
 
@@ -680,9 +633,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             if (impairedByFundInvoicesIds[i] == invoiceId) {
                 impairedByFundInvoicesIds[i] = impairedByFundInvoicesIds[impairedByFundInvoicesIds.length - 1];
                 impairedByFundInvoicesIds.pop();
-                break;
+                return;
             }
         }
+
+        revert InvoiceNotActive();
     }
 
     function removePendingLoanOffer(uint256 loanOfferId) private {
@@ -743,9 +698,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             if (activeInvoices[i] == invoiceId) {
                 activeInvoices[i] = activeInvoices[activeInvoices.length - 1];
                 activeInvoices.pop();
-                break;
+                return;
             }
         }
+
+        revert InvoiceNotActive();
     }
 
     /// @notice Calculates the available assets in the fund net of fees and impair reserve
@@ -1023,9 +980,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
-        
-        // Check that there are no active paid invoices that need reconciliation
-        if (_hasActivePaidInvoices()) revert ActivePaidInvoicesExist();
 
         uint256 sharesToRedeem = redemptionQueue.isQueueEmpty() ? Math.min(shares, maxRedeem(_owner)) : 0;
         uint256 redeemedAssets = 0;
@@ -1054,9 +1008,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
         
-        // Check that there are no active paid invoices that need reconciliation
-        if (_hasActivePaidInvoices()) revert ActivePaidInvoicesExist();
-        
         uint256 assetsToWithdraw = redemptionQueue.isQueueEmpty() ? Math.min(assets, maxWithdraw(_owner)) : 0;
         uint256 redeemedShares = 0;
         
@@ -1077,9 +1028,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     /// @notice Process queued redemptions when liquidity becomes available
     function processRedemptionQueue() external {
-        // Check that there are no active paid invoices that need reconciliation
-        if (_hasActivePaidInvoices()) revert ActivePaidInvoicesExist();
-        
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
         // Memory-optimized: Calculate capital account and total assets with single realized gain/loss calculation
         (uint256 _capitalAccount, uint256 _totalAssets) = _calculateCapitalAccountAndTotalAssets();

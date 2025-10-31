@@ -147,7 +147,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Reconcile to trigger payment processing
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Record balances after payment and reconciliation
         uint256 bobBalanceAfter = asset.balanceOf(bob);
@@ -227,7 +227,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Record balances after payment
         uint256 bobBalanceAfter = asset.balanceOf(bob);
@@ -310,7 +310,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Record balances after payment
         uint256 charlieBalanceAfter = asset.balanceOf(charlie);
@@ -420,7 +420,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Reconcile to process the payment
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Record final balances
         uint256 bobBalanceFinal = asset.balanceOf(bob);
@@ -473,7 +473,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         asset.approve(address(bullaFrendLend), loan1AmountDue);
         bullaFrendLend.payLoan(loanId1, loan1AmountDue);
         vm.stopPrank();
-        bullaFactoring.reconcileActivePaidInvoices(); // Reconcile to update gains
+         // Reconcile to update gains
         uint256 gainAfterLoan1 = bullaFactoring.paidInvoicesGain();
         
         // Fast forward to due date and pay loan 2 on time
@@ -485,7 +485,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         asset.approve(address(bullaFrendLend), loan2AmountDue);
         bullaFrendLend.payLoan(loanId2, loan2AmountDue);
         vm.stopPrank();
-        bullaFactoring.reconcileActivePaidInvoices(); // Reconcile to update gains
+         // Reconcile to update gains
         uint256 gainAfterLoan2 = bullaFactoring.paidInvoicesGain();
         
         // Fast forward past due date and pay loan 3 late
@@ -497,11 +497,11 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         asset.approve(address(bullaFrendLend), loan3AmountDue);
         bullaFrendLend.payLoan(loanId3, loan3AmountDue);
         vm.stopPrank();
-        bullaFactoring.reconcileActivePaidInvoices(); // Reconcile to update gains
+         // Reconcile to update gains
         uint256 gainAfterLoan3 = bullaFactoring.paidInvoicesGain();
         
         // Reconcile all payments
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Record final balances
         uint256 bobBalanceFinal = asset.balanceOf(bob);
@@ -582,21 +582,15 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 totalAmountDue = remainingPrincipal + interest;
         vm.startPrank(bob);
         asset.approve(address(bullaFrendLend), totalAmountDue);
-        bullaFrendLend.payLoan(loanId, totalAmountDue);
-        vm.stopPrank();
         
         // Expect events during reconciliation
         // Note: Since this is a loan payment, we need to expect the actual calculated fees
         vm.expectEmit(true, false, false, false);
         emit InvoicePaid(loanId, 0, 0, 0, principalAmount, 0, address(bullaFactoring));
         
-        vm.expectEmit(false, false, false, true);
-        uint256[] memory expectedInvoiceIds = new uint256[](1);
-        expectedInvoiceIds[0] = loanId;
-        emit ActivePaidInvoicesReconciled(expectedInvoiceIds);
+        bullaFrendLend.payLoan(loanId, totalAmountDue);
+        vm.stopPrank();
         
-        // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
     }
 
     // ============= BALANCE RECONCILIATION TESTS =============
@@ -630,12 +624,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         asset.approve(address(bullaFrendLend), totalAmountDue);
         bullaFrendLend.payLoan(loanId, totalAmountDue);
         vm.stopPrank();
-
-        (uint256[] memory invoicesPaid, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(invoicesPaid.length, 1, "There should be one paid invoice");
-
-        // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
         
         // Get detailed balance information after payment
         uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
@@ -709,7 +697,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Verify payment
         uint256 bobBalanceAfter = asset.balanceOf(bob);
@@ -743,7 +731,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
         
         // Reconcile without any payments
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Record balances after reconciliation
         uint256 factoringBalanceAfter = asset.balanceOf(address(bullaFactoring));

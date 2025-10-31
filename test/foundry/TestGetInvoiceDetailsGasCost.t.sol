@@ -76,120 +76,15 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         console.log("Unpaid invoices:", numInvoices - numPaid);
         console.log("");
 
-        // Measure viewPoolStatus (just checking)
+        // Measure viewPoolStatus (checking for impaired invoices)
         uint256 gasBefore = gasleft();
-        (uint256[] memory paidInvoices, , , ) = bullaFactoring.viewPoolStatus();
+        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
         uint256 gasAfter = gasleft();
         uint256 viewPoolStatusGas = gasBefore - gasAfter;
 
-        console.log("Found", paidInvoices.length, "paid invoices");
+        console.log("Found", impairedInvoices.length, "impaired invoices");
         console.log("viewPoolStatus() gas:", viewPoolStatusGas);
-
-        // Measure reconcilePaid (checking + processing payments)
-        gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        gasAfter = gasleft();
-        uint256 reconcileGas = gasBefore - gasAfter;
-
-        console.log("reconcilePaid() gas:", reconcileGas);
-        console.log("Processing overhead:", reconcileGas - viewPoolStatusGas);
-        console.log("Gas per paid invoice processed:", (reconcileGas - viewPoolStatusGas) / paidInvoices.length);
     }
-
-    function testDetailedGasBreakdown() public {
-        console.log("\n=== DETAILED GAS BREAKDOWN ===\n");
-        console.log("Testing with invoices that have late fee configuration\n");
-
-        uint256 numInvoices = 20;
-        uint256 numPaid = 5;
-        
-        // Setup with late fee invoices
-        uint256 depositAmount = numInvoices * 200000;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-        vm.stopPrank();
-
-        uint256[] memory invoiceIds = new uint256[](numInvoices);
-            vm.startPrank(bob);
-            for (uint256 i = 0; i < numInvoices; i++) {
-                invoiceIds[i] = createInvoice(bob, alice, 100000, dueBy, 1000, 12); // 10% APR late fee
-                vm.stopPrank();
-                
-                vm.startPrank(underwriter);
-                bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, minDays, 0);
-                vm.stopPrank();
-                
-                vm.startPrank(bob);
-                IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceIds[i]); // Approve BullaInvoice NFT
-                bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
-            }
-            vm.stopPrank();
-
-        // Pay some invoices
-        vm.startPrank(alice);
-        uint256 totalPaymentAmount = numPaid * 100000; // Each invoice is 100,000
-        asset.approve(address(bullaInvoice), totalPaymentAmount);
-        for (uint256 i = 0; i < numPaid; i++) {
-            bullaInvoice.payInvoice(invoiceIds[i], 100000);
-        }
-        vm.stopPrank();
-
-        // STEP 1: Measure viewPoolStatus alone
-        uint256 gasBefore = gasleft();
-        (uint256[] memory paidInvoiceIds, , , ) = bullaFactoring.viewPoolStatus();
-        uint256 gasAfter = gasleft();
-        uint256 viewPoolStatusGas = gasBefore - gasAfter;
-
-        console.log("Step 1: viewPoolStatus()");
-        console.log("  Gas cost:", viewPoolStatusGas);
-        console.log("  Found", paidInvoiceIds.length, "paid invoices");
-        console.log("");
-
-        // STEP 2: Measure full reconcilePaid (includes both _reconcile and _processQueue)
-        gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        gasAfter = gasleft();
-        uint256 fullReconcileGas = gasBefore - gasAfter;
-
-        console.log("Step 2: reconcilePaid() [full function]");
-        console.log("  Gas cost:", fullReconcileGas);
-        console.log("");
-
-        // STEP 3: Calculate _reconcilePaid overhead
-        // Since there's no redemption queue activity, we can estimate:
-        uint256 reconcileOnlyOverhead = fullReconcileGas - viewPoolStatusGas;
-        
-        console.log("Step 3: Breakdown");
-        console.log("  viewPoolStatus():              ", viewPoolStatusGas, "gas");
-        console.log("  Total reconcile function:      ", fullReconcileGas, "gas");
-        console.log("  _reconcile + _processQueue overhead:", reconcileOnlyOverhead, "gas");
-        console.log("");
-
-        // STEP 4: Test with redemption queue activity
-        console.log("Step 4: Testing with redemption queue activity\n");
-        
-        // Create a scenario with redemption queue
-        vm.startPrank(alice);
-        uint256 shares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(shares / 2, alice, alice); // Try to redeem half (should queue)
-        vm.stopPrank();
-
-        // Now measure _processRedemptionQueue overhead
-        gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
-        gasAfter = gasleft();
-        uint256 reconcileWithQueueGas = gasBefore - gasAfter;
-
-        console.log("  reconcile with queue processing:", reconcileWithQueueGas, "gas");
-        
-        // Handle potential underflow
-        if (reconcileWithQueueGas > fullReconcileGas) {
-            console.log("  Queue processing overhead:        ", reconcileWithQueueGas - fullReconcileGas, "gas");
-        } else {
-            console.log("  Queue processing saved:           ", fullReconcileGas - reconcileWithQueueGas, "gas (negative overhead)");
-        }
-    }
-
 
     function _measureThreeComponentGasBreakdown(uint256 numInvoices, uint256 numPaid) internal {
         // Setup: Create funded invoices using simple claims (not BullaInvoice)
@@ -237,7 +132,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         // COMPONENT 3: Full reconcilePaid() (includes _reconcile + _processQueue)
         console.log("=== COMPONENT 3: reconcilePaid() ===");
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasAfter = gasleft();
 
         console.log("Gas used:", gasBefore - gasAfter);
@@ -484,7 +379,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(10, 10);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 10 paid invoices gas used:", gasUsed);
@@ -494,7 +389,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(25, 25);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 25 paid invoices gas used:", gasUsed);
@@ -504,7 +399,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(50, 50);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 50 paid invoices gas used:", gasUsed);
@@ -514,7 +409,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(75, 75);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 75 paid invoices gas used:", gasUsed);
@@ -524,7 +419,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(100, 100);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 100 paid invoices gas used:", gasUsed);
@@ -534,7 +429,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(150, 150);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 150 paid invoices gas used:", gasUsed);
@@ -544,7 +439,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         uint256[] memory invoiceIds = _setupAndPayInvoices(200, 200);
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         
         console.log("Reconcile 200 paid invoices gas used:", gasUsed);
@@ -1011,7 +906,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit10Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(10, 10);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 10 paid invoices gas used:", gasUsed);
     }
@@ -1019,7 +914,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit25Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(25, 25);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 25 paid invoices gas used:", gasUsed);
     }
@@ -1027,7 +922,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit50Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(50, 50);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 50 paid invoices gas used:", gasUsed);
     }
@@ -1035,7 +930,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit75Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(75, 75);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 75 paid invoices gas used:", gasUsed);
     }
@@ -1043,7 +938,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit100Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(100, 100);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 100 paid invoices gas used:", gasUsed);
     }
@@ -1051,7 +946,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit150Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(150, 150);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 150 paid invoices gas used:", gasUsed);
     }
@@ -1059,7 +954,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testOptimizedReconcileGasLimit200Invoices() public {
         uint256[] memory invoiceIds = _setupAndPayCachedInvoices(200, 200);
         uint256 gasBefore = gasleft();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gasUsed = gasBefore - gasleft();
         console.log("Optimized reconcile 200 paid invoices gas used:", gasUsed);
     }

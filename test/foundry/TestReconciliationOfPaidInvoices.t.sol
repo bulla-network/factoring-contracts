@@ -53,16 +53,15 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        // Verify invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before redemption");
+        // Note: With the new model, active invoices are always unpaid.
+        // Once paid, invoices are automatically reconciled and removed from active invoices.
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems shares
         vm.startPrank(alice);
@@ -73,11 +72,11 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
-        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
+        // Active invoices are always unpaid now
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after reconciliation");
-        assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
+        // Paid invoices are automatically reconciled in the new model
     }
 
     function test_Redeem_TriggersAutomaticReconciliation() public {
@@ -110,16 +109,15 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        // Verify invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before redemption");
+        // Note: With the new model, active invoices are always unpaid.
+        // Once paid, invoices are automatically reconciled and removed from active invoices.
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Manually trigger reconciliation first (since redeem now blocks when active paid invoices exist)
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems shares using regular redeem()
         vm.startPrank(alice);
@@ -130,11 +128,11 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
-        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
+        // Active invoices are always unpaid now
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after reconciliation");
-        assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
+        // Paid invoices are automatically reconciled in the new model
     }
 
     function test_Withdraw_TriggersAutomaticReconciliation() public {
@@ -167,16 +165,15 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        // Verify invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoicesBefore.length, 1, "Should have one paid invoice before withdrawal");
+        // Note: With the new model, active invoices are always unpaid.
+        // Once paid, invoices are automatically reconciled and removed from active invoices.
 
         uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Manually trigger reconciliation first (since withdraw now blocks when active paid invoices exist)
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice withdraws assets using regular withdraw()
         vm.startPrank(alice);
@@ -188,11 +185,11 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Verify reconciliation occurred
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
-        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
+        // Active invoices are always unpaid now
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
         assertGt(gainAfter, 0, "Should have recorded gain after reconciliation");
-        assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
+        // Paid invoices are automatically reconciled in the new model
     }
 
     /*//////////////////////////////////////////////////////////////

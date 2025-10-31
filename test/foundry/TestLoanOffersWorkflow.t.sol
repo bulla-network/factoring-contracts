@@ -1174,7 +1174,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         bullaFrendLend.payLoan(loanId365, totalDue365);
         vm.stopPrank();
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterLoan365 = bullaFactoring.paidInvoicesGain();
         
         vm.startPrank(bob);
@@ -1183,7 +1183,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         bullaFrendLend.payLoan(loanId0, totalDue0);
         vm.stopPrank();
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterLoan0 = bullaFactoring.paidInvoicesGain();
         
         // Verify both loans are paid

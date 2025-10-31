@@ -258,7 +258,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         // Fast forward and pay
         vm.warp(block.timestamp + 30 days);
         payInvoice(invoiceId, invoiceAmount);
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         uint256 finalPrice = bullaFactoring.pricePerShare();
         
@@ -376,7 +376,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         payInvoice(invoiceId, invoiceAmount);
         
         // 6. Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Verify all calculations were based on overrideAmount amount
         assertTrue(bullaFactoring.paidInvoicesGain() > 0);
@@ -503,10 +503,10 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.warp(block.timestamp + 30 days);
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         payInvoice(invoiceId1, invoiceAmount);
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfter1 = bullaFactoring.paidInvoicesGain();
         payInvoice(invoiceId2, invoiceAmount);
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfter2 = bullaFactoring.paidInvoicesGain();
         
         // Both should generate gains

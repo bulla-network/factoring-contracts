@@ -73,10 +73,8 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         bullaClaim.payClaim(invoiceId1, invoiceAmount1);
         vm.stopPrank();
 
-        // Verify that the first invoice is paid but not reconciled
-        (uint256[] memory paidInvoicesBefore, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoicesBefore.length, 1, "Should have one paid but unreconciled invoice");
-        assertEq(paidInvoicesBefore[0], invoiceId1, "First invoice should be the paid one");
+        // Note: With the new model, active invoices are always unpaid.
+        // Once paid, invoices are automatically reconciled and removed from active invoices.
 
         // Verify gain state before reconciliation (paidInvoicesGain is now cumulative)
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
@@ -94,13 +92,6 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         bullaFactoring.unfactorInvoice(invoiceId2);
         vm.stopPrank();
 
-        // Manually trigger reconciliation of the first (paid) invoice after unfactoring
-        // (since automatic reconciliation is not implemented)
-        vm.expectEmit(true, false, false, false);
-        emit ActivePaidInvoicesReconciled(new uint256[](1)); // Should reconcile the paid invoice
-        
-        bullaFactoring.reconcileActivePaidInvoices();
-
         // Verify the second invoice was unfactored (ownership returned to Bob)
         assertEq(IERC721(address(bullaClaim)).ownerOf(invoiceId2), bob, "Second invoice should be returned to Bob");
 
@@ -108,9 +99,7 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         uint256 bobBalanceAfter = asset.balanceOf(bob);
         assertLt(bobBalanceAfter, bobBalanceBefore, "Bob should have paid to unfactor the second invoice");
 
-        // CRITICAL TEST: Verify that the first invoice was reconciled after unfactoring
-        (uint256[] memory paidInvoicesAfter, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoicesAfter.length, 0, "Should have no paid invoices after reconciliation");
+        // CRITICAL TEST: Invoices are automatically reconciled when paid in the new model
 
         // Verify gain was recorded (indicating reconciliation occurred)
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
@@ -124,7 +113,5 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         console.log("- Invoice 1 (paid): Gain recorded =", gainAfter);
         console.log("- Invoice 2 (unfactored): Returned to Bob");
         console.log("- Price per share increased from", pricePerShareBefore, "to", pricePerShareAfter);
-        console.log("- Paid invoices before unfactoring:", paidInvoicesBefore.length);
-        console.log("- Paid invoices after unfactoring:", paidInvoicesAfter.length);
     }
 }

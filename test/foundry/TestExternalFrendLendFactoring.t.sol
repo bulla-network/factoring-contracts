@@ -260,7 +260,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         bullaFrendLend.payLoan(loanId1, totalDue1);
         vm.stopPrank();
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Capture fee balances after loan 1 payment
         uint256 adminFeeAfterLoan1 = bullaFactoring.adminFeeBalance();
@@ -275,7 +275,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         bullaFrendLend.payLoan(loanId2, totalDue2);
         vm.stopPrank();
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Capture final fee balances after loan 2 payment
         uint256 finalAdminFeeBalance = bullaFactoring.adminFeeBalance();
@@ -361,7 +361,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         vm.stopPrank();
         
         // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Verify loan is paid
         IInvoiceProviderAdapterV2.Invoice memory invoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
@@ -438,7 +438,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         vm.stopPrank();
         
         // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Verify final payment
         IInvoiceProviderAdapterV2.Invoice memory finalInvoice = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId);
@@ -548,7 +548,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(loanId1);
         asset.approve(address(bullaFrendLend), principal1 + interest1);
         bullaFrendLend.payLoan(loanId1, principal1 + interest1);
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterLoan1 = bullaFactoring.paidInvoicesGain();
         uint256 gain1 = gainAfterLoan1 - gainBefore;
         
@@ -556,7 +556,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         asset.approve(address(bullaFrendLend), principal2 + interest2);
         bullaFrendLend.payLoan(loanId2, principal2 + interest2);
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterLoan2 = bullaFactoring.paidInvoicesGain();
         uint256 gain2 = gainAfterLoan2 - gainAfterLoan1;
 
@@ -564,14 +564,14 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         asset.approve(address(bullaFrendLend), principal3 + interest3);
         bullaFrendLend.payLoan(loanId3, principal3 + interest3);
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterLoan3 = bullaFactoring.paidInvoicesGain();
         uint256 gain3 = gainAfterLoan3 - gainAfterLoan2;
         
         vm.stopPrank();
         
         // Reconcile
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         assertGt(gain1, 0, "Pool should have gained from loan 1");
         assertGt(gain2, 0, "Pool should have gained from loan 2");
@@ -700,7 +700,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         bullaFrendLend.payLoan(loanId, totalDue);
         vm.stopPrank();
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
     }
     
     function testFuzz_OfferLoanNeverFailsNorGeneratesKickback(

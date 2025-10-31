@@ -110,7 +110,7 @@ contract TestGasProfiler is CommonSetup {
         uint256 gasBefore = gasleft();
         uint256 callsBefore = _getInvoiceDetailsCallCount;
         
-        (uint256[] memory paidIds, , uint256[] memory impairedIds, ) = bullaFactoring.viewPoolStatus();
+        uint256[] memory impairedIds = bullaFactoring.viewPoolStatus();
         
         uint256 gasUsed = gasBefore - gasleft();
         uint256 callsUsed = _getInvoiceDetailsCallCount - callsBefore;
@@ -118,7 +118,6 @@ contract TestGasProfiler is CommonSetup {
         console.log("Gas used: %s", gasUsed);
         console.log("External getInvoiceDetails calls: %s", callsUsed);
         console.log("Gas per external call: %s", callsUsed > 0 ? gasUsed / callsUsed : 0);
-        console.log("Paid invoices found: %s", paidIds.length);
         console.log("Impaired invoices found: %s", impairedIds.length);
         
         // Break down the calls
@@ -137,7 +136,7 @@ contract TestGasProfiler is CommonSetup {
         uint256 gasBefore = gasleft();
         uint256 callsBefore = _getInvoiceDetailsCallCount;
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         uint256 gasUsed = gasBefore - gasleft();
         uint256 callsUsed = _getInvoiceDetailsCallCount - callsBefore;
@@ -218,9 +217,9 @@ contract TestGasProfiler is CommonSetup {
         console.log("  calculateRealizedGainLoss(): %s calls", calculateCalls);
         
         // Calculate theoretical scaling - get number of active invoices
-        // Since activeInvoices is a dynamic array, we need to get its length through viewPoolStatus
-        (uint256[] memory paidInvoices, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
-        uint256 numActiveInvoices = paidInvoices.length + impairedInvoices.length + 15; // Rough estimate including unpaid
+        // Active invoices are now always unpaid; viewPoolStatus only returns impaired invoices
+        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
+        uint256 numActiveInvoices = impairedInvoices.length + 15; // Rough estimate including unpaid
         
         console.log("");
         console.log("Scaling Analysis (~%s active invoices):", numActiveInvoices);
@@ -324,9 +323,6 @@ contract TestGasProfiler is CommonSetup {
         } else if (nameHash == keccak256("calculateRealizedGainLoss")) {
             bullaFactoring.calculateRealizedGainLoss();
         } else if (nameHash == keccak256("processRedemptionQueue")) {
-            // Reconcile any active paid invoices first (since processRedemptionQueue now blocks when active paid invoices exist)
-            try bullaFactoring.reconcileActivePaidInvoices() {} catch {}
-            gasBefore = gasleft();
             bullaFactoring.processRedemptionQueue();
         }
         

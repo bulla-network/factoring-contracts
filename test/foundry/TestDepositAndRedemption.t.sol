@@ -85,7 +85,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceIdAmount);
         vm.stopPrank();
     
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve();
 
@@ -149,15 +149,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceAmount);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        // Expect ActivePaidInvoicesReconciled event
-        uint256[] memory paidInvoiceIds = new uint256[](1);
-        paidInvoiceIds[0] = invoiceId;
-        
-        vm.expectEmit(true, true, true, true);
-        emit ActivePaidInvoicesReconciled(paidInvoiceIds);
-        bullaFactoring.reconcileActivePaidInvoices();
+        vm.stopPrank();        
 
         // Alice redeems all her funds
         vm.startPrank(alice);
@@ -219,7 +211,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems all her funds
         vm.startPrank(alice);
@@ -278,7 +270,7 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.stopPrank();
 
         // reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
+        
        
         assertEq(bullaFactoring.totalAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
         assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
@@ -340,7 +332,7 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems all her funds
         vm.startPrank(alice);
@@ -438,7 +430,7 @@ contract TestDepositAndRedemption is CommonSetup {
         // Simulate impairment
         vm.warp(block.timestamp + 100 days);
 
-        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
+        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
 
         assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
 
@@ -659,15 +651,8 @@ contract TestDepositAndRedemption is CommonSetup {
         // Preview deposit after claim payment
         uint256 previewDepositAfterFullPay = bullaFactoring.previewDeposit(initialDeposit);
         
-        assertEq(previewDepositAfterFullPay, previewDepositAfterHalfPay, "Should get equal shares after full invoice payment");
-
-        bullaFactoring.reconcileActivePaidInvoices();
-
-        // Preview deposit after reconciliation
-        uint256 previewDepositAfterReconciliation = bullaFactoring.previewDeposit(initialDeposit);
-        
         // Allow small margin of error for rounding differences in dailyInterestRate calculations (~0.000039%)
-        assertApproxEqAbs(previewDepositAfterFullPay, previewDepositAfterReconciliation, 10000, "Reconciliation should not change deposit value");
+        assertApproxEqAbs(previewDepositAfterFullPay, previewDepositAfterHalfPay, 10000, "Reconciliation should not change deposit value");
     }
 
     function testAccuredInterestAfterImpairmentDecreases() public {
