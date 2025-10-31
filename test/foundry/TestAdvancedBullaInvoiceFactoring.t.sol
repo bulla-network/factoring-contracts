@@ -209,9 +209,6 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         bullaInvoice.payInvoice(invoiceId, invoice.invoiceAmount);
         vm.stopPrank();
 
-        // Reconcile and verify the impairment is reversed
-        bullaFactoring.reconcileActivePaidInvoices();
-
         // Verify invoice is no longer marked as impaired
         (, , bool isImpaired) = bullaFactoring.impairments(invoiceId);
         assertFalse(isImpaired);
@@ -254,6 +251,8 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         uint256 totalAccruedProfitsBefore = bullaFactoring.calculateAccruedProfits();
         assertGt(totalAccruedProfitsBefore, 0);
 
+        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+
         for (uint256 i = 0; i < invoiceIds.length; i++) {
             IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceIds[i]);
             
@@ -262,9 +261,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
             bullaInvoice.payInvoice(invoiceIds[i], invoice.invoiceAmount);
             vm.stopPrank();
         }
-
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after all invoices are paid");

@@ -71,13 +71,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
-        // automation will signal that we have some paid invoices
-        (uint256[] memory paidInvoices, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoices.length, 2);
-
-        // owner will reconcile paid invoices to account for any realized gains or losses
-        bullaFactoring.reconcileActivePaidInvoices();
-
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
 
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
@@ -133,18 +126,16 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
-        // we reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
         uint pricePerShareBeforeImpairment = bullaFactoring.pricePerShare();
 
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
 
-        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
+        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
         // Check the impact on the price per share due to the impaired invoice
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint pricePerShareAfterImpairment = bullaFactoring.pricePerShare();
         assertTrue(pricePerShareAfterImpairment < pricePerShareBeforeImpairment, "Price per share should decrease due to impaired invoice");
     }
@@ -173,11 +164,11 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.warp(block.timestamp + 100 days);
 
         // automation will signal that we have an impaired invoice
-        (, , uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus();
+        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
 
-        bullaFactoring.reconcileActivePaidInvoices(); 
+         
 
         uint pricePerShareAfter = bullaFactoring.pricePerShare();
         assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
@@ -209,7 +200,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint pricePerShareBeforeSecondFactoring = bullaFactoring.pricePerShare();
 
@@ -263,9 +254,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
-        // reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
-
+      
         uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
 
         assertGt(ppsAfterFirstRepayment, initialPps, "Price per share should increase after first repayment");
@@ -298,9 +287,6 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
-
-        // reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
 
         uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");

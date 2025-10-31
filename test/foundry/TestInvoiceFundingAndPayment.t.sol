@@ -60,7 +60,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
     
@@ -103,7 +103,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
     
@@ -196,7 +196,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.warp(block.timestamp + 1 days);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         uint capitalAccountAfterInvoice1 = bullaFactoring.calculateCapitalAccount();
 
@@ -205,7 +205,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         uint capitalAccountAfterInvoice2 = bullaFactoring.calculateCapitalAccount();
 
@@ -239,13 +239,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // alice pays both invoices
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), 1000 ether);
-        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
-        vm.stopPrank();
-
-        // automation will signal that we have some paid invoices
-        (uint256[] memory paidInvoices, , , ) = bullaFactoring.viewPoolStatus();
-        assertEq(paidInvoices.length, 1);
-
         // Calculate expected kickback amount before reconciliation
         (uint256 expectedKickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
         
@@ -255,8 +248,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
             emit InvoiceKickbackAmountSent(invoiceId01, expectedKickbackAmount, bob);
         }
 
-        // owner will reconcile paid invoices to account for any realized gains or losses
-        bullaFactoring.reconcileActivePaidInvoices();
+        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+        vm.stopPrank();
 
         // Check if the kickback and funded amount were correctly transferred
         (, , , , , , , uint256 fundedAmountNet, , , , , , ) = bullaFactoring.approvedInvoices(invoiceId01);
@@ -301,7 +294,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint balanceBeforeReconciliation = asset.balanceOf(bob);
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         (uint256 kickbackAmount,,,) = bullaFactoring.calculateKickbackAmount(invoiceId01);
 
@@ -935,9 +928,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         // Calculate expected kickback amount
         (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
-        // Reconcile to trigger kickback payment
-        bullaFactoring.reconcileActivePaidInvoices();
-
         // Verify kickback went to charlie (the receiver), not bob (the original creditor)
         assertEq(asset.balanceOf(bob), bobBalanceBeforePayment, "Bob should not have received any kickback");
         assertEq(asset.balanceOf(charlie), charlieBalanceBeforePayment + expectedKickback, "Charlie should have received the kickback amount");
@@ -988,9 +978,6 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Calculate expected kickback amount
         (uint256 expectedKickback,,,) = bullaFactoring.calculateKickbackAmount(invoiceId);
-
-        // Reconcile to trigger kickback payment
-        bullaFactoring.reconcileActivePaidInvoices();
 
         // Verify kickback went to bob (msg.sender when receiver was address(0))
         assertEq(asset.balanceOf(bob), bobBalanceBeforePayment + expectedKickback, "Bob should have received the kickback amount when receiver was address(0)");

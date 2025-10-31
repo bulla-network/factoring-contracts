@@ -113,9 +113,6 @@ contract TestQueueIndexBug is CommonSetup {
         IRedemptionQueue.QueuedRedemption memory redemptionAtIndex0 = bullaFactoring.getRedemptionQueue().getQueuedRedemption(0);
         console.log("Redemption at index 0 owner:", redemptionAtIndex0.owner);
         
-        // Manually reconcile paid invoices before second redemption (since redeem now blocks when active paid invoices exist)
-        bullaFactoring.reconcileActivePaidInvoices();
-
         // THIS MOVES THE HEAD to index 1
         // this is a second redemption, it will fail. This will cause the deposit to fail next.
         vm.prank(alice_investor);

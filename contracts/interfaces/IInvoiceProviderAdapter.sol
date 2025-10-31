@@ -26,4 +26,5 @@ interface IInvoiceProviderAdapterV2 {
     /// @return selector The function selector to call
     /// @dev This function returns the target and selector so the caller can make the call directly with proper msg.sender
     function getImpairTarget(uint256 invoiceId) external view returns (address target, bytes4 selector);
+    function getSetPaidInvoiceTarget(uint256 invoiceId) external view returns (address target, bytes4 selector);
 }

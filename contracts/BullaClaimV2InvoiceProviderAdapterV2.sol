@@ -156,4 +156,21 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
             revert UnknownClaimType();
         }
     }
+
+    function getSetPaidInvoiceTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
+        address controller = _getCachedController(invoiceId);
+        
+        if (controller == address(0)) {
+            // BullaClaimV2 - use setPaidClaim function
+            return (address(bullaClaimV2), IBullaClaimCore.setPaidClaimCallback.selector);
+        } else if (controller == address(bullaFrendLend)) {
+            // BullaFrendLend - use setPaidLoan function
+            return (address(bullaFrendLend), IBullaFrendLendV2.setPaidLoanCallback.selector);
+        } else if (controller == address(bullaInvoice)) {
+            // BullaInvoice - use setPaidInvoice function
+            return (address(bullaInvoice), IBullaInvoice.setPaidInvoiceCallback.selector);
+        } else {
+            revert UnknownClaimType();
+        }
+    }
 }

@@ -55,7 +55,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
@@ -117,9 +117,6 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
-
-        // owner will reconcile paid invoices to account for any realized gains or losses, and fees
-        bullaFactoring.reconcileActivePaidInvoices();
 
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
 
@@ -190,7 +187,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId2, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint256 availableAssetsAfter = bullaFactoring.totalAssets();
         uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
@@ -290,7 +287,7 @@ contract TestFees is CommonSetup {
         // Check initial balances
         uint256 initialAliceBalance = asset.balanceOf(alice);
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Change bulla dao address to Alice
         vm.startPrank(bullaDao);
@@ -343,7 +340,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Withdraw protocol fees
         vm.startPrank(bullaDao);
@@ -387,7 +384,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Withdraw admin fees but aren't none since fee = 0
         vm.startPrank(address(this));
@@ -430,7 +427,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint pricePerShareAfter = bullaFactoring.pricePerShare();
 

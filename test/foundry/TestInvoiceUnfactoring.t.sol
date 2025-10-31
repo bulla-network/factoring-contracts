@@ -106,16 +106,12 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
 
-        // reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
         uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
         bullaFactoring.unfactorInvoice(invoiceId03);
         vm.stopPrank();
-  
-        bullaFactoring.reconcileActivePaidInvoices();
 
         uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
 

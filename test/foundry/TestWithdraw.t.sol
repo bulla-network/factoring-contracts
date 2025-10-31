@@ -62,7 +62,7 @@ contract TestWithdraw is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems all her funds
         vm.startPrank(alice);
@@ -112,7 +112,7 @@ contract TestWithdraw is CommonSetup {
         bullaClaim.payClaim(invoiceId1, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems all her funds
         vm.startPrank(alice);
@@ -146,7 +146,7 @@ contract TestWithdraw is CommonSetup {
         bullaClaim.payClaim(invoiceId2, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
@@ -196,7 +196,7 @@ contract TestWithdraw is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
@@ -248,7 +248,7 @@ contract TestWithdraw is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice withdraws all her funds
         vm.startPrank(alice);

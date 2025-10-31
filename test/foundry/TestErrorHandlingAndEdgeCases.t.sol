@@ -193,7 +193,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint256 dueByNew = block.timestamp + 30 days;
 
@@ -219,7 +219,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId03, invoiceId03Amount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint balanceAfter = asset.balanceOf(bob);
 
         assertTrue(balanceBefore == balanceAfter, "No kickback as interest rate cap has been reached");
@@ -251,13 +251,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         // Alice pays the invoice
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceIdAmount);
-        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
-        vm.stopPrank();
-
+        
         // Test InvoicePaid event emission
         vm.expectEmit(true, true, false, false);
         emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, bob);
-        bullaFactoring.reconcileActivePaidInvoices();
+
+        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
+        vm.stopPrank();
 
         (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
         uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
@@ -381,7 +381,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as totalAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         // Alice redeems all her shares
         vm.prank(alice);
@@ -432,7 +432,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
 
         uint availableAssetsAfter = bullaFactoring.totalAssets();
         uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
@@ -475,8 +475,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
-        // reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
 
         uint ppsAfterFirstRepayment = bullaFactoring.pricePerShare();
 
@@ -512,9 +510,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(alice);
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
-
-        // reconcile redeemed invoice to adjust the price
-        bullaFactoring.reconcileActivePaidInvoices();
 
         uint ppsAfterSecondRepayment = bullaFactoring.pricePerShare();
         assertGt(ppsAfterSecondRepayment, ppsAfterFirstRepayment, "Price per share should increase after second repayment");
@@ -707,7 +702,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
         vm.stopPrank();
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         
         // Protocol fees are now collected upfront during funding, so we expect the sum of both invoices' protocol fees
         // First invoice: 2500 (old 25 bps rate), Second invoice: 5000 (new 50 bps rate)

@@ -166,9 +166,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         bullaInvoice.payInvoice(invoiceId, totalAmountDue);
         vm.stopPrank();
 
-        // Reconcile and verify payment processing
-        bullaFactoring.reconcileActivePaidInvoices();
-
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after profitable invoice payment");
 
@@ -212,19 +209,18 @@ contract TestBullaInvoiceFactoring is CommonSetup {
 
         vm.startPrank(alice);
         asset.approve(address(bullaInvoice), totalAmountDue);
-        bullaInvoice.payInvoice(invoiceId, totalAmountDue);
-        vm.stopPrank();
 
         // Calculate expected kickback
         (uint256 kickbackAmount, , , ) = bullaFactoring.calculateKickbackAmount(invoiceId);
 
-        // Reconcile and check for kickback payment
+        // check for kickback payment
         if (kickbackAmount > 0) {
             vm.expectEmit(true, false, false, true);
             emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, bob);
         }
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        bullaInvoice.payInvoice(invoiceId, totalAmountDue);
+        vm.stopPrank();
 
         uint256 bobBalanceAfter = asset.balanceOf(bob);
         if (kickbackAmount > 0) {
@@ -274,6 +270,8 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         
         invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         uint256 remainingAmount = invoice.invoiceAmount - invoice.paidAmount;
+        
+        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
 
         vm.startPrank(alice);
         asset.approve(address(bullaInvoice), remainingAmount);
@@ -283,10 +281,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         // Verify full payment
         invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         assertTrue(invoice.isPaid);
-
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        // Reconcile and verify proper accounting
-        bullaFactoring.reconcileActivePaidInvoices();
 
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after full payment");
@@ -596,9 +590,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         asset.approve(address(bullaInvoice), invoice1.invoiceAmount);
         bullaInvoice.payInvoice(invoiceId1, invoice1.invoiceAmount);
         vm.stopPrank();
-
-        // Reconcile first payment and record gain
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterInvoice1 = bullaFactoring.paidInvoicesGain();
         
         // Pay second invoice
@@ -606,9 +598,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         asset.approve(address(bullaInvoice), invoice2.invoiceAmount);
         bullaInvoice.payInvoice(invoiceId2, invoice2.invoiceAmount);
         vm.stopPrank();
-
-        // Reconcile second payment and record final gain
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         uint256 gainAfterInvoice2 = bullaFactoring.paidInvoicesGain();
 
         uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
@@ -1098,7 +1088,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
             
             // Measure reconciliation gas
             uint256 gasBefore = gasleft();
-            bullaFactoring.reconcileActivePaidInvoices();
+            
             uint256 gasAfter = gasleft();
             uint256 gasUsed = gasBefore - gasAfter;
             
@@ -1119,9 +1109,6 @@ contract TestBullaInvoiceFactoring is CommonSetup {
 
     /// @notice Helper to setup paid invoices for gas testing
     function _setupPaidInvoicesForTest(uint256 numInvoices) internal {
-        // Clear existing paid invoices
-        try bullaFactoring.reconcileActivePaidInvoices() {} catch {}
-        
         // Ensure sufficient funds
         uint256 totalNeeded = numInvoices * 100000;
         asset.mint(alice, totalNeeded * 2);

@@ -4,39 +4,9 @@ import './BullaFactoring.sol';
 import './interfaces/IRedemptionQueue.sol';
 
 contract BullaFactoringAutomationCheckerV2_1 {
-    mapping(address => uint256) public lastReconcileBlock;
     mapping(address => uint256) public lastQueueProcessBlock;
 
-    error ReconcileAlreadyProcessed();
     error RedemptionQueueAlreadyProcessed();
-
-    function checkerReconcile(address poolAddress)
-        external
-        view
-        returns (bool canExec, bytes memory execPayload)
-    {
-        BullaFactoringV2_1 factoring = BullaFactoringV2_1(poolAddress);
-        (uint256[] memory paidInvoices, , uint256[] memory impairedInvoices, ) = factoring.viewPoolStatus();
-
-        if (paidInvoices.length + impairedInvoices.length == 0) {
-            return (false, bytes(''));
-        }
-
-        execPayload = abi.encodeCall(BullaFactoringAutomationCheckerV2_1.executeReconcile, (poolAddress));
-        canExec = true;
-    }
-
-    function executeReconcile(address poolAddress) external {
-        BullaFactoringV2_1 factoring = BullaFactoringV2_1(poolAddress);
-
-        if (lastReconcileBlock[poolAddress] == block.number) {
-            revert ReconcileAlreadyProcessed();
-        }
-
-        lastReconcileBlock[poolAddress] = block.number;
-
-        factoring.reconcileActivePaidInvoices();
-    }
 
     function checkerProcessRedemptionQueue(address poolAddress)
         external
@@ -44,11 +14,6 @@ contract BullaFactoringAutomationCheckerV2_1 {
         returns (bool canExec, bytes memory execPayload)
     {
         BullaFactoringV2_1 factoring = BullaFactoringV2_1(poolAddress);
-        (uint256[] memory paidInvoices, , , ) = factoring.viewPoolStatus();
-
-        if (paidInvoices.length > 0) {
-            return (false, bytes(''));
-        }
 
         IRedemptionQueue queue = factoring.getRedemptionQueue();
         IRedemptionQueue.QueuedRedemption memory nextRedemption = queue.getNextRedemption();

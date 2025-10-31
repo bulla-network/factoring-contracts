@@ -102,6 +102,8 @@ contract CommonSetup is Test {
         bullaFactoring = new BullaFactoringV2_1(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
 
         bullaFrendLend.addToCallbackWhitelist(address(bullaFactoring), bullaFactoring.onLoanOfferAccepted.selector);
+        bullaClaim.addToPaidCallbackWhitelist(address(bullaFactoring), bullaFactoring.reconcileSingleInvoice.selector);
+        
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
         asset.mint(charlie, 1000 ether);

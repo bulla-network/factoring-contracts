@@ -300,7 +300,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(david);
         bullaFactoring.deposit(650000, david); // Only enough for Alice's redemption + some for Bob
 
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         bullaFactoring.processRedemptionQueue();
         
         uint256 aliceBalanceAfter = asset.balanceOf(alice);
@@ -403,7 +403,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         
         // Processing should skip Alice's redemption due to insufficient balance
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         bullaFactoring.processRedemptionQueue();
         uint256 aliceBalanceAfter = asset.balanceOf(alice);
         
@@ -491,7 +491,7 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(david);
         bullaFactoring.deposit(1100000, david); // Only enough for Alice's redemption + some for Bob
         
-        bullaFactoring.reconcileActivePaidInvoices();
+        
         bullaFactoring.processRedemptionQueue();
         
         // Verify FIFO processing works with mixed types
