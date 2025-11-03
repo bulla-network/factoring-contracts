@@ -77,13 +77,13 @@ contract TestPricePerShareCalculations is CommonSetup {
     }
 
     function testPriceUpdateInvoicesImpaired() public {
-        uint256 initialDeposit = 2000;
+        uint256 initialDeposit = 200000;
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint invoiceId01Amount = 100;
+        uint invoiceId01Amount = 10000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
@@ -94,7 +94,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint invoiceId02Amount = 900;
+        uint invoiceId02Amount = 90000;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
@@ -116,7 +116,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        uint invoiceId03Amount = 10;
+        uint invoiceId03Amount = 1000;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueBy);
         vm.startPrank(underwriter);
         bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, 0);
@@ -134,7 +134,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
-        // Check the impact on the price per share due to the impaired invoice
+        bullaFactoring.impairInvoice(invoiceId03);
         
         uint pricePerShareAfterImpairment = bullaFactoring.pricePerShare();
         assertTrue(pricePerShareAfterImpairment < pricePerShareBeforeImpairment, "Price per share should decrease due to impaired invoice");
@@ -167,8 +167,7 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
         assertEq(impairedInvoices.length, 1);
 
-
-         
+        bullaFactoring.impairInvoice(invoiceId);
 
         uint pricePerShareAfter = bullaFactoring.pricePerShare();
         assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");

@@ -430,7 +430,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
 
-        assertEq(asset.balanceOf(address(bullaFactoring)), adminFee + targetInterest + targetProtocolFee + targetSpread, "There should be no assets left in the pool, net of fees");
+        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), adminFee + targetInterest + targetProtocolFee + targetSpread, "There should be no assets left in the pool, net of fees");
 
         // Alice never pays the invoices
         // fund owner impaires both invoices
@@ -649,54 +649,6 @@ contract TestDepositAndRedemption is CommonSetup {
         
         // Allow small margin of error for rounding differences in dailyInterestRate calculations (~0.000039%)
         assertApproxEqAbs(previewDepositAfterFullPay, previewDepositAfterHalfPay, 10000, "Reconciliation should not change deposit value");
-    }
-
-    function testAccuredInterestAfterImpairmentDecreases() public {
-        dueBy = block.timestamp + 30 days;
-        interestApr = 1000; // 10% APR
-        upfrontBps = 8000; // 80% upfront
-
-        uint256 initialDeposit = 100000000000;
-        uint256 invoiceAmount =   50000000000;
-
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        // Creditor creates the invoice
-        vm.startPrank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-
-        // Underwriter approves the invoice
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-
-        // creditor funds the invoice
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Preview deposit before impairment
-        uint256 previewDepositAtFunding = bullaFactoring.previewDeposit(initialDeposit);
-
-        // Around due date
-        vm.warp(block.timestamp + 30 days);
-
-        // Preview deposit before impairment
-        uint256 previewDepositBeforeImpairment = bullaFactoring.previewDeposit(initialDeposit);
-
-        assertGt(previewDepositAtFunding, previewDepositBeforeImpairment, "Accrued interest should increase therefore a depositor gets less shares");
-
-        // Around once invoice is impaired
-        vm.warp(block.timestamp + 120 days);
-
-        // Preview deposit after impairment
-        uint256 previewDepositAfterImpairment = bullaFactoring.previewDeposit(initialDeposit);
-        
-        assertGt(previewDepositAfterImpairment, previewDepositBeforeImpairment, "Accrued interest should have decreased therefore a depositor gets more shares");
     }
 
     function testOnlyAuthorizedDepositorsCanRedeem() public {

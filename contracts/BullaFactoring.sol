@@ -90,13 +90,19 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
     // ============ Aggregate State Tracking Variables ============
     /// @notice Total daily interest rate across all active invoices (sum of all dailyInterestRate values)
-    uint256 private totalDailyInterestRate;
+    uint256 private totalDailyInterestRate = 0;
     
     /// @notice Timestamp when accrued profits were last checkpointed
     uint256 private lastCheckpointTimestamp;
     
     /// @notice Accrued profits at the last checkpoint
-    uint256 private accruedProfitsAtCheckpoint;
+    uint256 private accruedProfitsAtCheckpoint = 0;
+    
+    /// @notice Total capital at risk plus withheld fees (sum of fundedAmountGross + protocolFee for all active invoices)
+    uint256 private capitalAtRiskPlusWithheldFees = 0;
+
+    /// @notice Total withheld fees (sum of withheld fees for all active invoices)
+    uint256 private withheldFees = 0;
 
     /// Errors
     error CallerNotUnderwriter();
@@ -171,8 +177,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         
         // Initialize aggregate state tracking
         lastCheckpointTimestamp = block.timestamp;
-        accruedProfitsAtCheckpoint = 0;
-        totalDailyInterestRate = 0;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -309,6 +313,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         // Add loan to aggregate state tracking
         _addInvoiceToAggregate(approvedInvoices[loanId].dailyInterestRate);
         
+        // Add to capital at risk (principalAmount + protocolFee which is 0)
+        capitalAtRiskPlusWithheldFees += pendingLoanOffer.principalAmount;
+        
         invoiceProviderAdapter.initializeInvoice(loanId);
         _registerInvoiceCallback(loanId);
         
@@ -393,19 +400,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             
             int256 lossAmount = int256(fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
             realizedGains -= lossAmount;
-        }
-
-        // Consider losses from impaired invoices in activeInvoices
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            if (_isInvoiceImpaired(invoiceId)) {
-                uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
-                uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
-
-                uint256 paidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
-                int256 lossAmount = int256(fundedAmountNet) - int256(paidAmount - initialPaidAmount);
-                realizedGains -= lossAmount;
-            }
         }
 
         return realizedGains;
@@ -542,10 +536,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = calculateTargetFees(invoiceId, factorerUpfrontBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps);   
         uint256 _totalAssets = totalAssets();
+        uint256 atRiskPlusWithheldFees = fundedAmountGross + protocolFee;
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
-        if(fundedAmountGross + protocolFee > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross + protocolFee);
+        if(atRiskPlusWithheldFees > _totalAssets) revert InsufficientFunds(_totalAssets, atRiskPlusWithheldFees);
         
         // Collect protocol fee to protocol fee balance
         protocolFeeBalance += protocolFee;
@@ -577,6 +572,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Add invoice to aggregate state tracking
         _addInvoiceToAggregate(approval.dailyInterestRate);
+        
+        // Add to capital at risk and withheld fees
+        capitalAtRiskPlusWithheldFees += atRiskPlusWithheldFees;
+        withheldFees += atRiskPlusWithheldFees - fundedAmountNet;
 
         _registerInvoiceCallback(invoiceId);
 
@@ -724,14 +723,13 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 activeInvoices.pop();
                 
                 uint256 dailyRate = approvedInvoices[invoiceId].dailyInterestRate;
-                uint256 fundedTimestamp = approvedInvoices[invoiceId].fundedTimestamp;
 
                 if (dailyRate > 0) {
                     // First, checkpoint to accumulate all interest up to this moment
                     _checkpointAccruedProfits();
                     
                     // Calculate this invoice's total accrued interest since it was funded
-                    uint256 daysSinceFunding = (block.timestamp - fundedTimestamp) / 1 days;
+                    uint256 daysSinceFunding = (block.timestamp - approvedInvoices[invoiceId].fundedTimestamp) / 1 days;
                     uint256 invoiceAccruedInterest = dailyRate * daysSinceFunding;
                     
                     // Remove this invoice's accrued interest from the checkpoint
@@ -740,7 +738,14 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                     // Remove this invoice's daily rate from future calculations
                     totalDailyInterestRate -= dailyRate;
                 }
-                
+                uint256 atRiskPlusWithheldFees = approvedInvoices[invoiceId].fundedAmountGross + approvedInvoices[invoiceId].protocolFee;
+
+                // Remove from capital at risk plus withheld fees
+                capitalAtRiskPlusWithheldFees -= atRiskPlusWithheldFees;
+
+                // Remove from withheld fees
+                withheldFees -= atRiskPlusWithheldFees - approvedInvoices[invoiceId].fundedAmountNet;
+
                 return;
             }
         }
@@ -749,34 +754,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Calculates the available assets in the fund net of fees and impair reserve
+    /// @dev Uses O(1) aggregate capital at risk tracking instead of iterating through invoices
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
-        return _totalAssetsOptimized(calculateCapitalAccount());
-    }
-    
-    /// @notice Calculates the total assets of the fund using pre-calculated capital account
-    /// @param capitalAccount The capital account of the fund
-    /// @return The total assets of the fund
-    function _totalAssetsOptimized(uint256 capitalAccount) private view returns (uint256) {
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-
-            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
-            uint256 fundedAmountGross = approvedInvoices[invoiceId].fundedAmountGross;
-            uint256 protocolFee = approvedInvoices[invoiceId].protocolFee;
-
-            capitalAccount -= (_isInvoiceImpaired(invoiceId) ? 0 : fundedAmountNet) + (protocolFee + fundedAmountGross - fundedAmountNet);
-        }
-        return capitalAccount;
-    }
-
-    /// @notice Memory-optimized version that calculates both capital account and total assets with single realized gain/loss calculation
-    /// @return capitalAccount The calculated capital account balance
-    /// @return totalAssetsAmount The total assets of the fund
-    function _calculateCapitalAccountAndTotalAssets() internal view returns (uint256 capitalAccount, uint256 totalAssetsAmount) {
-        // Calculate realized gain/loss once and reuse
-        capitalAccount = calculateCapitalAccount();
-        totalAssetsAmount = _totalAssetsOptimized(capitalAccount);
+        return calculateCapitalAccount() - capitalAtRiskPlusWithheldFees;
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the fund
@@ -930,18 +911,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Retrieves the fund information
     /// @return FundInfo The fund information
     function getFundInfo() external view returns (FundInfo memory) {
-        uint256 sumOfTargetFees = 0;
-
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            // Cache approval in memory to reduce storage reads
-            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-            sumOfTargetFees += approval.fundedAmountGross - approval.fundedAmountNet;
-        }
-
         uint256 capitalAccount = calculateCapitalAccount();
-        uint256 fundBalance = _totalAssetsOptimized(capitalAccount);
-        uint256 deployedCapital = capitalAccount - sumOfTargetFees - fundBalance;
+        uint256 fundBalance = capitalAccount - capitalAtRiskPlusWithheldFees;
+        uint256 deployedCapital = capitalAtRiskPlusWithheldFees - withheldFees;
         uint256 price = pricePerShare();
         uint256 tokensAvailableForRedemption = maxRedeem();
 
@@ -1072,8 +1044,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Process queued redemptions when liquidity becomes available
     function processRedemptionQueue() external {
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
-        // Memory-optimized: Calculate capital account and total assets with single realized gain/loss calculation
-        (uint256 _capitalAccount, uint256 _totalAssets) = _calculateCapitalAccountAndTotalAssets();
+        // Memory-optimized: Calculate capital account once and derive total assets
+        uint256 _capitalAccount = calculateCapitalAccount();
+        uint256 _totalAssets = _capitalAccount - capitalAtRiskPlusWithheldFees;
         uint256 maxRedeemableShares = _maxRedeemOptimized(_capitalAccount, _totalAssets);
         
         while (redemption.owner != address(0) && _totalAssets > 0) {

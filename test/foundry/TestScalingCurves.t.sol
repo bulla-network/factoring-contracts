@@ -15,7 +15,7 @@ contract TestScalingCurves is CommonSetup {
         _testFundInvoiceScaling();
         _testDepositScaling();
         _testMaxRedeemScaling();
-        _testReconcileScaling();
+        _testViewPoolStatusScaling();
     }
 
     function _testFundInvoiceScaling() internal {
@@ -118,24 +118,27 @@ contract TestScalingCurves is CommonSetup {
         // Use slope from 100->200 as it's the most stable long-term rate
         uint256 avgSlope = slope100to200;
         
-        // Model: gas(n) ≈ gas(200) + slope * (n - 200)
-        // Solve for: gas(200) + slope * (n - 200) = 25M
-        // n = (25M - gas(200)) / slope + 200
-        uint256 theoreticalMax = ((MAX_GAS - dataPoints[4]) / avgSlope) + 200;
+        console.log("\nComplexity Analysis:");
         
-        console.log("\nUsing 100->200 slope for projection:");
-        console.log("Theoretical maximum:", theoreticalMax, "invoices");
-        console.log("Safe limit (50%):", theoreticalMax / 2, "invoices");
-        
-        console.log("\nNote: Early measurements show warm storage effects");
-        console.log("Long-term growth rate is more predictable at scale");
+        if (avgSlope == 0) {
+            console.log("  Result: O(1) - CONSTANT TIME");
+            console.log("  Gas cost does NOT scale with number of invoices");
+            console.log("  Theoretical maximum: UNLIMITED (gas-wise)");
+        } else {
+            console.log("  Result: O(n) - Linear scaling");
+            // Model: gas(n) ≈ gas(200) + slope * (n - 200)
+            // Solve for: gas(200) + slope * (n - 200) = 25M
+            // n = (25M - gas(200)) / slope + 200
+            uint256 theoreticalMax = ((MAX_GAS - dataPoints[4]) / avgSlope) + 200;
+            
+            console.log("  Theoretical maximum:", theoreticalMax, "invoices");
+            console.log("  Safe limit (50%):", theoreticalMax / 2, "invoices");
+        }
     }
 
     function _testDepositScaling() internal {
         console.log("\n--- DEPOSIT SCALING ---");
         console.log("Measuring deposit() gas with different numbers of active invoices");
-        console.log("Note: deposit() calls previewDeposit() which calls calculateCapitalAccount() and calculateAccruedProfits()");
-        console.log("      Both iterate over all active invoices, making this O(n)\n");
         
         // Start from 201 invoices (created in fundInvoice test)
         // Measure at: 201, 220, 240, 260, 280 (smaller increments)
@@ -227,23 +230,26 @@ contract TestScalingCurves is CommonSetup {
         // Use stable long-term rate for projection (avg of last three)
         uint256 avgSlope = (slope220to240 + slope240to260 + slope260to280) / 3;
         
-        // Model: gas(n) ≈ gas(280) + slope * (n - 280)
-        // Solve for: gas(280) + slope * (n - 280) = 25M
-        uint256 theoreticalMax = ((MAX_GAS - dataPoints[4]) / avgSlope) + 280;
+        console.log("\nComplexity Analysis:");
+        console.log("  Average slope (last 3 measurements):", avgSlope, "gas/invoice");
         
-        console.log("\nUsing average of last 3 slopes for projection:");
-        console.log("Average slope:", avgSlope, "gas/invoice");
-        console.log("Theoretical maximum:", theoreticalMax, "invoices");
-        console.log("Safe limit (50%):", theoreticalMax / 2, "invoices");
-        
-        console.log("\nComplexity: O(n) - Linear (iterates through active invoices in previewDeposit)");
+        if (avgSlope == 0) {
+            console.log("  Result: O(1) - CONSTANT TIME");
+            console.log("  Gas cost does NOT scale with number of invoices");
+            console.log("  Theoretical maximum: UNLIMITED (gas-wise)");
+        } else {
+            console.log("  Result: O(n) - Linear scaling");
+            // Model: gas(n) ≈ gas(280) + slope * (n - 280)
+            // Solve for: gas(280) + slope * (n - 280) = 25M
+            uint256 theoreticalMax = ((MAX_GAS - dataPoints[4]) / avgSlope) + 280;
+            
+            console.log("  Theoretical maximum:", theoreticalMax, "invoices");
+            console.log("  Safe limit (50%):", theoreticalMax / 2, "invoices");
+        }
     }
 
     function _testMaxRedeemScaling() internal {
         console.log("\n--- MAX REDEEM / REDEEM SCALING ---");
-        
-        // We now have ~501 invoices from previous tests
-        // Measure maxRedeem (bottleneck for redeem)
         
         // Add more deposits for testing
         vm.prank(alice);
@@ -251,73 +257,93 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(alice);
         bullaFactoring.deposit(10000000, alice);
 
-        // Current state: 281 invoices (201 from fundInvoice + 80 from deposit test)
-        uint256 currentInvoices = 281;
+        // We need to measure at multiple invoice counts to determine scaling
+        // We already have 281 invoices, let's add more and measure
+        uint256[] memory dataPoints = new uint256[](3);
+        uint256[] memory counts = new uint256[](3);
+        
+        // Measurement 1: Current state (281 invoices)
+        counts[0] = 281;
         uint256 g = gasleft();
         bullaFactoring.maxRedeem(alice);
-        uint256 gasMaxRedeem = g - gasleft();
-
-        console.log("\nData Point:");
-        console.log("  n =", currentInvoices, ", maxRedeem() gas =", gasMaxRedeem);
+        dataPoints[0] = g - gasleft();
         
-        // maxRedeem calls viewPoolStatus which is the real bottleneck
-        // Also calls calculateCapitalAccount and totalAssets
+        // Add 50 more invoices
+        for (uint256 i = 0; i < 50; i++) {
+            _fundOneInvoice(100000);
+        }
         
+        // Measurement 2: 331 invoices
+        counts[1] = 331;
+        g = gasleft();
+        bullaFactoring.maxRedeem(alice);
+        dataPoints[1] = g - gasleft();
+        
+        // Add 50 more invoices
+        for (uint256 i = 0; i < 50; i++) {
+            _fundOneInvoice(100000);
+        }
+        
+        // Measurement 3: 381 invoices
+        counts[2] = 381;
+        g = gasleft();
+        bullaFactoring.maxRedeem(alice);
+        dataPoints[2] = g - gasleft();
+        
+        console.log("\nData Points:");
+        console.log("  n =", counts[0], ", gas =", dataPoints[0]);
+        console.log("  n =", counts[1], ", gas =", dataPoints[1]);
+        console.log("  n =", counts[2], ", gas =", dataPoints[2]);
+        
+        // Calculate slopes
+        console.log("\nGrowth analysis:");
+        uint256 delta1 = dataPoints[1] > dataPoints[0] ? dataPoints[1] - dataPoints[0] : 0;
+        uint256 delta2 = dataPoints[2] > dataPoints[1] ? dataPoints[2] - dataPoints[1] : 0;
+        
+        console.log("  281->331:  delta =", delta1, "over 50 invoices");
+        console.log("  331->381:  delta =", delta2, "over 50 invoices");
+        
+        uint256 slope1 = delta1 / 50;
+        uint256 slope2 = delta2 / 50;
+        
+        console.log("\nGas per invoice added:");
+        console.log("  281->331: ", slope1, "gas/invoice");
+        console.log("  331->381: ", slope2, "gas/invoice");
+        
+        uint256 avgSlope = (slope1 + slope2) / 2;
+        
+        console.log("\nComplexity Analysis:");
+        console.log("  Average slope:", avgSlope, "gas/invoice");
+        
+        if (avgSlope == 0) {
+            console.log("  Result: O(1) - CONSTANT TIME");
+            console.log("  Gas cost does NOT scale with number of invoices");
+            console.log("  Theoretical maximum: UNLIMITED (gas-wise)");
+        } else {
+            console.log("  Result: O(n) - Linear scaling");
+            
+            uint256 baseGas = 20000;
+            uint256 theoreticalMax = (MAX_GAS - baseGas) / avgSlope;
+            
+            console.log("  Theoretical maximum:", theoreticalMax, "invoices");
+            console.log("  Safe limit (50%):", theoreticalMax / 2, "invoices");
+        }
+        
+        // Also measure viewPoolStatus for reference
         g = gasleft();
         bullaFactoring.viewPoolStatus();
         uint256 gasViewStatus = g - gasleft();
         
-        g = gasleft();
-        bullaFactoring.calculateCapitalAccount();
-        uint256 gasCapital = g - gasleft();
-        
-        g = gasleft();
-        bullaFactoring.totalAssets();
-        uint256 gasAssets = g - gasleft();
-        
-        console.log("  viewPoolStatus() gas =", gasViewStatus);
-        console.log("  calculateCapitalAccount() gas =", gasCapital);
-        console.log("  totalAssets() gas =", gasAssets);
-
-        // Calculate per-invoice costs
-        uint256 gasPerInvoiceViewStatus = gasViewStatus / currentInvoices;
-        uint256 gasPerInvoiceCapital = gasCapital / currentInvoices;
-        uint256 gasPerInvoiceAssets = gasAssets / currentInvoices;
-        uint256 gasPerInvoiceMaxRedeem = gasMaxRedeem / currentInvoices;
-
-        console.log("\nPer-invoice costs:");
-        console.log("  viewPoolStatus:", gasPerInvoiceViewStatus, "gas/invoice");
-        console.log("  calculateCapitalAccount:", gasPerInvoiceCapital, "gas/invoice");
-        console.log("  totalAssets:", gasPerInvoiceAssets, "gas/invoice");
-        console.log("  maxRedeem (total):", gasPerInvoiceMaxRedeem, "gas/invoice");
-
-        console.log("\nBOTTLENECK: viewPoolStatus is the limiting factor for maxRedeem");
-
-        // Calculate theoretical max based on viewPoolStatus (the real bottleneck)
-        uint256 baseGas = 20000; // Estimated base overhead
-        uint256 theoreticalMax = (MAX_GAS - baseGas) / gasPerInvoiceViewStatus;
-        
-        console.log("\nComplexity: O(n) - Linear");
-        console.log("Theoretical maximum (based on viewPoolStatus):", theoreticalMax, "invoices");
-        console.log("Safe limit (50%):", theoreticalMax / 2, "invoices");
-
-        // Impact of impairmentDate optimization
-        console.log("\nWith impairmentDate optimization:");
-        console.log("  Saves ~2,100 gas per invoice (cold) / ~100 gas (warm)");
-        uint256 optimizedGasPerInvoice = gasPerInvoiceViewStatus > 2100 ? gasPerInvoiceViewStatus - 2100 : gasPerInvoiceViewStatus - 100;
-        uint256 optimizedMax = (MAX_GAS - baseGas) / optimizedGasPerInvoice;
-        console.log("  Optimized theoretical max:", optimizedMax, "invoices");
-        console.log("  Improvement:", ((optimizedMax - theoreticalMax) * 100) / theoreticalMax, "%");
+        console.log("\nNote: viewPoolStatus() is O(n) but is NOT called by maxRedeem/redeem");
+        console.log("      viewPoolStatus() gas at n=381:", gasViewStatus);
     }
 
-    function _testReconcileScaling() internal {
-        console.log("\n--- RECONCILE SCALING ---");
+    function _testViewPoolStatusScaling() internal {
+        console.log("\n--- VIEW POOL STATUS SCALING (Off-chain Keeper Function) ---");
         
-        // We now have 281 invoices (201 from fundInvoice + 80 from deposit test)
-        uint256 currentInvoices = 281;
+        // After maxRedeem test, we now have 381 invoices
+        uint256 currentInvoices = 381;
         
-        // Measure viewPoolStatus (core of reconcile) - already measured in maxRedeem
-        // But measure again for clarity
         uint256 g = gasleft();
         bullaFactoring.viewPoolStatus();
         uint256 gasView = g - gasleft();
@@ -328,15 +354,23 @@ contract TestScalingCurves is CommonSetup {
         uint256 gasPerInvoice = gasView / currentInvoices;
         console.log("  Gas per invoice:", gasPerInvoice);
         
-        uint256 baseGas = 15000;
-        uint256 theoreticalMax = (MAX_GAS - baseGas) / gasPerInvoice;
+        console.log("\nComplexity Analysis:");
         
-        console.log("\nComplexity: O(n) - Linear");
-        console.log("Theoretical maximum:", theoreticalMax, "invoices");
-        console.log("Safe limit (50%):", theoreticalMax / 2, "invoices");
-        console.log("\nNote: Actual reconcile cost also depends on # of paid invoices");
-        console.log("      This is the cost just to check status of all invoices");
-        console.log("      reconcileActivePaidInvoices() will be higher based on # paid");
+        if (gasPerInvoice == 0) {
+            console.log("  Result: O(1) - CONSTANT TIME");
+            console.log("  Theoretical maximum: UNLIMITED (gas-wise)");
+        } else {
+            console.log("  Result: O(n) - Linear scaling");
+            
+            uint256 baseGas = 15000;
+            uint256 theoreticalMax = (MAX_GAS - baseGas) / gasPerInvoice;
+            
+            console.log("  Theoretical maximum:", theoreticalMax, "invoices");
+            console.log("  Safe limit (50%):", theoreticalMax / 2, "invoices");
+        }
+        
+        console.log("\nNote: This is a VIEW function called OFF-CHAIN by keepers");
+        console.log("      Off-chain calls have no gas cost for users");
     }
 
     // Helper functions
