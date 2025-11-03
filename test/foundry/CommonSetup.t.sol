@@ -103,9 +103,15 @@ contract CommonSetup is Test {
         bullaFrendLend.addToCallbackWhitelist(address(bullaFactoring), bullaFactoring.onLoanOfferAccepted.selector);
         bullaClaim.addToPaidCallbackWhitelist(address(bullaFactoring), bullaFactoring.reconcileSingleInvoice.selector);
 
+        asset.mint(address(this), 10000 ether);
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
         asset.mint(charlie, 1000 ether);
+        
+        vm.startPrank(address(this));
+        asset.approve(address(bullaFactoring), 50);
+        bullaFactoring.setImpairReserve(50);
+        vm.stopPrank();
 
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), 1000 ether);

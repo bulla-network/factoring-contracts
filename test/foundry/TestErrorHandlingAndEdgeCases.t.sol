@@ -432,7 +432,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         uint availableAssetsAfter = bullaFactoring.totalAssets();
-        uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
+        uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve();
 
         // Protocol fees are collected upfront during funding, not as part of realized gains
         uint targetFees = adminFee + targetInterest + targetSpread + targetProtocolFee;

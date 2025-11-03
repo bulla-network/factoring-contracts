@@ -92,7 +92,7 @@ contract FactoringFundManagerUnitTest is CommonSetup {
         assertEq(asset.balanceOf(address(alice)), aliceBalanceBefore - 1 ether, "Alice should have 1 ether less");
         assertEq(asset.balanceOf(address(bob)), bobBalanceBefore - 1 ether, "Bob should have 1 ether less");
         assertEq(
-            asset.balanceOf(address(fundManager.factoringPool())), 2 ether, "The factoring pool should now have 2 ether"
+            asset.balanceOf(address(fundManager.factoringPool())) - bullaFactoring.impairReserve(), 2 ether, "The factoring pool should now have 2 ether"
         );
         assertEq(bullaFactoring.totalSupply(), 2 ether, "The factoring pool should have minted 2 ether of shares");
 
