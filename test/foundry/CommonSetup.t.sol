@@ -57,7 +57,6 @@ contract CommonSetup is Test {
     uint16 spreadBps = 1000;
     uint16 upfrontBps = 8000;
     uint256 dueBy = block.timestamp + 30 days;
-    uint16 minDays = 30;
 
     address bullaDao = address(this);
     uint16 protocolFeeBps = 25;
@@ -103,7 +102,7 @@ contract CommonSetup is Test {
 
         bullaFrendLend.addToCallbackWhitelist(address(bullaFactoring), bullaFactoring.onLoanOfferAccepted.selector);
         bullaClaim.addToPaidCallbackWhitelist(address(bullaFactoring), bullaFactoring.reconcileSingleInvoice.selector);
-        
+
         asset.mint(alice, 1000 ether);
         asset.mint(bob, 1000 ether);
         asset.mint(charlie, 1000 ether);

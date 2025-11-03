@@ -26,7 +26,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         uint256 InvoiceId = createClaim(userWithoutPermissions, alice, invoiceId01Amount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(InvoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(InvoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(userWithoutPermissions);
         bullaClaim.approve(address(bullaFactoring), InvoiceId);
@@ -103,7 +103,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
@@ -115,7 +115,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         // Underwriter approves the invoice again
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyFunded()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, minDays, 0);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
     }
 }

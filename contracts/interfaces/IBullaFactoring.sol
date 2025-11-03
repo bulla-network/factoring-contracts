@@ -19,7 +19,6 @@ interface IBullaFactoringV2 {
         uint16 upfrontBps;
         uint16 protocolFeeBps;
         uint16 adminFeeBps;
-        uint16 minDaysInterestApplied;
     }
 
     // The rest of the info can be retrieved from the loan offer
@@ -92,7 +91,7 @@ interface IBullaFactoringV2 {
     event RedemptionQueueChanged(address indexed oldQueue, address indexed newQueue);
 
     // Functions
-    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint16 minDaysInterestApplied, uint256 _principalAmountOverride) external;
+    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint256 _principalAmountOverride) external;
     function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
     function viewPoolStatus() external view returns (uint256[] memory impairedInvoiceIds);

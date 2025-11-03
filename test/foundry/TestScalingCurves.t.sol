@@ -38,7 +38,7 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(bob);
         uint256 id = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0, 0);
+        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0);
         vm.prank(bob);
         IERC721(address(bullaClaim)).approve(address(bullaFactoring), id);
         uint256 g = gasleft();
@@ -344,7 +344,7 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(bob);
         uint256 id = createClaim(bob, alice, amount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0, 0);
+        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0);
         vm.prank(bob);
         IERC721(address(bullaClaim)).approve(address(bullaFactoring), id);
         vm.prank(bob);
@@ -355,7 +355,7 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(bob);
         uint256 id = createClaim(bob, alice, amount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0, 0);
+        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0);
         vm.prank(bob);
         IERC721(address(bullaClaim)).approve(address(bullaFactoring), id);
         return id;

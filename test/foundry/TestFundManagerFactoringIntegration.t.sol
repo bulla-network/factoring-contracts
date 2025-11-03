@@ -104,7 +104,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -135,7 +135,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -209,7 +209,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0, 0);
+        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -256,7 +256,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
             invoiceIds[i] = createClaim(bob, alice, invoiceAmounts[i], dueBy + (i * 10 days));
             
             vm.prank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], 1000, 100, 8000, 0, 0);
+            bullaFactoring.approveInvoice(invoiceIds[i], 1000, 100, 8000, 0);
             
             vm.prank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
