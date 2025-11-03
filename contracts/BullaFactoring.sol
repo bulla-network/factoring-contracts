@@ -88,6 +88,16 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// Array to track IDs of pending loan offers
     uint256[] public pendingLoanOffersIds;
 
+    // ============ Aggregate State Tracking Variables ============
+    /// @notice Total daily interest rate across all active invoices (sum of all dailyInterestRate values)
+    uint256 private totalDailyInterestRate;
+    
+    /// @notice Timestamp when accrued profits were last checkpointed
+    uint256 private lastCheckpointTimestamp;
+    
+    /// @notice Accrued profits at the last checkpoint
+    uint256 private accruedProfitsAtCheckpoint;
+
     /// Errors
     error CallerNotUnderwriter();
     error FunctionNotSupported();
@@ -158,12 +168,42 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
         redemptionQueue = new RedemptionQueue(msg.sender, address(this));
+        
+        // Initialize aggregate state tracking
+        lastCheckpointTimestamp = block.timestamp;
+        accruedProfitsAtCheckpoint = 0;
+        totalDailyInterestRate = 0;
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
     /// @return The number of decimals for this token
     function decimals() public view override(ERC20, ERC4626) returns (uint8) {
         return ERC20(address(assetAddress)).decimals();
+    }
+
+    /// @notice Checkpoints the aggregate accrued profits state
+    /// @dev Updates accruedProfitsAtCheckpoint based on time passed and current totalDailyInterestRate
+    /// @dev This should be called before any operation that modifies totalDailyInterestRate
+    function _checkpointAccruedProfits() internal {
+        if (block.timestamp > lastCheckpointTimestamp) {
+            uint256 daysSinceCheckpoint = (block.timestamp - lastCheckpointTimestamp) / 1 days;
+            
+            // Accumulate interest for the time period since last checkpoint
+            accruedProfitsAtCheckpoint += totalDailyInterestRate * daysSinceCheckpoint;
+            
+            // Update checkpoint timestamp
+            lastCheckpointTimestamp = block.timestamp;
+        }
+    }
+
+    /// @notice Adds an invoice to the aggregate state tracking
+    /// @param dailyInterestRate The daily interest rate for this invoice
+    function _addInvoiceToAggregate(uint256 dailyInterestRate) internal {
+        // Checkpoint before modifying aggregate state
+        _checkpointAccruedProfits();
+        
+        // Add to aggregate
+        totalDailyInterestRate += dailyInterestRate;
     }
 
     /// @notice The underwriter approves a loan that was requested by a user
@@ -265,6 +305,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         originalCreditors[loanId] = address(this);
         activeInvoices.push(loanId);
+        
+        // Add loan to aggregate state tracking
+        _addInvoiceToAggregate(approvedInvoices[loanId].dailyInterestRate);
+        
         invoiceProviderAdapter.initializeInvoice(loanId);
         _registerInvoiceCallback(loanId);
         
@@ -410,33 +454,12 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return shares.mulDiv(calculateCapitalAccount(), _totalSupply, rounding);
     }
 
-    /// @notice Calculates the total accrued profits from all active invoices
-    /// @dev Iterates through all active invoices, calculates interest for each and sums the net accrued interest
-    /// @return accruedProfits The total net accrued profits across all active invoices
-    function calculateAccruedProfits() public view returns (uint256 accruedProfits) {
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            uint256 invoiceId = activeInvoices[i];
-            
-            if(!_isInvoiceImpaired(invoiceId)) {
-                // Use pre-calculated daily interest rate for gas optimization
-                uint256 dailyRate = approvedInvoices[invoiceId].dailyInterestRate;
-                uint256 fundedTime = approvedInvoices[invoiceId].fundedTimestamp;
-                uint256 dueDate = approvedInvoices[invoiceId].invoiceDueDate;
-                
-                // Calculate days of interest (capped at due date)
-                uint256 daysOfInterest = Math.mulDiv(
-                    Math.min(block.timestamp, dueDate) - fundedTime,
-                    1,
-                    1 days,
-                    Math.Rounding.Floor
-                );
-                
-                // Simple multiplication instead of complex fee calculations
-                accruedProfits += dailyRate * daysOfInterest;
-            }
-        }
-
-        return accruedProfits;
+    function calculateAccruedProfits() public view returns (uint256) {
+        // Calculate days since last checkpoint
+        uint256 daysSinceCheckpoint = (block.timestamp - lastCheckpointTimestamp) / 1 days;
+        
+        // O(1) calculation: checkpoint value + accumulated interest since checkpoint
+        return accruedProfitsAtCheckpoint + (totalDailyInterestRate * daysSinceCheckpoint);
     }
 
     /** @dev See {IERC4626-previewDeposit}. */
@@ -548,6 +571,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
+
+        // Add invoice to aggregate state tracking
+        _addInvoiceToAggregate(approval.dailyInterestRate);
 
         _registerInvoiceCallback(invoiceId);
 
@@ -693,6 +719,25 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             if (activeInvoices[i] == invoiceId) {
                 activeInvoices[i] = activeInvoices[activeInvoices.length - 1];
                 activeInvoices.pop();
+                
+                uint256 dailyRate = approvedInvoices[invoiceId].dailyInterestRate;
+                uint256 fundedTimestamp = approvedInvoices[invoiceId].fundedTimestamp;
+
+                if (dailyRate > 0) {
+                    // First, checkpoint to accumulate all interest up to this moment
+                    _checkpointAccruedProfits();
+                    
+                    // Calculate this invoice's total accrued interest since it was funded
+                    uint256 daysSinceFunding = (block.timestamp - fundedTimestamp) / 1 days;
+                    uint256 invoiceAccruedInterest = dailyRate * daysSinceFunding;
+                    
+                    // Remove this invoice's accrued interest from the checkpoint
+                    accruedProfitsAtCheckpoint -= invoiceAccruedInterest;
+                    
+                    // Remove this invoice's daily rate from future calculations
+                    totalDailyInterestRate -= dailyRate;
+                }
+                
                 return;
             }
         }
