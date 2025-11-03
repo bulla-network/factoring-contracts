@@ -454,6 +454,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return shares.mulDiv(calculateCapitalAccount(), _totalSupply, rounding);
     }
 
+    /// @notice Calculates the accrued profits of active invoices
+    /// @dev This function uses accrued profits at last checkpoint + pending days since checkpoint * total daily interest rate
+    /// @return The accrued profits
     function calculateAccruedProfits() public view returns (uint256) {
         // Calculate days since last checkpoint
         uint256 daysSinceCheckpoint = (block.timestamp - lastCheckpointTimestamp) / 1 days;
