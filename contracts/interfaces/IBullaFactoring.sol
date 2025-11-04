@@ -56,14 +56,7 @@ interface IBullaFactoringV2 {
         uint256 price;
         uint256 tokensAvailableForRedemption;
         uint16 adminFeeBps;
-        uint256 impairReserve;
         uint256 targetYieldBps;
-    }
-
-    struct ImpairmentDetails {
-        uint256 gainAmount;
-        uint256 lossAmount;
-        bool isImpaired;
     }
 
     // Events
@@ -85,8 +78,6 @@ interface IBullaFactoringV2 {
     event DepositPermissionsChanged(address newAddress);
     event RedeemPermissionsChanged(address newAddress);
     event FactoringPermissionsChanged(address newAddress);
-    event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
-    event ImpairReserveChanged(uint256 newImpairReserve);
     event TargetYieldChanged(uint16 newTargetYield);
     event RedemptionQueueChanged(address indexed oldQueue, address indexed newQueue);
 

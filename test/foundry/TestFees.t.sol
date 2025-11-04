@@ -186,7 +186,7 @@ contract TestFees is CommonSetup {
         vm.stopPrank();
 
         uint256 availableAssetsAfter = bullaFactoring.totalAssets();
-        uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve();
+        uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         // Calculate realized fees
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;

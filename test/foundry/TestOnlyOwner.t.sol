@@ -94,13 +94,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
     }
 
-    function testImpairInvoiceOnlyCalledByOwner() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        bullaFactoring.impairInvoice(0);
-        vm.stopPrank();
-    }
-
     function testSetUnderwriterEmitsEvent() public {
         address oldUnderwriter = bullaFactoring.underwriter();
         address newUnderwriter = alice;

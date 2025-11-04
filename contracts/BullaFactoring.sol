@@ -44,8 +44,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     address public underwriter;
     /// @notice Timestamp of the fund's creation
     uint256 public creationTimestamp;
-    /// @notice Reserve amount for impairment
-    uint256 public impairReserve;
     /// @notice Name of the factoring pool
     string public poolName;
     /// @notice Target yield in basis points
@@ -76,12 +74,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// Array to hold the IDs of all active invoices
     uint256[] public activeInvoices;
 
-    /// Array to track IDs of impaired invoices by fund
-    uint256[] private impairedByFundInvoicesIds;
-
-    /// Mapping from invoice ID to impairment details
-    mapping(uint256 => ImpairmentDetails) public impairments;
-
     /// Mapping from loan offer ID to pending loan offer details
     mapping(uint256 => PendingLoanOfferInfo) public pendingLoanOffersByLoanOfferId;
 
@@ -109,17 +101,12 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error FunctionNotSupported();
     error UnauthorizedDeposit(address caller);
     error UnauthorizedFactoring(address caller);
-    error ActivePaidInvoicesExist();
-    error InvoiceNotImpaired();
     error InvoiceAlreadyPaid();
-    error InvoiceAlreadyImpairedByFund();
     error CallerNotOriginalCreditor();
     error CallerNotBullaFrendLend();
     error CallerNotBullaDao();
     error NoFeesToWithdraw();
     error InvalidAddress();
-    error ImpairReserveMustBeGreater();
-    error ImpairReserveNotSet();
     error InvoiceCannotBePaid();
     error InvoiceTokenMismatch();
     error InvoiceAlreadyFunded();
@@ -383,35 +370,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return FeeCalculations.calculateKickbackAmount(approval, invoice);
     }
 
-
-    /// @notice Calculates the total realized gain or loss from paid and impaired invoices
-    /// @return The total realized gain adjusted for losses
-    function calculateRealizedGainLoss() public view returns (int256) {
-        int256 realizedGains = int256(paidInvoicesGain);
-
-        // Consider losses from impaired invoices by fund
-        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
-            uint256 invoiceId = impairedByFundInvoicesIds[i];
-            // Cache approval in memory to reduce storage reads
-            uint256 currentPaidAmount = invoiceProviderAdapter.getInvoiceDetails(invoiceId).paidAmount;
-
-            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
-            uint256 initialPaidAmount = approvedInvoices[invoiceId].initialPaidAmount;
-            
-            int256 lossAmount = int256(fundedAmountNet) - int256(currentPaidAmount - initialPaidAmount) - int256(impairments[invoiceId].gainAmount);
-            realizedGains -= lossAmount;
-        }
-
-        return realizedGains;
-    }
-
     /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-        int256 realizedGainLoss = calculateRealizedGainLoss();
-
-        int256 depositsMinusWithdrawals = int256(totalDeposits) - int256(totalWithdrawals);
-        int256 capitalAccount = depositsMinusWithdrawals + realizedGainLoss;
+        int256 capitalAccount = int256(totalDeposits) + int256(paidInvoicesGain) - int256(totalWithdrawals);
 
         return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
@@ -623,17 +585,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (!invoice.isPaid) revert InvoiceNotPaid();
 
-        // Check if the invoice was previously marked as impaired by the fund
-        if (impairments[invoiceId].isImpaired) {
-            // Remove the invoice from impaired array
-            removeImpairedByFundInvoice(invoiceId);
-
-            // Adjust impairment in fund records
-            delete impairments[invoiceId];
-        } else {
-            // Remove the invoice from activeInvoices array
-            removeActivePaidInvoice(invoiceId);   
-        }
+        // Remove the invoice from activeInvoices array
+        removeActivePaidInvoice(invoiceId);   
         
         // calculate kickback amount adjusting for true interest, protocol and admin fees
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
@@ -651,17 +604,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
     }
 
-    function removeImpairedByFundInvoice(uint256 invoiceId) private {
-        for (uint256 i = 0; i < impairedByFundInvoicesIds.length; i++) {
-            if (impairedByFundInvoicesIds[i] == invoiceId) {
-                impairedByFundInvoicesIds[i] = impairedByFundInvoicesIds[impairedByFundInvoicesIds.length - 1];
-                impairedByFundInvoicesIds.pop();
-                return;
-            }
-        }
-
-        revert InvoiceNotActive();
-    }
 
     function removePendingLoanOffer(uint256 loanOfferId) private {
         for (uint256 i = 0; i < pendingLoanOffersIds.length; i++) {
@@ -753,7 +695,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         revert InvoiceNotActive();
     }
 
-    /// @notice Calculates the available assets in the fund net of fees and impair reserve
+    /// @notice Calculates the available assets in the fund net of fees
     /// @dev Uses O(1) aggregate capital at risk tracking instead of iterating through invoices
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
@@ -890,15 +832,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         emit FactoringPermissionsChanged(_newFactoringPermissionsAddress);
     }
 
-    /// @notice Sets the impair reserve amount
-    /// @param _impairReserve The new impair reserve amount
-    function setImpairReserve(uint256 _impairReserve) external onlyOwner {
-        if (_impairReserve < impairReserve) revert ImpairReserveMustBeGreater();
-        uint256 amountToAdd = _impairReserve - impairReserve;
-        assetAddress.safeTransferFrom(msg.sender, address(this), amountToAdd);
-        impairReserve = _impairReserve;
-        emit ImpairReserveChanged(_impairReserve);
-    }
 
     /// @notice Sets the target yield in basis points
     /// @param _targetYieldBps The new target yield in basis points
@@ -926,51 +859,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             price: price,
             tokensAvailableForRedemption: tokensAvailableForRedemption,
             adminFeeBps: adminFeeBps,
-            impairReserve: impairReserve,
             targetYieldBps: targetYieldBps
         });
     }
 
-    /// @notice Impairs an invoice, using the impairment reserve to cover the loss
-    /// @param invoiceId The ID of the invoice to impair
-    function impairInvoice(uint256 invoiceId) external onlyOwner {
-        if (impairReserve == 0) revert ImpairReserveNotSet();
-        
-        if (!_isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
-
-        if (impairments[invoiceId].isImpaired) {
-            revert InvoiceAlreadyImpairedByFund();
-        }
-
-        uint256 fundedAmount = approvedInvoices[invoiceId].fundedAmountNet;
-        uint256 impairAmount = impairReserve / 2;
-        impairReserve -= impairAmount; // incidentially adds impairAmount to fund balance as seen in availableAssets
-
-        // deduct from capital at risk
-        removeActivePaidInvoice(invoiceId);
-
-        // add to impairedByFundInvoicesIds
-        impairedByFundInvoicesIds.push(invoiceId);
-
-        // Record impairment details
-        impairments[invoiceId] = ImpairmentDetails({
-            gainAmount: impairAmount,
-            lossAmount: fundedAmount,
-            isImpaired: true
-        });
-
-        // Get the target contract and selector from the adapter, then call directly
-        // This preserves msg.sender == BullaFactoring for the underlying contract
-        (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
-        
-        if (target != address(0)) {
-            bytes memory callData = abi.encodeWithSelector(selector, invoiceId);
-            (bool success, ) = target.call(callData);
-            require(success, "Impair call failed");
-        }
-
-        emit InvoiceImpaired(invoiceId, fundedAmount, impairAmount);
-    }
 
     modifier onlyBullaDao() {
         if (msg.sender != bullaDao) revert CallerNotBullaDao();

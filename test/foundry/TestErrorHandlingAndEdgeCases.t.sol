@@ -276,126 +276,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertGt(queuedShares, 0, "Should queue excess shares");
     }
 
-    function testGainLossCanBeNegative() public {
-        uint initialImpairReserve = 500; 
-        asset.approve(address(bullaFactoring), initialImpairReserve);
-        bullaFactoring.setImpairReserve(initialImpairReserve);
-
-        // Alice deposits into the fund
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no funds");
-        uint256 initialDepositAlice = 25000000000; // initialize a 25k pool
-        vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDepositAlice);
-        bullaFactoring.deposit(initialDepositAlice, alice);
-        vm.stopPrank();
-
-        uint invoiceAmount = 5000000000; // 5k invoice
-
-        // Bob funds the first invoice
-        vm.prank(bob);
-        uint256 invoiceId01 = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Bob funds the second invoice 5k second invoice
-        vm.prank(bob);
-        uint256 invoiceId02 = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        vm.stopPrank();
-
-        uint initialPricePerShare = bullaFactoring.pricePerShare();
-
-        // due date is in 30 days, + 60 days grace period
-        uint256 waitDaysToApplyImpairment = 100;
-        vm.warp(block.timestamp + waitDaysToApplyImpairment * 1 days);
-
-        // Alice never pays the invoices
-        // fund owner impaires both invoices
-        bullaFactoring.impairInvoice(invoiceId01);
-        bullaFactoring.impairInvoice(invoiceId02);
-
-        // Check that the capital account is not negative
-        uint256 capitalAccount = bullaFactoring.calculateCapitalAccount();
-        assertGt(capitalAccount, 0);
-
-        uint pricePerShareAfter = bullaFactoring.pricePerShare();
-
-        assertLt(pricePerShareAfter, initialPricePerShare, "Price per share should decline due to impairment");
-
-        // alice withdraws her funds
-        vm.startPrank(alice);
-        uint assetWithdrawn = bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
-        vm.stopPrank();
-
-        // assert that alice withdraws less assets than she has put in
-        assertLt(assetWithdrawn, initialDepositAlice, "Alice should withdraw less assets than she has put in");
-    }
-
-    function testImpairedInvoiceWithAllSharesRedeemed() public {
-        uint initialImpairReserve = 500; 
-        asset.approve(address(bullaFactoring), initialImpairReserve);
-        bullaFactoring.setImpairReserve(initialImpairReserve);
-        
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should start at 0");
-
-        uint256 initialDeposit = 1000000;
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        uint256 aliceShares = bullaFactoring.balanceOf(alice);
-        vm.stopPrank();
-
-        vm.startPrank(bob);
-        uint invoiceAmount = 100000;
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.stopPrank();
-
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Simulate the invoice becoming impaired after the grace period
-        uint256 gracePeriodDays = bullaFactoring.gracePeriodDays();
-        vm.warp(dueBy + gracePeriodDays * 1 days + 1);
-
-        uint256 maxRedeemAmountAfterGracePeriod = bullaFactoring.maxRedeem();
-
-        // Fund impairs the invoice
-        bullaFactoring.impairInvoice(invoiceId);
-
-        uint256 maxRedeemAmountAfterGraceImpairment = bullaFactoring.maxRedeem();
-
-        assertLt(maxRedeemAmountAfterGracePeriod, maxRedeemAmountAfterGraceImpairment, "maxRedeemAmountAfterGracePeriod should be lower than maxRedeemAmountAfterGraceImpairment as totalAssets get reduces when an impairment by fund happens due to it being removed from active invoices, and having the interest realised");
-
-        
-
-        // Alice redeems all her shares
-        vm.prank(alice);
-        uint redeemAmountFirst = bullaFactoring.redeem(aliceShares, alice, alice);
-        assertGt(initialDeposit, redeemAmountFirst, "Alice should be able to redeem less than what she initial deposited");
-        vm.stopPrank();
-
-        // Verify that Alice's share balance is now zero, as there are no other pending invoices to be paid
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's share balance should be zero");
-
-        assertEq(bullaFactoring.maxRedeem(), 0, "maxRedeem should be zero");
-        assertEq(bullaFactoring.totalAssets(), 0, "totalAssets should be zero");
-    }
-
     function testTargetAndRealisedFeeMatchIfPaidOnTime() public {
         dueBy = block.timestamp + 30 days;
 
@@ -432,7 +312,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         uint availableAssetsAfter = bullaFactoring.totalAssets();
-        uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve();
+        uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         // Protocol fees are collected upfront during funding, not as part of realized gains
         uint targetFees = adminFee + targetInterest + targetSpread + targetProtocolFee;

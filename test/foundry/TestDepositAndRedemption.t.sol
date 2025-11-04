@@ -87,7 +87,7 @@ contract TestDepositAndRedemption is CommonSetup {
     
         
 
-        uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance() + bullaFactoring.impairReserve();
+        uint fees =  bullaFactoring.adminFeeBalance() + bullaFactoring.protocolFeeBalance();
 
         assertEq(asset.balanceOf(address(bullaFactoring)), bullaFactoring.totalAssets() + fees, "Available Assets should be lower than total assets by the sum of fees");
     }
@@ -221,76 +221,6 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
     }
 
-    function testDepositAndRedemptionWithImpairReserve() public {
-        interestApr = 2000;
-        upfrontBps = 10000;
-
-        uint initialImpairReserve = 50000; 
-        asset.approve(address(bullaFactoring), initialImpairReserve);
-        bullaFactoring.setImpairReserve(initialImpairReserve);
-
-        assertEq(bullaFactoring.impairReserve(), initialImpairReserve, "Impair reserve should be set to 500");
-
-        uint256 initialDeposit = 3000000; // deposit 3 USDC
-        vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
-        vm.stopPrank();
-
-        vm.startPrank(bob);
-        uint invoiceId01Amount = 500000; // 0.5 USDC
-        uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
-        vm.stopPrank();
-
-        vm.startPrank(bob);
-        uint invoiceId02Amount = 1000000; // 1 USDC
-        uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Fast forward time by 30 days
-        vm.warp(block.timestamp + 30 days);
-
-        // alice pays both invoices
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), 1000 ether);
-        bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
-        bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
-        vm.stopPrank();
-       
-        assertEq(bullaFactoring.totalAssets(), bullaFactoring.calculateCapitalAccount(), "Available assets should be equal to capital account");
-        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
-
-        uint amountToRedeem = bullaFactoring.maxRedeem();
-
-        // Alice redeems all her shares
-        vm.prank(alice);
-        bullaFactoring.redeem(amountToRedeem, alice, alice);
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
-        vm.stopPrank();
-
-        // withdraw all fess
-        bullaFactoring.withdrawAdminFeesAndSpreadGains();
-        assertEq(bullaFactoring.adminFeeBalance(), 0, "Admin fee balance should be 0");
-
-        vm.prank(bullaDao);
-        bullaFactoring.withdrawProtocolFees();
-        assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
-        vm.stopPrank();
-
-        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
-    }
-
     function testBalanceOfFundShouldBeZeroAfterAllFeeWithdrawals() public {
         dueBy = block.timestamp + 60 days; // Invoice due in 60 days
         uint256 invoiceAmount = 10000000; // Invoice amount is $10000000
@@ -353,7 +283,7 @@ contract TestDepositAndRedemption is CommonSetup {
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
         vm.stopPrank();
 
-        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
+        assertEq(asset.balanceOf(address(bullaFactoring)), 0, "Bulla Factoring should have no balance left");
     }
 
     function testDepositPriceDeclinesWhenAccruedProfits() public {
@@ -421,30 +351,34 @@ contract TestDepositAndRedemption is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, 10000);
+        // Fast forward time
+        vm.warp(block.timestamp + 30 days);
 
-        // Simulate impairment
-        vm.warp(block.timestamp + 100 days);
+        // Alice pays the invoice
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
 
-        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
+        // Withdraw all fees
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
+        vm.prank(bullaDao);
+        bullaFactoring.withdrawProtocolFees();
 
-        assertEq(impairedInvoices.length, 1, "There should be one impaired invoice");
+        // Alice redeems all her shares to empty the vault
+        vm.startPrank(alice);
+        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vm.stopPrank();
 
-        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), adminFee + targetInterest + targetProtocolFee + targetSpread, "There should be no assets left in the pool, net of fees");
+        assertEq(bullaFactoring.totalSupply(), 0, "Total supply should be 0");
+        assertEq(bullaFactoring.totalAssets(), 0, "Total assets should be 0");
 
-        // Alice never pays the invoices
-        // fund owner impaires both invoices
-        uint initialImpairReserve = 50000; 
-        asset.approve(address(bullaFactoring), initialImpairReserve);
-        bullaFactoring.setImpairReserve(initialImpairReserve);
-        bullaFactoring.impairInvoice(invoiceId);
-
-        // Alice deposits again
+        // Alice deposits again into empty vault
         vm.startPrank(alice);
         uint shares = bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
-        assertGt(shares, 0, "Shares still get issued if there are no profits and all depositors money is lost");
+        assertGt(shares, 0, "Shares still get issued when depositing into an empty vault");
     }
 
     function testPreviewRedeemReturnsSameAsActualRedeem() public {
