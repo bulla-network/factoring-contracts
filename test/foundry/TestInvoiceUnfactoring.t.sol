@@ -19,7 +19,10 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestInvoiceUnfactoring is CommonSetup {
-    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee);
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee, bool unfactoredByOwner);
+    
+    error InvoiceNotImpaired();
+    error CallerNotOriginalCreditor();
 
     function testUnfactorInvoice() public {
         // Alice deposits into the fund
@@ -42,7 +45,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.stopPrank();
 
         vm.expectEmit(true, false, false, false);
-        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0);
+        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0, false);
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
@@ -310,5 +313,317 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 refund3 = assetBalanceAfter3 - assetBalanceBefore3;
 
         assertEq(repayment, alicePaymentAmount - refund3, "Bob receives money from the pool if the invoice is mostly paid");
-    } 
+    }
+
+    // ============ Pool Owner Unfactoring Tests ============
+
+    function testPoolOwnerCanUnfactorImpairedInvoice() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Fast forward past impairment date (30 days due + 60 days grace period)
+        vm.warp(block.timestamp + 91 days);
+
+        // Pool owner unfactors the impaired invoice
+        address poolOwner = bullaFactoring.owner();
+        
+        // Pool owner needs to approve payment (in case they owe money)
+        vm.prank(poolOwner);
+        asset.approve(address(bullaFactoring), 1000 ether);
+        
+        vm.prank(poolOwner);
+        bullaFactoring.unfactorInvoice(invoiceId);
+
+        // Assert the invoice NFT is transferred to the pool owner (msg.sender)
+        assertEq(bullaClaim.ownerOf(invoiceId), poolOwner, "Invoice NFT should go to pool owner");
+    }
+
+    function testPoolOwnerCannotUnfactorNonImpairedInvoice() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Try to unfactor before impairment - should fail
+        address poolOwner = bullaFactoring.owner();
+        vm.prank(poolOwner);
+        vm.expectRevert(InvoiceNotImpaired.selector);
+        bullaFactoring.unfactorInvoice(invoiceId);
+    }
+
+    function testPoolOwnerUnfactoringWithPartialPayment() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Alice makes a partial payment
+        uint256 partialPayment = 30;
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, partialPayment);
+        vm.stopPrank();
+
+        // Fast forward past impairment date
+        vm.warp(block.timestamp + 91 days);
+
+        uint256 poolBalanceBefore = asset.balanceOf(address(bullaFactoring));
+        address poolOwner = bullaFactoring.owner();
+        uint256 poolOwnerBalanceBefore = asset.balanceOf(poolOwner);
+
+        // Pool owner needs to approve payment
+        vm.prank(poolOwner);
+        asset.approve(address(bullaFactoring), 1000 ether);
+
+        // Pool owner unfactors the impaired invoice
+        vm.prank(poolOwner);
+        bullaFactoring.unfactorInvoice(invoiceId);
+
+        uint256 poolBalanceAfter = asset.balanceOf(address(bullaFactoring));
+        uint256 poolOwnerBalanceAfter = asset.balanceOf(poolOwner);
+
+        // The invoice NFT should go to pool owner (msg.sender)
+        assertEq(bullaClaim.ownerOf(invoiceId), poolOwner, "Invoice NFT should go to pool owner");
+        
+        // Pool balance should have increased due to pool owner paying back the fees
+        assertTrue(poolBalanceAfter > poolBalanceBefore, "Pool balance should increase from pool owner's payment");
+        
+        // Pool owner should have paid
+        assertTrue(poolOwnerBalanceBefore > poolOwnerBalanceAfter, "Pool owner should have paid");
+    }
+
+    function testNonOwnerNonCreditorCannotUnfactor() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Fast forward past impairment date
+        vm.warp(block.timestamp + 91 days);
+
+        // Charlie (neither owner nor original creditor) tries to unfactor - should fail
+        vm.prank(charlie);
+        vm.expectRevert(CallerNotOriginalCreditor.selector);
+        bullaFactoring.unfactorInvoice(invoiceId);
+    }
+
+    function testPoolOwnerUnfactoringPaysKickbackToOriginalCreditor() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        
+        uint256 bobBalanceAfterFunding = asset.balanceOf(bob);
+        
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        bobBalanceAfterFunding = asset.balanceOf(bob);
+
+        // Alice pays MOST of the invoice amount (but not all, to avoid automatic reconciliation)
+        // This creates a kickback scenario when unfactored
+        uint256 partialPayment = invoiceAmount - 1;
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 1000 ether);
+        bullaClaim.payClaim(invoiceId, partialPayment);
+        vm.stopPrank();
+
+        // Fast forward past impairment date
+        vm.warp(block.timestamp + 91 days);
+
+        address poolOwner = bullaFactoring.owner();
+        
+        // Pool owner needs to approve payment  
+        vm.prank(poolOwner);
+        asset.approve(address(bullaFactoring), 1000 ether);
+
+        // Pool owner unfactors the invoice
+        vm.prank(poolOwner);
+        bullaFactoring.unfactorInvoice(invoiceId);
+
+        uint256 bobBalanceAfterUnfactoring = asset.balanceOf(bob);
+
+        // With a large partial payment, Bob might receive a kickback
+        // The kickback goes to the original creditor (Bob), not the pool owner
+        // Since Alice paid 99/100 of the invoice, there should be a kickback
+        assertTrue(bobBalanceAfterUnfactoring > bobBalanceAfterFunding, "Bob should get a kickback");
+        
+        // Invoice NFT should go to pool owner
+        assertEq(bullaClaim.ownerOf(invoiceId), poolOwner, "Invoice NFT should go to pool owner");
+    }
+
+    function testPoolOwnerUnfactoringRecordsProfitsAndFees() public {
+        // Set higher interest rate to see meaningful profits
+        interestApr = 2000;
+        
+        // Alice deposits into the fund
+        uint256 initialDeposit = 10000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 1000;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Fast forward some time to accrue interest
+        vm.warp(block.timestamp + 30 days);
+
+        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+
+        // Fast forward past impairment date
+        vm.warp(block.timestamp + 61 days);
+
+        address poolOwner = bullaFactoring.owner();
+        
+        // Pool owner needs to approve payment
+        vm.prank(poolOwner);
+        asset.approve(address(bullaFactoring), 1000 ether);
+
+        // Pool owner unfactors the impaired invoice
+        vm.prank(poolOwner);
+        bullaFactoring.unfactorInvoice(invoiceId);
+
+        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+
+        // Capital account should have increased due to recorded profits
+        assertTrue(capitalAccountAfter > capitalAccountBefore, "Capital account should increase due to profits");
+        
+        // Invoice NFT should go to pool owner
+        assertEq(bullaClaim.ownerOf(invoiceId), poolOwner, "Invoice NFT should go to pool owner");
+    }
+
+    function testEventEmitsCorrectUnfactoredByOwnerFlag() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds two identical invoices
+        uint invoiceAmount = 100;
+        
+        // First invoice - Bob unfactors
+        vm.prank(bob);
+        uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId1);
+        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Second invoice - pool owner unfactors
+        vm.prank(bob);
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId2);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Bob unfactors first invoice - flag should be false
+        vm.prank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId1);
+
+        // Fast forward past impairment date
+        vm.warp(block.timestamp + 91 days);
+
+        // Pool owner unfactors second invoice - flag should be true
+        address poolOwner = bullaFactoring.owner();
+        
+        // Pool owner needs to approve payment
+        vm.startPrank(poolOwner);
+        asset.approve(address(bullaFactoring), 1000 ether);
+        vm.expectEmit(true, true, true, false);
+        emit InvoiceUnfactored(invoiceId2, bob, 0, 0, 0, 0, true);
+        bullaFactoring.unfactorInvoice(invoiceId2);
+        vm.stopPrank();
+
+        // Invoice NFT should go to pool owner (msg.sender)
+        assertEq(bullaClaim.ownerOf(invoiceId2), poolOwner, "Second invoice NFT should go to pool owner");
+    }
 }

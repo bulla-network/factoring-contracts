@@ -19,7 +19,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
     // Events for testing
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
     event InvoiceImpaired(uint256 indexed invoiceId, uint256 lossAmount, uint256 gainAmount);
-    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee);
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee, bool unfactoredByOwner);
 
     function setUp() public override {
         super.setUp();
@@ -149,7 +149,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         vm.startPrank(bob);
         vm.expectEmit(true, true, false, false);
-        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0); // Protocol fee not in event
+        emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0, false); // Protocol fee not in event
         bullaFactoring.unfactorInvoice(invoiceId);
         vm.stopPrank();
         

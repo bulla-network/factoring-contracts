@@ -124,6 +124,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvalidPercentage();
     error InvoiceCreditorChanged();
     error InvoiceNotPaid();
+    error InvoiceNotImpaired();
     
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -615,45 +616,50 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
     }
 
-    /// @notice Unfactors an invoice, returning the invoice NFT to the original creditor and refunding the funded amount
+    /// @notice Unfactors an invoice, returning the invoice NFT to the original creditor
+    /// @dev Can be called by the original creditor anytime (with payment/kickback) or by pool owner after impairment (no payment/kickback)
     /// @param invoiceId The ID of the invoice to unfactor
     function unfactorInvoice(uint256 invoiceId) external {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         
         if (invoice.isPaid) revert InvoiceAlreadyPaid();
         address originalCreditor = originalCreditors[invoiceId];
-        if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
+        bool isPoolOwnerUnfactoring = msg.sender == owner();
+
+        if (isPoolOwnerUnfactoring) {
+            // Pool owner can only unfactor impaired invoices
+            if (!_isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
+        } else {
+            // Original creditor can unfactor anytime
+            if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
+        }
 
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        // Calculate the funded amount for the invoice
-        uint256 fundedAmount = approval.fundedAmountNet;
-
-        // Calculate the number of days since funding
-         uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
-        // Need to subtract payments since funding start
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
-        int256 totalRefundOrPaymentAmount = int256(fundedAmount + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
+        
+        // Calculate fees and amounts - same for both scenarios
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
+        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
+        int256 totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
 
-        // positive number means the original creditor owes us the amount
+        // Handle payment/kickback between original creditor and pool - same for both scenarios
         if(totalRefundOrPaymentAmount > 0) {
-            // Refund the funded amount to the fund from the original creditor
-            assetAddress.safeTransferFrom(originalCreditor, address(this), uint256(totalRefundOrPaymentAmount));
+            // Original creditor owes the pool
+            assetAddress.safeTransferFrom(msg.sender, address(this), uint256(totalRefundOrPaymentAmount));
         } else if (totalRefundOrPaymentAmount < 0) {
-            // negative number means we owe them
+            // Pool owes original creditor a kickback
             assetAddress.safeTransfer(originalCreditor, uint256(-totalRefundOrPaymentAmount));
         }
 
         address invoiceContractAddress = invoiceProviderAdapter.getInvoiceContractAddress(invoiceId);
-        IERC721(invoiceContractAddress).transferFrom(address(this), originalCreditor, invoiceId);
+        IERC721(invoiceContractAddress).transferFrom(address(this), msg.sender, invoiceId);
 
-        // Update the contract's state to reflect the unfactoring
         removeActivePaidInvoice(invoiceId);
         incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
-
+        
         delete originalCreditors[invoiceId];
 
-        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueAdminFee);
+        emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueAdminFee, isPoolOwnerUnfactoring);
     }
 
     /// @notice Removes an invoice from the list of active invoices once it has been paid
