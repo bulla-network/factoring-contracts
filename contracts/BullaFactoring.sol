@@ -695,7 +695,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         revert InvoiceNotActive();
     }
 
-    /// @notice Calculates the available assets in the fund net of fees and impair reserve
+    /// @notice Calculates the available assets in the fund net of fees
     /// @dev Uses O(1) aggregate capital at risk tracking instead of iterating through invoices
     /// @return The amount of assets available for withdrawal or new investments, excluding funds allocated to active invoices
     function totalAssets() public view override returns (uint256) {
