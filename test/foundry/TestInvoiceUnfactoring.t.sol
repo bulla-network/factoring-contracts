@@ -51,7 +51,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // Assert the invoice NFT is transferred back to Bob and that fund has received the funded amount back
         assertEq(bullaClaim.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
-        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), initialDeposit, "Funded amount should be refunded to BullaFactoring");
+        assertEq(asset.balanceOf(address(bullaFactoring)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
     }
 
     function testUnfactorImpairedInvoiceAffectsSharePrice() public {

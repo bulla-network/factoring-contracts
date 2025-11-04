@@ -163,12 +163,6 @@ contract TestGasProfiler is CommonSetup {
         uint256 totalAssetsGas = gasBefore - gasleft();
         console.log("totalAssets(): %s gas", totalAssetsGas);
         
-        // Profile calculateRealizedGainLoss  
-        gasBefore = gasleft();
-        bullaFactoring.calculateRealizedGainLoss();
-        uint256 calculateGainLossGas = gasBefore - gasleft();
-        console.log("calculateRealizedGainLoss(): %s gas", calculateGainLossGas);
-        
         // Profile maxRedeem
         gasBefore = gasleft();
         bullaFactoring.maxRedeem(alice);
@@ -186,7 +180,6 @@ contract TestGasProfiler is CommonSetup {
         console.log("1. processRedemptionQueue: %s gas", processQueueGas);
         console.log("2. maxRedeem: %s gas", maxRedeemGas);  
         console.log("3. totalAssets: %s gas", totalAssetsGas);
-        console.log("4. calculateRealizedGainLoss: %s gas", calculateGainLossGas);
         console.log("");
     }
     
@@ -206,15 +199,9 @@ contract TestGasProfiler is CommonSetup {
         bullaFactoring.totalAssets();
         uint256 totalAssetsCalls = _getInvoiceDetailsCallCount - callsBefore;
         
-        // Test calculateRealizedGainLoss calls
-        callsBefore = _getInvoiceDetailsCallCount;
-        bullaFactoring.calculateRealizedGainLoss();
-        uint256 calculateCalls = _getInvoiceDetailsCallCount - callsBefore;
-        
         console.log("External call distribution:");
         console.log("  viewPoolStatus(): %s calls", viewPoolCalls);
         console.log("  totalAssets(): %s calls", totalAssetsCalls);
-        console.log("  calculateRealizedGainLoss(): %s calls", calculateCalls);
         
         // Calculate theoretical scaling - get number of active invoices
         // Active invoices are now always unpaid; viewPoolStatus only returns impaired invoices
@@ -225,9 +212,9 @@ contract TestGasProfiler is CommonSetup {
         console.log("Scaling Analysis (~%s active invoices):", numActiveInvoices);
         console.log("  Linear (O(n)): %s calls expected", numActiveInvoices);
         console.log("  Quadratic (O(n^2)): %s calls expected", numActiveInvoices * numActiveInvoices);
-        console.log("  Actual total calls: %s", viewPoolCalls + totalAssetsCalls + calculateCalls);
+        console.log("  Actual total calls: %s", viewPoolCalls + totalAssetsCalls);
         
-        uint256 multiplier = (viewPoolCalls + totalAssetsCalls + calculateCalls) / (numActiveInvoices > 0 ? numActiveInvoices : 1);
+        uint256 multiplier = (viewPoolCalls + totalAssetsCalls) / (numActiveInvoices > 0 ? numActiveInvoices : 1);
         console.log("  Call multiplier: %sx per invoice", multiplier);
     }
     
@@ -244,8 +231,8 @@ contract TestGasProfiler is CommonSetup {
         testSizes[2] = 20;
         testSizes[3] = 30;
         
-        console.log("Invoice Count | viewPoolStatus | totalAssets | calculateGainLoss | processQueue | Calls/Invoice");
-        console.log("-------------|----------------|-------------|-------------------|--------------|---------------");
+        console.log("Invoice Count | viewPoolStatus | totalAssets | processQueue | Calls/Invoice");
+        console.log("-------------|----------------|-------------|--------------|---------------");
         
         for (uint256 i = 0; i < testSizes.length; i++) {
             uint256 size = testSizes[i];
@@ -256,13 +243,12 @@ contract TestGasProfiler is CommonSetup {
             // Measure each function  
             uint256 viewGas = _measureFunction("viewPoolStatus");
             uint256 totalAssetsGas = _measureFunction("totalAssets");
-            uint256 calculateGas = _measureFunction("calculateRealizedGainLoss");
             uint256 processGas = _measureFunction("processRedemptionQueue");
             
             uint256 avgCallsPerInvoice = _estimateCallsPerInvoice(size);
             
             console.log("Size: %s | viewPool: %s | totalAssets: %s", size, viewGas, totalAssetsGas);
-            console.log("  | calculateGain: %s | processQueue: %s | calls/invoice: %s", calculateGas, processGas, avgCallsPerInvoice);
+            console.log("  | processQueue: %s | calls/invoice: %s", processGas, avgCallsPerInvoice);
         }
         
         console.log("");
@@ -320,8 +306,6 @@ contract TestGasProfiler is CommonSetup {
             bullaFactoring.viewPoolStatus();
         } else if (nameHash == keccak256("totalAssets")) {
             bullaFactoring.totalAssets();
-        } else if (nameHash == keccak256("calculateRealizedGainLoss")) {
-            bullaFactoring.calculateRealizedGainLoss();
         } else if (nameHash == keccak256("processRedemptionQueue")) {
             bullaFactoring.processRedemptionQueue();
         }

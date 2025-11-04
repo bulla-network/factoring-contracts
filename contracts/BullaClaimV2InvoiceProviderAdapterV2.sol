@@ -135,28 +135,6 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         return controller == address(0) ? address(bullaClaimV2) : controller;
     }
 
-    /// @notice Gets the underlying contract address and selector for impairing an invoice
-    /// @param invoiceId The ID of the invoice to impair
-    /// @return target The contract address to call
-    /// @return selector The function selector to call
-    /// @dev This function returns the target and selector so the caller can make the call directly with proper msg.sender
-    function getImpairTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
-        address controller = _getCachedController(invoiceId);
-        
-        if (controller == address(0)) {
-            // BullaClaimV2 - use impairClaim function
-            return (address(bullaClaimV2), IBullaClaimCore.impairClaim.selector);
-        } else if (controller == address(bullaFrendLend)) {
-            // BullaFrendLend - use impairLoan function
-            return (address(bullaFrendLend), IBullaFrendLendV2.impairLoan.selector);
-        } else if (controller == address(bullaInvoice)) {
-            // BullaInvoice - use impairInvoice function
-            return (address(bullaInvoice), IBullaInvoice.impairInvoice.selector);
-        } else {
-            revert UnknownClaimType();
-        }
-    }
-
     function getSetPaidInvoiceTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
         address controller = _getCachedController(invoiceId);
         

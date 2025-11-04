@@ -62,8 +62,6 @@ contract TestWithdraw is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        
-
         // Alice redeems all her funds
         vm.startPrank(alice);
         uint aliceBalance = bullaFactoring.balanceOf(alice);
@@ -269,7 +267,7 @@ contract TestWithdraw is CommonSetup {
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
         vm.stopPrank();
 
-        assertEq(asset.balanceOf(address(bullaFactoring)) - bullaFactoring.impairReserve(), 0, "Bulla Factoring should have no balance left, net of impair reserve");
+        assertEq(asset.balanceOf(address(bullaFactoring)), 0, "Bulla Factoring should have no balance left");
     }
 
     function testConvertToAssetsReturnsSharesWhenNoSupply() public {
