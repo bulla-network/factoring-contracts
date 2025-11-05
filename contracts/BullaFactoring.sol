@@ -124,6 +124,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvalidPercentage();
     error InvoiceCreditorChanged();
     error InvoiceNotPaid();
+    error InvoiceNotImpaired();
     
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
