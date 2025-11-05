@@ -124,7 +124,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvalidPercentage();
     error InvoiceCreditorChanged();
     error InvoiceNotPaid();
-    error InvoiceNotImpaired();
     
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
@@ -616,13 +615,49 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
     }
 
-    /// @notice Unfactors an invoice, returning the invoice NFT to the original creditor
-    /// @dev Can be called by the original creditor anytime (with payment/kickback) or by pool owner after impairment (no payment/kickback)
-    /// @param invoiceId The ID of the invoice to unfactor
-    function unfactorInvoice(uint256 invoiceId) external {
+    /// @notice Internal helper to calculate unfactor amounts
+    /// @param invoiceId The ID of the invoice
+    /// @return totalRefundOrPaymentAmount The total amount to be refunded (negative) or paid (positive)
+    /// @return trueInterest The interest accrued
+    /// @return trueSpreadAmount The spread amount accrued
+    /// @return trueAdminFee The admin fee accrued
+    function _calculateUnfactorAmounts(uint256 invoiceId) internal view returns (
+        int256 totalRefundOrPaymentAmount,
+        uint256 trueInterest,
+        uint256 trueSpreadAmount,
+        uint256 trueAdminFee
+    ) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         
         if (invoice.isPaid) revert InvoiceAlreadyPaid();
+
+        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
+        
+        // Calculate fees and amounts
+        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
+        (trueInterest, trueSpreadAmount, trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
+        totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
+    }
+
+    /// @notice Preview the refund or payment amount for unfactoring an invoice
+    /// @param invoiceId The ID of the invoice to preview
+    /// @return totalRefundOrPaymentAmount The total amount to be refunded (negative) or paid (positive)
+    function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount) {
+        (totalRefundOrPaymentAmount, , , ) = _calculateUnfactorAmounts(invoiceId);
+    }
+
+    /// @notice Unfactors an invoice, returning the invoice NFT to the caller
+    /// @dev Can be called by the original creditor anytime or by pool owner after impairment
+    /// @param invoiceId The ID of the invoice to unfactor
+    function unfactorInvoice(uint256 invoiceId) external {
+        (
+            int256 totalRefundOrPaymentAmount,
+            uint256 trueInterest,
+            uint256 trueSpreadAmount,
+            uint256 trueAdminFee
+        ) = _calculateUnfactorAmounts(invoiceId);
+        
         address originalCreditor = originalCreditors[invoiceId];
         bool isPoolOwnerUnfactoring = msg.sender == owner();
 
@@ -634,17 +669,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
         }
 
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
-        
-        // Calculate fees and amounts - same for both scenarios
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        (uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
-        int256 totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
-
-        // Handle payment/kickback between original creditor and pool - same for both scenarios
+        // Handle payment/kickback between original creditor (or pool owner) and pool
         if(totalRefundOrPaymentAmount > 0) {
-            // Original creditor owes the pool
+            // Original creditor (or pool owner) owes the pool
             assetAddress.safeTransferFrom(msg.sender, address(this), uint256(totalRefundOrPaymentAmount));
         } else if (totalRefundOrPaymentAmount < 0) {
             // Pool owes original creditor a kickback

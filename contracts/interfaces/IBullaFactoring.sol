@@ -94,4 +94,7 @@ interface IBullaFactoringV2 {
     // Redemption queue functions
     function getRedemptionQueue() external view returns (IRedemptionQueue);
     function setRedemptionQueue(address _redemptionQueue) external;
+    
+    // Preview functions
+    function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);
 }
