@@ -68,7 +68,7 @@ interface IBullaFactoringV2 {
     event UnderwriterChanged(address indexed oldUnderwriter, address indexed newUnderwriter);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
-    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee);
+    event InvoiceUnfactored(uint256 indexed invoiceId, address originalCreditor, int256 totalRefundOrPaymentAmount, uint256 interestToCharge, uint256 spreadAmount, uint256 adminFee, bool unfactoredByOwner);
 
     event BullaDaoAddressChanged(address indexed oldAddress, address indexed newAddress);
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
@@ -94,4 +94,7 @@ interface IBullaFactoringV2 {
     // Redemption queue functions
     function getRedemptionQueue() external view returns (IRedemptionQueue);
     function setRedemptionQueue(address _redemptionQueue) external;
+    
+    // Preview functions
+    function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);
 }
