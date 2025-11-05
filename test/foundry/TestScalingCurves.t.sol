@@ -331,7 +331,7 @@ contract TestScalingCurves is CommonSetup {
         
         // Also measure viewPoolStatus for reference
         g = gasleft();
-        bullaFactoring.viewPoolStatus();
+        bullaFactoring.viewPoolStatus(0, 25000);
         uint256 gasViewStatus = g - gasleft();
         
         console.log("\nNote: viewPoolStatus() is O(n) but is NOT called by maxRedeem/redeem");
@@ -345,7 +345,7 @@ contract TestScalingCurves is CommonSetup {
         uint256 currentInvoices = 381;
         
         uint256 g = gasleft();
-        bullaFactoring.viewPoolStatus();
+        bullaFactoring.viewPoolStatus(0, 25000);
         uint256 gasView = g - gasleft();
         
         console.log("\nData Point:");

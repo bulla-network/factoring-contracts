@@ -78,7 +78,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
 
         // Measure viewPoolStatus (checking for impaired invoices)
         uint256 gasBefore = gasleft();
-        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
+        (uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus(0, 25000);
         uint256 gasAfter = gasleft();
         uint256 viewPoolStatusGas = gasBefore - gasAfter;
 

@@ -110,7 +110,7 @@ contract TestGasProfiler is CommonSetup {
         uint256 gasBefore = gasleft();
         uint256 callsBefore = _getInvoiceDetailsCallCount;
         
-        uint256[] memory impairedIds = bullaFactoring.viewPoolStatus();
+        (uint256[] memory impairedIds, ) = bullaFactoring.viewPoolStatus(0, 25000);
         
         uint256 gasUsed = gasBefore - gasleft();
         uint256 callsUsed = _getInvoiceDetailsCallCount - callsBefore;
@@ -191,7 +191,7 @@ contract TestGasProfiler is CommonSetup {
         
         // Test viewPoolStatus calls
         uint256 callsBefore = _getInvoiceDetailsCallCount;
-        bullaFactoring.viewPoolStatus();
+        bullaFactoring.viewPoolStatus(0, 25000);
         uint256 viewPoolCalls = _getInvoiceDetailsCallCount - callsBefore;
         
         // Test totalAssets calls
@@ -205,7 +205,7 @@ contract TestGasProfiler is CommonSetup {
         
         // Calculate theoretical scaling - get number of active invoices
         // Active invoices are now always unpaid; viewPoolStatus only returns impaired invoices
-        uint256[] memory impairedInvoices = bullaFactoring.viewPoolStatus();
+        (uint256[] memory impairedInvoices, ) = bullaFactoring.viewPoolStatus(0, 25000);
         uint256 numActiveInvoices = impairedInvoices.length + 15; // Rough estimate including unpaid
         
         console.log("");
@@ -303,7 +303,7 @@ contract TestGasProfiler is CommonSetup {
         uint256 gasBefore = gasleft();
         
         if (nameHash == keccak256("viewPoolStatus")) {
-            bullaFactoring.viewPoolStatus();
+            bullaFactoring.viewPoolStatus(0, 25000);
         } else if (nameHash == keccak256("totalAssets")) {
             bullaFactoring.totalAssets();
         } else if (nameHash == keccak256("processRedemptionQueue")) {

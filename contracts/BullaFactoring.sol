@@ -546,17 +546,34 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return fundedAmountNet;
     }
 
-    /// @notice Provides a view of the pool's status, listing paid and impaired invoices, to be called by Gelato or alike
-    /// @return impairedInvoiceIds An array of impaired invoice IDs
-    function viewPoolStatus() external view returns (uint256[] memory impairedInvoiceIds) {
+    /// @notice View pool status with pagination to handle large numbers of active invoices
+    /// @dev To be called by Gelato or similar automation services. Limit is capped at 25000 invoices to prevent gas issues.
+    /// @param offset The starting index in the activeInvoices array
+    /// @param limit The maximum number of invoices to check (capped at 25000)
+    /// @return impairedInvoiceIds Array of invoice IDs that are impaired in this page
+    /// @return hasMore Whether there are more active invoices beyond this page
+    function viewPoolStatus(uint256 offset, uint256 limit) external view returns (uint256[] memory impairedInvoiceIds, bool hasMore) {
         uint256 activeCount = activeInvoices.length;
         
-        impairedInvoiceIds = new uint256[](activeCount);
+        // Cap the limit at 25000 to prevent gas issues
+        if (limit > 25000) {
+            limit = 25000;
+        }
+        
+        // Calculate the end index for this page
+        uint256 endIndex = Math.min(offset + limit, activeCount);
+        
+        // Check if there are more invoices beyond this page
+        hasMore = endIndex < activeCount;
+        
+        // Allocate array for worst case (all invoices in range are impaired)
+        uint256 rangeSize = endIndex > offset ? endIndex - offset : 0;
+        impairedInvoiceIds = new uint256[](rangeSize);
         
         uint256 impairedCount = 0;
 
-        // Check active invoices
-        for (uint256 i = 0; i < activeCount; i++) {
+        // Check active invoices in the specified range
+        for (uint256 i = offset; i < endIndex; i++) {
             uint256 invoiceId = activeInvoices[i];
 
             if (_isInvoiceImpaired(invoiceId)) {
@@ -564,7 +581,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             }
         }
 
-        // Overwrite the length of the arrays
+        // Overwrite the length of the array
         assembly {
             mstore(impairedInvoiceIds, impairedCount)
         }
