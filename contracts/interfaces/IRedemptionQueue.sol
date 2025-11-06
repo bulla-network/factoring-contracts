@@ -107,4 +107,12 @@ interface IRedemptionQueue {
     /// @return totalShares The total shares queued for redemption  
     /// @return totalAssets The total assets queued for withdrawal
     function getQueueStats() external view returns (uint256 queueLength, uint256 totalShares, uint256 totalAssets);
+
+    /// @notice Set the maximum number of redemptions allowed in the queue
+    /// @param _maxQueueSize The new maximum queue size
+    function setMaxQueueSize(uint256 _maxQueueSize) external;
+
+    /// @notice Get the maximum queue size
+    /// @return maxQueueSize The maximum number of redemptions allowed in the queue
+    function getMaxQueueSize() external view returns (uint256 maxQueueSize);
 } 

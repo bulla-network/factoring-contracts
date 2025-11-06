@@ -987,6 +987,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Process queued redemptions when liquidity becomes available
     function processRedemptionQueue() external {
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
+        if (redemption.owner == address(0)) return;
+
         // Memory-optimized: Calculate capital account once and derive total assets
         uint256 _capitalAccount = calculateCapitalAccount();
         uint256 _totalAssets = _capitalAccount - capitalAtRiskPlusWithheldFees;

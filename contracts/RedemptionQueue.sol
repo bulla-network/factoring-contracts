@@ -21,6 +21,7 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     error InvalidRedemption();
     error AmountExceedsQueuedShares();
     error AmountExceedsQueuedAssets();
+    error RedemptionQueueFull();
     
     /// @notice Array storing all queued redemptions
     QueuedRedemption[] private queue;
@@ -31,6 +32,13 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     /// @notice The BullaFactoring contract address that can manage the queue
     address public factoringContract;
     
+    /// @notice Maximum number of redemptions allowed in the queue
+    /// @dev Based on gas analysis, ~1000 redeemers can be safely processed in one transaction
+    uint256 public maxQueueSize;
+    
+    /// @notice Current number of active (non-cancelled) redemptions in the queue
+    uint256 private activeQueueLength;
+    
     modifier onlyFactoringContract() {
         if (msg.sender != factoringContract) revert OnlyFactoringContract();
         _;
@@ -39,6 +47,8 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     constructor(address owner, address _factoringContract) Ownable(owner) {
         factoringContract = _factoringContract;
         head = 0;
+        maxQueueSize = 500; // Default limit based on gas analysis (conservative estimate)
+        activeQueueLength = 0;
     }
     
     /// @inheritdoc IRedemptionQueue
@@ -58,10 +68,16 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         if ((shares > 0) == (assets > 0)) revert InvalidRedemptionType();
         
         // Cancel any existing queued redemptions for this owner
+        // Note: This will decrement activeQueueLength for each cancelled redemption
         _cancelExistingRedemptionsForOwner(owner);
         
         // Compact the queue to remove cancelled items and optimize storage
         _compactQueue();
+        
+        // Check if queue is full
+        if (activeQueueLength >= maxQueueSize) {
+            revert RedemptionQueueFull();
+        }
         
         // Add new redemption at the back of the queue
         QueuedRedemption memory redemption = QueuedRedemption({
@@ -73,6 +89,7 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         
         queueIndex = queue.length;
         queue.push(redemption);
+        activeQueueLength++; // Increment counter
         
         emit RedemptionQueued(owner, receiver, shares, assets, queueIndex);
         
@@ -89,11 +106,8 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         
         address owner = redemption.owner;
         
-        // Mark as cancelled by setting owner to zero
-        redemption.owner = address(0);
-        redemption.receiver = address(0);
-        redemption.shares = 0;
-        redemption.assets = 0;
+        // Mark as cancelled and decrement counter
+        _removeRedemption(redemption);
         
         // If this is the head item, advance head to next valid item
         if (queueIndex == head) {
@@ -120,12 +134,10 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
             
             if (amount == redemption.shares) {
                 // Remove entire entry by marking as processed and advancing head
-                redemption.owner = address(0);
-                redemption.receiver = address(0);
-                redemption.shares = 0;
+                _removeRedemption(redemption);
                 _advanceHead();
             } else {
-                // Reduce the amount
+                // Reduce the amount (but keep the entry active)
                 redemption.shares -= amount;
             }
             
@@ -136,12 +148,10 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
             
             if (amount == redemption.assets) {
                 // Remove entire entry by marking as processed and advancing head
-                redemption.owner = address(0);
-                redemption.receiver = address(0);
-                redemption.assets = 0;
+                _removeRedemption(redemption);
                 _advanceHead();
             } else {
-                // Reduce the amount
+                // Reduce the amount (but keep the entry active)
                 redemption.assets -= amount;
             }
             
@@ -156,6 +166,7 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     function clearQueue() external onlyOwner {
         delete queue;
         head = 0;
+        activeQueueLength = 0;
     }
     
     /// @inheritdoc IRedemptionQueue
@@ -165,16 +176,7 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     
     /// @inheritdoc IRedemptionQueue
     function getQueueLength() external view returns (uint256 queueLength) {
-        if (head >= queue.length) return 0;
-        
-        // Count active (non-cancelled) items from head onwards
-        uint256 activeCount = 0;
-        for (uint256 i = head; i < queue.length; i++) {
-            if (queue[i].owner != address(0)) {
-                activeCount++;
-            }
-        }
-        return activeCount;
+        return activeQueueLength;
     }
     
     /// @inheritdoc IRedemptionQueue
@@ -250,17 +252,25 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         }
     }
     
+    /// @notice Internal function to mark a redemption as cancelled/removed
+    /// @dev Clears all fields and decrements the active queue length counter
+    /// @param redemption The redemption storage reference to clear
+    function _removeRedemption(QueuedRedemption storage redemption) private {
+        redemption.owner = address(0);
+        redemption.receiver = address(0);
+        redemption.shares = 0;
+        redemption.assets = 0;
+        activeQueueLength--;
+    }
+    
     /// @notice Cancels all existing queued redemptions for a specific owner
     /// @dev Called internally when the same owner queues a new redemption to prevent multiple queue spots
     /// @param owner The owner whose existing redemptions should be cancelled
     function _cancelExistingRedemptionsForOwner(address owner) private {
         for (uint256 i = head; i < queue.length; i++) {
             if (queue[i].owner == owner) {
-                // Mark as cancelled by setting owner to zero
-                queue[i].owner = address(0);
-                queue[i].receiver = address(0);
-                queue[i].shares = 0;
-                queue[i].assets = 0;
+                // Mark as cancelled and decrement counter
+                _removeRedemption(queue[i]);
                 
                 emit RedemptionCancelled(owner, i);
                 
@@ -305,5 +315,15 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         // Replace the queue and reset head
         queue = newQueue;
         head = 0;
+    }
+
+    /// @inheritdoc IRedemptionQueue
+    function setMaxQueueSize(uint256 _maxQueueSize) external onlyOwner {
+        maxQueueSize = _maxQueueSize;
+    }
+
+    /// @inheritdoc IRedemptionQueue
+    function getMaxQueueSize() external view returns (uint256) {
+        return maxQueueSize;
     }
 } 
