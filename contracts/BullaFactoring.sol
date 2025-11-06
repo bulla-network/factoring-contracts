@@ -449,6 +449,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 shares = super.deposit(assets, receiver);
         totalDeposits += assets;
 
+        // Process redemption queue after deposit due to new liquidity
+        processRedemptionQueue();
+
         return shares;
     }
 
@@ -619,6 +622,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
         }
         
+        // Process redemption queue after reconciliation due to capital returning to pool
+        processRedemptionQueue();
+        
         emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
     }
 
@@ -703,6 +709,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
         
         delete originalCreditors[invoiceId];
+
+        // Process redemption queue after unfactoring due to capital returning to pool
+        processRedemptionQueue();
 
         emit InvoiceUnfactored(invoiceId, originalCreditor, totalRefundOrPaymentAmount, trueInterest, trueSpreadAmount, trueAdminFee, isPoolOwnerUnfactoring);
     }
@@ -985,7 +994,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Process queued redemptions when liquidity becomes available
-    function processRedemptionQueue() external {
+    function processRedemptionQueue() public {
         IRedemptionQueue.QueuedRedemption memory redemption = redemptionQueue.getNextRedemption();
         if (redemption.owner == address(0)) return;
 
