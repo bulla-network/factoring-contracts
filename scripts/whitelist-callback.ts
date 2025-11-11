@@ -20,13 +20,18 @@ async function whitelistCallback(): Promise<void> {
             throw new Error(`BullaFactoring address not configured for ${network} network`);
         }
 
+        if (!config.bullaClaim || config.bullaClaim === '0x0000000000000000000000000000000000000000') {
+            throw new Error(`BullaClaimV2 address not configured for ${network} network`);
+        }
+
         // Display configuration info
         console.log('📋 Whitelist Configuration:');
         console.log(`   Network: ${network}`);
         console.log(`   Pool Name: ${config.poolName}`);
         console.log(`   BullaFrendLend: ${config.bullaFrendLendAddress}`);
+        console.log(`   BullaClaimV2: ${config.bullaClaim}`);
         console.log(`   BullaFactoring: ${config.bullaFactoringAddress}`);
-        console.log(`   Callback Function: onLoanOfferAccepted\n`);
+        console.log(`   Callback Functions: onLoanOfferAccepted, reconcileSingleInvoice\n`);
 
         // Get private key interactively
         const formattedPrivateKey = await getPrivateKeyInteractively();
@@ -43,6 +48,7 @@ async function whitelistCallback(): Promise<void> {
             PRIVATE_KEY: formattedPrivateKey,
             BULLA_FREND_LEND_ADDRESS: config.bullaFrendLendAddress,
             BULLA_FACTORING_ADDRESS: config.bullaFactoringAddress,
+            BULLA_CLAIM_V2_ADDRESS: config.bullaClaim,
         };
 
         // Run forge script
@@ -52,12 +58,13 @@ async function whitelistCallback(): Promise<void> {
         forgeProcess.on('close', async code => {
             if (code === 0) {
                 console.log('\n✅ Callback whitelisting completed successfully!');
-                console.log(`🎉 BullaFactoring callback is now whitelisted on BullaFrendLend!`);
+                console.log(`🎉 BullaFactoring callbacks are now whitelisted!`);
 
                 console.log('\n📝 What this enables:');
                 console.log('   ✓ BullaFactoring can now call offerLoan() without CallbackNotWhitelisted error');
-                console.log('   ✓ When loan offers are accepted, onLoanOfferAccepted() will be called back');
-                console.log('   ✓ The factoring pool can now issue loan offers through BullaFrendLend');
+                console.log('   ✓ When loan offers are accepted, onLoanOfferAccepted() will be called back on BullaFrendLend');
+                console.log('   ✓ When BullaClaimV2 invoices are paid, reconcileSingleInvoice() will be called back');
+                console.log('   ✓ The factoring pool can now issue loan offers and handle paid invoice callbacks');
             } else {
                 console.error(`\n❌ Callback whitelisting failed with exit code ${code}`);
                 process.exit(code || 1);

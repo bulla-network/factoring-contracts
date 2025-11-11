@@ -87,7 +87,7 @@ export const ethereumConfig: NetworkConfig = {
 
 // Complete configurations for deployments
 export const fundoraConfig: NetworkConfig = {
-    bullaClaim: '0x772b675A4180B4F48d9D816619620664f90Cf281', // Sepolia Address
+    bullaClaim: '0x36C5a95ABF732CD57A95F37b23348E79aA773016', // Sepolia Address
     underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // WYST
     underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
     bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
@@ -97,10 +97,10 @@ export const fundoraConfig: NetworkConfig = {
     targetYieldBps: 900,
     poolTokenName: 'Fundora Management Token V2.1',
     poolTokenSymbol: 'FACT-V2_1',
-    BullaClaimInvoiceProviderAdapterAddress: '0x1aea39b233a41183d31cf835f1c4e47a403f5152',
-    bullaFrendLendAddress: '0x8948a00fac01110210f97f8f9fa107aa07e6f46c',
-    bullaInvoiceAddress: '0xD0e56674acfecDD9d310C27D79bE0587d879112e',
-    bullaFactoringAddress: '0xd4116f515A6958da851080B390DDE4B81f408978',
+    BullaClaimInvoiceProviderAdapterAddress: '0x9b8cC402955F401fD9f48c714420F41F191FC213',
+    bullaFactoringAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
+    bullaFrendLendAddress: '0xf1735D81D174fDe0536178A0A2A0E0Ba366Dc231',
+    bullaInvoiceAddress: '0x0C7781443B39cbf0186b7816db5CE183d75d8CE8',
     depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
     redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
     factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
