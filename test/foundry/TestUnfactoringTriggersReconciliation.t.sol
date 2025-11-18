@@ -15,7 +15,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  */
 contract TestUnfactoringTriggersReconciliation is CommonSetup {
 
-    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event InvoicePaid(
         uint256 indexed invoiceId,
         uint256 trueInterest,

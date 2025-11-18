@@ -21,7 +21,6 @@ import { CommonSetup } from './CommonSetup.t.sol';
 contract TestDepositAndRedemption is CommonSetup {
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee);
-    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
 
     event ProtocolFeesWithdrawn(address indexed bullaDao, uint256 amount);

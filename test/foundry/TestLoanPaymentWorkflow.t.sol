@@ -33,8 +33,6 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         uint256 kickbackAmount,
         address indexed originalCreditor
     );
-    
-    event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
 
     function setUp() public override {
         super.setUp();
