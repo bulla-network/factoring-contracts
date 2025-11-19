@@ -35,6 +35,7 @@ contract DeployBullaFactoring is Script {
         address bullaInvoiceAddress;
         address bullaFactoringAddress;
         address bullaFactoringVaultAddress;
+        address aavePoolAddress;
     }
 
     NetworkConfig public config;
@@ -100,12 +101,16 @@ contract DeployBullaFactoring is Script {
         // Deploy BullaFactoringVault if not provided
         if (config.bullaFactoringVaultAddress == address(0)) {
             console.log("Deploying BullaFactoringVault...");
+            if (config.aavePoolAddress != address(0)) {
+                console.log("- With Aave integration:", config.aavePoolAddress);
+            }
             BullaFactoringVault vault = new BullaFactoringVault(
                 IERC20(config.underlyingAsset),
                 Permissions(config.depositPermissionsAddress),
                 Permissions(config.redeemPermissionsAddress),
                 config.poolTokenName,
-                config.poolTokenSymbol
+                config.poolTokenSymbol,
+                config.aavePoolAddress
             );
             config.bullaFactoringVaultAddress = address(vault);
             console.log("BullaFactoringVault deployed at:", address(vault));
@@ -172,6 +177,7 @@ contract DeployBullaFactoring is Script {
         config.factoringPermissionsAddress = vm.envOr("FACTORING_PERMISSIONS_ADDRESS", address(0));
         config.depositPermissionsAddress = vm.envOr("DEPOSIT_PERMISSIONS_ADDRESS", address(0));
         config.redeemPermissionsAddress = vm.envOr("REDEEM_PERMISSIONS_ADDRESS", address(0));
+        config.aavePoolAddress = vm.envOr("AAVE_POOL_ADDRESS", address(0));
         config.bullaFrendLendAddress = vm.envOr("BULLA_FREND_LEND_ADDRESS", address(0));
         config.bullaInvoiceAddress = vm.envOr("BULLA_INVOICE_ADDRESS", address(0));
         config.bullaFactoringAddress = vm.envOr("BULLA_FACTORING_ADDRESS", address(0));

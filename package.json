@@ -49,6 +49,7 @@
         "whitelist-callback:base": "dotenv -e .env -- cross-env NETWORK=base npx ts-node scripts/whitelist-callback.ts"
     },
     "dependencies": {
+        "@aave/core-v3": "^1.19.3",
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
         "@bulla/contracts-v2": "^2.5.0",
         "@gnosis.pm/safe-contracts": "^1.3.0",
