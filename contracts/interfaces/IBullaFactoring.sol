@@ -49,14 +49,10 @@ interface IBullaFactoringV2 {
 
     struct FundInfo {
         string name;
-        uint256 creationTimestamp;
-        uint256 fundBalance;
         uint256 deployedCapital;
-        uint256 capitalAccount;
-        uint256 price;
-        uint256 tokensAvailableForRedemption;
+        uint256 realizedGains;
         uint16 adminFeeBps;
-        uint256 targetYieldBps;
+        uint16 targetYieldBps;
     }
 
     // Events
@@ -83,17 +79,12 @@ interface IBullaFactoringV2 {
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint256 _principalAmountOverride) external;
-    function pricePerShare() external view returns (uint256);
     function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
     function viewPoolStatus(uint256 offset, uint256 limit) external view returns (uint256[] memory impairedInvoiceIds, bool hasMore);
     function reconcileSingleInvoice(uint256 invoiceId) external;
     function setGracePeriodDays(uint256 _days) external;
     function setApprovalDuration(uint256 _duration) external;
     function assetAddress() external view returns (IERC20);
-
-    // Redemption queue functions
-    function getRedemptionQueue() external view returns (IRedemptionQueue);
-    function setRedemptionQueue(address _redemptionQueue) external;
     
     // Preview functions
     function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);

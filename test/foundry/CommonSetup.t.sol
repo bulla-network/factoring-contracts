@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
 import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringVault } from 'contracts/BullaFactoringVault.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
 import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
@@ -28,6 +29,7 @@ import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interf
 
 contract CommonSetup is Test {
     BullaFactoringV2_1 public bullaFactoring;
+    BullaFactoringVault public vault;
     BullaClaimV2InvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
     MockPermissions public depositPermissions;
@@ -98,7 +100,31 @@ contract CommonSetup is Test {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2_1(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol);
+        // Deploy vault first
+        vault = new BullaFactoringVault(
+            asset,
+            depositPermissions,
+            redeemPermissions,
+            poolTokenName,
+            poolTokenSymbol
+        );
+
+        // Deploy factoring contract with vault reference
+        bullaFactoring = new BullaFactoringV2_1(
+            vault,
+            invoiceAdapterBulla,
+            bullaFrendLend,
+            underwriter,
+            factoringPermissions,
+            bullaDao,
+            protocolFeeBps,
+            adminFeeBps,
+            poolName,
+            targetYield
+        );
+
+        // Associate the fund with the vault
+        vault.setAssociatedFund(address(bullaFactoring), true);
 
         bullaFrendLend.addToCallbackWhitelist(address(bullaFactoring), bullaFactoring.onLoanOfferAccepted.selector);
         bullaClaim.addToPaidCallbackWhitelist(address(bullaFactoring), bullaFactoring.reconcileSingleInvoice.selector);
@@ -109,15 +135,15 @@ contract CommonSetup is Test {
         asset.mint(charlie, 1000 ether);
 
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), 1000 ether);
+        asset.approve(address(vault), 1000 ether);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        asset.approve(address(bullaFactoring), 1000 ether);
+        asset.approve(address(vault), 1000 ether);
         vm.stopPrank();
 
         vm.startPrank(charlie);
-        asset.approve(address(bullaFactoring), 1000 ether);
+        asset.approve(address(vault), 1000 ether);
         vm.stopPrank();
     }
 
@@ -130,7 +156,7 @@ contract CommonSetup is Test {
         if (fundingAmount > 0) {
             asset.mint(user, fundingAmount);
             vm.startPrank(user);
-            asset.approve(address(bullaFactoring), fundingAmount);
+            asset.approve(address(vault), fundingAmount);
             vm.stopPrank();
         }
     }
