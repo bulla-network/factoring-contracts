@@ -39,17 +39,13 @@ interface IBullaFactoringVault is IERC4626 {
     /// @notice Associate or disassociate a fund with this vault
     /// @param fund The address of the fund
     /// @param isAssociated Whether to associate or disassociate
-    /// @dev Can only be called by the factory or owner
+    /// @dev Can only be called by the owner
     function setAssociatedFund(address fund, bool isAssociated) external;
     
     /// @notice Get the total capital at risk for a specific fund
     /// @param fund The address of the fund
     /// @return The amount of capital currently at risk for that fund
     function fundAtRiskCapital(address fund) external view returns (uint256);
-    
-    /// @notice Sets the factory address
-    /// @param _factory The new factory contract address
-    function setFactory(address _factory) external;
     
     /// @notice Get the underlying asset address
     /// @return The asset token address

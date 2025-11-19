@@ -18,9 +18,6 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
     using Math for uint256;
     using SafeERC20 for IERC20;
 
-    /// @notice Reference to the factory that creates and associates funds
-    address public factory;
-    
     /// @notice Mapping of associated funds that can pull/push assets
     mapping(address => bool) public associatedFunds;
     
@@ -64,20 +61,17 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
     error InsufficientBalance(uint256 available, uint256 required);
     
     /// @param _asset underlying supported stablecoin asset for deposit 
-    /// @param _factory the factory contract that creates and associates funds
     /// @param _depositPermissions deposit permissions contract
     /// @param _redeemPermissions redeem permissions contract
     /// @param _tokenName name of the vault token
     /// @param _tokenSymbol symbol of the vault token
     constructor(
         IERC20 _asset,
-        address _factory,
         Permissions _depositPermissions,
         Permissions _redeemPermissions,
         string memory _tokenName, 
         string memory _tokenSymbol
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
-        factory = _factory;
         assetAddress = _asset;
         depositPermissions = _depositPermissions;
         redeemPermissions = _redeemPermissions;
@@ -105,19 +99,11 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
     /// @notice Associate or disassociate a fund with this vault
     /// @param fund The address of the fund
     /// @param isAssociated Whether to associate or disassociate
-    /// @dev Can only be called by the factory or owner
-    function setAssociatedFund(address fund, bool isAssociated) external {
-        if (msg.sender != factory && msg.sender != owner()) revert UnauthorizedFund();
+    /// @dev Can only be called by the owner
+    function setAssociatedFund(address fund, bool isAssociated) external onlyOwner {
         if (fund == address(0)) revert InvalidFundAddress();
         associatedFunds[fund] = isAssociated;
         emit FundAssociated(fund, isAssociated);
-    }
-    
-    /// @notice Sets the factory address
-    /// @param _factory The new factory contract address
-    function setFactory(address _factory) external onlyOwner {
-        if (_factory == address(0)) revert InvalidAddress();
-        factory = _factory;
     }
 
     /// @notice Check if a fund is associated with this vault
@@ -139,9 +125,10 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         
         // Track capital deployment and locked fees for this fund and invoice
         invoiceCapitalDeployed[msg.sender][invoiceId] = capitalAmount;
-        invoiceFeesLocked[msg.sender][invoiceId] = withheldFees;
         atRiskCapital += capitalAmount;
         fundAtRiskCapital[msg.sender] += capitalAmount;
+        
+        invoiceFeesLocked[msg.sender][invoiceId] = withheldFees;
         lockedFees += withheldFees;
         
         // Only transfer the capital amount (fees stay locked in vault)
@@ -168,8 +155,10 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         // Update tracking - release the locked fees since they've been realized
         atRiskCapital -= capitalDeployed;
         fundAtRiskCapital[msg.sender] -= capitalDeployed;
+
         lockedFees -= feesLocked;
         realizedGains += gain;
+        
         delete invoiceCapitalDeployed[msg.sender][invoiceId];
         delete invoiceFeesLocked[msg.sender][invoiceId];
         

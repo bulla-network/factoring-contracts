@@ -5,9 +5,11 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import "../contracts/BullaClaimV2InvoiceProviderAdapterV2.sol";
 import "../contracts/BullaFactoring.sol";
+import "../contracts/BullaFactoringVault.sol";
 import "../contracts/FactoringPermissions.sol";
 import "../contracts/DepositPermissions.sol";
 import "../contracts/interfaces/IInvoiceProviderAdapter.sol";
+import "../contracts/interfaces/IBullaFactoringVault.sol";
 import "../contracts/Permissions.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
@@ -32,6 +34,7 @@ contract DeployBullaFactoring is Script {
         address bullaFrendLendAddress;
         address bullaInvoiceAddress;
         address bullaFactoringAddress;
+        address bullaFactoringVaultAddress;
     }
 
     NetworkConfig public config;
@@ -94,27 +97,47 @@ contract DeployBullaFactoring is Script {
             console.log("Using existing RedeemPermissions:", config.redeemPermissionsAddress);
         }
 
+        // Deploy BullaFactoringVault if not provided
+        if (config.bullaFactoringVaultAddress == address(0)) {
+            console.log("Deploying BullaFactoringVault...");
+            BullaFactoringVault vault = new BullaFactoringVault(
+                IERC20(config.underlyingAsset),
+                Permissions(config.depositPermissionsAddress),
+                Permissions(config.redeemPermissionsAddress),
+                config.poolTokenName,
+                config.poolTokenSymbol
+            );
+            config.bullaFactoringVaultAddress = address(vault);
+            console.log("BullaFactoringVault deployed at:", address(vault));
+        } else {
+            console.log("Using existing BullaFactoringVault:", config.bullaFactoringVaultAddress);
+        }
+
         // Deploy BullaFactoring if not provided
         if (config.bullaFactoringAddress == address(0)) {
             console.log("Deploying BullaFactoringV2_1...");
             BullaFactoringV2_1 bullaFactoring = new BullaFactoringV2_1(
-                IERC20(config.underlyingAsset),
+                IBullaFactoringVault(config.bullaFactoringVaultAddress),
                 IInvoiceProviderAdapterV2(config.bullaClaimInvoiceProviderAdapterAddress),
                 IBullaFrendLendV2(config.bullaFrendLendAddress),
                 config.underwriter,
-                Permissions(config.depositPermissionsAddress),
-                Permissions(config.redeemPermissionsAddress),
                 Permissions(config.factoringPermissionsAddress),
                 config.bullaDao,
                 uint16(config.protocolFeeBps),
                 uint16(config.adminFeeBps),
                 config.poolName,
-                uint16(config.targetYieldBps),
-                config.poolTokenName,
-                config.poolTokenSymbol
+                uint16(config.targetYieldBps)
             );
             config.bullaFactoringAddress = address(bullaFactoring);
             console.log("BullaFactoringV2_1 deployed at:", address(bullaFactoring));
+            
+            // Associate the fund with the vault
+            console.log("Associating fund with vault...");
+            BullaFactoringVault(config.bullaFactoringVaultAddress).setAssociatedFund(
+                address(bullaFactoring),
+                true
+            );
+            console.log("Fund associated with vault");
         } else {
             console.log("Using existing BullaFactoringV2_1:", config.bullaFactoringAddress);
         }
@@ -126,6 +149,8 @@ contract DeployBullaFactoring is Script {
         console.log("BullaClaimV2InvoiceProviderAdapterV2:", config.bullaClaimInvoiceProviderAdapterAddress);
         console.log("FactoringPermissions:", config.factoringPermissionsAddress);
         console.log("DepositPermissions:", config.depositPermissionsAddress);
+        console.log("RedeemPermissions:", config.redeemPermissionsAddress);
+        console.log("BullaFactoringVault:", config.bullaFactoringVaultAddress);
         console.log("BullaFactoringV2_1:", config.bullaFactoringAddress);
     }
 
@@ -150,5 +175,6 @@ contract DeployBullaFactoring is Script {
         config.bullaFrendLendAddress = vm.envOr("BULLA_FREND_LEND_ADDRESS", address(0));
         config.bullaInvoiceAddress = vm.envOr("BULLA_INVOICE_ADDRESS", address(0));
         config.bullaFactoringAddress = vm.envOr("BULLA_FACTORING_ADDRESS", address(0));
+        config.bullaFactoringVaultAddress = vm.envOr("BULLA_FACTORING_VAULT_ADDRESS", address(0));
     }
 }

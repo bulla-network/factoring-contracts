@@ -518,8 +518,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, Ownable {
         
         // Return capital + interest (gain) back to vault
         // Vault already knows the capital amount from pullFunds, we just provide the gain
-        // Report total fees realized (spread + admin + protocol) so vault can unlock them
-        uint256 totalFeesRealized = trueSpreadAmount + trueAdminFee + approval.protocolFee;
         assetAddress.safeIncreaseAllowance(address(vault), approval.fundedAmountNet + trueInterest);
         vault.returnFunds(invoiceId, trueInterest);
         

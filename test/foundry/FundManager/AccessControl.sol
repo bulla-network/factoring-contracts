@@ -21,12 +21,13 @@ contract FactoringFundManagerAccessControlTest is CommonSetup {
         // Deploy FundManager with designated owner and capitalCaller
         vm.startPrank(owner);
         fundManager = new BullaFactoringFundManager({
-            _factoringPool: IERC4626(bullaFactoring),
+            _factoringPool: IERC4626(address(vault)),
             _minInvestment: 10e6,
             _capitalCaller: capitalCaller
         });
         fundManager.transferOwnership(owner);
         vm.label(address(fundManager), "FundManager");
+        vm.label(address(vault), "Vault");
         vm.label(address(bullaFactoring), "BullaFactoring");
         vm.label(address(owner), "Owner");
         vm.label(address(capitalCaller), "CapitalCaller");
