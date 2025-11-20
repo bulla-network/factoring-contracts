@@ -90,7 +90,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Accrued profits at the last checkpoint
     uint256 private accruedProfitsAtCheckpoint = 0;
     
-    /// @notice Total capital at risk plus withheld fees (sum of fundedAmountGross + protocolFee for all active invoices)
+    /// @notice Total capital at risk plus withheld fees (sum of fundedAmountGross for all active invoices, where fundedAmountGross includes protocol fee)
     uint256 private capitalAtRiskPlusWithheldFees = 0;
 
     /// @notice Total withheld fees (sum of withheld fees for all active invoices)
@@ -504,12 +504,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps);   
         uint256 _totalAssets = totalAssets();
-        uint256 atRiskPlusWithheldFees = fundedAmountGross + protocolFee;
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
-        if(atRiskPlusWithheldFees > _totalAssets) revert InsufficientFunds(_totalAssets, atRiskPlusWithheldFees);
-        
-        // Collect protocol fee to protocol fee balance
-        protocolFeeBalance += protocolFee;
+        if(fundedAmountGross > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross);
 
         // Update memory struct
         approval.fundedAmountGross = fundedAmountGross;
@@ -540,8 +536,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         _addInvoiceToAggregate(approval.dailyInterestRate);
         
         // Add to capital at risk and withheld fees
-        capitalAtRiskPlusWithheldFees += atRiskPlusWithheldFees;
-        withheldFees += atRiskPlusWithheldFees - fundedAmountNet;
+        capitalAtRiskPlusWithheldFees += fundedAmountGross;
+        withheldFees += fundedAmountGross - fundedAmountNet;
 
         _registerInvoiceCallback(invoiceId);
 
@@ -590,16 +586,20 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
     }
 
-    /// @notice Increments the profit, and fee balances for a given invoice
+    /// @notice Increments the profit, fee, and protocol fee balances for a given invoice
     /// @param trueInterest The true interest amount for the invoice
     /// @param trueSpreadAmount The true spread amount for the invoice
     /// @param trueAdminFee The true admin fee amount for the invoice
-    function incrementProfitAndFeeBalances(uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) private {
+    /// @param protocolFee The protocol fee amount for the invoice
+    function incrementProfitAndFeeBalances(uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 protocolFee) private {
         // Add the admin fee to the balance
         adminFeeBalance += trueAdminFee + trueSpreadAmount;
 
         // store factoring gain (base yield only)
         paidInvoicesGain += trueInterest;
+
+        // Realize protocol fee
+        protocolFeeBalance += protocolFee;
     }
 
     function reconcileSingleInvoice(uint256 invoiceId) external {
@@ -613,7 +613,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
 
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);   
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee, approval.protocolFee);   
 
         address receiverAddress = approval.receiverAddress;
         
@@ -706,7 +706,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IERC721(invoiceContractAddress).transferFrom(address(this), msg.sender, invoiceId);
 
         removeActivePaidInvoice(invoiceId);
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee, approvedInvoices[invoiceId].protocolFee);
         
         delete originalCreditors[invoiceId];
 
@@ -740,7 +740,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                     // Remove this invoice's daily rate from future calculations
                     totalDailyInterestRate -= dailyRate;
                 }
-                uint256 atRiskPlusWithheldFees = approvedInvoices[invoiceId].fundedAmountGross + approvedInvoices[invoiceId].protocolFee;
+                // fundedAmountGross now includes protocol fee
+                uint256 atRiskPlusWithheldFees = approvedInvoices[invoiceId].fundedAmountGross;
 
                 // Remove from capital at risk plus withheld fees
                 capitalAtRiskPlusWithheldFees -= atRiskPlusWithheldFees;

@@ -259,9 +259,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         asset.approve(address(bullaFrendLend), totalDue1);
         bullaFrendLend.payLoan(loanId1, totalDue1);
         vm.stopPrank();
-        
-        
-        
+
         // Capture fee balances after loan 1 payment
         uint256 adminFeeAfterLoan1 = bullaFactoring.adminFeeBalance();
         uint256 protocolFeeAfterLoan1 = bullaFactoring.protocolFeeBalance();
@@ -274,8 +272,6 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         asset.approve(address(bullaFrendLend), totalDue2);
         bullaFrendLend.payLoan(loanId2, totalDue2);
         vm.stopPrank();
-        
-        
         
         // Capture final fee balances after loan 2 payment
         uint256 finalAdminFeeBalance = bullaFactoring.adminFeeBalance();
@@ -293,9 +289,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Critical validation: daily compounding loan should generate higher gains and fees than monthly compounding
         assertGt(gainFromLoan2, gainFromLoan1, "Daily compounding loan should generate higher pool gains");
         assertGt(adminFeeFromLoan2, adminFeeFromLoan1, "Daily compounding loan should generate higher admin fees");
-        // Note: Loan offers do not generate protocol fees - only admin fees apply
-        assertEq(protocolFeeFromLoan1, 0, "Loan offers do not generate protocol fees");
-        assertEq(protocolFeeFromLoan2, 0, "Loan offers do not generate protocol fees");
+        assertEq(protocolFeeFromLoan1, protocolFeeFromLoan2, "Loans generate protocol fees");
+        assertNotEq(protocolFeeFromLoan1, 0, "Loans generate protocol fees");
         
         // Get final invoice details to check total amounts
         IInvoiceProviderAdapterV2.Invoice memory finalInvoice1 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
@@ -314,9 +309,6 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         assertGt(gainFromLoan2, 0, "Daily compounding loan should generate positive pool gains");
         assertGt(adminFeeFromLoan1, 0, "Monthly compounding loan should generate positive admin fees");
         assertGt(adminFeeFromLoan2, 0, "Daily compounding loan should generate positive admin fees");
-        // Note: Loan offers do not generate protocol fees
-        assertEq(protocolFeeFromLoan1, 0, "Loan offers do not generate protocol fees");
-        assertEq(protocolFeeFromLoan2, 0, "Loan offers do not generate protocol fees");
     }
   
     function testExternalFrendLoan_EarlyPayment() public {

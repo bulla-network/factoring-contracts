@@ -577,10 +577,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceId01Amount);
         bullaClaim.payClaim(invoiceId01, invoiceId01Amount);
+
+        asset.approve(address(bullaClaim), invoiceId01Amount);
+        bullaClaim.payClaim(invoiceId02, invoiceId01Amount);
         vm.stopPrank();
 
-        
-        
         // Protocol fees are now collected upfront during funding, so we expect the sum of both invoices' protocol fees
         // First invoice: 2500 (old 25 bps rate), Second invoice: 5000 (new 50 bps rate)
         uint256 expectedProtocolFeeBalance = 2500 + targetProtocolFeeAfterFeeChange; // 2500 + 5000 = 7500
@@ -588,7 +589,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         
         // Admin fees are still collected during reconciliation, so only the paid invoice should contribute
         uint256 targetCombinedAdminFeeAfterFeeChange = targetAdminFeeAfterFeeChange + targetSpreadAfterFeeChange;
-        assertLt(bullaFactoring.adminFeeBalance(), targetCombinedAdminFeeAfterFeeChange, "Admin fee balance should be less than new combined admin+spread fee");
+        // second invoice already paid, we want to check that the first invoice admin fee is cheaper
+        assertLt(bullaFactoring.adminFeeBalance() - targetCombinedAdminFeeAfterFeeChange, targetCombinedAdminFeeAfterFeeChange, "Admin fee balance should be less than new combined admin+spread fee");
     }
 }
-

@@ -100,7 +100,7 @@ library FeeCalculations {
     /// @param invoice The invoice data
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
     /// @param protocolFeeBps The protocol fee in basis points (taken off the top)
-    /// @return fundedAmountGross The gross amount to be funded to the factorer
+    /// @return fundedAmountGross The gross amount to be funded to the factorer (includes protocol fee)
     /// @return adminFee The target calculated admin fee
     /// @return targetInterest The calculated interest fee
     /// @return targetSpreadAmount The calculated spread amount
@@ -122,18 +122,15 @@ library FeeCalculations {
         // Calculate protocol fee (taken off the top)
         protocolFee = Math.mulDiv(approval.initialInvoiceValue, protocolFeeBps, 10000);
         
-        // Calculate available amount after protocol fee
-        uint256 availableAmount = approval.initialInvoiceValue - protocolFee;
-        
-        // Calculate funded amount gross from the available amount
-        fundedAmountGross = Math.mulDiv(availableAmount, factorerUpfrontBps, 10000);
+        // Calculate funded amount gross from the full invoice value (includes protocol fee)
+        fundedAmountGross = Math.mulDiv(approval.initialInvoiceValue, factorerUpfrontBps, 10000);
 
         uint256 daysUntilDue = Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Floor);
 
         (targetInterest, targetSpreadAmount, adminFee, ) = 
             calculateFees(approval, daysUntilDue, invoice);
 
-        uint256 totalFees = adminFee + targetInterest + targetSpreadAmount;
+        uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + protocolFee;
         netFundedAmount = fundedAmountGross > totalFees ? fundedAmountGross - totalFees : 0;
 
         return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, protocolFee, netFundedAmount);
