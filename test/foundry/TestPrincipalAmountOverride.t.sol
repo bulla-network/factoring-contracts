@@ -119,10 +119,10 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
+        (uint256 fundedAmountGross, , , , , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
         
-        // Should be 80% of overrideAmount amount, not original invoice amount
-        uint256 expectedGross = ((overrideAmount - protocolFee) * upfrontPercentage) / 10000;
+        // Should be 80% of overrideAmount - fundedAmountGross now includes protocol fee
+        uint256 expectedGross = (overrideAmount * upfrontPercentage) / 10000;
         assertEq(fundedAmountGross, expectedGross);
     }
 
@@ -166,9 +166,10 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
 
         // Should revert due to insufficient funds
+        // fundedAmountGross now includes protocol fee: 700000 * 80% = 560000
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, 500000, 560350));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, 500000, 560000));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
