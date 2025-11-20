@@ -10,6 +10,9 @@ import {IBullaFactoringVault} from "./interfaces/IBullaFactoringVault.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import "./RedemptionQueue.sol";
+import {IPool} from "@aave/core-v3/contracts/interfaces/IPool.sol";
+import {IAToken} from "@aave/core-v3/contracts/interfaces/IAToken.sol";
+import {DataTypes} from "@aave/core-v3/contracts/protocol/libraries/types/DataTypes.sol";
 
 /// @title Bulla Factoring Vault
 /// @author @solidoracle
@@ -55,27 +58,49 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
     /// @notice Mapping of fund address => invoice ID => withheld fees amount
     mapping(address => mapping(uint256 => uint256)) public invoiceFeesLocked;
     
+    /// @notice Aave v3 Pool contract
+    IPool public aavePool;
+    
+    /// @notice Aave aToken (interest-bearing token) for the underlying asset
+    IAToken public aToken;
+    
+    /// @notice Whether Aave integration is enabled
+    bool public aaveEnabled;
+    
     /// Errors
     error UnauthorizedDeposit(address caller);
     error InvalidAddress();
     error InsufficientBalance(uint256 available, uint256 required);
+    error AaveNotEnabled();
+    
+    /// Events
+    event AaveDeposit(uint256 amount);
+    event AaveWithdraw(uint256 amount);
+    event AaveConfigured(address indexed pool, address indexed aToken, bool enabled);
     
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _depositPermissions deposit permissions contract
     /// @param _redeemPermissions redeem permissions contract
     /// @param _tokenName name of the vault token
     /// @param _tokenSymbol symbol of the vault token
+    /// @param _aavePool Aave v3 Pool contract address (optional, can be address(0))
     constructor(
         IERC20 _asset,
         Permissions _depositPermissions,
         Permissions _redeemPermissions,
         string memory _tokenName, 
-        string memory _tokenSymbol
+        string memory _tokenSymbol,
+        address _aavePool
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
         assetAddress = _asset;
         depositPermissions = _depositPermissions;
         redeemPermissions = _redeemPermissions;
         redemptionQueue = new RedemptionQueue(msg.sender, address(this));
+        
+        // Configure Aave if provided
+        if (_aavePool != address(0)) {
+            _configureAave(_aavePool);
+        }
     }
 
     /// @notice Returns the number of decimals the token uses, same as the underlying asset
@@ -131,6 +156,9 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         invoiceFeesLocked[msg.sender][invoiceId] = withheldFees;
         lockedFees += withheldFees;
         
+        // Withdraw from Aave if needed to ensure sufficient liquidity
+        _ensureLiquidity(capitalAmount);
+        
         // Only transfer the capital amount (fees stay locked in vault)
         assetAddress.safeTransfer(to, capitalAmount);
         
@@ -162,16 +190,26 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         delete invoiceCapitalDeployed[msg.sender][invoiceId];
         delete invoiceFeesLocked[msg.sender][invoiceId];
         
+        
         // Process redemption queue after funds are returned
         processRedemptionQueue();
+
+        // Deposit idle funds into Aave
+        _depositToAave();
         
         emit FundsReturned(msg.sender, invoiceId, capitalDeployed, gain);
     }
 
-    /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains
+    /// @notice Calculates the capital account balance, including deposits, withdrawals, realized gains, and Aave yields
     /// @return The calculated capital account balance
+    /// @dev This includes Aave interest automatically since aTokens appreciate in value
     function calculateCapitalAccount() public view override returns (uint256) {
-        return totalDeposits + realizedGains - totalWithdrawals;
+        // Get the actual balance (vault + Aave), which includes all accrued Aave interest
+        uint256 actualBalance = getTotalBalance();
+        
+        // Add back capital at risk and locked fees to get total capital account
+        // Capital account = actual liquid balance + deployed capital + locked fees
+        return actualBalance + atRiskCapital + lockedFees;
     }
 
     /// @notice Calculates the current price per share of the vault
@@ -219,13 +257,22 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         // Process redemption queue after deposit due to new liquidity
         processRedemptionQueue();
 
+        // Deposit idle funds into Aave
+        _depositToAave();
+        
         return shares;
     }
 
-    /// @notice Calculates the available assets in the vault
-    /// @return The amount of assets available (total balance - capital at risk - locked fees)
+    /// @notice Calculates the available assets in the vault (including Aave deposits)
+    /// @return The amount of assets available (total balance + Aave balance - capital at risk - locked fees)
     function totalAssets() public view override(ERC4626, IERC4626) returns (uint256) {
         return calculateCapitalAccount() - atRiskCapital - lockedFees;
+    }
+    
+    /// @notice Get the total balance including assets in Aave
+    /// @return The total balance of assets (vault balance + Aave balance)
+    function getTotalBalance() public view returns (uint256) {
+        return assetAddress.balanceOf(address(this)) + _getAaveBalance();
     }
 
     /// @notice Calculates the maximum amount of shares that can be redeemed based on the total assets in the vault
@@ -288,6 +335,10 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         uint256 redeemedAssets = 0;
         
         if (sharesToRedeem > 0) {
+            // Calculate assets needed and ensure liquidity from Aave
+            uint256 assetsNeeded = previewRedeem(sharesToRedeem);
+            _ensureLiquidity(assetsNeeded);
+            
             redeemedAssets = super.redeem(sharesToRedeem, receiver, _owner);
             totalWithdrawals += redeemedAssets;
         }
@@ -314,6 +365,9 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         uint256 redeemedShares = 0;
         
         if (assetsToWithdraw > 0) {
+            // Ensure liquidity from Aave before withdrawing
+            _ensureLiquidity(assetsToWithdraw);
+            
             redeemedShares = super.withdraw(assetsToWithdraw, receiver, _owner);
             totalWithdrawals += assetsToWithdraw;
         }
@@ -351,6 +405,10 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
                     if (ownerBalance >= sharesToRedeem) {
                         // Owner has sufficient funds - process redemption
                         uint256 assets = previewRedeem(sharesToRedeem);
+                        
+                        // Ensure liquidity from Aave before withdrawing
+                        _ensureLiquidity(assets);
+                        
                         _withdraw(redemption.owner, redemption.receiver, redemption.owner, assets, sharesToRedeem);
                         totalWithdrawals += assets;
                         amountProcessed = sharesToRedeem;
@@ -376,6 +434,9 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
                     
                     if (ownerBalance >= sharesToBurn) {
                         // Owner has sufficient funds - process withdrawal
+                        // Ensure liquidity from Aave before withdrawing
+                        _ensureLiquidity(assetsToWithdraw);
+                        
                         _withdraw(redemption.owner, redemption.receiver, redemption.owner, assetsToWithdraw, sharesToBurn);
                         totalWithdrawals += assetsToWithdraw;
                         amountProcessed = assetsToWithdraw;
@@ -412,6 +473,92 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
     function setRedemptionQueue(address _redemptionQueue) external onlyOwner {
         if (_redemptionQueue == address(0)) revert InvalidAddress();
         redemptionQueue = IRedemptionQueue(_redemptionQueue);
+    }
+
+    // ========== Aave Integration Functions ==========
+
+    /// @notice Configure Aave integration
+    /// @param _aavePool Address of the Aave v3 Pool contract
+    function configureAave(address _aavePool) external onlyOwner {
+        _configureAave(_aavePool);
+    }
+
+    /// @notice Enable or disable Aave integration
+    /// @param _enabled Whether Aave integration should be enabled
+    function setAaveEnabled(bool _enabled) external onlyOwner {
+        if (_enabled && address(aavePool) == address(0)) revert AaveNotEnabled();
+        
+        // If disabling, withdraw all funds from Aave
+        if (!_enabled && aaveEnabled) {
+            _withdrawFromAave(type(uint256).max);
+        }
+        
+        aaveEnabled = _enabled;
+        emit AaveConfigured(address(aavePool), address(aToken), _enabled);
+    }
+
+    /// @notice Internal function to configure Aave
+    /// @param _aavePool Address of the Aave v3 Pool contract
+    function _configureAave(address _aavePool) internal {
+        aavePool = IPool(_aavePool);
+        
+        // Get the aToken address from Aave
+        DataTypes.ReserveData memory reserveData = aavePool.getReserveData(address(assetAddress));
+        aToken = IAToken(reserveData.aTokenAddress);
+        
+        // Approve Aave pool to spend our underlying asset
+        assetAddress.safeIncreaseAllowance(address(aavePool), type(uint256).max);
+        
+        aaveEnabled = true;
+        emit AaveConfigured(_aavePool, address(aToken), true);
+    }
+
+    /// @notice Get the current balance of aTokens (representing underlying assets in Aave)
+    /// @return The balance of aTokens held by this vault
+    function _getAaveBalance() internal view returns (uint256) {
+        if (!aaveEnabled || address(aToken) == address(0)) {
+            return 0;
+        }
+        return aToken.balanceOf(address(this));
+    }
+
+    /// @notice Deposit idle assets into Aave to earn yield
+    /// @dev This is called automatically after deposits and fund returns
+    function _depositToAave() internal {
+        if (!aaveEnabled) return;
+        
+        uint256 idleBalance = assetAddress.balanceOf(address(this));
+        
+        // Deposit all idle funds to Aave - we can withdraw anytime via _ensureLiquidity()
+        if (idleBalance > 0) {
+            aavePool.supply(address(assetAddress), idleBalance, address(this), 0);
+            emit AaveDeposit(idleBalance);
+        }
+    }
+
+    /// @notice Withdraw assets from Aave when liquidity is needed
+    /// @param amount The amount to withdraw (use type(uint256).max to withdraw all)
+    function _withdrawFromAave(uint256 amount) internal {
+        if (!aaveEnabled) return;
+        
+        uint256 aaveBalance = _getAaveBalance();
+        if (aaveBalance == 0) return;
+        
+        uint256 withdrawAmount = amount == type(uint256).max ? aaveBalance : Math.min(amount, aaveBalance);
+        
+        if (withdrawAmount > 0) {
+            uint256 withdrawn = aavePool.withdraw(address(assetAddress), withdrawAmount, address(this));
+            emit AaveWithdraw(withdrawn);
+        }
+    }
+    
+    /// @notice Internal helper to ensure sufficient liquidity by withdrawing from Aave if needed
+    /// @param assetsNeeded The amount of assets needed for the operation
+    function _ensureLiquidity(uint256 assetsNeeded) internal {
+        uint256 vaultBalance = assetAddress.balanceOf(address(this));
+        if (vaultBalance < assetsNeeded) {
+            _withdrawFromAave(assetsNeeded - vaultBalance);
+        }
     }
 }
 

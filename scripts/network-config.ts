@@ -18,6 +18,7 @@ export type NetworkConfig = {
     bullaFrendLendAddress: string;
     bullaInvoiceAddress: string;
     bullaFactoringAddress?: string;
+    aavePoolAddress?: string;
     writeNewAddresses: boolean;
 };
 
@@ -40,6 +41,7 @@ export const sepoliaConfig: NetworkConfig = {
     bullaFrendLendAddress: '0x330b6f37d9881ca4781ef70d662197ddb0d353b7',
     bullaInvoiceAddress: '0x6c4044597f2be6e1dc92217a49b0571c91025379',
     bullaFactoringAddress: '0xbc1dd527c3CF1302Cb189CaB9683Ef5CF27F0308',
+    aavePoolAddress: '0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951', // Aave v3 Pool on Sepolia
     writeNewAddresses: true,
 };
 

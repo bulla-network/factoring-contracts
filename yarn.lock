@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+"@aave/core-v3@^1.19.3":
+  version "1.19.3"
+  resolved "https://registry.yarnpkg.com/@aave/core-v3/-/core-v3-1.19.3.tgz#513e886b37a8d84d9821a4041dceb5f014919669"
+  integrity sha512-Xr7+VcoU5b4mPwM4IUCnskw3lciwrnL4Xloyad8GOddYeixnri2lZYobNmErm1LwE50vqjI0O+9QGNKY2TDkeQ==
+
 "@aragon/osx-commons-contracts@^1.4.0-alpha.3":
   version "1.4.0-alpha.3"
   resolved "https://registry.yarnpkg.com/@aragon/osx-commons-contracts/-/osx-commons-contracts-1.4.0-alpha.3.tgz#a199720e225ea1da07303d8609948bb4a926508b"
