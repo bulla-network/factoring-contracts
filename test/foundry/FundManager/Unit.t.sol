@@ -17,7 +17,7 @@ contract FactoringFundManagerUnitTest is CommonSetup {
 
         vm.startPrank(owner);
         fundManager = new BullaFactoringFundManager({
-            _factoringPool: IERC4626(bullaFactoring),
+            _factoringPool: IERC4626(address(vault)),
             _minInvestment: 10e6,
             _capitalCaller: address(this)
         });
@@ -92,9 +92,9 @@ contract FactoringFundManagerUnitTest is CommonSetup {
         assertEq(asset.balanceOf(address(alice)), aliceBalanceBefore - 1 ether, "Alice should have 1 ether less");
         assertEq(asset.balanceOf(address(bob)), bobBalanceBefore - 1 ether, "Bob should have 1 ether less");
         assertEq(
-            asset.balanceOf(address(fundManager.factoringPool())), 2 ether, "The factoring pool should now have 2 ether"
+            asset.balanceOf(address(vault)), 2 ether, "The factoring pool should now have 2 ether"
         );
-        assertEq(bullaFactoring.totalSupply(), 2 ether, "The factoring pool should have minted 2 ether of shares");
+        assertEq(vault.totalSupply(), 2 ether, "The factoring pool should have minted 2 ether of shares");
 
         assertEq(
             fundManager.totalCommitted(),

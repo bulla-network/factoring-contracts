@@ -27,7 +27,7 @@ contract TestFees is CommonSetup {
     function testWithdrawFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Simulate funding an invoice to generate fees
@@ -80,7 +80,7 @@ contract TestFees is CommonSetup {
 
         uint256 initialDeposit = 9000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -116,7 +116,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId02, invoiceId02Amount);
         vm.stopPrank();
 
-        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Withdraw admin fees
         vm.startPrank(address(this)); 
@@ -128,7 +128,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.withdrawProtocolFees();
         vm.stopPrank();
 
-        uint capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountAfter = vault.calculateCapitalAccount();
 
         assertEq(capitalAccountAfter, capitalAccountBefore, "Capital Account should remain unchanged");
     }
@@ -136,7 +136,7 @@ contract TestFees is CommonSetup {
     function testPoolFeesRemainSameRegardlessOfUpfrontBps() public {
         uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000000000; // 100,000 USDC
@@ -168,7 +168,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
-        uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Assert that target interest and protocol fees are the same for both invoices
         assertEq(targetInterest1, targetInterest2, "Target interest should be the same regardless of upfront percentage");
@@ -185,7 +185,7 @@ contract TestFees is CommonSetup {
         bullaClaim.payClaim(invoiceId2, invoiceAmount);
         vm.stopPrank();
 
-        uint256 availableAssetsAfter = bullaFactoring.totalAssets();
+        uint256 availableAssetsAfter = vault.totalAssets();
         uint256 totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
         // Calculate realized fees
@@ -194,7 +194,7 @@ contract TestFees is CommonSetup {
         // Calculate expected fees (protocol fees are now taken upfront at funding time, so excluded here)
         uint256 expectedFees = (adminFee1 + targetInterest1 + targetSpread1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetSpread2 + targetProtocolFee2);
 
-        uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
+        uint gainLoss = vault.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees
         assertEq(realizedFees + gainLoss, expectedFees, "Realized fees + realized gains should match expected fees for both invoices");
     }
@@ -202,7 +202,7 @@ contract TestFees is CommonSetup {
     function testAdminFeeAccruesOvertime() public {
         uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000000000; // 100,000 USDC
@@ -257,7 +257,7 @@ contract TestFees is CommonSetup {
     function testSetBullaDao() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Simulate funding an invoice to generate fees
@@ -306,7 +306,7 @@ contract TestFees is CommonSetup {
     function testSetProtocolFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Set protocol fee to 0
@@ -348,7 +348,7 @@ contract TestFees is CommonSetup {
     function testSetAdminFees() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Set admin fee to 0
@@ -391,7 +391,7 @@ contract TestFees is CommonSetup {
     function testSetTargetYield() public {
         uint256 initialDeposit = 1 ether;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Set target yield to 0
@@ -401,7 +401,7 @@ contract TestFees is CommonSetup {
         bullaFactoring.setTargetYield(0);
         vm.stopPrank();
 
-        uint pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint pricePerShareBefore = vault.pricePerShare();
 
         // Simulate funding an invoice
         vm.startPrank(bob);
@@ -424,18 +424,18 @@ contract TestFees is CommonSetup {
 
         
 
-        uint pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint pricePerShareAfter = vault.pricePerShare();
 
         assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be the same if pnl = 0");
 
-        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = bullaFactoring.maxRedeem();
+        uint amountToRedeem = vault.maxRedeem();
 
         // Alice redeems all her shares
         vm.prank(alice);
-        bullaFactoring.redeem(amountToRedeem, alice, alice);
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vault.redeem(amountToRedeem, alice, alice);
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
 
     }

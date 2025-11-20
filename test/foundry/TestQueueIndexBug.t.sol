@@ -54,18 +54,18 @@ contract TestQueueIndexBug is CommonSetup {
         
         // Alice deposits and gets shares
         vm.startPrank(alice_investor);
-        asset.approve(address(bullaFactoring), depositAmount);
-        uint256 aliceShares = bullaFactoring.deposit(depositAmount, alice_investor);
+        asset.approve(address(vault), depositAmount);
+        uint256 aliceShares = vault.deposit(depositAmount, alice_investor);
         vm.stopPrank();
         
         // // Bob deposits and gets shares
         // vm.startPrank(bob_investor);
-        // asset.approve(address(bullaFactoring), depositAmount);
-        // uint256 bobShares = bullaFactoring.deposit(depositAmount, bob_investor);
+        // asset.approve(address(vault), depositAmount);
+        // uint256 bobShares = vault.deposit(depositAmount, bob_investor);
         // vm.stopPrank();
 
         // Step 2: Fund invoices to reduce liquidity and make redemptions queue
-        console.log("Total assets before funding:", bullaFactoring.totalAssets());
+        console.log("Total assets before funding:", vault.totalAssets());
         
         // Create and fund a large invoice to eliminate most liquidity
         vm.prank(alice_investor);
@@ -77,24 +77,24 @@ contract TestQueueIndexBug is CommonSetup {
         vm.prank(alice_investor);
         bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
         
-        console.log("Available liquidity after deployment:", bullaFactoring.maxRedeem());
+        console.log("Available liquidity after deployment:", vault.maxRedeem());
         
         // Step 3: Queue multiple redemption requests (all will be queued due to insufficient liquidity)
         vm.startPrank(alice_investor);
-        uint256 aliceRedeemed = bullaFactoring.redeem(aliceShares, alice_investor, alice_investor);
+        uint256 aliceRedeemed = vault.redeem(aliceShares, alice_investor, alice_investor);
         vm.stopPrank();
         
         // vm.startPrank(bob_investor);
-        // uint256 bobRedeemed = bullaFactoring.redeem(bobShares, bob_investor, bob_investor);
+        // uint256 bobRedeemed = vault.redeem(bobShares, bob_investor, bob_investor);
         // vm.stopPrank();
         
         console.log("Alice redeemed:", aliceRedeemed);
         
         // Verify some redemptions are queued (limited liquidity available)
-        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Some redemptions should be queued");
+        assertFalse(vault.getRedemptionQueue().isQueueEmpty(), "Some redemptions should be queued");
         
         // Check queue state
-        IRedemptionQueue.QueuedRedemption memory nextRedemption = bullaFactoring.getRedemptionQueue().getNextRedemption();
+        IRedemptionQueue.QueuedRedemption memory nextRedemption = vault.getRedemptionQueue().getNextRedemption();
         console.log("Next redemption owner:", nextRedemption.owner);
         assertNotEq(nextRedemption.owner, address(0), "Queue should not be empty");
         
@@ -106,23 +106,23 @@ contract TestQueueIndexBug is CommonSetup {
         vm.stopPrank();
         
         // Store state before processing
-        uint256 queueLengthBefore = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthBefore = vault.getRedemptionQueue().getQueueLength();
         console.log("Queue length before processing:", queueLengthBefore);
         
         // Get the redemption at index 0 (Alice's processed redemption)
-        IRedemptionQueue.QueuedRedemption memory redemptionAtIndex0 = bullaFactoring.getRedemptionQueue().getQueuedRedemption(0);
+        IRedemptionQueue.QueuedRedemption memory redemptionAtIndex0 = vault.getRedemptionQueue().getQueuedRedemption(0);
         console.log("Redemption at index 0 owner:", redemptionAtIndex0.owner);
         
         // THIS MOVES THE HEAD to index 1
         // this is a second redemption, it will fail. This will cause the deposit to fail next.
         vm.prank(alice_investor);
-        bullaFactoring.redeem(aliceShares, alice_investor, alice_investor);
+        vault.redeem(aliceShares, alice_investor, alice_investor);
 
         // Bob deposits, but no longer fails after the code change
         vm.startPrank(bob_investor);
-        asset.approve(address(bullaFactoring), depositAmount);
+        asset.approve(address(vault), depositAmount);
         // vm.expectRevert(RedemptionQueue.RedemptionAlreadyCancelled.selector);
-        bullaFactoring.deposit(depositAmount, bob_investor);
+        vault.deposit(depositAmount, bob_investor);
         vm.stopPrank();
     }
 }

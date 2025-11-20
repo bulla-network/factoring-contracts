@@ -190,7 +190,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Alice deposits to fund the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(principalAmount * 2, alice);
+        vault.deposit(principalAmount * 2, alice);
         vm.stopPrank();
         
         // Record balances before loan acceptance
@@ -306,7 +306,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = principalAmount * 2; // Deposit more than needed
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Record balances before loan acceptance
@@ -367,7 +367,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 totalPrincipal = 300_000 + 30_000; // Sum of all loan amounts
         vm.startPrank(alice);
-        bullaFactoring.deposit(totalPrincipal, alice);
+        vault.deposit(totalPrincipal, alice);
         vm.stopPrank();
         
         // Record balances before accepting middle loan (loan index 1)
@@ -427,7 +427,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = 100_000 * 2;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Record balances before loan acceptance
@@ -496,7 +496,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = 100_000 * 2;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Record balances before attempted loan acceptance
@@ -723,7 +723,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = principalAmount * 2;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Record balances before loan acceptance
@@ -797,7 +797,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = 100_000 * 2;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Record balances before loan acceptance
@@ -872,7 +872,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     function testOfferLoanAndAcceptance_ArrayManagement() public {
 
         vm.prank(alice);
-        bullaFactoring.deposit(100000, alice);
+        vault.deposit(100000, alice);
 
         vm.startPrank(underwriter);
         
@@ -931,7 +931,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = 100_000 * 2;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         vm.prank(bob);
@@ -965,7 +965,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = principalAmount * 2;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Record balances before loan acceptance
@@ -1030,7 +1030,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Alice deposits to fund the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(principalAmount * 2, alice);
+        vault.deposit(principalAmount * 2, alice);
         vm.stopPrank();
         
         // Get pending loan offer fee params BEFORE acceptance (since they get removed after)
@@ -1087,7 +1087,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Alice deposits funds to fund both loans
         vm.startPrank(alice);
-        bullaFactoring.deposit(principalAmount * 4, alice);
+        vault.deposit(principalAmount * 4, alice);
         vm.stopPrank();
         
         // Create two identical loan offers with different numberOfPeriodsPerYear

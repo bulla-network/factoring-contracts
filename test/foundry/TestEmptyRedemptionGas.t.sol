@@ -46,9 +46,9 @@ contract TestEmptyRedemptionGas is CommonSetup {
         _setupActiveInvoicesAndDepositors(numInvoices);
         
         // Measure EMPTY queue processing (baseline)
-        assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should start empty");
+        assertTrue(vault.getRedemptionQueue().isQueueEmpty(), "Queue should start empty");
         uint256 gasBefore = gasleft();
-        bullaFactoring.processRedemptionQueue();
+        vault.processRedemptionQueue();
         uint256 gasAfter = gasleft();
         uint256 emptyQueueGas = gasBefore - gasAfter;
         
@@ -57,7 +57,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         
         // Measure processing WITH 2 users actually redeeming
         gasBefore = gasleft();
-        bullaFactoring.processRedemptionQueue();
+        vault.processRedemptionQueue();
         gasAfter = gasleft();
         uint256 activeRedemptionGas = gasBefore - gasAfter;
         
@@ -91,7 +91,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         vm.startPrank(alice);
         asset.mint(alice, aliceInitialDeposit);
         asset.approve(address(bullaFactoring), aliceInitialDeposit);
-        bullaFactoring.deposit(aliceInitialDeposit, alice);
+        vault.deposit(aliceInitialDeposit, alice);
         vm.stopPrank();
         
         // Charlie deposits enough to fund invoices
@@ -99,7 +99,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         vm.startPrank(charlie);
         asset.mint(charlie, charlieInitialDeposit);
         asset.approve(address(bullaFactoring), charlieInitialDeposit);
-        bullaFactoring.deposit(charlieInitialDeposit, charlie);
+        vault.deposit(charlieInitialDeposit, charlie);
         vm.stopPrank();
         
         // Bob creates invoices and gets them funded
@@ -120,7 +120,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         }
         vm.stopPrank();
         
-        uint256 liquidityAfterFunding = bullaFactoring.totalAssets();
+        uint256 liquidityAfterFunding = vault.totalAssets();
         console.log("After funding invoices - remaining liquidity:", liquidityAfterFunding);
         
         // Phase 2: Add additional deposits specifically for redemption liquidity
@@ -131,19 +131,19 @@ contract TestEmptyRedemptionGas is CommonSetup {
         vm.startPrank(alice);
         asset.mint(alice, redemptionLiquidityNeeded);
         asset.approve(address(bullaFactoring), redemptionLiquidityNeeded);
-        bullaFactoring.deposit(redemptionLiquidityNeeded, alice);
+        vault.deposit(redemptionLiquidityNeeded, alice);
         vm.stopPrank();
         
-        uint256 finalLiquidity = bullaFactoring.totalAssets();
+        uint256 finalLiquidity = vault.totalAssets();
         console.log("After additional deposits - final liquidity:", finalLiquidity);
         console.log("Setup complete - users can now actually redeem funds");
     }
 
     /// @notice Setup redemption with 2 users actually redeeming funds (not just queuing)
     function _setupRedemptionQueueWith2Users() internal {
-        uint256 aliceShares = bullaFactoring.balanceOf(alice);
-        uint256 charlieShares = bullaFactoring.balanceOf(charlie);
-        uint256 availableLiquidity = bullaFactoring.totalAssets();
+        uint256 aliceShares = vault.balanceOf(alice);
+        uint256 charlieShares = vault.balanceOf(charlie);
+        uint256 availableLiquidity = vault.totalAssets();
         
         console.log("  Available liquidity for redemptions:", availableLiquidity);
         console.log("  Alice shares:", aliceShares, "Charlie shares:", charlieShares);
@@ -151,19 +151,19 @@ contract TestEmptyRedemptionGas is CommonSetup {
         // Alice redeems a substantial amount that should process immediately
         // Target ~1M in assets which should be well within available liquidity
         uint256 aliceTargetAssets = availableLiquidity + 100;
-        uint256 aliceRedemptionShares = bullaFactoring.previewWithdraw(aliceTargetAssets);
+        uint256 aliceRedemptionShares = vault.previewWithdraw(aliceTargetAssets);
         
         vm.startPrank(alice);
-        uint256 aliceRedeemed = bullaFactoring.redeem(aliceRedemptionShares, alice, alice);
+        uint256 aliceRedeemed = vault.redeem(aliceRedemptionShares, alice, alice);
         vm.stopPrank();
         
         // Charlie redeems after Alice, should also process immediately  
         // Target ~800K in assets
         uint256 charlieTargetAssets = availableLiquidity + 100;
-        uint256 charlieRedemptionShares = bullaFactoring.previewWithdraw(charlieTargetAssets);
+        uint256 charlieRedemptionShares = vault.previewWithdraw(charlieTargetAssets);
         
         vm.startPrank(charlie);
-        uint256 charlieRedeemed = bullaFactoring.redeem(charlieRedemptionShares, charlie, charlie);
+        uint256 charlieRedeemed = vault.redeem(charlieRedemptionShares, charlie, charlie);
         vm.stopPrank();
         
         console.log("  Alice: redeemed", aliceRedeemed);
@@ -185,7 +185,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         vm.startPrank(alice);
         asset.mint(alice, 1000000);
         asset.approve(address(bullaFactoring), 1000000);
-        bullaFactoring.deposit(1000000, alice);
+        vault.deposit(1000000, alice);
         vm.stopPrank();
     }
 
@@ -197,7 +197,7 @@ contract TestEmptyRedemptionGas is CommonSetup {
         vm.startPrank(alice);
         asset.mint(alice, depositAmount);
         asset.approve(address(bullaFactoring), depositAmount);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
         
         // Bob creates and funds invoices (but doesn't pay them)
@@ -225,10 +225,10 @@ contract TestEmptyRedemptionGas is CommonSetup {
         
         _setupActiveInvoices(25);
         
-        assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should be empty");
+        assertTrue(vault.getRedemptionQueue().isQueueEmpty(), "Queue should be empty");
         
         uint256 gasBefore = gasleft();
-        bullaFactoring.processRedemptionQueue();
+        vault.processRedemptionQueue();
         uint256 gasAfter = gasleft();
         uint256 gasUsed = gasBefore - gasAfter;
         

@@ -43,7 +43,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         // Setup: deposit funds and create/approve/fund invoices WITH late fees
         uint256 depositAmount = numInvoices * 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         uint256[] memory invoiceIds = new uint256[](numInvoices);
@@ -90,7 +90,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         // Setup: Create funded invoices using simple claims (not BullaInvoice)
         uint256 depositAmount = numInvoices > 0 ? numInvoices * 200000 : 1000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         uint256[] memory invoiceIds = new uint256[](numInvoices);
@@ -182,7 +182,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function _setupInvoicesOnly(uint256 numInvoices) internal {
         uint256 depositAmount = numInvoices > 0 ? numInvoices * 200000 : 1000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         if (numInvoices > 0) {
@@ -207,7 +207,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testCalculateCapitalAccountZeroInvoices() public {
         _setupInvoicesOnly(0);
         uint256 gasBefore = gasleft();
-        bullaFactoring.calculateCapitalAccount();
+        vault.calculateCapitalAccount();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("calculateCapitalAccount() with 0 invoices used:", gasUsed, "gas");
     }
@@ -215,7 +215,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testCalculateCapitalAccountOneInvoice() public {
         _setupInvoicesOnly(1);
         uint256 gasBefore = gasleft();
-        bullaFactoring.calculateCapitalAccount();
+        vault.calculateCapitalAccount();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("calculateCapitalAccount() with 1 invoice used:", gasUsed, "gas");
     }
@@ -223,7 +223,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testCalculateCapitalAccountFifteenInvoices() public {
         _setupInvoicesOnly(15);
         uint256 gasBefore = gasleft();
-        bullaFactoring.calculateCapitalAccount();
+        vault.calculateCapitalAccount();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("calculateCapitalAccount() with 15 invoices used:", gasUsed, "gas");
     }
@@ -231,7 +231,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testCalculateCapitalAccountThirtyInvoices() public {
         _setupInvoicesOnly(30);
         uint256 gasBefore = gasleft();
-        bullaFactoring.calculateCapitalAccount();
+        vault.calculateCapitalAccount();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("calculateCapitalAccount() with 30 invoices used:", gasUsed, "gas");
     }
@@ -239,7 +239,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testCalculateCapitalAccountSixtyInvoices() public {
         _setupInvoicesOnly(60);
         uint256 gasBefore = gasleft();
-        bullaFactoring.calculateCapitalAccount();
+        vault.calculateCapitalAccount();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("calculateCapitalAccount() with 60 invoices used:", gasUsed, "gas");
     }
@@ -247,7 +247,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function testCalculateCapitalAccountNinetyInvoices() public {
         _setupInvoicesOnly(90);
         uint256 gasBefore = gasleft();
-        bullaFactoring.calculateCapitalAccount();
+        vault.calculateCapitalAccount();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("calculateCapitalAccount() with 90 invoices used:", gasUsed, "gas");
     }
@@ -255,39 +255,39 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     // totalAssets() tests
     function testTotalAssetsZeroInvoices() public {
         _setupInvoicesOnly(0);
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
     }
 
     function testTotalAssetsOneInvoice() public {
         _setupInvoicesOnly(1);
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
     }
 
     function testTotalAssetsFifteenInvoices() public {
         _setupInvoicesOnly(15);
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
     }
 
     function testTotalAssetsThirtyInvoices() public {
         _setupInvoicesOnly(30);
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
     }
 
     function testTotalAssetsSixtyInvoices() public {
         _setupInvoicesOnly(60);
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
     }
 
     function testTotalAssetsNinetyInvoices() public {
         _setupInvoicesOnly(90);
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
     }
 
     function testTotalAssets125Invoices() public {
         _setupInvoicesOnly(125);
         console.log("Testing totalAssets() with 125 invoices");
         uint256 gasBefore = gasleft();
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("totalAssets() with 125 invoices used:", gasUsed, "gas");
     }
@@ -296,7 +296,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         _setupInvoicesOnly(250);
         console.log("Testing totalAssets() with 250 invoices");
         uint256 gasBefore = gasleft();
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
         uint256 gasUsed = gasBefore - gasleft();
         console.log("totalAssets() with 250 invoices used:", gasUsed, "gas");
     }
@@ -304,32 +304,32 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     // maxRedeem() tests
     function testMaxRedeemZeroInvoices() public {
         _setupInvoicesOnly(0);
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
     }
 
     function testMaxRedeemOneInvoice() public {
         _setupInvoicesOnly(1);
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
     }
 
     function testMaxRedeemFifteenInvoices() public {
         _setupInvoicesOnly(15);
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
     }
 
     function testMaxRedeemThirtyInvoices() public {
         _setupInvoicesOnly(30);
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
     }
 
     function testMaxRedeemSixtyInvoices() public {
         _setupInvoicesOnly(60);
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
     }
 
     function testMaxRedeemNinetyInvoices() public {
         _setupInvoicesOnly(90);
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
     }
 
     // ========================================
@@ -340,7 +340,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         // Setup invoices
         uint256 depositAmount = numInvoices > 0 ? numInvoices * 200000 : 1000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         invoiceIds = new uint256[](numInvoices);
@@ -864,7 +864,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
         // Setup liquidity
         uint256 depositAmount = numInvoices > 0 ? numInvoices * 200000 : 1000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         invoiceIds = new uint256[](numInvoices);

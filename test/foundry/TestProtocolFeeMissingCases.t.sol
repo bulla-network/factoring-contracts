@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
 import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringVault } from 'contracts/BullaFactoringVault.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
@@ -26,7 +27,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         // Setup initial deposit for most tests
         vm.startPrank(alice);
-        bullaFactoring.deposit(1000000, alice); // 1M USDC deposit
+        vault.deposit(1000000, alice); // 1M USDC deposit
         vm.stopPrank();
     }
 
@@ -34,40 +35,34 @@ contract TestProtocolFeeMissingCases is CommonSetup {
 
     function testConstructorProtocolFeeValidation() public {
         // Test constructor validation with invalid protocol fee rates
+        BullaFactoringVault testVault1 = new BullaFactoringVault(asset, depositPermissions, redeemPermissions, poolTokenName, poolTokenSymbol, address(0));
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
         new BullaFactoringV2_1(
-            asset, 
+            testVault1,
             invoiceAdapterBulla, 
             bullaFrendLend, 
             underwriter, 
-            depositPermissions, 
-            redeemPermissions, 
             factoringPermissions, 
             bullaDao, 
             10001, // Invalid protocol fee > 100%
             adminFeeBps, 
             poolName, 
-            targetYield, 
-            poolTokenName, 
-            poolTokenSymbol
+            targetYield
         );
         
         // Test constructor with maximum valid rate (should succeed)
+        BullaFactoringVault testVault2 = new BullaFactoringVault(asset, depositPermissions, redeemPermissions, poolTokenName, poolTokenSymbol, address(0));
         BullaFactoringV2_1 validFactoring = new BullaFactoringV2_1(
-            asset, 
+            testVault2,
             invoiceAdapterBulla, 
             bullaFrendLend, 
             underwriter, 
-            depositPermissions, 
-            redeemPermissions, 
             factoringPermissions, 
             bullaDao, 
             10000, // Valid maximum protocol fee = 100%
             adminFeeBps, 
             poolName, 
-            targetYield, 
-            poolTokenName, 
-            poolTokenSymbol
+            targetYield
         );
         
         assertEq(validFactoring.protocolFeeBps(), 10000, "Constructor should accept maximum valid protocol fee rate");
@@ -164,8 +159,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
     function testInsufficientFundsForProtocolFeeCollection() public {
         // Drain most funds first, leaving minimal amount
         vm.startPrank(alice);
-        uint256 maxRedeem = bullaFactoring.maxRedeem(alice);
-        bullaFactoring.redeem(maxRedeem - 1000, alice, alice); // Leave only 1000 units
+        uint256 maxRedeem = vault.maxRedeem(alice);
+        vault.redeem(maxRedeem - 1000, alice, alice); // Leave only 1000 units
         vm.stopPrank();
         
         uint256 largeInvoiceAmount = 500000; // Large enough that protocol fee exceeds available funds
@@ -184,7 +179,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         // Calculate required funds including protocol fee
         (uint256 fundedAmountGross, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         uint256 totalRequired = fundedAmountGross + protocolFee;
-        uint256 availableFunds = bullaFactoring.totalAssets();
+        uint256 availableFunds = vault.totalAssets();
         
         vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, availableFunds, totalRequired));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
@@ -194,8 +189,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
     function testProtocolFeeCollectionWithMinimalFunds() public {
         // Test edge case where available funds exactly equal required amount including protocol fee
         vm.startPrank(alice);
-        uint256 maxRedeem = bullaFactoring.maxRedeem(alice);
-        bullaFactoring.redeem(maxRedeem - 50000, alice, alice); // Leave exactly 50000 units
+        uint256 maxRedeem = vault.maxRedeem(alice);
+        vault.redeem(maxRedeem - 50000, alice, alice); // Leave exactly 50000 units
         vm.stopPrank();
         
         uint256 invoiceAmount = 40000; // Small amount to ensure protocol fee + funding fits exactly
@@ -213,7 +208,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         (uint256 fundedAmountGross, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         uint256 totalRequired = fundedAmountGross + protocolFee;
-        uint256 availableFunds = bullaFactoring.totalAssets();
+        uint256 availableFunds = vault.totalAssets();
         
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
@@ -416,7 +411,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         // First ensure we have enough funds
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), largeInvoiceAmount);
-        bullaFactoring.deposit(largeInvoiceAmount, alice);
+        vault.deposit(largeInvoiceAmount, alice);
         vm.stopPrank();
         
         // Create and fund multiple large invoices to accumulate significant protocol fees
@@ -526,8 +521,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         // Record capital account and total assets before any operations
-        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
-        uint256 totalAssetsBefore = bullaFactoring.totalAssets();
+        uint256 capitalAccountBefore = vault.calculateCapitalAccount();
+        uint256 totalAssetsBefore = vault.totalAssets();
         uint256 bobBalanceInitial = asset.balanceOf(bob);
         
         // Create and approve invoice
@@ -558,8 +553,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         assertEq(protocolFeeBalanceAfter - protocolFeeBalanceBefore, expectedProtocolFee, "Protocol fee should be collected upfront");
         
         // Record capital account and total assets after funding
-        uint256 capitalAccountAfterFunding = bullaFactoring.calculateCapitalAccount();
-        uint256 totalAssetsAfterFunding = bullaFactoring.totalAssets();
+        uint256 capitalAccountAfterFunding = vault.calculateCapitalAccount();
+        uint256 totalAssetsAfterFunding = vault.totalAssets();
         
         // Immediately unfactor the invoice (no time passes, no interest accrued)
         uint256 bobBalanceBefore = asset.balanceOf(bob);
@@ -569,8 +564,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         uint256 bobBalanceAfter = asset.balanceOf(bob);
-        uint256 capitalAccountAfterUnfactoring = bullaFactoring.calculateCapitalAccount();
-        uint256 totalAssetsAfterUnfactoring = bullaFactoring.totalAssets();
+        uint256 capitalAccountAfterUnfactoring = vault.calculateCapitalAccount();
+        uint256 totalAssetsAfterUnfactoring = vault.totalAssets();
         
         // Verify unfactoring payment was made
         assertTrue(bobBalanceBefore > bobBalanceAfter, "Bob should have paid for unfactoring");
@@ -631,8 +626,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         bullaFactoring.setProtocolFeeBps(nonZeroProtocolFee);
         vm.stopPrank();
         
-        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
-        uint256 totalAssetsBefore = bullaFactoring.totalAssets();
+        uint256 capitalAccountBefore = vault.calculateCapitalAccount();
+        uint256 totalAssetsBefore = vault.totalAssets();
         uint256 bobBalanceInitial = asset.balanceOf(bob);
         
         // Create, approve and fund invoice
@@ -663,8 +658,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         uint256 bobBalanceAfter = asset.balanceOf(bob);
-        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
-        uint256 totalAssetsAfter = bullaFactoring.totalAssets();
+        uint256 capitalAccountAfter = vault.calculateCapitalAccount();
+        uint256 totalAssetsAfter = vault.totalAssets();
         uint256 unfactoringPayment = bobBalanceBefore - bobBalanceAfter;
         uint256 bobTotalLoss = bobBalanceInitial - bobBalanceAfter;
         uint256 bobNetGainFromFunding = bobBalanceAfterFunding - bobBalanceInitial;
@@ -728,10 +723,10 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         redeemPermissions.allow(investor);
         
         // Ensure Alice has no pool deposits before snapshot
-        uint256 aliceShares = bullaFactoring.balanceOf(alice);
+        uint256 aliceShares = vault.balanceOf(alice);
         if (aliceShares > 0) {
             vm.startPrank(alice);
-            bullaFactoring.redeem(aliceShares, alice, alice);
+            vault.redeem(aliceShares, alice, alice);
             vm.stopPrank();
         }
         
@@ -766,7 +761,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         vm.startPrank(investor);
         asset.approve(address(bullaFactoring), investorDepositAmount);
-        bullaFactoring.deposit(investorDepositAmount, investor);
+        vault.deposit(investorDepositAmount, investor);
         vm.stopPrank();
         
         uint256 creditor_afterDeposit = asset.balanceOf(bob);
@@ -893,19 +888,19 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         emit log_string("\n=== PHASE 6: INVESTOR REDEEMS ALL FUNDS ===");
         
-        uint256 investorShares = bullaFactoring.balanceOf(investor);
+        uint256 investorShares = vault.balanceOf(investor);
         uint256 poolAssetsBeforeRedemption = asset.balanceOf(address(bullaFactoring));
         emit log_named_uint("Pool Assets Before Redemption", poolAssetsBeforeRedemption);
         emit log_named_uint("Investor Shares", investorShares);
         
         if (investorShares > 0) {
             // Calculate how much the investor should actually receive
-            uint256 expectedRedemptionAmount = bullaFactoring.previewRedeem(investorShares);
+            uint256 expectedRedemptionAmount = vault.previewRedeem(investorShares);
             emit log_named_uint("Expected Redemption Amount", expectedRedemptionAmount);
             
             vm.startPrank(investor);
             // This should work if the accounting is correct
-            uint256 actualRedemptionAmount = bullaFactoring.redeem(investorShares, investor, investor);
+            uint256 actualRedemptionAmount = vault.redeem(investorShares, investor, investor);
             emit log_named_uint("Actual Redemption Amount", actualRedemptionAmount);
             vm.stopPrank();
         }

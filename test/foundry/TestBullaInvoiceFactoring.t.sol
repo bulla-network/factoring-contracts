@@ -86,7 +86,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testFundBullaInvoiceWithInterestCalculation() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -128,7 +128,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoicePaymentWithInterestAccrual() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -157,7 +157,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         uint256 totalAmountDue = invoice.invoiceAmount;
 
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
 
         // Debtor pays the full amount including accrued interest
         vm.startPrank(alice);
@@ -165,7 +165,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         bullaInvoice.payInvoice(invoiceId, totalAmountDue);
         vm.stopPrank();
 
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after profitable invoice payment");
 
         // Verify invoice is marked as paid
@@ -176,7 +176,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceEarlyPaymentKickback() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -230,7 +230,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoicePartialPayment() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -270,7 +270,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         uint256 remainingAmount = invoice.invoiceAmount - invoice.paidAmount;
         
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
 
         vm.startPrank(alice);
         asset.approve(address(bullaInvoice), remainingAmount);
@@ -281,14 +281,14 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceId);
         assertTrue(invoice.isPaid);
 
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after full payment");
     }
 
     function testBullaInvoiceUnfactoring() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -332,7 +332,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceFactoringWithDifferentUpfrontBps() public {
         uint256 initialDeposit = 300000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -418,7 +418,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceRevertOnAlreadyFunded() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -444,7 +444,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceComplexInterestCalculation() public {
         uint256 initialDeposit = 500000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 250000;
@@ -490,7 +490,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoicePoolGainOnlyFromPrincipalNotPenalties() public {
         uint256 initialDeposit = 400000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 principalAmount = 100000;
@@ -534,7 +534,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         assertGt(invoice1.invoiceAmount, principalAmount, "Invoice 1 should have accrued penalty interest");
         assertEq(invoice2.invoiceAmount, principalAmount, "Invoice 2 should not have accrued any interest");
 
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
         uint256 gainBeforePayments = bullaFactoring.paidInvoicesGain();
 
         // Pay first invoice (invoice 1 pays more due to penalties)
@@ -553,7 +553,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         
         uint256 gainAfterInvoice2 = bullaFactoring.paidInvoicesGain();
 
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase from both payments");
 
         // Check that pool gained the same amount from both invoices
@@ -572,7 +572,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testInterestAccrualTimingPrecision() public {
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -621,7 +621,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     function testTargetFeesVsActualFeesAtDueDate() public {
         uint256 initialDeposit = 20000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 10000000;
@@ -761,7 +761,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), totalNeeded);
-        bullaFactoring.deposit(totalNeeded, alice);
+        vault.deposit(totalNeeded, alice);
         vm.stopPrank();
         
         // Create, fund, and pay invoices

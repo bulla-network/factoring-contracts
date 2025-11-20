@@ -183,7 +183,7 @@ contract FactoringFundManagerInvariantTest is CommonSetup {
         super.setUp();
 
         fundManager = new BullaFactoringFundManager({
-            _factoringPool: IERC4626(bullaFactoring),
+            _factoringPool: IERC4626(address(vault)),
             _minInvestment: 1e6,
             _capitalCaller: address(this)
         });

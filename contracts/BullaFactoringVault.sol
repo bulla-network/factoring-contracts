@@ -263,6 +263,12 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
         return shares;
     }
 
+    /// @notice Mint is disabled - use deposit() instead
+    /// @dev Always reverts as this vault only supports deposits, not minting
+    function mint(uint256, address) public pure override(ERC4626, IERC4626) returns (uint256) {
+        revert("Mint disabled - use deposit()");
+    }
+
     /// @notice Calculates the available assets in the vault (including Aave deposits)
     /// @return The amount of assets available (total balance + Aave balance - capital at risk - locked fees)
     function totalAssets() public view override(ERC4626, IERC4626) returns (uint256) {

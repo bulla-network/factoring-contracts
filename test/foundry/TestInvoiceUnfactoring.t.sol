@@ -29,7 +29,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -63,7 +63,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -109,24 +109,24 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Fast forward time by 100 days to simulate the invoice becoming impaired
         vm.warp(block.timestamp + 100 days);
 
-        uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
+        uint sharePriceBeforeUnfactoring = vault.pricePerShare();
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
         bullaFactoring.unfactorInvoice(invoiceId03);
         vm.stopPrank();
 
-        uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
+        uint256 sharePriceAfterUnfactoring = vault.pricePerShare();
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored impaired invoice");
-        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = bullaFactoring.maxRedeem();
+        uint amountToRedeem = vault.maxRedeem();
 
         // Alice redeems all her shares
         vm.prank(alice);
-        bullaFactoring.redeem(amountToRedeem, alice, alice);
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vault.redeem(amountToRedeem, alice, alice);
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
     }
 
@@ -136,7 +136,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -152,24 +152,24 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         vm.warp(block.timestamp + 1 days);
 
-        uint sharePriceBeforeUnfactoring = bullaFactoring.pricePerShare();
+        uint sharePriceBeforeUnfactoring = vault.pricePerShare();
 
         // Bob unfactors the invoice
         vm.startPrank(bob);
         bullaFactoring.unfactorInvoice(invoiceId01);
         vm.stopPrank();
 
-        uint256 sharePriceAfterUnfactoring = bullaFactoring.pricePerShare();
+        uint256 sharePriceAfterUnfactoring = vault.pricePerShare();
 
         assertTrue(sharePriceAfterUnfactoring > sharePriceBeforeUnfactoring, "Price per share should increase due to unfactored invoice");
-        assertEq(bullaFactoring.balanceOf(alice), bullaFactoring.maxRedeem(), "Alice balance should be equal to maxRedeem");
+        assertEq(vault.balanceOf(alice), vault.maxRedeem(), "Alice balance should be equal to maxRedeem");
 
-        uint amountToRedeem = bullaFactoring.maxRedeem();
+        uint amountToRedeem = vault.maxRedeem();
 
         // Alice redeems all her shares
         vm.prank(alice);
-        bullaFactoring.redeem(amountToRedeem, alice, alice);
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        vault.redeem(amountToRedeem, alice, alice);
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
         vm.stopPrank();
     }
 
@@ -180,7 +180,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         uint256 initialDeposit = 2000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -235,7 +235,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -322,7 +322,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -359,7 +359,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -386,7 +386,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -441,7 +441,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -470,7 +470,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -530,7 +530,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 10000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -548,7 +548,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Fast forward some time to accrue interest
         vm.warp(block.timestamp + 30 days);
 
-        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint256 capitalAccountBefore = vault.calculateCapitalAccount();
 
         // Fast forward past impairment date
         vm.warp(block.timestamp + 61 days);
@@ -563,7 +563,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         vm.prank(poolOwner);
         bullaFactoring.unfactorInvoice(invoiceId);
 
-        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+        uint256 capitalAccountAfter = vault.calculateCapitalAccount();
 
         // Capital account should have increased due to recorded profits
         assertTrue(capitalAccountAfter > capitalAccountBefore, "Capital account should increase due to profits");
@@ -577,7 +577,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds two identical invoices

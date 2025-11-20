@@ -21,8 +21,8 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestWithdraw is CommonSetup {    
     function testInvestorWithdrawAllFunds() public {
-        assertEq(bullaFactoring.totalSupply(), 0, "Total supply should be 0");
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should start at 0");
+        assertEq(vault.totalSupply(), 0, "Total supply should be 0");
+        assertEq(vault.balanceOf(alice), 0, "Alice's balance should start at 0");
 
         dueBy = block.timestamp + 60 days; // Invoice due in 60 days
         uint256 invoiceAmount = 100000; // Invoice amount is $100000
@@ -33,7 +33,7 @@ contract TestWithdraw is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -64,9 +64,9 @@ contract TestWithdraw is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        uint aliceBalance = bullaFactoring.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint aliceBalance = vault.balanceOf(alice);
+        uint assetsToWithdraw = vault.convertToAssets(aliceBalance);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
         uint aliceBalanceAfterRedemption = asset.balanceOf(alice);
@@ -75,7 +75,7 @@ contract TestWithdraw is CommonSetup {
 
         assertGt(aliceBalanceAfterRedemption + invoiceAmount, aliceInitialBalance , "Alice's balance should be greater than her initial deposit after redemption");
 
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice's balance should be 0 after full withdrawal");
+        assertEq(vault.balanceOf(alice), 0, "Alice's balance should be 0 after full withdrawal");
 
         bullaFactoring.withdrawAdminFeesAndSpreadGains(); 
     }
@@ -84,7 +84,7 @@ contract TestWithdraw is CommonSetup {
         uint256 initialDeposit = 1000000000000000; // 1,000,000 USDC
         // initial deposit
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000000000; // 100,000 USDC
@@ -114,15 +114,15 @@ contract TestWithdraw is CommonSetup {
 
         // Alice redeems all her funds
         vm.startPrank(alice);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
         
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice redeem all her shares");
+        assertEq(vault.balanceOf(alice), 0, "Alice redeem all her shares");
                 
         dueDate = block.timestamp + 30 days;
         // second identical deposit
         vm.startPrank(alice);
-        uint256 initialShares = bullaFactoring.deposit(initialDeposit, alice);
+        uint256 initialShares = vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create and fund second invoice, identical to the first
@@ -148,12 +148,12 @@ contract TestWithdraw is CommonSetup {
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
-        uint aliceBalance = bullaFactoring.balanceOf(alice);
-        uint sharesWithdrawn = bullaFactoring.withdraw(bullaFactoring.totalAssets(), alice, alice);
+        uint aliceBalance = vault.balanceOf(alice);
+        uint sharesWithdrawn = vault.withdraw(vault.totalAssets(), alice, alice);
         vm.stopPrank();
         
         assertEq(aliceBalance, sharesWithdrawn, "shares withdrawn equals alice's balance");
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice redeem all her shares");
+        assertEq(vault.balanceOf(alice), 0, "Alice redeem all her shares");
         assertEq(sharesWithdrawn, initialShares, "Assets withdrawn should be equal to assets redeemed in identical scenario");
     }
 
@@ -165,7 +165,7 @@ contract TestWithdraw is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -198,15 +198,15 @@ contract TestWithdraw is CommonSetup {
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
-        uint aliceBalance = bullaFactoring.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
+        uint aliceBalance = vault.balanceOf(alice);
+        uint assetsToWithdraw = vault.convertToAssets(aliceBalance);
 
-        assertEq(bullaFactoring.maxWithdraw(alice), assetsToWithdraw, "Alice is about to withdraw the most that she can");
+        assertEq(vault.maxWithdraw(alice), assetsToWithdraw, "Alice is about to withdraw the most that she can");
 
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
-        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
+        assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
     }
 
     function testBalanceOfFundShouldBeZeroAfterAllFeeWithdrawals() public {
@@ -217,7 +217,7 @@ contract TestWithdraw is CommonSetup {
 
         uint256 initialDeposit = 20000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -250,13 +250,13 @@ contract TestWithdraw is CommonSetup {
 
         // Alice withdraws all her funds
         vm.startPrank(alice);
-        uint aliceBalance = bullaFactoring.balanceOf(alice);
-        uint assetsToWithdraw = bullaFactoring.convertToAssets(aliceBalance);
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint aliceBalance = vault.balanceOf(alice);
+        uint assetsToWithdraw = vault.convertToAssets(aliceBalance);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
-        assertEq(bullaFactoring.totalAssets(), 0, "availableAssets should be zero");
-        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have no balance left");
+        assertEq(vault.totalAssets(), 0, "availableAssets should be zero");
+        assertEq(vault.balanceOf(alice), 0, "Alice should have no balance left");
 
         // withdraw all fess
         bullaFactoring.withdrawAdminFeesAndSpreadGains();
@@ -272,7 +272,7 @@ contract TestWithdraw is CommonSetup {
 
     function testConvertToAssetsReturnsSharesWhenNoSupply() public {
         vm.startPrank(alice);
-        assertEq(bullaFactoring.convertToAssets(1000), 1000, "Assets should be equal to shares if no shares/no capital deposited");
+        assertEq(vault.convertToAssets(1000), 1000, "Assets should be equal to shares if no shares/no capital deposited");
         vm.stopPrank();
 
     }
@@ -280,7 +280,7 @@ contract TestWithdraw is CommonSetup {
     function testOnlyAuthorizedDepositorsCanWithdraw() public {
         vm.startPrank(userWithoutPermissions);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.withdraw(1 ether, userWithoutPermissions, alice);
+        vault.withdraw(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
     }
 
@@ -289,10 +289,10 @@ contract TestWithdraw is CommonSetup {
 
          // Alice deposits
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
 
         // Alice sends BFTs to unauthorized user
-        uint sharesBalance = bullaFactoring.balanceOf(alice);
+        uint sharesBalance = vault.balanceOf(alice);
         IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
 
         // unauthorized user permits Alice
@@ -303,7 +303,7 @@ contract TestWithdraw is CommonSetup {
         vm.startPrank(alice);
         // Alice calls redeem/withdraw for unauthorized user
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
-        bullaFactoring.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
+        vault.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
 }

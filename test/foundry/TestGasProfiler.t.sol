@@ -59,7 +59,7 @@ contract TestGasProfiler is CommonSetup {
         // Setup
         uint256 depositAmount = numInvoices * 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         uint256[] memory invoiceIds = new uint256[](numInvoices);
@@ -159,19 +159,19 @@ contract TestGasProfiler is CommonSetup {
         
         // Profile totalAssets
         uint256 gasBefore = gasleft();
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
         uint256 totalAssetsGas = gasBefore - gasleft();
         console.log("totalAssets(): %s gas", totalAssetsGas);
         
         // Profile maxRedeem
         gasBefore = gasleft();
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
         uint256 maxRedeemGas = gasBefore - gasleft();
         console.log("maxRedeem(): %s gas", maxRedeemGas);
         
         // Profile processRedemptionQueue
         gasBefore = gasleft();
-        bullaFactoring.processRedemptionQueue();
+        vault.processRedemptionQueue();
         uint256 processQueueGas = gasBefore - gasleft();
         console.log("processRedemptionQueue(): %s gas", processQueueGas);
         
@@ -196,7 +196,7 @@ contract TestGasProfiler is CommonSetup {
         
         // Test totalAssets calls
         callsBefore = _getInvoiceDetailsCallCount;
-        bullaFactoring.totalAssets();
+        vault.totalAssets();
         uint256 totalAssetsCalls = _getInvoiceDetailsCallCount - callsBefore;
         
         console.log("External call distribution:");
@@ -265,8 +265,8 @@ contract TestGasProfiler is CommonSetup {
         
         uint256 depositAmount = numInvoices * 200000;
         vm.startPrank(alice);
-        if (bullaFactoring.balanceOf(alice) < depositAmount) {
-            bullaFactoring.deposit(depositAmount, alice);
+        if (vault.balanceOf(alice) < depositAmount) {
+            vault.deposit(depositAmount, alice);
         }
         vm.stopPrank();
 
@@ -305,9 +305,9 @@ contract TestGasProfiler is CommonSetup {
         if (nameHash == keccak256("viewPoolStatus")) {
             bullaFactoring.viewPoolStatus(0, 25000);
         } else if (nameHash == keccak256("totalAssets")) {
-            bullaFactoring.totalAssets();
+            vault.totalAssets();
         } else if (nameHash == keccak256("processRedemptionQueue")) {
-            bullaFactoring.processRedemptionQueue();
+            vault.processRedemptionQueue();
         }
         
         return gasBefore - gasleft();

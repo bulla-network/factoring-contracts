@@ -15,12 +15,12 @@ contract TestRedemptionQueueLimit is CommonSetup {
     error RedemptionQueueFull();
     
     function testDefaultMaxQueueSize() public view {
-        uint256 maxSize = bullaFactoring.getRedemptionQueue().getMaxQueueSize();
+        uint256 maxSize = vault.getRedemptionQueue().getMaxQueueSize();
         assertEq(maxSize, 500, "Default max queue size should be 500");
     }
 
     function testSetMaxQueueSize() public {
-        IRedemptionQueue queue = bullaFactoring.getRedemptionQueue();
+        IRedemptionQueue queue = vault.getRedemptionQueue();
         
         // Set new max size
         vm.prank(bullaFactoring.owner());
@@ -31,7 +31,7 @@ contract TestRedemptionQueueLimit is CommonSetup {
     }
 
     function testSetMaxQueueSizeOnlyOwner() public {
-        IRedemptionQueue queue = bullaFactoring.getRedemptionQueue();
+        IRedemptionQueue queue = vault.getRedemptionQueue();
         
         // Try to set as non-owner (should fail)
         vm.prank(alice);
@@ -43,8 +43,8 @@ contract TestRedemptionQueueLimit is CommonSetup {
         // Setup: Create pool with funds
         uint256 depositAmount = 100000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), depositAmount);
-        bullaFactoring.deposit(depositAmount, alice);
+        asset.approve(address(vault), depositAmount);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         // Tie up capital so redemption is queued
@@ -60,11 +60,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
 
         // Queue redemption
         vm.startPrank(alice);
-        uint256 shares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(shares, alice, alice);
+        uint256 shares = vault.balanceOf(alice);
+        vault.redeem(shares, alice, alice);
         vm.stopPrank();
 
-        uint256 queueLength = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLength = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLength, 1, "Queue length should be 1 after queuing one redemption");
     }
 
@@ -72,8 +72,8 @@ contract TestRedemptionQueueLimit is CommonSetup {
         // Setup: Create pool and queue a redemption
         uint256 depositAmount = 100000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), depositAmount);
-        bullaFactoring.deposit(depositAmount, alice);
+        asset.approve(address(vault), depositAmount);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         // Tie up capital so redemption is queued
@@ -89,19 +89,19 @@ contract TestRedemptionQueueLimit is CommonSetup {
 
         // Queue redemption
         vm.startPrank(alice);
-        uint256 shares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(shares, alice, alice);
+        uint256 shares = vault.balanceOf(alice);
+        vault.redeem(shares, alice, alice);
         vm.stopPrank();
 
-        uint256 lengthBefore = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 lengthBefore = vault.getRedemptionQueue().getQueueLength();
         assertEq(lengthBefore, 1, "Queue length should be 1 before cancellation");
 
         // Cancel the queued redemption at index 0
         vm.startPrank(alice);
-        bullaFactoring.getRedemptionQueue().cancelQueuedRedemption(0);
+        vault.getRedemptionQueue().cancelQueuedRedemption(0);
         vm.stopPrank();
 
-        uint256 lengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 lengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(lengthAfter, 0, "Queue length should be 0 after cancellation");
     }
 
@@ -109,8 +109,8 @@ contract TestRedemptionQueueLimit is CommonSetup {
         // Setup: Create pool and queue a redemption
         uint256 depositAmount = 100000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), depositAmount);
-        bullaFactoring.deposit(depositAmount, alice);
+        asset.approve(address(vault), depositAmount);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         // Tie up capital
@@ -126,11 +126,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
 
         // Queue redemption
         vm.startPrank(alice);
-        uint256 shares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(shares, alice, alice);
+        uint256 shares = vault.balanceOf(alice);
+        vault.redeem(shares, alice, alice);
         vm.stopPrank();
 
-        uint256 lengthBefore = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 lengthBefore = vault.getRedemptionQueue().getQueueLength();
         assertEq(lengthBefore, 1, "Queue length should be 1");
 
         // Free up capital and process queue
@@ -139,22 +139,22 @@ contract TestRedemptionQueueLimit is CommonSetup {
         bullaClaim.payClaim(invoiceId, 95000);
         vm.stopPrank();
 
-        bullaFactoring.processRedemptionQueue();
+        vault.processRedemptionQueue();
 
-        uint256 lengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 lengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(lengthAfter, 0, "Queue length should be 0 after processing");
     }
 
     function testRedemptionQueueFullError() public {
         // Set a very low max queue size for testing
         vm.prank(bullaFactoring.owner());
-        bullaFactoring.getRedemptionQueue().setMaxQueueSize(2);
+        vault.getRedemptionQueue().setMaxQueueSize(2);
 
         // Setup: Create initial pool
         uint256 initialDeposit = 100000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        asset.approve(address(vault), initialDeposit);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Tie up capital completely
@@ -170,9 +170,9 @@ contract TestRedemptionQueueLimit is CommonSetup {
 
         // Queue 2 redemptions from existing balance
         vm.startPrank(alice);
-        uint256 aliceShares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(aliceShares / 3, alice, alice); // First redemption
-        bullaFactoring.redeem(aliceShares / 3, alice, alice); // Second redemption (replaces first, so queue = 1)
+        uint256 aliceShares = vault.balanceOf(alice);
+        vault.redeem(aliceShares / 3, alice, alice); // First redemption
+        vault.redeem(aliceShares / 3, alice, alice); // Second redemption (replaces first, so queue = 1)
         vm.stopPrank();
 
         // Now add second user and queue
@@ -180,13 +180,13 @@ contract TestRedemptionQueueLimit is CommonSetup {
         redeemPermissions.allow(charlie);
         deal(address(asset), charlie, 1000);
         vm.startPrank(charlie);
-        asset.approve(address(bullaFactoring), 1000);
-        bullaFactoring.deposit(1000, charlie);
-        uint256 charlieShares = bullaFactoring.balanceOf(charlie);
-        bullaFactoring.redeem(charlieShares, charlie, charlie);
+        asset.approve(address(vault), 1000);
+        vault.deposit(1000, charlie);
+        uint256 charlieShares = vault.balanceOf(charlie);
+        vault.redeem(charlieShares, charlie, charlie);
         vm.stopPrank();
 
-        uint256 queueLength = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLength = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLength, 2, "Queue should have 2 redemptions");
 
         // Now third user should fail with RedemptionQueueFull
@@ -194,11 +194,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
         redeemPermissions.allow(address(0x999));
         deal(address(asset), address(0x999), 1000);
         vm.startPrank(address(0x999));
-        asset.approve(address(bullaFactoring), 1000);
-        bullaFactoring.deposit(1000, address(0x999));
-        uint256 shares999 = bullaFactoring.balanceOf(address(0x999));
+        asset.approve(address(vault), 1000);
+        vault.deposit(1000, address(0x999));
+        uint256 shares999 = vault.balanceOf(address(0x999));
         vm.expectRevert(RedemptionQueueFull.selector);
-        bullaFactoring.redeem(shares999, address(0x999), address(0x999));
+        vault.redeem(shares999, address(0x999), address(0x999));
         vm.stopPrank();
     }
 
@@ -206,8 +206,8 @@ contract TestRedemptionQueueLimit is CommonSetup {
         // Setup: Create pool and queue a redemption
         uint256 depositAmount = 100000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), depositAmount);
-        bullaFactoring.deposit(depositAmount, alice);
+        asset.approve(address(vault), depositAmount);
+        vault.deposit(depositAmount, alice);
         vm.stopPrank();
 
         // Tie up capital
@@ -223,22 +223,22 @@ contract TestRedemptionQueueLimit is CommonSetup {
 
         // Queue one redemption
         vm.startPrank(alice);
-        uint256 shares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(shares, alice, alice);
+        uint256 shares = vault.balanceOf(alice);
+        vault.redeem(shares, alice, alice);
         vm.stopPrank();
 
-        uint256 lengthBefore = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 lengthBefore = vault.getRedemptionQueue().getQueueLength();
         assertEq(lengthBefore, 1, "Queue should have 1 redemption");
 
         // Clear queue
         vm.prank(bullaFactoring.owner());
-        bullaFactoring.getRedemptionQueue().clearQueue();
+        vault.getRedemptionQueue().clearQueue();
 
-        uint256 lengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 lengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(lengthAfter, 0, "Queue length should be 0 after clearing");
 
         // Verify max queue size is preserved
-        uint256 maxSize = bullaFactoring.getRedemptionQueue().getMaxQueueSize();
+        uint256 maxSize = vault.getRedemptionQueue().getMaxQueueSize();
         assertEq(maxSize, 500, "Max queue size should still be 500");
     }
 }

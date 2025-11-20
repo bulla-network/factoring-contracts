@@ -16,7 +16,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         
         // Setup - no invoices created, so no paid invoices
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Note: With the new model, active invoices are always unpaid.
@@ -24,13 +24,13 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
 
         // Redeem should work fine when no paid invoices exist
         vm.startPrank(alice);
-        uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 4;
-        uint256 redeemedAssets = bullaFactoring.redeem(sharesToRedeem, alice, alice);
+        uint256 sharesToRedeem = vault.balanceOf(alice) / 4;
+        uint256 redeemedAssets = vault.redeem(sharesToRedeem, alice, alice);
         assertGt(redeemedAssets, 0, "Should have redeemed assets when no paid invoices exist");
 
         // Withdraw should also work fine
         uint256 assetsToWithdraw = 10000;
-        uint256 withdrawnShares = bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint256 withdrawnShares = vault.withdraw(assetsToWithdraw, alice, alice);
         assertGt(withdrawnShares, 0, "Should have withdrawn shares when no paid invoices exist");
         vm.stopPrank();
     }
@@ -41,7 +41,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         
         // Setup
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);  
@@ -60,18 +60,18 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
 
         // Queue a large redemption
         vm.startPrank(alice);
-        uint256 maxRedeemShares = bullaFactoring.maxRedeem(alice);
+        uint256 maxRedeemShares = vault.maxRedeem(alice);
         uint256 sharesToRedeem = maxRedeemShares + 1000;
-        bullaFactoring.redeem(sharesToRedeem, alice, alice);
+        vault.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
         // Verify redemption was queued
-        IRedemptionQueue.QueuedRedemption memory queuedRedemption = bullaFactoring.redemptionQueue().getNextRedemption();
+        IRedemptionQueue.QueuedRedemption memory queuedRedemption = vault.redemptionQueue().getNextRedemption();
         assertEq(queuedRedemption.owner, alice, "Redemption should be queued for Alice");
 
         // Process redemption queue should work when no paid invoices exist
         // (even though there might not be enough liquidity to process everything)
-        bullaFactoring.processRedemptionQueue();
+        vault.processRedemptionQueue();
 
         // The function should complete without reverting, regardless of whether
         // anything was actually processed due to liquidity constraints
@@ -84,7 +84,7 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         
         // Setup and create paid invoice scenario
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -109,12 +109,12 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
 
         // Now redeem and withdraw should work normally
         vm.startPrank(alice);
-        uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 4;
-        uint256 redeemedAssets = bullaFactoring.redeem(sharesToRedeem, alice, alice);
+        uint256 sharesToRedeem = vault.balanceOf(alice) / 4;
+        uint256 redeemedAssets = vault.redeem(sharesToRedeem, alice, alice);
         assertGt(redeemedAssets, 0, "Should redeem successfully after reconciliation");
 
         uint256 assetsToWithdraw = 10000;
-        uint256 withdrawnShares = bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        uint256 withdrawnShares = vault.withdraw(assetsToWithdraw, alice, alice);
         assertGt(withdrawnShares, 0, "Should withdraw successfully after reconciliation");
         vm.stopPrank();
     }

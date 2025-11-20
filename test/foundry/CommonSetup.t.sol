@@ -106,7 +106,8 @@ contract CommonSetup is Test {
             depositPermissions,
             redeemPermissions,
             poolTokenName,
-            poolTokenSymbol
+            poolTokenSymbol,
+            address(0) // No Aave integration for tests
         );
 
         // Deploy factoring contract with vault reference

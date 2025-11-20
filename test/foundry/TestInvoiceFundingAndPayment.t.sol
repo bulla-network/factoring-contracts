@@ -28,7 +28,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice
@@ -52,7 +52,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         uint256 actualDaysUntilPayment = 30;
         vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
 
-        uint pricePerShareBeforeReconciliation = bullaFactoring.pricePerShare();
+        uint pricePerShareBeforeReconciliation = vault.pricePerShare();
 
         // Debtor pays the invoice
         vm.startPrank(alice);
@@ -62,7 +62,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         
 
-        uint pricePerShareAfterReconciliation = bullaFactoring.pricePerShare();
+        uint pricePerShareAfterReconciliation = vault.pricePerShare();
     
         assertTrue(pricePerShareBeforeReconciliation < pricePerShareAfterReconciliation, "Price per share should increased due to redeemed invoices");
     }
@@ -74,7 +74,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the 2 invoices
@@ -107,7 +107,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
     function testDisperseKickbackAmount() public {
         uint256 initialDeposit = 900;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint initialFactorerBalance = asset.balanceOf(bob);
@@ -157,7 +157,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
 
@@ -203,7 +203,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates two invoices
@@ -240,7 +240,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -283,7 +283,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -308,7 +308,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 8000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -338,7 +338,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // alice is allowed to factor
@@ -366,7 +366,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         upfrontBps = 10000;
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // alice is allowed to factor
@@ -398,7 +398,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
     function testProtocolFeeIndependentOfInterestRate() public {
         uint256 initialDeposit = 5000000; // 5 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 1000000; // 1 USDC
@@ -490,15 +490,15 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Initially, both users should not have any permissions
         vm.startPrank(depositor);
-        asset.approve(address(bullaFactoring), depositAmount);
+        asset.approve(address(vault), depositAmount);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", depositor));
-        bullaFactoring.deposit(depositAmount, depositor);
+        vault.deposit(depositAmount, depositor);
         vm.stopPrank();
 
         vm.startPrank(redeemer);
-        asset.approve(address(bullaFactoring), depositAmount);
+        asset.approve(address(vault), depositAmount);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", redeemer));
-        bullaFactoring.deposit(depositAmount, redeemer);
+        vault.deposit(depositAmount, redeemer);
         vm.stopPrank();
 
         // Grant only deposit permission to depositor
@@ -513,28 +513,28 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Depositor should be able to deposit but not redeem
         vm.startPrank(depositor);
-        uint256 shares = bullaFactoring.deposit(depositAmount, depositor);
+        uint256 shares = vault.deposit(depositAmount, depositor);
         assertTrue(shares > 0, "Depositor should receive shares");
         
         // Depositor should not be able to redeem (no redeem permission)
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", depositor));
-        bullaFactoring.redeem(shares, depositor, depositor);
+        vault.redeem(shares, depositor, depositor);
         vm.stopPrank();
 
         // Redeemer should not be able to deposit (no deposit permission)
         vm.startPrank(redeemer);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", redeemer));
-        bullaFactoring.deposit(depositAmount, redeemer);
+        vault.deposit(depositAmount, redeemer);
         vm.stopPrank();
 
         // Transfer shares from depositor to redeemer to test redemption
         vm.startPrank(depositor);
-        bullaFactoring.transfer(redeemer, shares);
+        vault.transfer(redeemer, shares);
         vm.stopPrank();
 
         // Redeemer should be able to redeem the transferred shares
         vm.startPrank(redeemer);
-        uint256 redeemedAssets = bullaFactoring.redeem(shares, redeemer, redeemer);
+        uint256 redeemedAssets = vault.redeem(shares, redeemer, redeemer);
         assertTrue(redeemedAssets > 0, "Redeemer should receive assets from redemption");
         vm.stopPrank();
 
@@ -559,18 +559,18 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Update only deposit permissions
         vm.startPrank(address(this));
-        bullaFactoring.setDepositPermissions(address(newDepositPermissions));
+        vault.setDepositPermissions(address(newDepositPermissions));
         vm.stopPrank();
 
         // User should be able to deposit with new permissions
         vm.startPrank(user);
-        asset.approve(address(bullaFactoring), depositAmount);
-        uint256 shares = bullaFactoring.deposit(depositAmount, user);
+        asset.approve(address(vault), depositAmount);
+        uint256 shares = vault.deposit(depositAmount, user);
         assertTrue(shares > 0, "User should be able to deposit with new deposit permissions");
 
         // User should not be able to redeem (still using old redeem permissions where user is not allowed)
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
-        bullaFactoring.redeem(shares, user, user);
+        vault.redeem(shares, user, user);
         vm.stopPrank();
 
         // Allow user in new redeem permissions
@@ -578,12 +578,12 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // Update only redeem permissions
         vm.startPrank(address(this));
-        bullaFactoring.setRedeemPermissions(address(newRedeemPermissions));
+        vault.setRedeemPermissions(address(newRedeemPermissions));
         vm.stopPrank();
 
         // Now user should be able to redeem
         vm.startPrank(user);
-        uint256 redeemedAssets = bullaFactoring.redeem(shares, user, user);
+        uint256 redeemedAssets = vault.redeem(shares, user, user);
         assertTrue(redeemedAssets > 0, "User should be able to redeem with new redeem permissions");
         vm.stopPrank();
 
@@ -592,9 +592,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // User should not be able to deposit anymore
         vm.startPrank(user);
-        asset.approve(address(bullaFactoring), depositAmount);
+        asset.approve(address(vault), depositAmount);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
-        bullaFactoring.deposit(depositAmount, user);
+        vault.deposit(depositAmount, user);
         vm.stopPrank();
     }
 
@@ -611,8 +611,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // User deposits
         vm.startPrank(user);
-        asset.approve(address(bullaFactoring), depositAmount);
-        uint256 shares = bullaFactoring.deposit(depositAmount, user);
+        asset.approve(address(vault), depositAmount);
+        uint256 shares = vault.deposit(depositAmount, user);
         vm.stopPrank();
 
         // Remove user from deposit permissions
@@ -622,7 +622,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // User should still be able to redeem even without deposit permissions
         vm.startPrank(user);
-        uint256 redeemedAssets = bullaFactoring.redeem(shares, user, user);
+        uint256 redeemedAssets = vault.redeem(shares, user, user);
         assertTrue(redeemedAssets > 0, "User should be able to redeem even without deposit permissions");
         vm.stopPrank();
 
@@ -642,8 +642,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // User deposits first time
         vm.startPrank(user);
-        asset.approve(address(bullaFactoring), depositAmount);
-        uint256 shares1 = bullaFactoring.deposit(depositAmount, user);
+        asset.approve(address(vault), depositAmount);
+        uint256 shares1 = vault.deposit(depositAmount, user);
         vm.stopPrank();
 
         // Remove user from redeem permissions
@@ -653,15 +653,15 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // User should still be able to deposit even without redeem permissions
         vm.startPrank(user);
-        asset.approve(address(bullaFactoring), depositAmount);
-        uint256 shares2 = bullaFactoring.deposit(depositAmount, user);
+        asset.approve(address(vault), depositAmount);
+        uint256 shares2 = vault.deposit(depositAmount, user);
         assertTrue(shares2 > 0, "User should be able to deposit even without redeem permissions");
         vm.stopPrank();
 
         // But user should not be able to redeem
         vm.startPrank(user);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
-        bullaFactoring.redeem(shares1 + shares2, user, user);
+        vault.redeem(shares1 + shares2, user, user);
         vm.stopPrank();
     }
 
@@ -671,7 +671,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create invoice
@@ -705,7 +705,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create invoice
@@ -737,7 +737,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 400000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create two identical invoices
@@ -780,7 +780,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create invoice
@@ -831,7 +831,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create invoice

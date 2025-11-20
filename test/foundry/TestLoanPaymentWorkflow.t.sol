@@ -86,7 +86,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
     ) internal returns (uint256 loanId, uint256 loanOfferId) {
         // Alice deposits to fund the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(principalAmount * 2, alice);
+        vault.deposit(principalAmount * 2, alice);
         vm.stopPrank();
         
         // Underwriter offers loan
@@ -598,7 +598,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Get detailed balance information before payment
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
         uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
-        uint256 totalAssetsBefore = bullaFactoring.totalAssets();
+        uint256 totalAssetsBefore = vault.totalAssets();
 
         // Pay loan
         (uint256 remainingPrincipal, uint256 interest) = bullaFrendLend.getTotalAmountDue(loanId);
@@ -611,7 +611,7 @@ contract TestLoanPaymentWorkflow is CommonSetup {
         // Get detailed balance information after payment
         uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
         uint256 adminFeeBalanceAfter = bullaFactoring.adminFeeBalance();
-        uint256 totalAssetsAfter = bullaFactoring.totalAssets();
+        uint256 totalAssetsAfter = vault.totalAssets();
         
         // Verify fee balances increased appropriately
         uint256 protocolFeeIncrease = protocolFeeBalanceAfter - protocolFeeBalanceBefore;

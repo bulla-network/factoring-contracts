@@ -94,8 +94,8 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         assertEq(insolventCount, 0);
         
         // Verify fund manager deposited into factoring pool
-        assertEq(bullaFactoring.balanceOf(investor1), 50_000 * 1e6); // 50k of 100k commitment (50% call)
-        assertEq(bullaFactoring.balanceOf(investor2), 100_000 * 1e6); // 100k of 200k commitment (50% call)
+        assertEq(vault.balanceOf(investor1), 50_000 * 1e6); // 50k of 100k commitment (50% call)
+        assertEq(vault.balanceOf(investor2), 100_000 * 1e6); // 100k of 200k commitment (50% call)
         
         // Step 3: Use factoring pool for invoice factoring
         uint256 invoiceAmount = 80_000 * 1e6;
@@ -122,7 +122,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
 
     function testCapitalCall_TriggersFactoringCapability() public {
         // Initial state: no funds in factoring pool
-        assertEq(bullaFactoring.totalAssets(), 0);
+        assertEq(vault.totalAssets(), 0);
         
         // Setup investor commitments
         vm.prank(investor1);
@@ -167,21 +167,21 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         vm.prank(capitalCaller);
         fundManager.capitalCall(50_000 * 1e6);
         
-        uint256 poolBalance1 = bullaFactoring.totalAssets();
+        uint256 poolBalance1 = vault.totalAssets();
         assertApproxEqRel(poolBalance1, 50_000 * 1e6, 0.001e18); // 0.1% tolerance
         
         // Second capital call: 100k more
         vm.prank(capitalCaller);
         fundManager.capitalCall(100_000 * 1e6);
         
-        uint256 poolBalance2 = bullaFactoring.totalAssets();
+        uint256 poolBalance2 = vault.totalAssets();
         assertApproxEqRel(poolBalance2, 150_000 * 1e6, 0.001e18); // 0.1% tolerance
         
         // Third capital call: remaining 150k
         vm.prank(capitalCaller);
         fundManager.capitalCall(150_000 * 1e6);
         
-        uint256 poolBalance3 = bullaFactoring.totalAssets();
+        uint256 poolBalance3 = vault.totalAssets();
         assertApproxEqRel(poolBalance3, 300_000 * 1e6, 0.001e18); // 0.1% tolerance
         
         // Verify all commitments are now exhausted (allow for small rounding remainder)
@@ -200,7 +200,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         vm.prank(capitalCaller);
         fundManager.capitalCall(INVESTOR1_COMMITMENT);
         
-        uint256 initialPoolAssets = bullaFactoring.totalAssets();
+        uint256 initialPoolAssets = vault.totalAssets();
         
         // Create and fund invoice
         uint256 invoiceAmount = 80_000 * 1e6;
@@ -225,11 +225,11 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         
         // Pool should have more assets due to interest earned
-        assertGt(bullaFactoring.totalAssets(), initialPoolAssets);
+        assertGt(vault.totalAssets(), initialPoolAssets);
         
         // Investor's shares should be worth more
-        uint256 investor1Shares = bullaFactoring.balanceOf(investor1);
-        uint256 investor1Assets = bullaFactoring.convertToAssets(investor1Shares);
+        uint256 investor1Shares = vault.balanceOf(investor1);
+        uint256 investor1Assets = vault.convertToAssets(investor1Shares);
         assertGt(investor1Assets, INVESTOR1_COMMITMENT);
     }
 
@@ -283,8 +283,8 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         
         
         // Both investors should benefit from diversified portfolio returns
-        uint256 investor1Value = bullaFactoring.convertToAssets(bullaFactoring.balanceOf(investor1));
-        uint256 investor2Value = bullaFactoring.convertToAssets(bullaFactoring.balanceOf(investor2));
+        uint256 investor1Value = vault.convertToAssets(vault.balanceOf(investor1));
+        uint256 investor2Value = vault.convertToAssets(vault.balanceOf(investor2));
         
         assertGt(investor1Value, INVESTOR1_COMMITMENT);
         assertGt(investor2Value, INVESTOR2_COMMITMENT);
@@ -318,8 +318,8 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         assertEq(insolventCount, 1);
         
         // Verify only investor1 received shares (investor2 was insolvent)
-        assertEq(bullaFactoring.balanceOf(investor1), 50_000 * 1e6);
-        assertEq(bullaFactoring.balanceOf(investor2), 0);
+        assertEq(vault.balanceOf(investor1), 50_000 * 1e6);
+        assertEq(vault.balanceOf(investor2), 0);
         
         // Verify investor2's commitment was reduced to 0 due to insolvency
         (, uint144 commitment2) = fundManager.capitalCommitments(investor2);
@@ -343,7 +343,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         
         assertEq(totalCalled, 0);
         assertEq(insolventCount, 1);
-        assertEq(bullaFactoring.balanceOf(investor1), 0);
+        assertEq(vault.balanceOf(investor1), 0);
     }
 
     // ============================================
@@ -388,14 +388,14 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         redeemPermissions.allow(investor1);
         
         // Verify investor can redeem their shares directly
-        uint256 investorShares = bullaFactoring.balanceOf(investor1);
+        uint256 investorShares = vault.balanceOf(investor1);
         assertEq(investorShares, INVESTOR1_COMMITMENT);
         
         vm.prank(investor1);
-        uint256 redeemedAssets = bullaFactoring.redeem(investorShares, investor1, investor1);
+        uint256 redeemedAssets = vault.redeem(investorShares, investor1, investor1);
         
         assertEq(redeemedAssets, INVESTOR1_COMMITMENT);
-        assertEq(bullaFactoring.balanceOf(investor1), 0);
+        assertEq(vault.balanceOf(investor1), 0);
     }
 
     // ============================================

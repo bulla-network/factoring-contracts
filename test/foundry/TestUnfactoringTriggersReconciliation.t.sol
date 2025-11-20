@@ -40,7 +40,7 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         // Alice deposits funds to the pool
         uint256 initialDeposit = 400000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates two invoices
@@ -80,7 +80,7 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         // Store the current total gain before unfactoring triggers reconciliation
 
         // Record price per share before unfactoring
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
 
         // Bob decides to unfactor the second invoice
         uint256 bobBalanceBefore = asset.balanceOf(bob);
@@ -105,7 +105,7 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
         assertGt(gainAfter, gainBefore, "Should have recorded gain after reconciliation");
 
         // Verify price per share increased due to reconciliation
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase due to reconciliation");
 
         console.log("Test Results:");

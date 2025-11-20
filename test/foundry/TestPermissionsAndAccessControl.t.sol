@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
 import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringVault } from 'contracts/BullaFactoringVault.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
 import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
@@ -38,50 +39,58 @@ contract TestPermissionsAndAccessControl is CommonSetup {
     function testAragonDaoInteractionHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2_1 bullaFactoringAragon = new BullaFactoringV2_1(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringVault vaultAragon = new BullaFactoringVault(asset, permissionsWithAragon, permissionsWithAragon, poolTokenName, poolTokenSymbol, address(0));
+        BullaFactoringV2_1 bullaFactoringAragon = new BullaFactoringV2_1(vaultAragon, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield);
+        vaultAragon.setAssociatedFund(address(bullaFactoringAragon), true);
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoringAragon), 1000 ether);
-        bullaFactoringAragon.deposit(initialDeposit, alice);
+        asset.approve(address(vaultAragon), 1000 ether);
+        vaultAragon.deposit(initialDeposit, alice);
         vm.stopPrank();
     }
 
         function testAragonDaoInteractionUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(false);
         
-        BullaFactoringV2_1 bullaFactoringAragon = new BullaFactoringV2_1(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, permissionsWithAragon, permissionsWithAragon, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringVault vaultAragon = new BullaFactoringVault(asset, permissionsWithAragon, permissionsWithAragon, poolTokenName, poolTokenSymbol, address(0));
+        BullaFactoringV2_1 bullaFactoringAragon = new BullaFactoringV2_1(vaultAragon, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithAragon, bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield);
+        vaultAragon.setAssociatedFund(address(bullaFactoringAragon), true);
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoringAragon), 1000 ether);
+        asset.approve(address(vaultAragon), 1000 ether);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", alice));
-        bullaFactoringAragon.deposit(initialDeposit, alice);
+        vaultAragon.deposit(initialDeposit, alice);
         vm.stopPrank();
     }
 
     function testGnosisPermissionsHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2_1 bullaFactoringSafe = new BullaFactoringV2_1(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringVault vaultSafe = new BullaFactoringVault(asset, permissionsWithSafe, permissionsWithSafe, poolTokenName, poolTokenSymbol, address(0));
+        BullaFactoringV2_1 bullaFactoringSafe = new BullaFactoringV2_1(vaultSafe, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield);
+        vaultSafe.setAssociatedFund(address(bullaFactoringSafe), true);
 
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        asset.approve(address(bullaFactoringSafe), 1000 ether);
-        bullaFactoringSafe.deposit(initialDeposit, alice);
+        asset.approve(address(vaultSafe), 1000 ether);
+        vaultSafe.deposit(initialDeposit, alice);
         vm.stopPrank();
     }
 
     function testGnosisPermissionsUnHappyPath() public {
         daoMock.setHasPermissionReturnValueMock(true);
         
-        BullaFactoringV2_1 bullaFactoringSafe = new BullaFactoringV2_1(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, permissionsWithSafe, permissionsWithSafe, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol) ;
+        BullaFactoringVault vaultSafe = new BullaFactoringVault(asset, permissionsWithSafe, permissionsWithSafe, poolTokenName, poolTokenSymbol, address(0));
+        BullaFactoringV2_1 bullaFactoringSafe = new BullaFactoringV2_1(vaultSafe, invoiceAdapterBulla, bullaFrendLend, underwriter, permissionsWithSafe, bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield);
+        vaultSafe.setAssociatedFund(address(bullaFactoringSafe), true);
 
         uint256 initialDeposit = 200000;
         vm.startPrank(bob);
-        asset.approve(address(bullaFactoringSafe), 1000 ether);
+        asset.approve(address(vaultSafe), 1000 ether);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", bob));
-        bullaFactoringSafe.deposit(initialDeposit, bob);
+        vaultSafe.deposit(initialDeposit, bob);
         vm.stopPrank();
     }
 
@@ -93,7 +102,7 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         uint256 initialDeposit = 100000000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Creditor creates the invoice

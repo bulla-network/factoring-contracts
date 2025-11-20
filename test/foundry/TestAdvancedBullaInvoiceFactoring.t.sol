@@ -50,7 +50,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceComplexInterestCalculation() public {
         uint256 initialDeposit = 500000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 250000;
@@ -107,7 +107,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceMultipleInvoicesWithDifferentInterestRates() public {
         uint256 initialDeposit = 1000000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;
@@ -141,7 +141,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         uint256 totalAccruedProfitsBefore = bullaFactoring.calculateAccruedProfits();
         assertGt(totalAccruedProfitsBefore, 0);
 
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
 
         for (uint256 i = 0; i < invoiceIds.length; i++) {
             IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceAdapterBulla.getInvoiceDetails(invoiceIds[i]);
@@ -152,7 +152,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
             vm.stopPrank();
         }
         
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
 
         assertGt(pricePerShareAfter, pricePerShareBefore, "Price per share should increase after all invoices are paid");
     }
@@ -160,7 +160,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceFactoringCapacityLimits() public {
         uint256 initialDeposit = 100000; // Limited deposit
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 largeInvoiceAmount = 150000; // More than available capital
@@ -193,7 +193,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
     function testBullaInvoiceMultipleFundingAttempts() public{
         uint256 initialDeposit = 200000;
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         uint256 invoiceAmount = 100000;

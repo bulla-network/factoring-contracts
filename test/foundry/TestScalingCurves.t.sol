@@ -27,7 +27,7 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(alice);
         asset.approve(address(bullaFactoring), depositAmount);
         vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
 
         // Measure at: 0, 10, 50, 100, 200 active invoices
         uint256[] memory dataPoints = new uint256[](5);
@@ -155,7 +155,7 @@ contract TestScalingCurves is CommonSetup {
         // Measure at 201 invoices
         uint256 g = gasleft();
         vm.prank(alice);
-        bullaFactoring.deposit(5000000, alice);  // Larger deposit to fund more invoices
+        vault.deposit(5000000, alice);  // Larger deposit to fund more invoices
         dataPoints[0] = g - gasleft();
         
         // Fund to 220 invoices
@@ -165,7 +165,7 @@ contract TestScalingCurves is CommonSetup {
         
         g = gasleft();
         vm.prank(alice);
-        bullaFactoring.deposit(1000000, alice);
+        vault.deposit(1000000, alice);
         dataPoints[1] = g - gasleft();
         
         // Fund to 240 invoices
@@ -175,7 +175,7 @@ contract TestScalingCurves is CommonSetup {
         
         g = gasleft();
         vm.prank(alice);
-        bullaFactoring.deposit(1000000, alice);
+        vault.deposit(1000000, alice);
         dataPoints[2] = g - gasleft();
         
         // Fund to 260 invoices
@@ -185,7 +185,7 @@ contract TestScalingCurves is CommonSetup {
         
         g = gasleft();
         vm.prank(alice);
-        bullaFactoring.deposit(1000000, alice);
+        vault.deposit(1000000, alice);
         dataPoints[3] = g - gasleft();
         
         // Fund to 280 invoices
@@ -195,7 +195,7 @@ contract TestScalingCurves is CommonSetup {
         
         g = gasleft();
         vm.prank(alice);
-        bullaFactoring.deposit(1000000, alice);
+        vault.deposit(1000000, alice);
         dataPoints[4] = g - gasleft();
         
         console.log("Data Points:");
@@ -255,7 +255,7 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(alice);
         asset.approve(address(bullaFactoring), 10000000);
         vm.prank(alice);
-        bullaFactoring.deposit(10000000, alice);
+        vault.deposit(10000000, alice);
 
         // We need to measure at multiple invoice counts to determine scaling
         // We already have 281 invoices, let's add more and measure
@@ -265,7 +265,7 @@ contract TestScalingCurves is CommonSetup {
         // Measurement 1: Current state (281 invoices)
         counts[0] = 281;
         uint256 g = gasleft();
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
         dataPoints[0] = g - gasleft();
         
         // Add 50 more invoices
@@ -276,7 +276,7 @@ contract TestScalingCurves is CommonSetup {
         // Measurement 2: 331 invoices
         counts[1] = 331;
         g = gasleft();
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
         dataPoints[1] = g - gasleft();
         
         // Add 50 more invoices
@@ -287,7 +287,7 @@ contract TestScalingCurves is CommonSetup {
         // Measurement 3: 381 invoices
         counts[2] = 381;
         g = gasleft();
-        bullaFactoring.maxRedeem(alice);
+        vault.maxRedeem(alice);
         dataPoints[2] = g - gasleft();
         
         console.log("\nData Points:");

@@ -29,7 +29,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         
         // Setup
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create and fund invoice
@@ -56,18 +56,18 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Note: With the new model, active invoices are always unpaid.
         // Once paid, invoices are automatically reconciled and removed from active invoices.
 
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Alice redeems shares
         vm.startPrank(alice);
-        uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 2;
-        bullaFactoring.redeem(sharesToRedeem, alice, alice);
+        uint256 sharesToRedeem = vault.balanceOf(alice) / 2;
+        vault.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
         // Verify reconciliation occurred
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
         // Active invoices are always unpaid now
 
@@ -82,7 +82,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         
         // Setup
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create and fund invoice
@@ -109,18 +109,18 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Note: With the new model, active invoices are always unpaid.
         // Once paid, invoices are automatically reconciled and removed from active invoices.
 
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Alice redeems shares using regular redeem()
         vm.startPrank(alice);
-        uint256 sharesToRedeem = bullaFactoring.balanceOf(alice) / 3;
-        bullaFactoring.redeem(sharesToRedeem, alice, alice);
+        uint256 sharesToRedeem = vault.balanceOf(alice) / 3;
+        vault.redeem(sharesToRedeem, alice, alice);
         vm.stopPrank();
 
         // Verify reconciliation occurred
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
         // Active invoices are always unpaid now
 
@@ -135,7 +135,7 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         
         // Setup
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create and fund invoice
@@ -162,19 +162,19 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         // Note: With the new model, active invoices are always unpaid.
         // Once paid, invoices are automatically reconciled and removed from active invoices.
 
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 pricePerShareBefore = vault.pricePerShare();
         uint256 gainBefore = bullaFactoring.paidInvoicesGain();
         // Since paidInvoicesGain is now cumulative, we store the current total before reconciliation
 
         // Alice withdraws assets using regular withdraw()
         vm.startPrank(alice);
-        uint256 maxWithdraw = bullaFactoring.maxWithdraw(alice);
+        uint256 maxWithdraw = vault.maxWithdraw(alice);
         uint256 assetsToWithdraw = maxWithdraw / 3;
-        bullaFactoring.withdraw(assetsToWithdraw, alice, alice);
+        vault.withdraw(assetsToWithdraw, alice, alice);
         vm.stopPrank();
 
         // Verify reconciliation occurred
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 pricePerShareAfter = vault.pricePerShare();
         uint256 gainAfter = bullaFactoring.paidInvoicesGain();
         // Active invoices are always unpaid now
 
@@ -192,21 +192,21 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         
         // Setup with no invoices
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Record state before
-        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
-        uint256 totalAssetsBefore = bullaFactoring.totalAssets();
+        uint256 pricePerShareBefore = vault.pricePerShare();
+        uint256 totalAssetsBefore = vault.totalAssets();
 
         // Charlie deposits when there are no paid invoices to reconcile
         vm.startPrank(charlie);
-        bullaFactoring.deposit(50000, charlie);
+        vault.deposit(50000, charlie);
         vm.stopPrank();
 
         // Verify no unintended side effects
-        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
-        uint256 totalAssetsAfter = bullaFactoring.totalAssets();
+        uint256 pricePerShareAfter = vault.pricePerShare();
+        uint256 totalAssetsAfter = vault.totalAssets();
 
         // Price per share should remain stable (or increase only due to deposits)
         assertApproxEqAbs(pricePerShareAfter, pricePerShareBefore, 1000, "Price per share should not change");

@@ -46,7 +46,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         // 1. Alice deposits
         uint256 depositAmount = 100000;
         vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
+        vault.deposit(depositAmount, alice);
         
         // 2. Fund an invoice to tie up capital
         vm.prank(bob);
@@ -62,12 +62,12 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         
         // 3. Alice tries to redeem all shares - should queue
         vm.startPrank(alice);
-        queuedShares = bullaFactoring.balanceOf(alice);
-        bullaFactoring.redeem(queuedShares, alice, alice);
+        queuedShares = vault.balanceOf(alice);
+        vault.redeem(queuedShares, alice, alice);
         vm.stopPrank();
         
         // Verify redemption was queued
-        uint256 queueLength = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLength = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLength, 1, "Should have 1 queued redemption");
         
         return (invoiceId, queuedShares);
@@ -80,7 +80,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
     function testDeposit_AutomaticallyProcessesQueue() public {
         (uint256 invoiceId, uint256 queuedShares) = setupQueuedRedemption();
         
-        uint256 aliceSharesBefore = bullaFactoring.balanceOf(alice);
+        uint256 aliceSharesBefore = vault.balanceOf(alice);
         uint256 aliceAssetsBefore = asset.balanceOf(alice);
         
         // Charlie deposits - should trigger automatic queue processing
@@ -88,10 +88,10 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         vm.prank(charlie);
         vm.expectEmit(true, true, false, false);
         emit RedemptionProcessed(alice, alice, 0, 0, 0); // We expect some redemption to be processed
-        bullaFactoring.deposit(charlieDepositAmount, charlie);
+        vault.deposit(charlieDepositAmount, charlie);
         
         // Check if Alice's queued redemption was partially or fully processed
-        uint256 aliceSharesAfter = bullaFactoring.balanceOf(alice);
+        uint256 aliceSharesAfter = vault.balanceOf(alice);
         uint256 aliceAssetsAfter = asset.balanceOf(alice);
         
         // Alice should have received some assets back
@@ -101,10 +101,10 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
     function testDeposit_ProcessesMultipleQueuedRedemptions() public {
         // 1. Alice and Bob deposit
         vm.prank(alice);
-        bullaFactoring.deposit(100000, alice);
+        vault.deposit(100000, alice);
         
         vm.prank(bob);
-        bullaFactoring.deposit(100000, bob);
+        vault.deposit(100000, bob);
         
         // 2. Fund an invoice to tie up most capital
         vm.prank(charlie);
@@ -120,22 +120,22 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         
         // 3. Both Alice and Bob queue redemptions
         vm.startPrank(alice);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
         
         vm.startPrank(bob);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(bob), bob, bob);
+        vault.redeem(vault.balanceOf(bob), bob, bob);
         vm.stopPrank();
         
-        uint256 queueLength = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLength = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLength, 2, "Should have 2 queued redemptions");
         
         // 4. Charlie deposits - should process queue
         vm.prank(charlie);
-        bullaFactoring.deposit(50000, charlie);
+        vault.deposit(50000, charlie);
         
         // At least one redemption should be processed (FIFO order)
-        uint256 queueLengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLengthAfter, 1, "Queue should have fewer items after deposit");
     }
 
@@ -146,7 +146,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
     function testReconcileSingleInvoice_AutomaticallyProcessesQueue() public {
         (uint256 invoiceId, uint256 queuedShares) = setupQueuedRedemption();
         
-        uint256 queueLengthBefore = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthBefore = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLengthBefore, 1, "Should have 1 queued redemption before payment");
         
         // Pay the invoice
@@ -158,7 +158,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         
         // Invoice payment triggers reconcileSingleInvoice callback, which should process queue
         // Queue should be fully or partially processed
-        uint256 queueLengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLengthAfter, 0, "Queue should be processed");
     }
 
@@ -183,7 +183,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         vm.stopPrank();
         
         // Queue should be processed after unfactoring
-        uint256 queueLengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthAfter = vault.getRedemptionQueue().getQueueLength();
         
         // Queue might be fully or partially processed depending on how much capital returned
         assertEq(queueLengthAfter, 0, "Queue should be processed");
@@ -192,10 +192,10 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
     function testUnfactorInvoice_ProcessesQueueWithMultipleInvestors() public {
         // Setup: Two investors deposit
         vm.prank(alice);
-        bullaFactoring.deposit(100000, alice);
+        vault.deposit(100000, alice);
         
         vm.prank(charlie);
-        bullaFactoring.deposit(100000, charlie);
+        vault.deposit(100000, charlie);
         
         // Bob funds an invoice
         vm.prank(bob);
@@ -211,14 +211,14 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         
         // Both investors queue redemptions
         vm.startPrank(alice);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(alice), alice, alice);
+        vault.redeem(vault.balanceOf(alice), alice, alice);
         vm.stopPrank();
         
         vm.startPrank(charlie);
-        bullaFactoring.redeem(bullaFactoring.balanceOf(charlie), charlie, charlie);
+        vault.redeem(vault.balanceOf(charlie), charlie, charlie);
         vm.stopPrank();
         
-        uint256 queueLengthAfterQueuing = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthAfterQueuing = vault.getRedemptionQueue().getQueueLength();
         assertTrue(queueLengthAfterQueuing > 0, "Should have queued redemptions");
         
         uint256 aliceAssetsBefore = asset.balanceOf(alice);
@@ -233,7 +233,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         vm.stopPrank();
         
         // At least one redemption should be processed (FIFO)
-        uint256 queueLengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLengthAfter, 0, "Queue should be processed");
     }
 
@@ -260,7 +260,7 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         vm.stopPrank();
         
         // Queue should be processed
-        uint256 queueLengthAfter = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLengthAfter = vault.getRedemptionQueue().getQueueLength();
         assertEq(queueLengthAfter, 0, "Queue should be processed after unfactoring");
     }
 
@@ -273,10 +273,10 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         
         // Charlie deposits a tiny amount - not enough to process queue
         vm.prank(charlie);
-        bullaFactoring.deposit(100, charlie);
+        vault.deposit(100, charlie);
         
         // Queue should still exist (not enough liquidity to process)
-        uint256 queueLength = bullaFactoring.getRedemptionQueue().getQueueLength();
+        uint256 queueLength = vault.getRedemptionQueue().getQueueLength();
         // Queue length depends on whether the small deposit was enough to process anything
         assertEq(queueLength, 1, "Queue handling should not fail");
     }

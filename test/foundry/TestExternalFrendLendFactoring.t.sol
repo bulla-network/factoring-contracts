@@ -98,7 +98,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(200_000, alice);
+        vault.deposit(200_000, alice);
         vm.stopPrank();
         
         // Bob creates an external loan to Charlie with agreed interest rate
@@ -146,7 +146,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(200_000, alice);
+        vault.deposit(200_000, alice);
         vm.stopPrank();
         
         // Bob creates an external loan to Charlie
@@ -195,7 +195,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(400_000, alice);
+        vault.deposit(400_000, alice);
         vm.stopPrank();
         
         // Create two identical loans with different compounding frequencies
@@ -326,7 +326,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(300_000, alice);
+        vault.deposit(300_000, alice);
         vm.stopPrank();
         
         // Bob creates external loan to Charlie with agreed interest terms
@@ -385,7 +385,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(160_000, alice);
+        vault.deposit(160_000, alice);
         vm.stopPrank();
         
         // Bob creates external loan to Charlie
@@ -449,7 +449,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(240_000, alice);
+        vault.deposit(240_000, alice);
         vm.stopPrank();
         
         // Bob creates external loan to Charlie
@@ -502,7 +502,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(300_000, alice);
+        vault.deposit(300_000, alice);
         vm.stopPrank();
         
         // Bob creates multiple external loans to Charlie
@@ -580,7 +580,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits funds to the pool
         vm.startPrank(alice);
-        bullaFactoring.deposit(150_000, alice);
+        vault.deposit(150_000, alice);
         vm.stopPrank();
         
         // Bob creates external loan to Charlie
@@ -707,10 +707,10 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Alice deposits sufficient funds
         vm.startPrank(alice);
-        bullaFactoring.deposit(2_000_000, alice);
+        vault.deposit(2_000_000, alice);
         vm.stopPrank();
 
-        uint256 initialPoolBalance = bullaFactoring.totalAssets();
+        uint256 initialPoolBalance = vault.totalAssets();
         
         // Create and accept loan
         uint256 loanId = _createAndAcceptLoan(principalAmount, targetYieldBps, spreadBps, numberOfPeriodsPerYear, termLength);
@@ -731,7 +731,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         assertEq(kickbackAmount, 0, "offerLoan should never generate kickbacks when paid");
         
         // Verify pool balance increase
-        uint256 finalPoolBalance = bullaFactoring.totalAssets();
+        uint256 finalPoolBalance = vault.totalAssets();
         uint256 poolBalanceIncrease = finalPoolBalance - initialPoolBalance;
         assertEq(poolBalanceIncrease, trueInterest, "Pool balance should increase by exactly the target yield interest");
         

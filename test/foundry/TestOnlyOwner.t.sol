@@ -76,7 +76,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
     function testSetDepositPermissionsOnlyCalledByOwner() public {
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        bullaFactoring.setDepositPermissions(bob);
+        vault.setDepositPermissions(bob);
         vm.stopPrank();
     }
 
@@ -130,8 +130,8 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         
         vm.expectEmit(true, true, true, true);
         emit RedeemPermissionsChanged(newRedeemPermissions);
-        bullaFactoring.setRedeemPermissions(newRedeemPermissions);
+        vault.setRedeemPermissions(newRedeemPermissions);
         
-        assertEq(address(bullaFactoring.redeemPermissions()), newRedeemPermissions, "Redeem permissions should be updated");
+        assertEq(address(vault.redeemPermissions()), newRedeemPermissions, "Redeem permissions should be updated");
     }
 }

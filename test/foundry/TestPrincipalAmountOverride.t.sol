@@ -37,7 +37,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         
         // Setup initial deposit for most tests
         vm.startPrank(alice);
-        bullaFactoring.deposit(500000, alice); // Large deposit for testing
+        vault.deposit(500000, alice); // Large deposit for testing
         vm.stopPrank();
     }
 
@@ -239,7 +239,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         uint256 invoiceAmount = 100000;
         uint256 overrideAmount = 75000;
         
-        uint256 initialPrice = bullaFactoring.pricePerShare();
+        uint256 initialPrice = vault.pricePerShare();
         
         // Create and fund invoice with overrideAmount
         vm.startPrank(bob);
@@ -260,7 +260,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         payInvoice(invoiceId, invoiceAmount);
         
         
-        uint256 finalPrice = bullaFactoring.pricePerShare();
+        uint256 finalPrice = vault.pricePerShare();
         
         // Price should have increased due to gains
         assertTrue(finalPrice > initialPrice);
@@ -444,7 +444,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         uint256 overrideAmount = 100000; // Factor only portion
         
         // Check initial available funds
-        uint256 initialAssets = bullaFactoring.totalAssets();
+        uint256 initialAssets = vault.totalAssets();
         assertTrue(initialAssets >= availableFunds);
         
         // Create and fund invoice with overrideAmount
@@ -462,7 +462,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
         
         // Should have remaining capacity for other invoices
-        uint256 remainingCapacity = bullaFactoring.totalAssets();
+        uint256 remainingCapacity = vault.totalAssets();
         assertTrue(remainingCapacity > 0);
         assertTrue(funded < invoiceAmount); // Funded less than full invoice
     }

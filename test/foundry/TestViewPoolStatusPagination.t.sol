@@ -19,7 +19,7 @@ contract TestViewPoolStatusPagination is CommonSetup {
         uint256 initialDeposit = 100000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create 5 invoices, 3 will be impaired, 2 will not
@@ -52,7 +52,7 @@ contract TestViewPoolStatusPagination is CommonSetup {
         uint256 initialDeposit = 100000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create 10 invoices
@@ -110,7 +110,7 @@ contract TestViewPoolStatusPagination is CommonSetup {
         uint256 initialDeposit = 10000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create 3 invoices
@@ -141,7 +141,7 @@ contract TestViewPoolStatusPagination is CommonSetup {
         uint256 initialDeposit = 100000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Create 6 invoices

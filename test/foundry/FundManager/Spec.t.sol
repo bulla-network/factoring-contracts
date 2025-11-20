@@ -18,7 +18,7 @@ contract BaseFactoringFundManagerSpecTestSetup is CommonSetup, IBullaFactoringFu
 
         // Deploy MockUSDC and assign it to the fundManager
         fundManager = new BullaFactoringFundManager({
-            _factoringPool: IERC4626(bullaFactoring),
+            _factoringPool: IERC4626(address(vault)),
             _minInvestment: 10e6,
             _capitalCaller: capitalCaller
         });

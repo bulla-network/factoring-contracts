@@ -84,7 +84,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         // Step 1: Deploy multiple invoices to gradually consume all available assets
         uint256 initialDeposit = 2000 * 1e6; // 2000 USDC
         vm.startPrank(alice);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Factor multiple invoices to consume available assets
@@ -124,7 +124,7 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         vm.stopPrank();
 
         // Check if we achieved totalAssets <= 0
-        uint256 totalAssetsAfterFactoring = bullaFactoring.totalAssets();
+        uint256 totalAssetsAfterFactoring = vault.totalAssets();
         
         uint256 remainingAmount = totalAssetsAfterFactoring + 1;
         

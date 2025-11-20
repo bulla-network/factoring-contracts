@@ -12,7 +12,7 @@ contract TestPreviewUnfactor is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -55,7 +55,7 @@ contract TestPreviewUnfactor is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -109,7 +109,7 @@ contract TestPreviewUnfactor is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
@@ -141,7 +141,7 @@ contract TestPreviewUnfactor is CommonSetup {
         uint256 initialDeposit = 1000;
         vm.startPrank(alice);
         asset.approve(address(bullaFactoring), initialDeposit);
-        bullaFactoring.deposit(initialDeposit, alice);
+        vault.deposit(initialDeposit, alice);
         vm.stopPrank();
 
         // Bob creates and funds an invoice
