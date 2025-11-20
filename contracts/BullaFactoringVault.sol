@@ -551,14 +551,7 @@ contract BullaFactoringVault is ERC20, ERC4626, Ownable, IBullaFactoringVault {
             emit AaveWithdraw(withdrawn);
         }
     }
-
-    /// @notice Get the total Aave yield earned (difference between aToken balance and what we think we deposited)
-    /// @return The yield earned from Aave (always included in totalAssets via aToken appreciation)
-    /// @dev Note: aTokens automatically increase in value as interest accrues, so we don't need to track this separately
-    function getAaveBalance() external view returns (uint256) {
-        return _getAaveBalance();
-    }
-
+    
     /// @notice Internal helper to ensure sufficient liquidity by withdrawing from Aave if needed
     /// @param assetsNeeded The amount of assets needed for the operation
     function _ensureLiquidity(uint256 assetsNeeded) internal {

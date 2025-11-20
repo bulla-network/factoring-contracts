@@ -70,10 +70,6 @@ interface IBullaFactoringVault is IERC4626 {
     /// @notice Process queued redemptions when liquidity becomes available
     function processRedemptionQueue() external;
     
-    /// @notice Get the balance of assets deposited in Aave
-    /// @return The balance of aTokens held by this vault
-    function getAaveBalance() external view returns (uint256);
-    
     /// @notice Get the total balance including assets in Aave
     /// @return The total balance of assets (vault balance + Aave balance)
     function getTotalBalance() external view returns (uint256);
