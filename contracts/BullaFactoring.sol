@@ -81,14 +81,16 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint256[] public pendingLoanOffersIds;
 
     // ============ Aggregate State Tracking Variables ============
-    /// @notice Total daily interest rate across all active invoices (sum of all dailyInterestRate values)
-    uint256 private totalDailyInterestRate = 0;
+    /// @notice Total per-second interest rate across all active invoices in RAY units (sum of all perSecondInterestRate values)
+    /// @dev RAY = 1e27 for high-precision per-second interest accrual (Aave V3 style)
+    uint256 private totalPerSecondInterestRateRay = 0;
     
     /// @notice Timestamp when accrued profits were last checkpointed
     uint256 private lastCheckpointTimestamp;
     
-    /// @notice Accrued profits at the last checkpoint
-    uint256 private accruedProfitsAtCheckpoint = 0;
+    /// @notice Accrued profits at the last checkpoint in RAY units (1e27)
+    /// @dev Stored in RAY for precision, converted to token decimals when accessed via calculateAccruedProfits()
+    uint256 private accruedProfitsAtCheckpointRay = 0;
     
     /// @notice Total capital at risk plus withheld fees (sum of fundedAmountGross for all active invoices, where fundedAmountGross includes protocol fee)
     uint256 private capitalAtRiskPlusWithheldFees = 0;
@@ -174,14 +176,15 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Checkpoints the aggregate accrued profits state
-    /// @dev Updates accruedProfitsAtCheckpoint based on time passed and current totalDailyInterestRate
-    /// @dev This should be called before any operation that modifies totalDailyInterestRate
+    /// @dev Updates accruedProfitsAtCheckpointRay based on time passed and current totalPerSecondInterestRateRay
+    /// @dev This should be called before any operation that modifies totalPerSecondInterestRateRay
     function _checkpointAccruedProfits() internal {
         if (block.timestamp > lastCheckpointTimestamp) {
-            uint256 daysSinceCheckpoint = (block.timestamp - lastCheckpointTimestamp) / 1 days;
+            uint256 secondsSinceCheckpoint = block.timestamp - lastCheckpointTimestamp;
             
-            // Accumulate interest for the time period since last checkpoint
-            accruedProfitsAtCheckpoint += totalDailyInterestRate * daysSinceCheckpoint;
+            // Accumulate interest in RAY units (no conversion yet - stays in RAY for precision)
+            // perSecondRateRay * seconds = accumulated interest in RAY
+            accruedProfitsAtCheckpointRay += totalPerSecondInterestRateRay * secondsSinceCheckpoint;
             
             // Update checkpoint timestamp
             lastCheckpointTimestamp = block.timestamp;
@@ -189,13 +192,13 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Adds an invoice to the aggregate state tracking
-    /// @param dailyInterestRate The daily interest rate for this invoice
-    function _addInvoiceToAggregate(uint256 dailyInterestRate) internal {
+    /// @param perSecondInterestRateRay The per-second interest rate for this invoice in RAY units
+    function _addInvoiceToAggregate(uint256 perSecondInterestRateRay) internal {
         // Checkpoint before modifying aggregate state
         _checkpointAccruedProfits();
         
-        // Add to aggregate
-        totalDailyInterestRate += dailyInterestRate;
+        // Add to aggregate (RAY units)
+        totalPerSecondInterestRateRay += perSecondInterestRateRay;
     }
 
     /// @notice The underwriter approves a loan that was requested by a user
@@ -288,18 +291,17 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             receiverAddress: address(this),
             creditor: address(this),
             protocolFee: 0,
-            dailyInterestRate: Math.mulDiv(
+            perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(
                 pendingLoanOffer.principalAmount,
-                pendingLoanOffer.feeParams.targetYieldBps,
-                3_650_000
+                pendingLoanOffer.feeParams.targetYieldBps
             )
         });
 
         originalCreditors[loanId] = address(this);
         activeInvoices.push(loanId);
         
-        // Add loan to aggregate state tracking
-        _addInvoiceToAggregate(approvedInvoices[loanId].dailyInterestRate);
+        // Add loan to aggregate state tracking (RAY units)
+        _addInvoiceToAggregate(approvedInvoices[loanId].perSecondInterestRateRay);
         
         // Add to capital at risk (principalAmount + protocolFee which is 0)
         capitalAtRiskPlusWithheldFees += pendingLoanOffer.principalAmount;
@@ -353,7 +355,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             invoiceDueDate: invoiceSnapshot.dueDate,
             impairmentDate: invoiceSnapshot.dueDate + invoiceSnapshot.impairmentGracePeriod,
             protocolFee: 0,
-            dailyInterestRate: Math.mulDiv(_initialInvoiceValue, _targetYieldBps, 3_650_000)
+            perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(_initialInvoiceValue, _targetYieldBps)
         });
         emit InvoiceApproved(invoiceId, _validUntil, feeParams);
     }
@@ -412,14 +414,17 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Calculates the accrued profits of active invoices
-    /// @dev This function uses accrued profits at last checkpoint + pending days since checkpoint * total daily interest rate
-    /// @return The accrued profits
+    /// @dev This function uses accrued profits at last checkpoint + pending seconds since checkpoint * total per-second interest rate (all in RAY)
+    /// @return The accrued profits in token decimals (converted from RAY)
     function calculateAccruedProfits() public view returns (uint256) {
-        // Calculate days since last checkpoint
-        uint256 daysSinceCheckpoint = (block.timestamp - lastCheckpointTimestamp) / 1 days;
+        // Calculate seconds since last checkpoint
+        uint256 secondsSinceCheckpoint = block.timestamp - lastCheckpointTimestamp;
         
-        // O(1) calculation: checkpoint value + accumulated interest since checkpoint
-        return accruedProfitsAtCheckpoint + (totalDailyInterestRate * daysSinceCheckpoint);
+        // O(1) calculation: checkpoint value (RAY) + accumulated interest since checkpoint (RAY)
+        uint256 totalAccruedProfitsRay = accruedProfitsAtCheckpointRay + (totalPerSecondInterestRateRay * secondsSinceCheckpoint);
+        
+        // Convert from RAY to token decimals
+        return totalAccruedProfitsRay / FeeCalculations.RAY;
     }
 
     /** @dev See {IERC4626-previewDeposit}. */
@@ -532,8 +537,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         originalCreditors[invoiceId] = msg.sender;
         activeInvoices.push(invoiceId);
 
-        // Add invoice to aggregate state tracking
-        _addInvoiceToAggregate(approval.dailyInterestRate);
+        // Add invoice to aggregate state tracking (RAY units)
+        _addInvoiceToAggregate(approval.perSecondInterestRateRay);
         
         // Add to capital at risk and withheld fees
         capitalAtRiskPlusWithheldFees += fundedAmountGross;
@@ -659,8 +664,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
         
         // Calculate fees and amounts
-        uint256 daysSinceFunded = (block.timestamp > approval.fundedTimestamp) ? Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
-        (trueInterest, trueSpreadAmount, trueAdminFee, ) = FeeCalculations.calculateFees(approval, daysSinceFunded, invoice);
+        uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
+        (trueInterest, trueSpreadAmount, trueAdminFee, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
         totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
     }
 
@@ -724,21 +729,21 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 activeInvoices[i] = activeInvoices[activeInvoices.length - 1];
                 activeInvoices.pop();
                 
-                uint256 dailyRate = approvedInvoices[invoiceId].dailyInterestRate;
+                uint256 perSecondRateRay = approvedInvoices[invoiceId].perSecondInterestRateRay;
 
-                if (dailyRate > 0) {
+                if (perSecondRateRay > 0) {
                     // First, checkpoint to accumulate all interest up to this moment
                     _checkpointAccruedProfits();
                     
-                    // Calculate this invoice's total accrued interest since it was funded
-                    uint256 daysSinceFunding = (block.timestamp - approvedInvoices[invoiceId].fundedTimestamp) / 1 days;
-                    uint256 invoiceAccruedInterest = dailyRate * daysSinceFunding;
+                    // Calculate this invoice's total accrued interest since it was funded (in RAY units)
+                    uint256 secondsSinceFunding = block.timestamp - approvedInvoices[invoiceId].fundedTimestamp;
+                    uint256 invoiceAccruedInterestRay = perSecondRateRay * secondsSinceFunding;
                     
-                    // Remove this invoice's accrued interest from the checkpoint
-                    accruedProfitsAtCheckpoint -= invoiceAccruedInterest;
+                    // Remove this invoice's accrued interest from the checkpoint (both in RAY)
+                    accruedProfitsAtCheckpointRay -= invoiceAccruedInterestRay;
                     
-                    // Remove this invoice's daily rate from future calculations
-                    totalDailyInterestRate -= dailyRate;
+                    // Remove this invoice's per-second rate from future calculations (RAY units)
+                    totalPerSecondInterestRateRay -= perSecondRateRay;
                 }
                 // fundedAmountGross now includes protocol fee
                 uint256 atRiskPlusWithheldFees = approvedInvoices[invoiceId].fundedAmountGross;
