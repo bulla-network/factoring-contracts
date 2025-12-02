@@ -7,11 +7,52 @@ import "../interfaces/IBullaFactoring.sol";
 
 /// @title Fee Calculations Library
 /// @notice Library for calculating various fees in the BullaFactoring contract
+/// @dev Uses RAY units (27 decimals) for high-precision per-second interest calculations, inspired by Aave V3
 library FeeCalculations {
+    // ============ RAY Math Constants (Aave V3 style) ============
+    
+    /// @notice RAY = 1e27, used for high-precision fixed-point arithmetic
+    uint256 internal constant RAY = 1e27;
+    
+    /// @notice Seconds per year (accounting for leap years using Gregorian calendar average)
+    uint256 internal constant SECONDS_PER_YEAR = 31_556_952;
+    
+    // ============ Per-Second Interest Rate Functions ============
+    
+    /// @notice Calculates the per-second interest rate in RAY units for a given principal and APR
+    /// @dev perSecondRate = (principal * targetYieldBps * RAY) / (SECONDS_PER_YEAR * 10000)
+    /// @param principal The principal amount (in token decimals)
+    /// @param targetYieldBps The target yield in basis points (e.g., 500 = 5%)
+    /// @return perSecondInterestRateRay The per-second interest rate in RAY units
+    function calculatePerSecondInterestRateRay(
+        uint256 principal,
+        uint16 targetYieldBps
+    ) internal pure returns (uint256 perSecondInterestRateRay) {
+        // Calculate: (principal * targetYieldBps * RAY) / (SECONDS_PER_YEAR * 10000)
+        // Use mulDiv to avoid overflow
+        perSecondInterestRateRay = Math.mulDiv(
+            principal * uint256(targetYieldBps),
+            RAY,
+            SECONDS_PER_YEAR * 10_000
+        );
+    }
+    
+    /// @notice Calculates the accrued interest from a per-second rate and elapsed time
+    /// @dev accruedInterest = (perSecondRateRay * seconds) / RAY
+    /// @param perSecondInterestRateRay The per-second interest rate in RAY units
+    /// @param secondsElapsed The number of seconds elapsed
+    /// @return accruedInterest The accrued interest in token decimals
+    function calculateAccruedInterest(
+        uint256 perSecondInterestRateRay,
+        uint256 secondsElapsed
+    ) internal pure returns (uint256 accruedInterest) {
+        // accruedInterest = perSecondRateRay * secondsElapsed / RAY
+        accruedInterest = (perSecondInterestRateRay * secondsElapsed) / RAY;
+    }
 
     /// @notice Calculates all fees for an invoice
     /// @param approval The invoice approval data
-    /// @param daysOfInterest The number of days for which interest is calculated
+    /// @param secondsOfInterest The number of seconds for which interest is calculated
     /// @param invoice The invoice data
     /// @return interest The calculated interest amount
     /// @return spreadAmount The calculated spread amount
@@ -19,7 +60,7 @@ library FeeCalculations {
     /// @return kickbackAmount The calculated kickback amount
     function calculateFees(
         IBullaFactoringV2.InvoiceApproval memory approval, 
-        uint256 daysOfInterest, 
+        uint256 secondsOfInterest, 
         IInvoiceProviderAdapterV2.Invoice memory invoice
     ) internal pure returns (
         uint256 interest, 
@@ -29,11 +70,11 @@ library FeeCalculations {
     ) {
         // Calculate the APR discount for the payment period
         // millibips used due to the small nature of the fees
-        uint256 _targetYieldMbps = Math.mulDiv(uint256(approval.feeParams.targetYieldBps) * 1000, daysOfInterest, 365);
-        uint256 spreadRateMbps = Math.mulDiv(uint256(approval.feeParams.spreadBps) * 1000, daysOfInterest, 365);
+        uint256 _targetYieldMbps = Math.mulDiv(uint256(approval.feeParams.targetYieldBps) * 1000, secondsOfInterest, SECONDS_PER_YEAR);
+        uint256 spreadRateMbps = Math.mulDiv(uint256(approval.feeParams.spreadBps) * 1000, secondsOfInterest, SECONDS_PER_YEAR);
         
         // Calculate the admin fee rate
-        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.adminFeeBps) * 1000, daysOfInterest, 365);
+        uint256 adminFeeRateMbps = Math.mulDiv(uint256(approval.feeParams.adminFeeBps) * 1000, secondsOfInterest, SECONDS_PER_YEAR);
         
         // Calculate the total fee rate Mbps (base yield + spread + admin fee)
         uint256 totalFeeRateMbps = _targetYieldMbps + spreadRateMbps + adminFeeRateMbps;
@@ -86,11 +127,11 @@ library FeeCalculations {
         uint256 trueSpreadAmount,
         uint256 trueAdminFee
     ) {
-        uint256 daysOfInterest = (block.timestamp > approval.fundedTimestamp) ? 
-            Math.mulDiv(block.timestamp - approval.fundedTimestamp, 1, 1 days, Math.Rounding.Floor) : 0;
+        uint256 secondsOfInterest = (block.timestamp > approval.fundedTimestamp) ? 
+            (block.timestamp - approval.fundedTimestamp) : 0;
 
         (trueInterest, trueSpreadAmount, trueAdminFee, kickbackAmount) = 
-            calculateFees(approval, daysOfInterest, invoice);
+            calculateFees(approval, secondsOfInterest, invoice);
 
         return (kickbackAmount, trueInterest, trueSpreadAmount, trueAdminFee);
     }
@@ -125,10 +166,10 @@ library FeeCalculations {
         // Calculate funded amount gross from the full invoice value (includes protocol fee)
         fundedAmountGross = Math.mulDiv(approval.initialInvoiceValue, factorerUpfrontBps, 10000);
 
-        uint256 daysUntilDue = Math.mulDiv(approval.invoiceDueDate - block.timestamp, 1, 1 days, Math.Rounding.Floor);
+        uint256 secondsUntilDue = approval.invoiceDueDate - block.timestamp;
 
         (targetInterest, targetSpreadAmount, adminFee, ) = 
-            calculateFees(approval, daysUntilDue, invoice);
+            calculateFees(approval, secondsUntilDue, invoice);
 
         uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + protocolFee;
         netFundedAmount = fundedAmountGross > totalFees ? fundedAmountGross - totalFees : 0;

@@ -223,4 +223,61 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
+
+    /// @notice Test RAY precision by checking interest accrual over 10,000 seconds (~2.8 hours)
+    function testPerSecondInterestPrecision() public {
+        uint256 invoiceAmount = 10000; // 0.01 USDC
+        uint256 initialDeposit = 100000; // 0.1 USDC
+        
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        uint256 _dueBy = block.timestamp + 365 days;
+
+        vm.startPrank(bob);
+        uint256 invoiceId = createInvoice(bob, alice, invoiceAmount, _dueBy, 1000, 365);
+        vm.stopPrank();
+
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, 100_00, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Check approval and validate per-second interest rate is not 0
+        (,,,,,,,,,,,,,uint256 perSecondInterestRateRay) = bullaFactoring.approvedInvoices(invoiceId);
+        assertGt(perSecondInterestRateRay, 0, "Per-second interest rate should not be 0");
+
+        // Record accrued profits at 1,000 second intervals (i * 1000 seconds, up to 10,000 seconds)
+        uint256[] memory accruedAtInterval = new uint256[](11);
+        accruedAtInterval[0] = bullaFactoring.calculateAccruedProfits();
+
+        for (uint256 i = 1; i <= 10; i++) {
+            vm.warp(i * 1000 seconds);
+            accruedAtInterval[i] = bullaFactoring.calculateAccruedProfits();
+        }
+
+        // Log the accrual at each 1,000 second interval
+        emit log_named_uint("At 0 seconds", accruedAtInterval[0]);
+        emit log_named_uint("At 1,000 seconds", accruedAtInterval[1]);
+        emit log_named_uint("At 5,000 seconds", accruedAtInterval[5]);
+        emit log_named_uint("At 10,000 seconds", accruedAtInterval[10]);
+
+        // Verify monotonic increase (interest should increase or stay same over time)
+        for (uint256 i = 1; i <= 10; i++) {
+            assertGe(accruedAtInterval[i], accruedAtInterval[i-1], "Interest should not decrease");
+        }
+
+        // Verify that 10,000 seconds of accrual is > 0 (RAY precision should capture this)
+        uint256 interestOver10000Seconds = accruedAtInterval[10] - accruedAtInterval[0];
+        assertGt(interestOver10000Seconds, 0, "Interest should be greater than 0 over 10,000 seconds");
+        emit log_named_uint("Interest accrued over 10,000 seconds", interestOver10000Seconds);
+        
+        // For 0.01 USDC at 100% APR, RAY precision ensures accurate per-second interest tracking
+        // even for very small amounts over relatively short time periods
+    }
 } 

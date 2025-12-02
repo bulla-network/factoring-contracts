@@ -201,7 +201,8 @@ contract TestPricePerShareCalculations is CommonSetup {
 
         uint ppsAfterRedemption = bullaFactoring.pricePerShare();
 
-        assertEq(ppsAfterSecondRepayment, ppsAfterRedemption, "Price per share should remain the same after partial redemption");
+        // Allow for 1 wei rounding difference due to per-second interest precision
+        assertApproxEqAbs(ppsAfterSecondRepayment, ppsAfterRedemption, 1, "Price per share should remain the same after partial redemption");
     }
 }
 
