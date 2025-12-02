@@ -270,6 +270,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
 
         // Verify that 10 seconds of accrual is > 0 (RAY precision should capture this)
         uint256 interestOver10Seconds = accruedPerSecond[10] - accruedPerSecond[0];
+        assertGt(interestOver10Seconds, 0, "Interest should be greater than 0 over 10 seconds");
         emit log_named_uint("Interest accrued over 10 seconds", interestOver10Seconds);
         
         // For 1 USDC at 5% APR, per-second interest is tiny but should be tracked in RAY
