@@ -268,14 +268,14 @@ contract RedemptionQueueTest is Test {
         assertEq(firstRedemption.owner, user1);
         assertEq(firstRedemption.shares, SHARES_AMOUNT_1);
         
-        // Verify cancelled item is marked as cancelled
-        IRedemptionQueue.QueuedRedemption memory cancelledRedemption = redemptionQueue.getQueuedRedemption(1);
-        assertEq(cancelledRedemption.owner, address(0));
+        // After compaction, unauthorized user's redemption moves to index 1
+        IRedemptionQueue.QueuedRedemption memory secondRedemption = redemptionQueue.getQueuedRedemption(1);
+        assertEq(secondRedemption.owner, unauthorized);
+        assertEq(secondRedemption.shares, 150e18);
 
-        // Verify third item is still unauthorized user's redemption
-        IRedemptionQueue.QueuedRedemption memory thirdRedemption = redemptionQueue.getQueuedRedemption(2);
-        assertEq(thirdRedemption.owner, unauthorized);
-        assertEq(thirdRedemption.shares, 150e18);
+        // Index 2 should not exist after compaction
+        vm.expectRevert(RedemptionQueue.InvalidQueueIndex.selector);
+        redemptionQueue.getQueuedRedemption(2);
     }
     
     function test_CancelQueuedRedemption_HeadItem_AdvancesHead() public {

@@ -71,9 +71,6 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         // Note: This will decrement activeQueueLength for each cancelled redemption
         _cancelExistingRedemptionsForOwner(owner);
         
-        // Compact the queue to remove cancelled items and optimize storage
-        _compactQueue();
-        
         // Check if queue is full
         if (activeQueueLength >= maxQueueSize) {
             revert RedemptionQueueFull();
@@ -113,6 +110,9 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         if (queueIndex == head) {
             _advanceHead();
         }
+        
+        // Compact the queue to remove cancelled items and optimize storage
+        _compactQueue();
         
         emit RedemptionCancelled(owner, queueIndex);
     }
@@ -267,8 +267,10 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
     /// @dev Called internally when the same owner queues a new redemption to prevent multiple queue spots
     /// @param owner The owner whose existing redemptions should be cancelled
     function _cancelExistingRedemptionsForOwner(address owner) private {
+        bool cancelled = false;
         for (uint256 i = head; i < queue.length; i++) {
             if (queue[i].owner == owner) {
+                cancelled = true;
                 // Mark as cancelled and decrement counter
                 _removeRedemption(queue[i]);
                 
@@ -280,6 +282,9 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
                 }
             }
         }
+        if (cancelled) {
+            _compactQueue();
+        }
     }
     
     /// @notice Compacts the queue by removing processed items before the head
@@ -288,12 +293,11 @@ contract RedemptionQueue is IRedemptionQueue, Ownable {
         _compactQueue();
     }
     
-    /// @notice Internal function to compact the queue by removing processed items before the head
+    /// @notice Internal function to compact the queue by removing cancelled items
     /// @dev Called internally during queue operations to optimize storage and gas costs
     function _compactQueue() private {
-        if (head == 0) return; // Nothing to compact
-        
         uint256 queueLength = queue.length;
+        if (queueLength == 0) return; // Nothing to compact
         
         // Pre-allocate array with maximum possible size
         QueuedRedemption[] memory newQueue = new QueuedRedemption[](queueLength);
