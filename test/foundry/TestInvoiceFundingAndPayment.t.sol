@@ -517,7 +517,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertTrue(shares > 0, "Depositor should receive shares");
         
         // Depositor should not be able to redeem (no redeem permission)
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", depositor));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedRedeem(address)", depositor));
         bullaFactoring.redeem(shares, depositor, depositor);
         vm.stopPrank();
 
@@ -569,7 +569,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         assertTrue(shares > 0, "User should be able to deposit with new deposit permissions");
 
         // User should not be able to redeem (still using old redeem permissions where user is not allowed)
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedRedeem(address)", user));
         bullaFactoring.redeem(shares, user, user);
         vm.stopPrank();
 
@@ -660,7 +660,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
         // But user should not be able to redeem
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", user));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedRedeem(address)", user));
         bullaFactoring.redeem(shares1 + shares2, user, user);
         vm.stopPrank();
     }

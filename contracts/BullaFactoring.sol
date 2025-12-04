@@ -102,6 +102,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error CallerNotUnderwriter();
     error FunctionNotSupported();
     error UnauthorizedDeposit(address caller);
+    error UnauthorizedWithdrawal(address caller);
+    error UnauthorizedRedeem(address caller);
     error UnauthorizedFactoring(address caller);
     error InvoiceAlreadyPaid();
     error CallerNotOriginalCreditor();
@@ -951,8 +953,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _owner The owner of the shares being redeemed
     /// @return The amount of assets redeemed
     function redeem(uint256 shares, address receiver, address _owner) public override returns (uint256) {
-        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedRedeem(_msgSender());
+        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedRedeem(_owner);
 
         uint256 sharesToRedeem = redemptionQueue.isQueueEmpty() ? Math.min(shares, maxRedeem(_owner)) : 0;
         uint256 redeemedAssets = 0;
@@ -978,8 +980,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @param _owner The owner of the shares being redeemed
     /// @return The amount of shares redeemed
     function withdraw(uint256 assets, address receiver, address _owner) public override returns (uint256) {
-        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedDeposit(_owner);
+        if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedWithdrawal(_msgSender());
+        if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedWithdrawal(_owner);
         
         uint256 assetsToWithdraw = redemptionQueue.isQueueEmpty() ? Math.min(assets, maxWithdraw(_owner)) : 0;
         uint256 redeemedShares = 0;

@@ -587,7 +587,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
     function testOnlyAuthorizedDepositorsCanRedeem() public {
         vm.startPrank(userWithoutPermissions);
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedRedeem(address)", userWithoutPermissions));
         bullaFactoring.redeem(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
     }
@@ -610,7 +610,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         vm.startPrank(alice);
         // Alice calls redeem/withdraw for unauthorized user
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedRedeem(address)", userWithoutPermissions));
         bullaFactoring.redeem(sharesBalance, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }

@@ -279,7 +279,7 @@ contract TestWithdraw is CommonSetup {
 
     function testOnlyAuthorizedDepositorsCanWithdraw() public {
         vm.startPrank(userWithoutPermissions);
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedWithdrawal(address)", userWithoutPermissions));
         bullaFactoring.withdraw(1 ether, userWithoutPermissions, alice);
         vm.stopPrank();
     }
@@ -302,7 +302,7 @@ contract TestWithdraw is CommonSetup {
 
         vm.startPrank(alice);
         // Alice calls redeem/withdraw for unauthorized user
-        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", userWithoutPermissions));
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedWithdrawal(address)", userWithoutPermissions));
         bullaFactoring.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();
     }
