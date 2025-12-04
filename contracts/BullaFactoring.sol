@@ -966,6 +966,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         uint256 queuedShares = shares - sharesToRedeem;
         if (queuedShares > 0) {
+            // Consume allowance for queued shares (just like a normal redemption would)
+            if (_msgSender() != _owner) {
+                _spendAllowance(_owner, _msgSender(), queuedShares);
+            }
             // Queue the remaining shares for future redemption
             // The RedemptionQueued event is emitted by the redemptionQueue.queueRedemption call
             redemptionQueue.queueRedemption(_owner, receiver, queuedShares, 0);
@@ -993,6 +997,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         uint256 queuedAssets = assets - assetsToWithdraw;
         if (queuedAssets > 0) {
+            // Consume allowance for queued assets (just like a normal withdrawal would)
+            if (_msgSender() != _owner) {
+                uint256 sharesToSpend = previewWithdraw(queuedAssets);
+                _spendAllowance(_owner, _msgSender(), sharesToSpend);
+            }
             // Queue the remaining assets for future withdrawal
             // The RedemptionQueued event is emitted by the redemptionQueue.queueRedemption call
             redemptionQueue.queueRedemption(_owner, receiver, 0, queuedAssets);
