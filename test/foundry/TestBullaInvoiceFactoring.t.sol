@@ -17,7 +17,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     
     // Events to test
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps, uint256 protocolFee);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event InvoicePaid(uint256 indexed invoiceId, uint256 targetInterest, uint256 spreadAmount, uint256 adminFee, uint256 fundedAmount, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
 
@@ -111,7 +111,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
         
         vm.expectEmit(true, false, false, true);
-        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, protocolFee);
+        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, protocolFee, address(bob));
         
         uint256 actualFundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();

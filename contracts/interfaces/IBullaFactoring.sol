@@ -61,7 +61,7 @@ interface IBullaFactoringV2 {
 
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event GracePeriodDaysChanged(uint256 newGracePeriodDays);
     event ApprovalDurationChanged(uint256 newDuration);

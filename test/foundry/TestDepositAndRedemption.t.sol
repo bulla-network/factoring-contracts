@@ -20,7 +20,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestDepositAndRedemption is CommonSetup {
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
-    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee);
+    event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
 
@@ -136,7 +136,7 @@ contract TestDepositAndRedemption is CommonSetup {
         (, , , , , uint256 expectedFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         vm.expectEmit(true, true, true, true);
-        emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps, 250);
+        emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps, 250, address(bob));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
