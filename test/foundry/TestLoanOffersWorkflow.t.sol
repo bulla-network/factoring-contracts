@@ -1079,59 +1079,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
 
     }
 
-    // ============= TOO MANY PENDING LOAN OFFERS TESTS =============
-
-    function testOfferLoan_RevertsTooManyPendingLoanOffers() public {
-        uint256 maxOffers = bullaFactoring.maxPendingLoanOffers();
-        
-        vm.startPrank(underwriter);
-        
-        // Create max number of offers (should succeed)
-        for (uint i = 0; i < maxOffers; i++) {
-            bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i))));
-        }
-        
-        assertEq(getPendingLoanOffersCount(), maxOffers, "Should have max pending offers");
-        
-        // Try to create one more offer (should fail)
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, maxOffers, maxOffers));
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
-        
-        vm.stopPrank();
-    }
-
-    function testOfferLoan_CanCreateAfterAcceptingOffers() public {
-        uint256 maxOffers = bullaFactoring.maxPendingLoanOffers();
-        
-        // Create max offers
-        vm.startPrank(underwriter);
-        uint256 firstOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 1");
-        for (uint i = 1; i < maxOffers; i++) {
-            bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i + 1))));
-        }
-        vm.stopPrank();
-        
-        assertEq(getPendingLoanOffersCount(), maxOffers, "Should have max pending offers");
-        
-        // Alice deposits to fund the pool
-        vm.startPrank(alice);
-        bullaFactoring.deposit(200_000, alice);
-        vm.stopPrank();
-        
-        // Accept one offer to free up a slot
-        vm.prank(bob);
-        bullaFrendLend.acceptLoan(firstOfferId);
-        
-        assertEq(getPendingLoanOffersCount(), maxOffers - 1, "Should have one less pending offer");
-        
-        // Now can create another offer
-        vm.startPrank(underwriter);
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "New offer");
-        vm.stopPrank();
-        
-        assertEq(getPendingLoanOffersCount(), maxOffers, "Should have max pending offers again");
-    }
-
     function testOfferLoan_365PeriodsYieldMoreInterestThan0Periods() public {
         uint256 principalAmount = 10_000;
         uint16 targetYieldBps = 1200; // 12% APR

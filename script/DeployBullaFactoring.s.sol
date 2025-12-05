@@ -111,8 +111,7 @@ contract DeployBullaFactoring is Script {
                 config.poolName,
                 uint16(config.targetYieldBps),
                 config.poolTokenName,
-                config.poolTokenSymbol,
-                0 // maxPendingLoanOffers: 0 defaults to 2000
+                config.poolTokenSymbol
             );
             config.bullaFactoringAddress = address(bullaFactoring);
             console.log("BullaFactoringV2_1 deployed at:", address(bullaFactoring));

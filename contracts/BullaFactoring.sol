@@ -80,9 +80,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// Array to track IDs of pending loan offers
     uint256[] public pendingLoanOffersIds;
 
-    /// @notice Maximum number of pending loan offers allowed to prevent array growth issues
-    uint16 public immutable maxPendingLoanOffers;
-
     // ============ Aggregate State Tracking Variables ============
     /// @notice Total per-second interest rate across all active invoices in RAY units (sum of all perSecondInterestRate values)
     /// @dev RAY = 1e27 for high-precision per-second interest accrual (Aave V3 style)
@@ -151,8 +148,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         string memory _poolName,
         uint16 _targetYieldBps,
         string memory _tokenName, 
-        string memory _tokenSymbol,
-        uint16 _maxPendingLoanOffers
+        string memory _tokenSymbol
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
         if (_protocolFeeBps < 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps < 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -170,7 +166,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
-        maxPendingLoanOffers = _maxPendingLoanOffers == 0 ? uint16(2000) : _maxPendingLoanOffers;
         redemptionQueue = new RedemptionQueue(msg.sender, address(this));
         
         // Initialize aggregate state tracking
@@ -220,8 +215,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
         external returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
-        if (pendingLoanOffersIds.length >= maxPendingLoanOffers) revert TooManyPendingLoanOffers(pendingLoanOffersIds.length, maxPendingLoanOffers);
-
+        
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
             interestConfig: InterestConfig({
