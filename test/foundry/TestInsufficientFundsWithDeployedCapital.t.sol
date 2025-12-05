@@ -26,7 +26,9 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         uint256 fundedAmount,
         address indexed originalCreditor,
         uint256 invoiceDueDate,
-        uint16 upfrontBps
+        uint16 upfrontBps,
+        uint256 protocolFee,
+        address fundsReceiver
     );
 
     function setUp() public override {
