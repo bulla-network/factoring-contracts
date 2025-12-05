@@ -97,4 +97,7 @@ interface IBullaFactoringV2 {
     
     // Preview functions
     function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);
+    
+    // Pending loan offer management
+    function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining);
 }
