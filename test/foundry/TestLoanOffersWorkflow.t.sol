@@ -206,7 +206,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             block.timestamp + termLength,
             100_00,
             0,
-            address(bullaFactoring)
+            address(0)
         );
         
         // Accept loan
@@ -983,7 +983,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             expectedDueDate,
             100_00, // upfrontBps is always 100%
             0, // processingFee is always 0 for loans
-            address(bullaFactoring)
+            address(0)
         );
         
         vm.prank(bob);
