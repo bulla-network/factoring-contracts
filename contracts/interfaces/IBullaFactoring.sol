@@ -80,6 +80,7 @@ interface IBullaFactoringV2 {
     event FactoringPermissionsChanged(address newAddress);
     event TargetYieldChanged(uint16 newTargetYield);
     event RedemptionQueueChanged(address indexed oldQueue, address indexed newQueue);
+    event MaxPendingLoanOffersChanged(uint256 oldMax, uint256 newMax);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint256 _principalAmountOverride) external;
@@ -97,4 +98,7 @@ interface IBullaFactoringV2 {
     
     // Preview functions
     function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);
+    
+    // Pending loan offer management
+    function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining);
 }

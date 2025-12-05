@@ -485,7 +485,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertTrue(existsBefore, "Loan offer should exist before expiration");
         
         // Warp time past the expiration
-        vm.warp(block.timestamp + approvalDuration + 1);
+        vm.warp(approvalDuration + 1);
         
         // BullaFrendLend should not call onLoanOfferAccepted for expired offers
         // This test verifies that the pending loan offer remains in storage 
@@ -791,7 +791,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertGe(offeredAt, offerTime, "Offered timestamp should be set");
         
         // Wait some time before acceptance
-        vm.warp(block.timestamp + 1 hours);
+        vm.warp(1 hours);
         uint256 acceptanceTime = block.timestamp;
         
         // Alice makes a deposit to fund the pool
@@ -1079,6 +1079,138 @@ contract TestLoanOffersWorkflow is CommonSetup {
 
     }
     
+    // ============= SET MAX PENDING LOAN OFFERS TESTS =============
+    
+    event MaxPendingLoanOffersChanged(uint256 oldMax, uint256 newMax);
+    
+    function testSetMaxPendingLoanOffers_OnlyOwnerCanCall() public {
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
+        bullaFactoring.setMaxPendingLoanOffers(500);
+        vm.stopPrank();
+    }
+    
+    function testSetMaxPendingLoanOffers_UnderwriterCannotCall() public {
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, underwriter));
+        bullaFactoring.setMaxPendingLoanOffers(500);
+        vm.stopPrank();
+    }
+    
+    function testSetMaxPendingLoanOffers_EmitsEvent() public {
+        uint256 oldMax = bullaFactoring.maxPendingLoanOffers();
+        uint256 newMax = 500;
+        
+        vm.expectEmit(true, true, true, true);
+        emit MaxPendingLoanOffersChanged(oldMax, newMax);
+        bullaFactoring.setMaxPendingLoanOffers(newMax);
+        
+        assertEq(bullaFactoring.maxPendingLoanOffers(), newMax, "Max pending loan offers should be updated");
+    }
+    
+    function testSetMaxPendingLoanOffers_CanIncreaseLimit() public {
+        uint256 oldMax = bullaFactoring.maxPendingLoanOffers();
+        uint256 newMax = oldMax * 2;
+        
+        bullaFactoring.setMaxPendingLoanOffers(newMax);
+        
+        assertEq(bullaFactoring.maxPendingLoanOffers(), newMax, "Max should be doubled");
+    }
+    
+    function testSetMaxPendingLoanOffers_CanDecreaseLimit() public {
+        uint256 newMax = 10;
+        
+        bullaFactoring.setMaxPendingLoanOffers(newMax);
+        
+        assertEq(bullaFactoring.maxPendingLoanOffers(), newMax, "Max should be decreased");
+    }
+    
+    function testSetMaxPendingLoanOffers_CanSetToZero() public {
+        bullaFactoring.setMaxPendingLoanOffers(0);
+        
+        assertEq(bullaFactoring.maxPendingLoanOffers(), 0, "Max should be 0");
+        
+        // Should not be able to create any offers when max is 0
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, 0, 0));
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
+        vm.stopPrank();
+    }
+    
+    function testSetMaxPendingLoanOffers_NewLimitIsEnforced() public {
+        // Set max to 3
+        bullaFactoring.setMaxPendingLoanOffers(3);
+        
+        vm.startPrank(underwriter);
+        
+        // Create 3 offers (should succeed)
+        for (uint i = 0; i < 3; i++) {
+            bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i))));
+        }
+        
+        assertEq(getPendingLoanOffersCount(), 3, "Should have 3 pending offers");
+        
+        // Try to create a 4th offer (should fail)
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, 3, 3));
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
+        
+        vm.stopPrank();
+    }
+    
+    function testSetMaxPendingLoanOffers_LoweringBelowCurrentCountStillWorks() public {
+        // Create 5 offers
+        vm.startPrank(underwriter);
+        for (uint i = 0; i < 5; i++) {
+            bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i))));
+        }
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 5, "Should have 5 pending offers");
+        
+        // Lower max to 3 (below current count)
+        bullaFactoring.setMaxPendingLoanOffers(3);
+        
+        assertEq(bullaFactoring.maxPendingLoanOffers(), 3, "Max should be 3");
+        assertEq(getPendingLoanOffersCount(), 5, "Should still have 5 pending offers");
+        
+        // Cannot create new offers
+        vm.startPrank(underwriter);
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, 5, 3));
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
+        vm.stopPrank();
+    }
+    
+    function testSetMaxPendingLoanOffers_CanCreateAfterAcceptingOffers() public {
+        // Set max to 2
+        bullaFactoring.setMaxPendingLoanOffers(2);
+        
+        // Create 2 offers
+        vm.startPrank(underwriter);
+        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 1");
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 2");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers");
+        
+        // Alice deposits to fund the pool
+        vm.startPrank(alice);
+        bullaFactoring.deposit(200_000, alice);
+        vm.stopPrank();
+        
+        // Accept one offer
+        vm.prank(bob);
+        bullaFrendLend.acceptLoan(offerId1);
+        
+        assertEq(getPendingLoanOffersCount(), 1, "Should have 1 pending offer");
+        
+        // Now can create another offer
+        vm.startPrank(underwriter);
+        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "New offer");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers again");
+    }
+
     function testOfferLoan_365PeriodsYieldMoreInterestThan0Periods() public {
         uint256 principalAmount = 10_000;
         uint16 targetYieldBps = 1200; // 12% APR
@@ -1122,7 +1254,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Fast forward to a longer period to see meaningful compounding difference
-        vm.warp(block.timestamp + 180 days); // 6 months
+        vm.warp(180 days); // 6 months
         
         // Get loan details from BullaFrendLend to check interest accrual
         Loan memory loan365 = bullaFrendLend.getLoan(loanId365);
@@ -1195,4 +1327,361 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         assertGt(gainFromLoan365, gainFromLoan0, "Paid invoices gain should be greater for 365-period loan");
     }
-} 
+
+    // ============= CLEAR STALE PENDING LOAN OFFERS TESTS =============
+    
+    function testClearStalePendingLoanOffers_ClearsExpiredOffers() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 5, alice);
+        vm.stopPrank();
+        
+        // Create multiple loan offers
+        vm.startPrank(underwriter);
+        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        uint256 offerId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        uint256 offerId3 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 3");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 3, "Should have 3 pending offers");
+        
+        // Warp past approval duration (1 hour by default)
+        vm.warp(1 hours + 1);
+        
+        // Clear stale offers
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 3, "Should have processed 3 offers");
+        assertEq(removed, 3, "Should have removed 3 expired offers");
+        assertEq(remaining, 0, "Should have 0 remaining offers");
+        assertEq(getPendingLoanOffersCount(), 0, "Should have 0 pending offers in array");
+        
+        // Verify mapping entries are cleared
+        (,,,bool exists1,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId1);
+        (,,,bool exists2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId2);
+        (,,,bool exists3,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId3);
+        assertFalse(exists1, "Offer 1 should not exist");
+        assertFalse(exists2, "Offer 2 should not exist");
+        assertFalse(exists3, "Offer 3 should not exist");
+    }
+    
+    function testClearStalePendingLoanOffers_ClearsRejectedOffers() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 5, alice);
+        vm.stopPrank();
+        
+        // Create loan offers
+        vm.startPrank(underwriter);
+        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        uint256 offerId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers");
+        
+        // Bob rejects one offer via BullaFrendLend
+        vm.prank(bob);
+        bullaFrendLend.rejectLoanOffer(offerId1);
+        
+        // Clear stale offers (offerId1 should be removed since it was rejected)
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 2, "Should have processed 2 offers");
+        assertEq(removed, 1, "Should have removed 1 rejected offer");
+        assertEq(remaining, 1, "Should have 1 remaining offer");
+        
+        // Verify offerId1 is cleared, offerId2 still exists
+        (,,,bool exists1,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId1);
+        (,,,bool exists2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId2);
+        assertFalse(exists1, "Rejected offer should not exist");
+        assertTrue(exists2, "Non-rejected offer should still exist");
+    }
+    
+    function testClearStalePendingLoanOffers_ClearsRescindedOffers() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 5, alice);
+        vm.stopPrank();
+        
+        // Create loan offers
+        vm.startPrank(underwriter);
+        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        uint256 offerId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers");
+        
+        // Creditor (factoring contract) rescind via BullaFrendLend
+        // Note: The factoring contract is the creditor, so we need to use the pool owner to rescind
+        // Actually, let's check - the creditor is the factoring contract itself
+        // BullaFrendLend allows creditor or debtor to reject/rescind
+        vm.prank(address(bullaFactoring));
+        bullaFrendLend.rejectLoanOffer(offerId1);
+        
+        // Clear stale offers
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 2, "Should have processed 2 offers");
+        assertEq(removed, 1, "Should have removed 1 rescinded offer");
+        assertEq(remaining, 1, "Should have 1 remaining offer");
+    }
+    
+    function testClearStalePendingLoanOffers_DoesNotRemoveValidOffers() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 5, alice);
+        vm.stopPrank();
+        
+        // Create loan offers
+        vm.startPrank(underwriter);
+        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        uint256 offerId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers");
+        
+        // Don't warp time, offers are still valid
+        
+        // Try to clear - nothing should be removed
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 2, "Should have processed 2 offers");
+        assertEq(removed, 0, "Should have removed 0 offers (all valid)");
+        assertEq(remaining, 2, "Should have 2 remaining offers");
+        assertEq(getPendingLoanOffersCount(), 2, "Should still have 2 pending offers");
+        
+        // Verify both offers still exist
+        (,,,bool exists1,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId1);
+        (,,,bool exists2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(offerId2);
+        assertTrue(exists1, "Offer 1 should still exist");
+        assertTrue(exists2, "Offer 2 should still exist");
+    }
+    
+    function testClearStalePendingLoanOffers_WithOffsetAndLimit() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 10, alice);
+        vm.stopPrank();
+        
+        // Create 5 loan offers
+        vm.startPrank(underwriter);
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 3");
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 4");
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 5");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 5, "Should have 5 pending offers");
+        
+        // Warp past approval duration
+        vm.warp(1 hours + 1);
+        
+        // Clear with limit of 2
+        (uint256 processed1, uint256 removed1, uint256 remaining1) = bullaFactoring.clearStalePendingLoanOffers(0, 2);
+        
+        assertEq(processed1, 2, "First call should process 2");
+        assertEq(removed1, 2, "First call should remove 2");
+        assertEq(remaining1, 3, "Should have 3 remaining");
+        
+        // Clear another 2
+        (uint256 processed2, uint256 removed2, uint256 remaining2) = bullaFactoring.clearStalePendingLoanOffers(0, 2);
+        
+        assertEq(processed2, 2, "Second call should process 2");
+        assertEq(removed2, 2, "Second call should remove 2");
+        assertEq(remaining2, 1, "Should have 1 remaining");
+        
+        // Clear the last one
+        (uint256 processed3, uint256 removed3, uint256 remaining3) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed3, 1, "Third call should process 1");
+        assertEq(removed3, 1, "Third call should remove 1");
+        assertEq(remaining3, 0, "Should have 0 remaining");
+        assertEq(getPendingLoanOffersCount(), 0, "Should have 0 pending offers");
+    }
+    
+    function testClearStalePendingLoanOffers_MixedExpiredAndValid() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 10, alice);
+        vm.stopPrank();
+        
+        // Create 2 offers at time 0
+        vm.startPrank(underwriter);
+        uint256 earlyOfferId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Early 1");
+        uint256 earlyOfferId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Early 2");
+        vm.stopPrank();
+        
+        // Warp 30 minutes (still valid)
+        vm.warp(30 minutes);
+        
+        // Create 2 more offers
+        vm.startPrank(underwriter);
+        uint256 lateOfferId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Late 1");
+        uint256 lateOfferId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Late 2");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 4, "Should have 4 pending offers");
+        
+        // Warp 31 more minutes (first 2 expire, last 2 still valid)
+        vm.warp(30 minutes + 31 minutes);
+        
+        // Clear stale offers
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 4, "Should have processed 4 offers");
+        assertEq(removed, 2, "Should have removed 2 expired offers");
+        assertEq(remaining, 2, "Should have 2 remaining valid offers");
+        
+        // Verify early offers are removed, late offers still exist
+        (,,,bool existsEarly1,) = bullaFactoring.pendingLoanOffersByLoanOfferId(earlyOfferId1);
+        (,,,bool existsEarly2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(earlyOfferId2);
+        (,,,bool existsLate1,) = bullaFactoring.pendingLoanOffersByLoanOfferId(lateOfferId1);
+        (,,,bool existsLate2,) = bullaFactoring.pendingLoanOffersByLoanOfferId(lateOfferId2);
+        
+        assertFalse(existsEarly1, "Early offer 1 should be removed");
+        assertFalse(existsEarly2, "Early offer 2 should be removed");
+        assertTrue(existsLate1, "Late offer 1 should still exist");
+        assertTrue(existsLate2, "Late offer 2 should still exist");
+    }
+    
+    function testClearStalePendingLoanOffers_EmptyArray() public {
+        assertEq(getPendingLoanOffersCount(), 0, "Should start with 0 pending offers");
+        
+        // Should not revert on empty array
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 0, "Should process 0");
+        assertEq(removed, 0, "Should remove 0");
+        assertEq(remaining, 0, "Should have 0 remaining");
+    }
+    
+    function testClearStalePendingLoanOffers_OffsetBeyondArray() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 5, alice);
+        vm.stopPrank();
+        
+        // Create 2 offers
+        vm.startPrank(underwriter);
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        vm.stopPrank();
+        
+        // Warp past expiration
+        vm.warp(1 hours + 1);
+        
+        // Call with offset beyond array length
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(10, 0);
+        
+        // Should not process anything but return correct remaining count
+        assertEq(processed, 0, "Should process 0 with offset beyond array");
+        assertEq(removed, 0, "Should remove 0");
+        assertEq(remaining, 2, "Should still have 2 remaining");
+    }
+    
+    function testClearStalePendingLoanOffers_AcceptedOffersAlreadyRemoved() public {
+        uint256 principalAmount = 100_000;
+        
+        // Alice deposits funds
+        vm.startPrank(alice);
+        bullaFactoring.deposit(principalAmount * 5, alice);
+        vm.stopPrank();
+        
+        // Create offers
+        vm.startPrank(underwriter);
+        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 1");
+        uint256 offerId2 = bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Offer 2");
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers");
+        
+        // Accept one offer - should be automatically removed
+        vm.prank(bob);
+        bullaFrendLend.acceptLoan(offerId1);
+        
+        assertEq(getPendingLoanOffersCount(), 1, "Should have 1 pending offer after acceptance");
+        
+        // Warp past expiration
+        vm.warp(1 hours + 1);
+        
+        // Clear stale offers - only offerId2 should be processed
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        
+        assertEq(processed, 1, "Should process 1 offer");
+        assertEq(removed, 1, "Should remove 1 expired offer");
+        assertEq(remaining, 0, "Should have 0 remaining");
+    }
+    
+    // ============= GAS BENCHMARK TESTS =============
+    
+    /// @notice Gas benchmark test to determine how many stale offers can be cleared in one transaction
+    /// @dev Target: Clear as many offers as possible within 25M gas limit
+    function testClearStalePendingLoanOffers_GasBenchmark_25M() public {
+        uint256 principalAmount = 100_000;
+        uint256 numOffers = 500; // Start with 500 offers for gas testing
+        
+        // Increase max pending loan offers limit for this test
+        bullaFactoring.setMaxPendingLoanOffers(numOffers + 100);
+        
+        // Alice deposits enough funds
+        vm.startPrank(alice);
+        asset.mint(alice, principalAmount * numOffers * 2);
+        asset.approve(address(bullaFactoring), principalAmount * numOffers * 2);
+        bullaFactoring.deposit(principalAmount * numOffers, alice);
+        vm.stopPrank();
+        
+        // Create many loan offers
+        vm.startPrank(underwriter);
+        for (uint256 i = 0; i < numOffers; i++) {
+            bullaFactoring.offerLoan(bob, 1000, 500, principalAmount, 30 days, 365, "Gas test offer");
+        }
+        vm.stopPrank();
+        
+        assertEq(getPendingLoanOffersCount(), numOffers, "Should have all pending offers");
+        
+        // Warp past approval duration
+        vm.warp(1 hours + 1);
+        
+        // Measure gas for clearing all offers
+        uint256 gasBefore = gasleft();
+        (uint256 processed, uint256 removed, uint256 remaining) = bullaFactoring.clearStalePendingLoanOffers(0, 0);
+        uint256 gasUsed = gasBefore - gasleft();
+        
+        console.log("===== GAS BENCHMARK: Clearing Stale Offers =====");
+        console.log("Number of offers created:", numOffers);
+        console.log("Offers processed:", processed);
+        console.log("Offers removed:", removed);
+        console.log("Gas used:", gasUsed);
+        console.log("Gas per offer (avg):", gasUsed / numOffers);
+        console.log("Remaining offers:", remaining);
+        
+        // Calculate max offers that can be cleared in 25M gas
+        uint256 gasLimit = 25_000_000;
+        uint256 gasPerOffer = gasUsed / numOffers;
+        uint256 maxOffersIn25M = gasLimit / gasPerOffer;
+        
+        console.log("===== ESTIMATED MAX OFFERS IN 25M GAS =====");
+        console.log("Estimated max offers:", maxOffersIn25M);
+        
+        assertEq(removed, numOffers, "Should have removed all offers");
+        assertEq(remaining, 0, "Should have 0 remaining");
+        
+        // Ensure we're under 25M gas for this test
+        assertLt(gasUsed, 25_000_000, "Gas used should be under 25M for 500 offers");
+    }
+}

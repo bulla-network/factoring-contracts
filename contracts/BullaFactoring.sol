@@ -10,7 +10,7 @@ import {IBullaFactoringV2} from "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import {IBullaFrendLendV2, LoanRequestParams} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
+import {IBullaFrendLendV2, LoanRequestParams, LoanOffer} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {InterestConfig} from "@bulla/contracts-v2/src/libraries/CompoundInterestLib.sol";
 import "./RedemptionQueue.sol";
 import "./libraries/FeeCalculations.sol";
@@ -80,6 +80,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// Array to track IDs of pending loan offers
     uint256[] public pendingLoanOffersIds;
 
+    /// @notice Maximum number of pending loan offers allowed to prevent array growth issues
+    uint256 public maxPendingLoanOffers = 1000;
+
     // ============ Aggregate State Tracking Variables ============
     /// @notice Total per-second interest rate across all active invoices in RAY units (sum of all perSecondInterestRate values)
     /// @dev RAY = 1e27 for high-precision per-second interest accrual (Aave V3 style)
@@ -116,6 +119,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvoiceAlreadyFunded();
     error LoanOfferNotExists();
     error LoanOfferAlreadyAccepted();
+    error TooManyPendingLoanOffers(uint256 current, uint256 max);
     error InsufficientFunds(uint256 available, uint256 required);
     error RedemptionQueueNotEmpty();
     error CallerNotInvoiceContract();
@@ -214,6 +218,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
         external returns (uint256 loanOfferId) {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
+        if (pendingLoanOffersIds.length >= maxPendingLoanOffers) revert TooManyPendingLoanOffers(pendingLoanOffersIds.length, maxPendingLoanOffers);
 
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
@@ -646,6 +651,55 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
     }
 
+    /// @notice Clears stale pending loan offers that have expired or been rejected/rescinded
+    /// @dev This function allows the underwriter to cleanup offers that are expired, rejected, or rescinded.
+    ///      Since there's no callback from BullaFrendLend when a debtor rejects an offer, this provides
+    ///      a mechanism to prevent the pendingLoanOffersIds array from growing unbounded.
+    /// @param offset Starting index in the pendingLoanOffersIds array
+    /// @param limit Maximum number of pending loan offers to process in this call (0 = process all from offset)
+    /// @return processed Number of pending loan offers checked
+    /// @return removed Number of stale loan offers removed
+    /// @return remaining Number of pending loan offers remaining after this call
+    function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining) {
+        uint256 i = offset;
+        uint256 maxToProcess = limit == 0 ? pendingLoanOffersIds.length : limit;
+        
+        while (i < pendingLoanOffersIds.length && processed < maxToProcess) {
+            uint256 loanOfferId = pendingLoanOffersIds[i];
+            bool shouldRemove = false;
+            
+            if (pendingLoanOffersByLoanOfferId[loanOfferId].exists) {
+                // Check if the offer has expired (offeredAt + approvalDuration has passed)
+                if (block.timestamp >= pendingLoanOffersByLoanOfferId[loanOfferId].offeredAt + approvalDuration) {
+                    shouldRemove = true;
+                } else {
+                    // Check if the loan offer was rejected or rescinded in BullaFrendLend
+                    // A rejected/rescinded offer will have creditor set to address(0)
+                    if (bullaFrendLend.getLoanOffer(loanOfferId).params.creditor == address(0)) {
+                        shouldRemove = true;
+                    }
+                }
+            }
+            
+            processed++;
+            
+            if (shouldRemove) {
+                removed++;
+                // Clear the mapping
+                pendingLoanOffersByLoanOfferId[loanOfferId].exists = false;
+                
+                // Remove from array by swapping with last element and popping
+                pendingLoanOffersIds[i] = pendingLoanOffersIds[pendingLoanOffersIds.length - 1];
+                pendingLoanOffersIds.pop();
+                // Don't increment i since we swapped in a new element at this index
+            } else {
+                i++;
+            }
+        }
+        
+        remaining = pendingLoanOffersIds.length;
+    }
+
     /// @notice Internal helper to calculate unfactor amounts
     /// @param invoiceId The ID of the invoice
     /// @return totalRefundOrPaymentAmount The total amount to be refunded (negative) or paid (positive)
@@ -907,6 +961,14 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (_targetYieldBps > 10000) revert InvalidPercentage();
         targetYieldBps = _targetYieldBps;
         emit TargetYieldChanged(_targetYieldBps);
+    }
+
+    /// @notice Sets the maximum number of pending loan offers allowed
+    /// @param _maxPendingLoanOffers The new maximum number of pending loan offers
+    function setMaxPendingLoanOffers(uint256 _maxPendingLoanOffers) external onlyOwner {
+        uint256 oldMax = maxPendingLoanOffers;
+        maxPendingLoanOffers = _maxPendingLoanOffers;
+        emit MaxPendingLoanOffersChanged(oldMax, _maxPendingLoanOffers);
     }
 
     /// @notice Retrieves the fund information
