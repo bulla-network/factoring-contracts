@@ -485,7 +485,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertTrue(existsBefore, "Loan offer should exist before expiration");
         
         // Warp time past the expiration
-        vm.warp(approvalDuration + 1);
+        vm.warp(block.timestamp + approvalDuration + 1);
         
         // BullaFrendLend should not call onLoanOfferAccepted for expired offers
         // This test verifies that the pending loan offer remains in storage 
