@@ -49,7 +49,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             poolName, 
             targetYield, 
             poolTokenName, 
-            poolTokenSymbol
+            poolTokenSymbol,
+            0
         );
         
         // Test constructor with maximum valid rate (should succeed)
@@ -67,7 +68,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             poolName, 
             targetYield, 
             poolTokenName, 
-            poolTokenSymbol
+            poolTokenSymbol,
+            0
         );
         
         assertEq(validFactoring.protocolFeeBps(), 10000, "Constructor should accept maximum valid protocol fee rate");

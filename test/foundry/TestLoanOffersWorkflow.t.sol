@@ -1078,137 +1078,58 @@ contract TestLoanOffersWorkflow is CommonSetup {
         assertEq(loan.interestComputationState.protocolFeeBps, 0, "Protocol fee should be exempt");
 
     }
-    
-    // ============= SET MAX PENDING LOAN OFFERS TESTS =============
-    
-    event MaxPendingLoanOffersChanged(uint256 oldMax, uint256 newMax);
-    
-    function testSetMaxPendingLoanOffers_OnlyOwnerCanCall() public {
-        vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, bob));
-        bullaFactoring.setMaxPendingLoanOffers(500);
-        vm.stopPrank();
-    }
-    
-    function testSetMaxPendingLoanOffers_UnderwriterCannotCall() public {
-        vm.startPrank(underwriter);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, underwriter));
-        bullaFactoring.setMaxPendingLoanOffers(500);
-        vm.stopPrank();
-    }
-    
-    function testSetMaxPendingLoanOffers_EmitsEvent() public {
-        uint256 oldMax = bullaFactoring.maxPendingLoanOffers();
-        uint256 newMax = 500;
-        
-        vm.expectEmit(true, true, true, true);
-        emit MaxPendingLoanOffersChanged(oldMax, newMax);
-        bullaFactoring.setMaxPendingLoanOffers(newMax);
-        
-        assertEq(bullaFactoring.maxPendingLoanOffers(), newMax, "Max pending loan offers should be updated");
-    }
-    
-    function testSetMaxPendingLoanOffers_CanIncreaseLimit() public {
-        uint256 oldMax = bullaFactoring.maxPendingLoanOffers();
-        uint256 newMax = oldMax * 2;
-        
-        bullaFactoring.setMaxPendingLoanOffers(newMax);
-        
-        assertEq(bullaFactoring.maxPendingLoanOffers(), newMax, "Max should be doubled");
-    }
-    
-    function testSetMaxPendingLoanOffers_CanDecreaseLimit() public {
-        uint256 newMax = 10;
-        
-        bullaFactoring.setMaxPendingLoanOffers(newMax);
-        
-        assertEq(bullaFactoring.maxPendingLoanOffers(), newMax, "Max should be decreased");
-    }
-    
-    function testSetMaxPendingLoanOffers_CanSetToZero() public {
-        bullaFactoring.setMaxPendingLoanOffers(0);
-        
-        assertEq(bullaFactoring.maxPendingLoanOffers(), 0, "Max should be 0");
-        
-        // Should not be able to create any offers when max is 0
-        vm.startPrank(underwriter);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, 0, 0));
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
-        vm.stopPrank();
-    }
-    
-    function testSetMaxPendingLoanOffers_NewLimitIsEnforced() public {
-        // Set max to 3
-        bullaFactoring.setMaxPendingLoanOffers(3);
+
+    // ============= TOO MANY PENDING LOAN OFFERS TESTS =============
+
+    function testOfferLoan_RevertsTooManyPendingLoanOffers() public {
+        uint256 maxOffers = bullaFactoring.maxPendingLoanOffers();
         
         vm.startPrank(underwriter);
         
-        // Create 3 offers (should succeed)
-        for (uint i = 0; i < 3; i++) {
+        // Create max number of offers (should succeed)
+        for (uint i = 0; i < maxOffers; i++) {
             bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i))));
         }
         
-        assertEq(getPendingLoanOffersCount(), 3, "Should have 3 pending offers");
+        assertEq(getPendingLoanOffersCount(), maxOffers, "Should have max pending offers");
         
-        // Try to create a 4th offer (should fail)
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, 3, 3));
+        // Try to create one more offer (should fail)
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, maxOffers, maxOffers));
         bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
         
         vm.stopPrank();
     }
-    
-    function testSetMaxPendingLoanOffers_LoweringBelowCurrentCountStillWorks() public {
-        // Create 5 offers
+
+    function testOfferLoan_CanCreateAfterAcceptingOffers() public {
+        uint256 maxOffers = bullaFactoring.maxPendingLoanOffers();
+        
+        // Create max offers
         vm.startPrank(underwriter);
-        for (uint i = 0; i < 5; i++) {
-            bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i))));
+        uint256 firstOfferId = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 1");
+        for (uint i = 1; i < maxOffers; i++) {
+            bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, string(abi.encodePacked("Offer ", vm.toString(i + 1))));
         }
         vm.stopPrank();
         
-        assertEq(getPendingLoanOffersCount(), 5, "Should have 5 pending offers");
-        
-        // Lower max to 3 (below current count)
-        bullaFactoring.setMaxPendingLoanOffers(3);
-        
-        assertEq(bullaFactoring.maxPendingLoanOffers(), 3, "Max should be 3");
-        assertEq(getPendingLoanOffersCount(), 5, "Should still have 5 pending offers");
-        
-        // Cannot create new offers
-        vm.startPrank(underwriter);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.TooManyPendingLoanOffers.selector, 5, 3));
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Should fail");
-        vm.stopPrank();
-    }
-    
-    function testSetMaxPendingLoanOffers_CanCreateAfterAcceptingOffers() public {
-        // Set max to 2
-        bullaFactoring.setMaxPendingLoanOffers(2);
-        
-        // Create 2 offers
-        vm.startPrank(underwriter);
-        uint256 offerId1 = bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 1");
-        bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "Offer 2");
-        vm.stopPrank();
-        
-        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers");
+        assertEq(getPendingLoanOffersCount(), maxOffers, "Should have max pending offers");
         
         // Alice deposits to fund the pool
         vm.startPrank(alice);
         bullaFactoring.deposit(200_000, alice);
         vm.stopPrank();
         
-        // Accept one offer
+        // Accept one offer to free up a slot
         vm.prank(bob);
-        bullaFrendLend.acceptLoan(offerId1);
+        bullaFrendLend.acceptLoan(firstOfferId);
         
-        assertEq(getPendingLoanOffersCount(), 1, "Should have 1 pending offer");
+        assertEq(getPendingLoanOffersCount(), maxOffers - 1, "Should have one less pending offer");
         
         // Now can create another offer
         vm.startPrank(underwriter);
         bullaFactoring.offerLoan(bob, 1000, 500, 100_000, 30 days, 365, "New offer");
         vm.stopPrank();
         
-        assertEq(getPendingLoanOffersCount(), 2, "Should have 2 pending offers again");
+        assertEq(getPendingLoanOffersCount(), maxOffers, "Should have max pending offers again");
     }
 
     function testOfferLoan_365PeriodsYieldMoreInterestThan0Periods() public {
@@ -1634,9 +1555,6 @@ contract TestLoanOffersWorkflow is CommonSetup {
     function testClearStalePendingLoanOffers_GasBenchmark_25M() public {
         uint256 principalAmount = 100_000;
         uint256 numOffers = 500; // Start with 500 offers for gas testing
-        
-        // Increase max pending loan offers limit for this test
-        bullaFactoring.setMaxPendingLoanOffers(numOffers + 100);
         
         // Alice deposits enough funds
         vm.startPrank(alice);

@@ -80,7 +80,6 @@ interface IBullaFactoringV2 {
     event FactoringPermissionsChanged(address newAddress);
     event TargetYieldChanged(uint16 newTargetYield);
     event RedemptionQueueChanged(address indexed oldQueue, address indexed newQueue);
-    event MaxPendingLoanOffersChanged(uint256 oldMax, uint256 newMax);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint256 _principalAmountOverride) external;

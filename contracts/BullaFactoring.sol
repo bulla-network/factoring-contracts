@@ -81,7 +81,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint256[] public pendingLoanOffersIds;
 
     /// @notice Maximum number of pending loan offers allowed to prevent array growth issues
-    uint256 public maxPendingLoanOffers = 1000;
+    uint16 public immutable maxPendingLoanOffers;
 
     // ============ Aggregate State Tracking Variables ============
     /// @notice Total per-second interest rate across all active invoices in RAY units (sum of all perSecondInterestRate values)
@@ -151,7 +151,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         string memory _poolName,
         uint16 _targetYieldBps,
         string memory _tokenName, 
-        string memory _tokenSymbol
+        string memory _tokenSymbol,
+        uint16 _maxPendingLoanOffers
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
         if (_protocolFeeBps < 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps < 0 || _adminFeeBps > 10000) revert InvalidPercentage();
@@ -169,6 +170,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
+        maxPendingLoanOffers = _maxPendingLoanOffers == 0 ? uint16(2000) : _maxPendingLoanOffers;
         redemptionQueue = new RedemptionQueue(msg.sender, address(this));
         
         // Initialize aggregate state tracking
@@ -961,14 +963,6 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (_targetYieldBps > 10000) revert InvalidPercentage();
         targetYieldBps = _targetYieldBps;
         emit TargetYieldChanged(_targetYieldBps);
-    }
-
-    /// @notice Sets the maximum number of pending loan offers allowed
-    /// @param _maxPendingLoanOffers The new maximum number of pending loan offers
-    function setMaxPendingLoanOffers(uint256 _maxPendingLoanOffers) external onlyOwner {
-        uint256 oldMax = maxPendingLoanOffers;
-        maxPendingLoanOffers = _maxPendingLoanOffers;
-        emit MaxPendingLoanOffersChanged(oldMax, _maxPendingLoanOffers);
     }
 
     /// @notice Retrieves the fund information
