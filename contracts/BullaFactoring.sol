@@ -670,8 +670,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                     shouldRemove = true;
                 } else {
                     // Check if the loan offer was rejected or rescinded in BullaFrendLend
-                    // A rejected/rescinded offer will have creditor set to address(0)
-                    if (bullaFrendLend.getLoanOffer(loanOfferId).params.creditor == address(0)) {
+                    // getLoanOffer throws LoanOfferNotFound for rejected/rescinded offers
+                    try bullaFrendLend.getLoanOffer(loanOfferId) {
+                        // Offer still exists and is valid
+                    } catch {
+                        // getLoanOffer threw - loan was rejected/rescinded
                         shouldRemove = true;
                     }
                 }
@@ -1006,7 +1009,10 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedRedeem(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedRedeem(_owner);
 
-        uint256 sharesToRedeem = redemptionQueue.isQueueEmpty() ? Math.min(shares, maxRedeem(_owner)) : 0;
+        // Cap total shares to owner's balance to prevent queueing more than they have
+        uint256 cappedShares = Math.min(balanceOf(_owner), shares);
+
+        uint256 sharesToRedeem = redemptionQueue.isQueueEmpty() ? Math.min(cappedShares, maxRedeem()) : 0;
         uint256 redeemedAssets = 0;
         
         if (sharesToRedeem > 0) {
@@ -1014,7 +1020,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             totalWithdrawals += redeemedAssets;
         }
 
-        uint256 queuedShares = shares - sharesToRedeem;
+        uint256 queuedShares = cappedShares - sharesToRedeem;
         if (queuedShares > 0) {
             // Consume allowance for queued shares (just like a normal redemption would)
             if (_msgSender() != _owner) {
@@ -1037,7 +1043,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redeemPermissions.isAllowed(_msgSender())) revert UnauthorizedWithdrawal(_msgSender());
         if (!redeemPermissions.isAllowed(_owner)) revert UnauthorizedWithdrawal(_owner);
         
-        uint256 assetsToWithdraw = redemptionQueue.isQueueEmpty() ? Math.min(assets, maxWithdraw(_owner)) : 0;
+        // Cap total assets to what owner's shares can cover to prevent queueing more than they have
+        uint256 maxOwnerAssets = previewRedeem(balanceOf(_owner));
+        uint256 cappedAssets = assets > maxOwnerAssets ? maxOwnerAssets : assets;
+        
+        uint256 assetsToWithdraw = redemptionQueue.isQueueEmpty() ? Math.min(cappedAssets, maxWithdraw(_owner)) : 0;
         uint256 redeemedShares = 0;
         
         if (assetsToWithdraw > 0) {
@@ -1045,7 +1055,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
             totalWithdrawals += assetsToWithdraw;
         }
 
-        uint256 queuedAssets = assets - assetsToWithdraw;
+        uint256 queuedAssets = cappedAssets - assetsToWithdraw;
         if (queuedAssets > 0) {
             // Consume allowance for queued assets (just like a normal withdrawal would)
             if (_msgSender() != _owner) {

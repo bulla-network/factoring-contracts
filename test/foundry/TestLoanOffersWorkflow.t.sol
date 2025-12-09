@@ -241,7 +241,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         (,,,bool removedExists, ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertFalse(removedExists, "Loan offer should not exist after acceptance");
         
-        // Invoice approval should be created
+        // Invoice approval should be created (keyed by loanId, not loanOfferId)
         (
             bool approved,
             address creditor,
@@ -257,7 +257,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             address receiverAddress,
             IBullaFactoringV2.FeeParams memory approvalFeeParams,
             
-        ) = bullaFactoring.approvedInvoices(loanOfferId);
+        ) = bullaFactoring.approvedInvoices(loanId);
         
         assertTrue(approved, "Invoice should be approved");
         assertEq(creditor, address(bullaFactoring), "Creditor should be factoring contract");
@@ -315,9 +315,9 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         
-        // Accept loan
+        // Accept loan - returns actual loanId (claim ID)
         vm.prank(bob);
-        bullaFrendLend.acceptLoan(loanOfferId);
+        uint256 loanId = bullaFrendLend.acceptLoan(loanOfferId);
         
         // Record balances after loan acceptance
         uint256 factoringBalanceAfter = asset.balanceOf(address(bullaFactoring));
@@ -335,8 +335,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
             "Bob should have received principal amount"
         );
         
-        // Get transferred fee params
-        (,,,,,,,,,,,, IBullaFactoringV2.FeeParams memory transferredFeeParams, ) = bullaFactoring.approvedInvoices(loanOfferId);
+        // Get transferred fee params (keyed by loanId, not loanOfferId)
+        (,,,,,,,,,,,, IBullaFactoringV2.FeeParams memory transferredFeeParams, ) = bullaFactoring.approvedInvoices(loanId);
         
         // Verify all fee params transferred correctly
         assertEq(transferredFeeParams.targetYieldBps, originalFeeParams.targetYieldBps, "Target yield should transfer");
@@ -732,8 +732,9 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         
+        // Accept loan - returns actual loanId (claim ID)
         vm.prank(bob);
-        bullaFrendLend.acceptLoan(loanOfferId);
+        uint256 loanId = bullaFrendLend.acceptLoan(loanOfferId);
         
         // Record balances after loan acceptance
         uint256 factoringBalanceAfter = asset.balanceOf(address(bullaFactoring));
@@ -751,7 +752,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             "Bob should have received principal amount"
         );
         
-        // Verify invoice approval contains correctly calculated values
+        // Verify invoice approval contains correctly calculated values (keyed by loanId, not loanOfferId)
         (
             bool approved,
             address creditor,
@@ -767,7 +768,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             address receiverAddress,
             ,
             
-        ) = bullaFactoring.approvedInvoices(loanOfferId);
+        ) = bullaFactoring.approvedInvoices(loanId);
         
         assertTrue(approved, "Should be approved");
         assertEq(creditor, address(bullaFactoring), "Creditor should be factoring contract");
@@ -806,8 +807,9 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 factoringBalanceBefore = asset.balanceOf(address(bullaFactoring));
         uint256 bobBalanceBefore = asset.balanceOf(bob);
         
+        // Accept loan - returns actual loanId (claim ID)
         vm.prank(bob);
-        bullaFrendLend.acceptLoan(loanOfferId);
+        uint256 loanId = bullaFrendLend.acceptLoan(loanOfferId);
         
         // Record balances after loan acceptance
         uint256 factoringBalanceAfter = asset.balanceOf(address(bullaFactoring));
@@ -825,8 +827,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
             "Bob should have received principal amount"
         );
         
-        // Verify timestamps in invoice approval
-        (,, uint256 validUntil,,, uint256 fundedTimestamp,,,,,,,, ) = bullaFactoring.approvedInvoices(loanOfferId);
+        // Verify timestamps in invoice approval (keyed by loanId, not loanOfferId)
+        (,, uint256 validUntil,,, uint256 fundedTimestamp,,,,,,,, ) = bullaFactoring.approvedInvoices(loanId);
         
         assertEq(validUntil, offeredAt, "Valid until should be the offered timestamp");
         assertGe(fundedTimestamp, acceptanceTime, "Funded timestamp should be acceptance time");
@@ -943,8 +945,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
         (,,,bool existsAfter,) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         assertFalse(existsAfter, "Pending offer should not exist after acceptance");
         
-        // Verify invoice approval mapping is populated
-        (bool approved,,,,,,,,,,,,, ) = bullaFactoring.approvedInvoices(loanOfferId);
+        // Verify invoice approval mapping is populated (keyed by loanId, not loanOfferId)
+        (bool approved,,,,,,,,,,,,, ) = bullaFactoring.approvedInvoices(loanId);
         assertTrue(approved, "Invoice approval should exist");
         
         // Verify original creditor mapping is set
@@ -1044,8 +1046,8 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 loanId = bullaFrendLend.acceptLoan(loanOfferId);
         
         // Verify the loan was created correctly by checking the due date calculation
-        // The due date should be funding timestamp + term length
-        (,,,uint256 invoiceDueDate,,uint256 fundedTimestamp,,,,,,,IBullaFactoringV2.FeeParams memory feeParams, ) = bullaFactoring.approvedInvoices(loanOfferId);
+        // The due date should be funding timestamp + term length (keyed by loanId, not loanOfferId)
+        (,,,uint256 invoiceDueDate,,uint256 fundedTimestamp,,,,,,,IBullaFactoringV2.FeeParams memory feeParams, ) = bullaFactoring.approvedInvoices(loanId);
         
         assertEq(
             invoiceDueDate,

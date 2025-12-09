@@ -332,23 +332,22 @@ contract TestRedemptionQueueIntegration is CommonSetup {
 
     function testRedeemAndOrQueue_RespectsMaxRedeemLimits() public {
         uint256 depositAmount = 1000000;
-        uint256 excessiveRedeemAmount = 2000000; // More than available
+        uint256 excessiveRedeemAmount = 2000000; // More than user's balance
         
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
         
-        uint256 maxRedeemableShares = bullaFactoring.maxRedeem(alice);
+        uint256 aliceBalance = bullaFactoring.balanceOf(alice);
         
         vm.recordLogs();
         vm.prank(alice);
         uint256 redeemedAssets = bullaFactoring.redeem(excessiveRedeemAmount, alice, alice);
         
-        // Parse the RedemptionQueued event to get actual queued shares
-        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
-        
-        assertTrue(redeemedAssets <= maxRedeemableShares, "Should not exceed max redeemable");
-        assertEq(queuedShares, excessiveRedeemAmount - redeemedAssets, "Should queue excess shares");
-        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Should have queued excess");
+        // Request should be capped to user's balance
+        // Since queue is empty and full liquidity available, all shares are redeemed immediately
+        assertEq(redeemedAssets, aliceBalance, "Should redeem full balance (capped from excessive request)");
+        assertEq(bullaFactoring.balanceOf(alice), 0, "Alice should have 0 shares after redemption");
+        assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should be empty - no excess beyond balance");
     }
 
     // ============================================

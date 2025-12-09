@@ -81,12 +81,13 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         vm.startPrank(creditor);
         asset.approve(address(bullaFrendLend), principalAmount);
-        loanId = bullaFrendLend.offerLoan(loanRequestParams);
+        uint256 loanOfferId = bullaFrendLend.offerLoan(loanRequestParams);
         vm.stopPrank();
         
         // Debtor accepts the loan - interest starts accruing from this point
+        // acceptLoan returns the actual loanId (claim ID), not the offer ID
         vm.prank(debtor);
-        bullaFrendLend.acceptLoan(loanId);
+        loanId = bullaFrendLend.acceptLoan(loanOfferId);
         
         return loanId;
     }

@@ -225,57 +225,6 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         assertTrue(balanceBefore == balanceAfter, "No kickback as interest rate cap has been reached");
     }
 
-    function testCannotRedeemKickbackAmount() public {
-        // Alice deposits into the fund
-        uint256 initialDepositAlice = 100;
-        vm.startPrank(alice);
-        asset.approve(address(bullaFactoring), initialDepositAlice);
-        bullaFactoring.deposit(initialDepositAlice, alice);
-        vm.stopPrank();
-
-        // Bob funds an invoice
-        uint invoiceIdAmount = 100; // Amount of the invoice
-        vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceIdAmount, dueBy);
-        vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-
-        uint256 actualDaysUntilPayment = 30;
-        vm.warp(block.timestamp + actualDaysUntilPayment * 1 days);
-
-        // Alice pays the invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), invoiceIdAmount);
-        
-        // Test InvoicePaid event emission
-        vm.expectEmit(true, true, false, false);
-        emit InvoicePaid(invoiceId, 0, 0, 0, 0, 0, bob);
-
-        bullaClaim.payClaim(invoiceId, invoiceIdAmount);
-        vm.stopPrank();
-
-        (uint256 kickbackAmount,,,)  = bullaFactoring.calculateKickbackAmount(invoiceId);
-        uint256 sharesToRedeemIncludingKickback = bullaFactoring.convertToShares(initialDepositAlice + kickbackAmount);
-        uint maxRedeem = bullaFactoring.maxRedeem();
-
-        assertGt(sharesToRedeemIncludingKickback, maxRedeem, "sharesToRedeemIncludingKickback should be greater than maxRedeem");
-
-        // if Alice tries to redeem more shares than she owns, it will revert
-        vm.recordLogs();
-        vm.startPrank(alice);
-        bullaFactoring.redeem(sharesToRedeemIncludingKickback, alice, alice);
-        vm.stopPrank();
-
-        (uint256 queuedShares, ) = getQueuedSharesAndAssetsFromEvent();
-        
-        assertGt(queuedShares, 0, "Should queue excess shares");
-    }
-
     function testTargetAndRealisedFeeMatchIfPaidOnTime() public {
         dueBy = block.timestamp + 30 days;
 
