@@ -41,10 +41,10 @@
     "@types/node" "^16.9.1"
     ethers "^5.4.2"
 
-"@bulla/contracts-v2@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-2.4.0.tgz#bdb521f61a1d9ce7381308826486f1679b1b5617"
-  integrity sha512-1rf87WJbHanz7TbpnHxR48ad73A+9G/xAxEZzMdXl+/VrcH1vpu50QGFYzmH1tfjB3BqOlJDhxtLOVK6jQkCcQ==
+"@bulla/contracts-v2@^2.6.0":
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-2.6.0.tgz#e29d96f0f22f2d22649d7376a7ecbead7802a05e"
+  integrity sha512-43GwW+Kek/Ch7bLS8MxOJXKYzt9IFrReLFU+Nre5kjVRQojeoYF80/OVjfoV9GUgPZIc4W9TXY/TAQGojQopbg==
 
 "@colors/colors@1.5.0":
   version "1.5.0"
@@ -2878,11 +2878,6 @@ bufferutil@^4.0.1:
   integrity sha512-jduaYOYtnio4aIAyc6UbvPCVcgq7nYpVnucyxr6eCYg/Woad9Hf/oxxBRDnGGjPfjUm6j5O/uBWhIu4iLebFaw==
   dependencies:
     node-gyp-build "^4.3.0"
-
-"bulla-contracts-v2@npm:@bulla/contracts-v2":
-  version "1.24.0"
-  resolved "https://registry.yarnpkg.com/@bulla/contracts-v2/-/contracts-v2-1.24.0.tgz#6a5fe17009f004e7f3e57cb819bc711b2ff409ff"
-  integrity sha512-tS2VCOh1bHK2c8rg8zdIeqA+VXd7A/yZ15KY819oTThPiR6Bv4zHsJSO5yHzoaBQMolf5VIwlaeyBRCH1nfgOg==
 
 busboy@^1.6.0:
   version "1.6.0"
