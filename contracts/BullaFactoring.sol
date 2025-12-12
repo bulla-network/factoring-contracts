@@ -1109,8 +1109,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
                 }
             } else if (redemption.assets > 0) {
                 // This is an asset-based withdrawal
-                uint256 maxWithdrawableAssets = maxWithdraw(redemption.owner);
-                uint256 assetsToWithdraw = Math.min(redemption.assets, maxWithdrawableAssets);
+                uint256 assetsToWithdraw = Math.min(redemption.assets, _totalAssets); // == 0 if canceled or not enough liquidity. Cancellations should no longer exist since queue compacts on cancellation
                 
                 if (assetsToWithdraw > 0) {
                     // Pre-validation: Check if owner has enough shares for withdrawal (bypass allowance check)
