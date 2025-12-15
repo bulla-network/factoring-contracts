@@ -626,4 +626,94 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Invoice NFT should go to pool owner (msg.sender)
         assertEq(bullaClaim.ownerOf(invoiceId2), poolOwner, "Second invoice NFT should go to pool owner");
     }
+
+    // ============ Canceled Invoice Unfactoring Tests ============
+    function testPoolOwnerCanUnfactorCanceledInvoiceBeforeImpairment() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Warp forward a bit, but NOT past impairment date
+        vm.warp(block.timestamp + 10 days);
+
+        // Debtor cancels the invoice
+        vm.prank(alice);
+        bullaClaim.cancelClaim(invoiceId, "debtor canceled early");
+
+        // Verify pool owner CANNOT unfactor a non-canceled, non-impaired invoice
+        // Create another invoice to test the negative case
+        vm.prank(bob);
+        uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy + 10 days);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId2);
+        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        vm.stopPrank();
+
+        address poolOwner = bullaFactoring.owner();
+        
+        // Pool owner trying to unfactor non-canceled, non-impaired invoice should fail
+        vm.prank(poolOwner);
+        vm.expectRevert(InvoiceNotImpaired.selector);
+        bullaFactoring.unfactorInvoice(invoiceId2);
+
+        // But pool owner CAN unfactor the canceled invoice
+        vm.prank(poolOwner);
+        asset.approve(address(bullaFactoring), 1000 ether);
+        
+        vm.prank(poolOwner);
+        bullaFactoring.unfactorInvoice(invoiceId);
+
+        assertEq(bullaClaim.ownerOf(invoiceId), poolOwner, "Canceled invoice NFT should go to pool owner");
+    }
+
+    function testOriginalCreditorCanStillUnfactorCanceledInvoice() public {
+        // Alice deposits into the fund
+        uint256 initialDeposit = 1000;
+        vm.startPrank(alice);
+        asset.approve(address(bullaFactoring), initialDeposit);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Bob creates and funds an invoice
+        uint invoiceAmount = 100;
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.startPrank(underwriter);
+        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // Debtor cancels the invoice
+        vm.prank(alice);
+        bullaClaim.cancelClaim(invoiceId, "debtor canceled");
+
+        // Bob (original creditor) unfactors the canceled invoice
+        vm.startPrank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId);
+        vm.stopPrank();
+
+        // Assert the invoice NFT is transferred back to Bob
+        assertEq(bullaClaim.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
+    }
 }

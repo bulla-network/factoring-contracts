@@ -732,7 +732,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Unfactors an invoice, returning the invoice NFT to the caller
-    /// @dev Can be called by the original creditor anytime or by pool owner after impairment
+    /// @dev Can be called by the original creditor anytime or by pool owner after impairment or if canceled
     /// @param invoiceId The ID of the invoice to unfactor
     function unfactorInvoice(uint256 invoiceId) external {
         (
@@ -746,8 +746,9 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         bool isPoolOwnerUnfactoring = msg.sender == owner();
 
         if (isPoolOwnerUnfactoring) {
-            // Pool owner can only unfactor impaired invoices
-            if (!_isInvoiceImpaired(invoiceId)) revert InvoiceNotImpaired();
+            // Pool owner can unfactor impaired or canceled invoices
+            IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+            if (!_isInvoiceImpaired(invoiceId) && !invoice.isCanceled) revert InvoiceNotImpaired();
         } else {
             // Original creditor can unfactor anytime
             if (originalCreditor != msg.sender) revert CallerNotOriginalCreditor();
