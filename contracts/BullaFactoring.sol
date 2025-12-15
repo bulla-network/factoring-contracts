@@ -327,6 +327,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 _validUntil = block.timestamp + approvalDuration;
         invoiceProviderAdapter.initializeInvoice(invoiceId);
         IInvoiceProviderAdapterV2.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        if (invoiceSnapshot.isPaid) revert InvoiceAlreadyPaid();
         if (invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
         // if invoice already got approved and funded (creditor/owner of invoice is this contract), do not override storage
         // we assume that invoices are always from the bulla protocol and the creditor is always the NFT owner
@@ -507,6 +508,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (block.timestamp > approval.validUntil) revert ApprovalExpired();
         IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
+        if (invoicesDetails.isPaid) revert InvoiceAlreadyPaid();
         if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 

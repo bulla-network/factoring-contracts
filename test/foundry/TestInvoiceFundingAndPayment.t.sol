@@ -299,7 +299,7 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
 
 
         vm.startPrank(underwriter);
-        vm.expectRevert(abi.encodeWithSignature("InvoiceCannotBePaid()"));
+        vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyPaid()"));
         bullaFactoring.approveInvoice(invoiceId01, targetYield, spreadBps, upfrontBps, 0);
         vm.stopPrank();
     }
