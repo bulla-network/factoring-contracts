@@ -12,7 +12,6 @@ async function main(): Promise<void> {
 
     // Get the contract factories
     const BullaFactoring: ContractFactory = await ethers.getContractFactory('BullaFactoring');
-    const BullaFactoringAutomationChecker: ContractFactory = await ethers.getContractFactory('BullaFactoringAutomationChecker');
     const BullaClaimInvoiceProviderAdapter: ContractFactory = await ethers.getContractFactory('BullaClaimV2InvoiceProviderAdapterV2');
     const FactoringPermissions: ContractFactory = await ethers.getContractFactory('FactoringPermissions');
     const DepositPermissions: ContractFactory = await ethers.getContractFactory('DepositPermissions');
