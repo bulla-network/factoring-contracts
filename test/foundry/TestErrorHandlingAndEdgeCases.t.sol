@@ -133,7 +133,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSignature("InvoicePaidAmountChanged()"));
+        vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyPaid()"));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
