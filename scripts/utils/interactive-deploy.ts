@@ -53,10 +53,10 @@ export function setupGracefulExit(): void {
 export function validateNetwork(network: string | undefined): string {
     if (!network) {
         console.error('❌ NETWORK environment variable is required');
-        console.error('   Available networks: sepolia, polygon, mainnet, fundora-sepolia');
+        console.error('   Available networks: sepolia, polygon, mainnet, base');
         console.error('   Usage examples:');
         console.error('   NETWORK=sepolia npx ts-node <script>');
-        console.error('   NETWORK=fundora-sepolia npx ts-node <script>');
+        console.error('   NETWORK=base npx ts-node <script>');
         process.exit(1);
     }
     return network;
