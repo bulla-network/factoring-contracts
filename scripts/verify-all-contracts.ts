@@ -9,7 +9,7 @@ function getNetworkFromChainId(chainId: string): string | null {
     const chainIdMap: Record<string, string> = {
         '1': 'mainnet',
         '137': 'polygon',
-        '11155111': 'sepolia', // Also used for fundora-sepolia
+        '11155111': 'sepolia',
     };
     return chainIdMap[chainId] || null;
 }
@@ -119,15 +119,13 @@ async function verifyAllContracts(): Promise<void> {
 }
 
 /**
- * Enhanced verification for specific network
+ * Verification workflow for specific network (can be called with parameters or standalone)
  */
-async function verifyNetworkContracts(targetNetwork: string): Promise<void> {
+export async function verifyAllContractsWorkflow(targetNetwork: string): Promise<void> {
     console.log(`🔍 Verifying all contracts for network: ${targetNetwork}\n`);
 
     const broadcastPath = 'broadcast';
-    const deployments = findBroadcastDirectories(broadcastPath).filter(
-        deployment => deployment.network === targetNetwork || (targetNetwork === 'fundora-sepolia' && deployment.network === 'sepolia'),
-    );
+    const deployments = findBroadcastDirectories(broadcastPath).filter(deployment => deployment.network === targetNetwork);
 
     if (deployments.length === 0) {
         console.log(`⚠️  No deployments found for network: ${targetNetwork}`);
@@ -139,21 +137,23 @@ async function verifyNetworkContracts(targetNetwork: string): Promise<void> {
     for (const deployment of deployments) {
         console.log(`📄 ${deployment.script}`);
         try {
-            await verifyBroadcastContracts(deployment.script, targetNetwork === 'fundora-sepolia' ? 'sepolia' : deployment.network, true); // true = verify all broadcasts
+            await verifyBroadcastContracts(deployment.script, deployment.network, true); // true = verify all broadcasts
         } catch (error) {
             console.error(`❌ Error verifying ${deployment.script}:`, (error as Error).message);
         }
     }
 }
 
-// Main execution
-async function main(): Promise<void> {
+/**
+ * Launcher: Get network interactively or from env, then run workflow
+ */
+async function verifyAllContractsLauncher(): Promise<void> {
     try {
         const targetNetwork = process.env.NETWORK;
 
         if (targetNetwork) {
             console.log(`🎯 Target network specified: ${targetNetwork}`);
-            await verifyNetworkContracts(targetNetwork);
+            await verifyAllContractsWorkflow(targetNetwork);
         } else {
             console.log('🌐 No target network specified, verifying all deployments...');
             await verifyAllContracts();
@@ -164,11 +164,13 @@ async function main(): Promise<void> {
     }
 }
 
-// Handle Ctrl+C gracefully
-process.on('SIGINT', () => {
-    console.log('\n\n⚠️  Verification interrupted by user');
-    process.exit(0);
-});
+// Only run launcher if this script is run directly
+if (require.main === module) {
+    // Handle Ctrl+C gracefully
+    process.on('SIGINT', () => {
+        console.log('\n\n⚠️  Verification interrupted by user');
+        process.exit(0);
+    });
 
-// Run the script
-main();
+    verifyAllContractsLauncher();
+}

@@ -1,6 +1,7 @@
 import * as readline from 'readline';
-import { getNetworkConfig, getRpcUrl } from './network-config';
-import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit, validateNetwork } from './utils/interactive-deploy';
+import { getConfig, getRpcUrl } from './network-config';
+import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
+import { getNetworkAndPoolInteractive } from './utils/interactive-prompt';
 import { verifyBroadcastContracts } from './utils/verify-forge';
 
 async function promptForAmount(defaultAmount: number): Promise<number> {
@@ -30,13 +31,13 @@ async function promptForAmount(defaultAmount: number): Promise<number> {
 
 async function setImpairReserve(): Promise<void> {
     try {
-        // Get and validate network
-        const network = validateNetwork(process.env.NETWORK);
+        // Get network and pool interactively
+        const { network, pool } = await getNetworkAndPoolInteractive();
 
-        console.log(`🔧 Setting impair reserve on ${network} network...\n`);
+        console.log(`🔧 Setting impair reserve on ${network}/${pool}...\n`);
 
-        // Get network configuration
-        const config = getNetworkConfig(network);
+        // Get full configuration
+        const config = getConfig(network, pool);
 
         // Check if BullaFactoring address is available
         if (!config.bullaFactoringAddress) {
@@ -45,7 +46,9 @@ async function setImpairReserve(): Promise<void> {
 
         console.log('📋 Configuration:');
         console.log(`   Network: ${network}`);
-        console.log(`   BullaFactoring: ${config.bullaFactoringAddress}`);
+        console.log(`   Pool: ${pool}`);
+        console.log(`   Pool Display Name: ${config.poolDisplayName}`);
+        console.log(`   BullaFactoring: ${config.bullaFactoringAddress || 'Not deployed'}`);
 
         // Prompt for impair reserve amount
         const defaultAmount = 5000;
