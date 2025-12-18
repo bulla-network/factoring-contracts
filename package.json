@@ -11,6 +11,8 @@
     "scripts": {
         "compile": "npx hardhat compile && npx tsc --project tsconfig.json",
         "build": "npm run compile",
+        "build:forge": "forge build --via-ir && yarn typechain:forge && npx tsc --project tsconfig.json",
+        "typechain:forge": "npx typechain --target ethers-v5 --out-dir typechain-types 'artifacts/foundry/**/*.sol/*.json'",
         "test": "npx hardhat test",
         "run-node": "npx hardhat node --fork https://rpc.xdaichain.com",
         "dev": "npx hardhat node",

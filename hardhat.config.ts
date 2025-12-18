@@ -1,6 +1,6 @@
 require('dotenv').config({ path: './.env' });
 import '@nomiclabs/hardhat-ethers';
-import '@nomiclabs/hardhat-etherscan';
+// import '@nomicfoundation/hardhat-verify';
 import '@nomiclabs/hardhat-solhint';
 import '@nomiclabs/hardhat-waffle';
 import '@typechain/hardhat';
@@ -160,22 +160,22 @@ const config: HardhatUserConfig = {
         target: 'ethers-v5',
         alwaysGenerateOverloads: false,
     },
-    etherscan: {
-        apiKey: {
-            sepolia: ETHERSCAN_API_KEY,
-            polygon: POLYGONSCAN_API_KEY,
-            mainnet: ETHERSCAN_API_KEY,
-        },
-        customChains: [
-            {
-                network: 'base-goerli',
-                chainId: 84531,
-                urls: {
-                    apiURL: 'https://api-goerli.basescan.org/api',
-                    browserURL: 'https://goerli.basescan.org',
-                },
-            },
-        ],
-    },
+    // etherscan: {
+    //     apiKey: {
+    //         sepolia: ETHERSCAN_API_KEY,
+    //         polygon: POLYGONSCAN_API_KEY,
+    //         mainnet: ETHERSCAN_API_KEY,
+    //     },
+    //     customChains: [
+    //         {
+    //             network: 'base-goerli',
+    //             chainId: 84531,
+    //             urls: {
+    //                 apiURL: 'https://api-goerli.basescan.org/api',
+    //                 browserURL: 'https://goerli.basescan.org',
+    //             },
+    //         },
+    //     ],
+    // },
 };
 export default config;
