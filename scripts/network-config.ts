@@ -67,10 +67,11 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         BullaClaimInvoiceProviderAdapterAddress: '0xE14E624b29BcDa2ec409BBBf97037fEDe3803797',
     },
     base: {
-        bullaClaim: '0x9d4EB59D166841FfbC66197ECAd8E70f2339905D',
+        bullaClaim: '0x8D59E594a3e4D0647C15887Cde5ECBfBE583b441',
         bullaDao: '0xca591b3b53521ccde47d2da4e0ea151f8b81f6c1', // Bulla Safe's address
-        bullaFrendLendAddress: '0x03754cc78848FBc52130a8EEdD8d3d079F7Bb042',
-        bullaInvoiceAddress: '0x662303A841C0DDe7383939417581cBf34BE9f01D',
+        bullaFrendLendAddress: '0x777A7966464a4E5684FE95025aDb2AD56bdaE77B',
+        bullaInvoiceAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
+        BullaClaimInvoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca',
     },
 };
 
@@ -80,9 +81,9 @@ export const networkConfigs: Record<string, NetworkConfig> = {
 
 export const poolConfigs: Record<PoolName, PoolConfig> = {
     tcs: {
-        protocolFeeBps: 25,
-        adminFeeBps: 50,
-        targetYieldBps: 730,
+        protocolFeeBps: 20,
+        adminFeeBps: 0,
+        targetYieldBps: 800,
     },
     taram: {
         protocolFeeBps: 25,
@@ -185,10 +186,10 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         poolTokenName: 'TCS Settlement Pool Token V2',
                         poolTokenSymbol: 'BFT-TCS-V2',
                         underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        bullaFactoringAddress: '0x7c2Cc85Cb30844B81524E703f04a5eE98e3313FB',
                         depositPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         redeemPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         factoringPermissionsAddress: '0x0313433613F24c73efc15c5c74408F40B462fd9e',
+                        bullaFactoringAddress: '0xc65abf8aba06510f777be4ba2c29da4d93257d42',
                         writeNewAddresses: true,
                     };
                 default:
