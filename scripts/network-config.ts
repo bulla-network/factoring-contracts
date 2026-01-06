@@ -47,7 +47,7 @@ export type FullConfig = NetworkConfig & PoolConfig & DeployedPoolConfig & { poo
 export const networkConfigs: Record<string, NetworkConfig> = {
     sepolia: {
         bullaClaim: '0x0d9EF9d436fF341E500360a6B5E5750aB85BCCB6',
-        bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
+        bullaDao: '0xD80Bdb2c705A1176D8f3203DC5f08a952dD67C62', // Mike's address
         bullaFrendLendAddress: '0x4d6A66D32CF34270e4cc9C9F201CA4dB650Be3f2',
         bullaInvoiceAddress: '0xa2c4B7239A0d179A923751cC75277fe139AB092F',
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
@@ -91,7 +91,7 @@ export const poolConfigs: Record<PoolName, PoolConfig> = {
         targetYieldBps: 800,
     },
     fundora: {
-        protocolFeeBps: 10,
+        protocolFeeBps: 20,
         adminFeeBps: 50,
         targetYieldBps: 900,
     },
@@ -124,15 +124,15 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                     };
                 case 'fundora':
                     return {
-                        underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // WYST
-                        poolDisplayName: 'Fundora Management Pool V2.1',
-                        poolTokenName: 'Fundora Management Token V2.1',
-                        poolTokenSymbol: 'FACT-V2_1',
+                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
+                        poolDisplayName: 'Test Pool V2.1',
+                        poolTokenName: 'Test Token V2.1',
+                        poolTokenSymbol: 'BFT-V2_1',
                         underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
                         depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0x59973c8dbb88c7d3f5480175cef253c771ccb3ef',
+                        bullaFactoringAddress: '0xa5e94f122d421c9579a5cb1e687f55e109ba270b',
                         writeNewAddresses: true,
                     };
                 default:
