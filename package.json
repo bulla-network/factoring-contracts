@@ -16,7 +16,6 @@
         "test": "npx hardhat test",
         "run-node": "npx hardhat node --fork https://rpc.xdaichain.com",
         "dev": "npx hardhat node",
-        "deploy": "dotenv -e .env -- npx ts-node scripts/deploy-bullaFactoring.ts",
         "deploy:adapter": "dotenv -e .env -- npx ts-node scripts/deploy-adapter.ts",
         "deploy:full": "dotenv -e .env -- npx ts-node scripts/full-deploy-flow.ts",
         "verify": "dotenv -e .env -- npx ts-node scripts/verify-all-contracts.ts",
