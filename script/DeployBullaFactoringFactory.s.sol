@@ -50,7 +50,6 @@ contract DeployBullaFactoringFactory is Script {
         } else {
             console.log("Using existing BullaClaimInvoiceProviderAdapter:", config.bullaClaimInvoiceProviderAdapterAddress);
         }
-
         // Deploy BullaFactoringFactoryV2_1
         console.log("Deploying BullaFactoringFactoryV2_1...");
         BullaFactoringFactoryV2_1 factory = new BullaFactoringFactoryV2_1(

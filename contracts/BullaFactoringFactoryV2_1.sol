@@ -3,16 +3,23 @@ pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./BullaFactoring.sol";
-import "./DepositPermissions.sol";
-import "./FactoringPermissions.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import {IBullaFrendLendV2} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 
+/// @title Bulla Factoring Pool Interface (for verification)
+interface IBullaFactoringPool {
+    function bullaDao() external view returns (address);
+    function protocolFeeBps() external view returns (uint16);
+    function invoiceProviderAdapter() external view returns (IInvoiceProviderAdapterV2);
+    function bullaFrendLend() external view returns (IBullaFrendLendV2);
+    function assetAddress() external view returns (IERC20);
+}
+
 /// @title Bulla Factoring Factory V2.1
 /// @author Bulla Network
-/// @notice Factory contract for deploying new BullaFactoringV2_1 pools with pre-configured settings
+/// @notice Factory contract for deploying new BullaFactoringV2_1 pools using CREATE2
 /// @dev Enables dynamic subgraph indexing of new pools through emitted events
+/// @dev Caller provides creation bytecode; factory verifies protocol parameters after deployment
 contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Address of the invoice provider adapter used for all pools
     IInvoiceProviderAdapterV2 public invoiceProviderAdapter;
@@ -23,8 +30,8 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Protocol fee in basis points applied to all new pools
     uint16 public protocolFeeBps;
 
-    /// @notice Array of all pools created by this factory
-    address[] public pools;
+    /// @notice Counter for generating unique salts
+    uint256 public poolNonce;
 
     /// @notice Mapping of allowed asset tokens for pool creation
     mapping(address => bool) public allowedAssets;
@@ -33,15 +40,6 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     uint256 public poolCreationFee;
 
     /// @notice Emitted when a new pool is created
-    /// @param pool Address of the newly created pool
-    /// @param owner Address of the pool owner
-    /// @param asset Address of the underlying asset
-    /// @param poolName Display name of the pool
-    /// @param tokenName ERC20 token name
-    /// @param tokenSymbol ERC20 token symbol
-    /// @param depositPermissions Address of the deposit permissions contract
-    /// @param redeemPermissions Address of the redeem permissions contract
-    /// @param factoringPermissions Address of the factoring permissions contract
     event PoolCreated(
         address indexed pool,
         address indexed owner,
@@ -77,6 +75,11 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     error AssetNotAllowed(address asset);
     error IncorrectFee(uint256 required, uint256 provided);
     error TransferFailed();
+    error DeploymentFailed();
+    error InvalidBullaDao(address expected, address actual);
+    error InvalidProtocolFee(uint16 expected, uint16 actual);
+    error InvalidInvoiceAdapter(address expected, address actual);
+    error InvalidBullaFrendLend(address expected, address actual);
 
     /// @notice Creates a new BullaFactoringFactoryV2_1
     /// @param _invoiceProviderAdapter Address of the invoice provider adapter
@@ -98,190 +101,95 @@ contract BullaFactoringFactoryV2_1 is Ownable {
         protocolFeeBps = _protocolFeeBps;
     }
 
-    /// @notice Internal function to deploy a pool with given permissions
-    /// @dev Shared logic between createPool and createPoolWithPermissions
-    function _deployPool(
-        IERC20 asset,
-        address underwriter,
-        uint16 adminFeeBps,
-        string memory poolName,
-        uint16 targetYieldBps,
-        string memory tokenName,
-        string memory tokenSymbol,
-        Permissions _depositPermissions,
-        Permissions _redeemPermissions,
-        Permissions _factoringPermissions
-    ) internal returns (address pool) {
-        if (!allowedAssets[address(asset)]) revert AssetNotAllowed(address(asset));
-        if (underwriter == address(0)) revert InvalidAddress();
-        if (address(_depositPermissions) == address(0)) revert InvalidAddress();
-        if (address(_redeemPermissions) == address(0)) revert InvalidAddress();
-        if (address(_factoringPermissions) == address(0)) revert InvalidAddress();
-        if (adminFeeBps > 10000) revert InvalidPercentage();
-        if (targetYieldBps > 10000) revert InvalidPercentage();
-
-        // Deploy the pool (owner() is used as bullaDao for the pool)
-        BullaFactoringV2_1 newPool = new BullaFactoringV2_1(
-            asset,
-            invoiceProviderAdapter,
-            bullaFrendLend,
-            underwriter,
-            _depositPermissions,
-            _redeemPermissions,
-            _factoringPermissions,
-            owner(),
-            protocolFeeBps,
-            adminFeeBps,
-            poolName,
-            targetYieldBps,
-            tokenName,
-            tokenSymbol
-        );
-
-        // Transfer pool ownership to the caller
-        newPool.transferOwnership(msg.sender);
-
-        pool = address(newPool);
-        pools.push(pool);
-
-        emit PoolCreated(
-            pool,
-            msg.sender,
-            address(asset),
-            poolName,
-            tokenName,
-            tokenSymbol,
-            address(_depositPermissions),
-            address(_redeemPermissions),
-            address(_factoringPermissions)
-        );
-
-        return pool;
-    }
-
-    /// @notice Creates a new BullaFactoringV2_1 pool
-    /// @dev Deploys new DepositPermissions and FactoringPermissions contracts for the pool
-    /// @dev depositPermissions == redeemPermissions by default to avoid surprises
-    /// @param asset The underlying asset token (e.g., USDC)
-    /// @param underwriter Address of the underwriter who can approve invoices
-    /// @param adminFeeBps Admin fee in basis points
-    /// @param poolName Display name of the pool
-    /// @param targetYieldBps Target yield in basis points
-    /// @param tokenName ERC20 token name for the pool shares
-    /// @param tokenSymbol ERC20 token symbol for the pool shares
-    /// @param initialDepositors Array of addresses to whitelist for deposits/redeems
-    /// @param initialFactorers Array of addresses to whitelist for factoring
-    /// @return pool Address of the newly created pool
-    /// @return depositRedeemPermissions Address of the deposit/redeem permissions contract
-    /// @return factoringPermissions Address of the factoring permissions contract
-    function createPool(
-        IERC20 asset,
-        address underwriter,
-        uint16 adminFeeBps,
-        string memory poolName,
-        uint16 targetYieldBps,
-        string memory tokenName,
-        string memory tokenSymbol,
-        address[] calldata initialDepositors,
-        address[] calldata initialFactorers
-    ) external payable returns (address pool, address depositRedeemPermissions, address factoringPermissions) {
-        // Check pool creation fee (must be exact)
-        if (msg.value != poolCreationFee) revert IncorrectFee(poolCreationFee, msg.value);
-
-        // Deploy permissions contracts (factory is initial owner)
-        DepositPermissions _depositRedeemPermissions = new DepositPermissions();
-        FactoringPermissions _factoringPermissions = new FactoringPermissions();
-
-        // Whitelist initial depositors before transferring ownership
-        for (uint256 i = 0; i < initialDepositors.length; i++) {
-            _depositRedeemPermissions.allow(initialDepositors[i]);
-        }
-
-        // Whitelist initial factorers before transferring ownership
-        for (uint256 i = 0; i < initialFactorers.length; i++) {
-            _factoringPermissions.allow(initialFactorers[i]);
-        }
-
-        // Transfer ownership of permissions to caller
-        _depositRedeemPermissions.transferOwnership(msg.sender);
-        _factoringPermissions.transferOwnership(msg.sender);
-
-        // Deploy pool using shared logic (depositPermissions == redeemPermissions)
-        pool = _deployPool(
-            asset,
-            underwriter,
-            adminFeeBps,
-            poolName,
-            targetYieldBps,
-            tokenName,
-            tokenSymbol,
-            Permissions(address(_depositRedeemPermissions)),
-            Permissions(address(_depositRedeemPermissions)),
-            Permissions(address(_factoringPermissions))
-        );
-
-        depositRedeemPermissions = address(_depositRedeemPermissions);
-        factoringPermissions = address(_factoringPermissions);
-
-        return (pool, depositRedeemPermissions, factoringPermissions);
-    }
-
-    /// @notice Creates a new BullaFactoringV2_1 pool with custom permissions contracts
-    /// @dev Uses pre-deployed permissions contracts instead of creating new ones
-    /// @param asset The underlying asset token (e.g., USDC)
-    /// @param underwriter Address of the underwriter who can approve invoices
-    /// @param adminFeeBps Admin fee in basis points
-    /// @param poolName Display name of the pool
-    /// @param targetYieldBps Target yield in basis points
-    /// @param tokenName ERC20 token name for the pool shares
-    /// @param tokenSymbol ERC20 token symbol for the pool shares
+    /// @notice Creates a new BullaFactoringV2_1 pool using CREATE2
+    /// @dev Caller must provide creation bytecode with correct protocol parameters
+    /// @dev Factory verifies bullaDao, protocolFee, invoiceAdapter, and bullaFrendLend after deployment
+    /// @param creationBytecode The full creation bytecode (contract bytecode + abi-encoded constructor args)
+    /// @param asset The underlying asset token address (for validation and events)
+    /// @param poolName Display name of the pool (for events)
+    /// @param tokenName ERC20 token name (for events)
+    /// @param tokenSymbol ERC20 token symbol (for events)
     /// @param _depositPermissions Address of the deposit permissions contract
     /// @param _redeemPermissions Address of the redeem permissions contract
     /// @param _factoringPermissions Address of the factoring permissions contract
     /// @return pool Address of the newly created pool
-    function createPoolWithPermissions(
-        IERC20 asset,
-        address underwriter,
-        uint16 adminFeeBps,
+    function createPool(
+        bytes memory creationBytecode,
+        address asset,
         string memory poolName,
-        uint16 targetYieldBps,
         string memory tokenName,
         string memory tokenSymbol,
-        Permissions _depositPermissions,
-        Permissions _redeemPermissions,
-        Permissions _factoringPermissions
+        address _depositPermissions,
+        address _redeemPermissions,
+        address _factoringPermissions
     ) external payable returns (address pool) {
-        // Check pool creation fee (must be exact)
+        // Validations
         if (msg.value != poolCreationFee) revert IncorrectFee(poolCreationFee, msg.value);
+        if (!allowedAssets[asset]) revert AssetNotAllowed(asset);
+        if (_depositPermissions == address(0)) revert InvalidAddress();
+        if (_redeemPermissions == address(0)) revert InvalidAddress();
+        if (_factoringPermissions == address(0)) revert InvalidAddress();
 
-        return _deployPool(
+        // Generate unique salt using nonce
+        bytes32 salt = keccak256(abi.encodePacked(msg.sender, poolNonce++));
+
+        // Deploy using CREATE2
+        assembly {
+            pool := create2(0, add(creationBytecode, 0x20), mload(creationBytecode), salt)
+        }
+
+        if (pool == address(0)) revert DeploymentFailed();
+
+        // Verify protocol-controlled parameters
+        IBullaFactoringPool deployedPool = IBullaFactoringPool(pool);
+        
+        address expectedBullaDao = owner();
+        address actualBullaDao = deployedPool.bullaDao();
+        if (actualBullaDao != expectedBullaDao) {
+            revert InvalidBullaDao(expectedBullaDao, actualBullaDao);
+        }
+
+        uint16 actualProtocolFee = deployedPool.protocolFeeBps();
+        if (actualProtocolFee != protocolFeeBps) {
+            revert InvalidProtocolFee(protocolFeeBps, actualProtocolFee);
+        }
+
+        address actualAdapter = address(deployedPool.invoiceProviderAdapter());
+        if (actualAdapter != address(invoiceProviderAdapter)) {
+            revert InvalidInvoiceAdapter(address(invoiceProviderAdapter), actualAdapter);
+        }
+
+        address actualFrendLend = address(deployedPool.bullaFrendLend());
+        if (actualFrendLend != address(bullaFrendLend)) {
+            revert InvalidBullaFrendLend(address(bullaFrendLend), actualFrendLend);
+        }
+
+        // Verify asset is allowed (check actual deployed asset, not just the parameter)
+        address actualAsset = address(deployedPool.assetAddress());
+        if (!allowedAssets[actualAsset]) {
+            revert AssetNotAllowed(actualAsset);
+        }
+
+        // Transfer ownership to caller
+        Ownable(pool).transferOwnership(msg.sender);
+
+        emit PoolCreated(
+            pool,
+            msg.sender,
             asset,
-            underwriter,
-            adminFeeBps,
             poolName,
-            targetYieldBps,
             tokenName,
             tokenSymbol,
             _depositPermissions,
             _redeemPermissions,
             _factoringPermissions
         );
-    }
 
-    /// @notice Returns the total number of pools created by this factory
-    /// @return The number of pools
-    function getPoolCount() external view returns (uint256) {
-        return pools.length;
-    }
-
-    /// @notice Returns all pools created by this factory
-    /// @return Array of pool addresses
-    function getAllPools() external view returns (address[] memory) {
-        return pools;
+        return pool;
     }
 
     /// @notice Updates the invoice provider adapter
-    /// @param _newAdapter The new invoice provider adapter address
+    /// @param _newAdapter The new adapter address
     function setInvoiceProviderAdapter(IInvoiceProviderAdapterV2 _newAdapter) external onlyOwner {
         if (address(_newAdapter) == address(0)) revert InvalidAddress();
         address oldAdapter = address(invoiceProviderAdapter);
@@ -290,7 +198,7 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     }
 
     /// @notice Updates the BullaFrendLend address
-    /// @param _newBullaFrendLend The new BullaFrendLend address
+    /// @param _newBullaFrendLend The new address
     function setBullaFrendLend(IBullaFrendLendV2 _newBullaFrendLend) external onlyOwner {
         if (address(_newBullaFrendLend) == address(0)) revert InvalidAddress();
         address oldAddress = address(bullaFrendLend);
@@ -352,5 +260,24 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Returns the contract's ETH balance (collected fees)
     function collectedFees() external view returns (uint256) {
         return address(this).balance;
+    }
+
+    /// @notice Computes the CREATE2 address for given parameters
+    /// @param creationBytecode The full creation bytecode
+    /// @param creator The address that will call createPool
+    /// @param nonce The poolNonce value at time of creation
+    /// @return The predicted deployment address
+    function computeAddress(
+        bytes memory creationBytecode,
+        address creator,
+        uint256 nonce
+    ) external view returns (address) {
+        bytes32 salt = keccak256(abi.encodePacked(creator, nonce));
+        return address(uint160(uint256(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            keccak256(creationBytecode)
+        )))));
     }
 }
