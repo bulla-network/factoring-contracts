@@ -10,6 +10,8 @@ import { FactoringPermissions } from 'contracts/FactoringPermissions.sol';
 import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
+import { MockZodiacRoles } from 'contracts/mocks/MockZodiacRoles.sol';
+import { IZodiacRoles } from 'contracts/interfaces/IZodiacRoles.sol';
 import { IInvoiceProviderAdapterV2 } from 'contracts/interfaces/IInvoiceProviderAdapter.sol';
 import { IBullaFrendLendV2 } from 'bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol';
 import { BullaFrendLendV2 } from 'bulla-contracts-v2/src/BullaFrendLendV2.sol';
@@ -24,6 +26,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 contract TestBullaFactoringFactoryV2_1 is Test {
     BullaFactoringFactoryV2_1 public factory;
     PermissionsFactory public permissionsFactory;
+    MockZodiacRoles public mockZodiacRoles;
 
     BullaClaimV2InvoiceProviderAdapterV2 public invoiceAdapter;
     MockUSDC public usdc;
@@ -93,6 +96,12 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         // Deploy permissions factory
         permissionsFactory = new PermissionsFactory();
 
+        // Deploy and configure mock Zodiac Roles
+        mockZodiacRoles = new MockZodiacRoles();
+        bytes32 testRoleKey = keccak256("CALLBACK_WHITELISTER");
+        vm.prank(bullaDao);
+        factory.setZodiacRolesConfig(IZodiacRoles(address(mockZodiacRoles)), testRoleKey);
+
         // Whitelist USDC as allowed asset
         vm.prank(bullaDao);
         factory.allowAsset(address(usdc));
@@ -146,8 +155,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         assertEq(factory.protocolFeeBps(), protocolFeeBps);
         assertEq(factory.poolNonce(), 0);
         assertEq(factory.poolCreationFee(), 0);
-        // Zodiac Roles not configured by default
-        assertEq(address(factory.rolesModifier()), address(0));
+        // Zodiac Roles configured in setUp
+        assertEq(address(factory.rolesModifier()), address(mockZodiacRoles));
     }
 
     function test_constructor_revertsOnZeroAdapter() public {
