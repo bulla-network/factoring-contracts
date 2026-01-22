@@ -1,6 +1,13 @@
 // Shared network and pool configurations for deployment and permissions scripts
 
 // ============================================================================
+// Global Constants
+// ============================================================================
+
+/** Default protocol fee in basis points (20 bps = 0.20%) */
+export const DEFAULT_PROTOCOL_FEE_BPS = 20;
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -14,6 +21,7 @@ export type NetworkConfig = {
     bullaFrendLendAddress: string;
     bullaInvoiceAddress: string;
     BullaClaimInvoiceProviderAdapterAddress?: string;
+    bullaFactoringFactoryAddress?: string;
 };
 
 /** Pool-specific configuration (not tied to any network) */
