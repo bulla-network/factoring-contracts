@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
+import "./interfaces/IZodiacRoles.sol";
 import {IBullaFrendLendV2} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 
 /// @title Bulla Factoring Pool Interface (for verification)
@@ -20,12 +21,22 @@ interface IBullaFactoringPool {
 /// @notice Factory contract for deploying new BullaFactoringV2_1 pools using CREATE2
 /// @dev Enables dynamic subgraph indexing of new pools through emitted events
 /// @dev Caller provides creation bytecode; factory verifies protocol parameters after deployment
+/// @dev Uses Zodiac Roles Modifier for callback whitelisting on BullaClaimV2 and BullaFrendLend
 contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Address of the invoice provider adapter used for all pools
     IInvoiceProviderAdapterV2 public invoiceProviderAdapter;
     
     /// @notice Address of the BullaFrendLend contract
     IBullaFrendLendV2 public bullaFrendLend;
+
+    /// @notice Address of the BullaClaimV2 contract (for callback whitelisting)
+    address public immutable bullaClaimV2;
+
+    /// @notice Zodiac Roles Modifier for executing whitelisting calls
+    IZodiacRoles public rolesModifier;
+
+    /// @notice Role key that grants this factory permission to whitelist callbacks
+    bytes32 public roleKey;
     
     /// @notice Protocol fee in basis points applied to all new pools
     uint16 public protocolFeeBps;
@@ -57,6 +68,9 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     
     /// @notice Emitted when the BullaFrendLend address is updated
     event BullaFrendLendChanged(address indexed oldAddress, address indexed newAddress);
+
+    /// @notice Emitted when the Zodiac Roles configuration is updated
+    event ZodiacRolesConfigChanged(address indexed rolesModifier, bytes32 roleKey);
     
     /// @notice Emitted when the protocol fee is updated
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
@@ -70,6 +84,9 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Emitted when collected fees are withdrawn
     event FeesWithdrawn(address indexed to, uint256 amount);
 
+    /// @notice Emitted when callbacks are whitelisted for a new pool
+    event CallbacksWhitelisted(address indexed pool);
+
     error InvalidAddress();
     error InvalidPercentage();
     error AssetNotAllowed(address asset);
@@ -80,30 +97,38 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     error InvalidProtocolFee(uint16 expected, uint16 actual);
     error InvalidInvoiceAdapter(address expected, address actual);
     error InvalidBullaFrendLend(address expected, address actual);
+    error CallbackWhitelistingFailed();
+    error ZodiacRolesNotConfigured();
 
     /// @notice Creates a new BullaFactoringFactoryV2_1
     /// @param _invoiceProviderAdapter Address of the invoice provider adapter
     /// @param _bullaFrendLend Address of the BullaFrendLend contract
+    /// @param _bullaClaimV2 Address of the BullaClaimV2 contract
     /// @param _bullaDao Address of the factory owner (typically BullaDao), also becomes bullaDao for all created pools
     /// @param _protocolFeeBps Protocol fee in basis points
     constructor(
-        IInvoiceProviderAdapterV2 _invoiceProviderAdapter,
-        IBullaFrendLendV2 _bullaFrendLend,
+        address _invoiceProviderAdapter,
+        address _bullaFrendLend,
+        address _bullaClaimV2,
         address _bullaDao,
         uint16 _protocolFeeBps
     ) Ownable(_bullaDao) {
         if (address(_invoiceProviderAdapter) == address(0)) revert InvalidAddress();
+        if (address(_bullaFrendLend) == address(0)) revert InvalidAddress();
+        if (_bullaClaimV2 == address(0)) revert InvalidAddress();
         if (_bullaDao == address(0)) revert InvalidAddress();
         if (_protocolFeeBps > 10000) revert InvalidPercentage();
 
-        invoiceProviderAdapter = _invoiceProviderAdapter;
-        bullaFrendLend = _bullaFrendLend;
+        invoiceProviderAdapter = IInvoiceProviderAdapterV2(_invoiceProviderAdapter);
+        bullaFrendLend = IBullaFrendLendV2(_bullaFrendLend);
+        bullaClaimV2 = _bullaClaimV2;
         protocolFeeBps = _protocolFeeBps;
     }
 
     /// @notice Creates a new BullaFactoringV2_1 pool using CREATE2
     /// @dev Caller must provide creation bytecode with correct protocol parameters
     /// @dev Factory verifies bullaDao, protocolFee, invoiceAdapter, and bullaFrendLend after deployment
+    /// @dev If Zodiac Roles is configured, automatically whitelists callbacks for the new pool
     /// @param creationBytecode The full creation bytecode (contract bytecode + abi-encoded constructor args)
     /// @param asset The underlying asset token address (for validation and events)
     /// @param poolName Display name of the pool (for events)
@@ -185,8 +210,57 @@ contract BullaFactoringFactoryV2_1 is Ownable {
             _factoringPermissions
         );
 
+        // Whitelist callbacks via Zodiac Roles Modifier
+        _whitelistCallbacks(pool);
+
         return pool;
     }
+
+    /// @notice Internal function to whitelist callbacks for a new pool via Zodiac Roles
+    /// @param pool The newly created pool address
+    function _whitelistCallbacks(address pool) internal {
+        if (address(rolesModifier) == address(0)) revert ZodiacRolesNotConfigured();
+
+        // Callback selectors for BullaFactoringV2_1
+        bytes4 onLoanOfferAcceptedSelector = bytes4(keccak256("onLoanOfferAccepted(uint256,uint256)"));
+        bytes4 reconcileSingleInvoiceSelector = bytes4(keccak256("reconcileSingleInvoice(uint256)"));
+
+        // Whitelist onLoanOfferAccepted callback on BullaFrendLend
+        bool success1 = rolesModifier.execTransactionWithRole(
+            address(bullaFrendLend),
+            0, // value
+            abi.encodeWithSignature(
+                "addToCallbackWhitelist(address,bytes4)",
+                pool,
+                onLoanOfferAcceptedSelector
+            ),
+            IZodiacRoles.Operation.Call,
+            roleKey,
+            false // don't revert, check success
+        );
+
+        // Whitelist reconcileSingleInvoice callback on BullaClaimV2
+        bool success2 = rolesModifier.execTransactionWithRole(
+            bullaClaimV2,
+            0, // value
+            abi.encodeWithSignature(
+                "addToPaidCallbackWhitelist(address,bytes4)",
+                pool,
+                reconcileSingleInvoiceSelector
+            ),
+            IZodiacRoles.Operation.Call,
+            roleKey,
+            false // don't revert, check success
+        );
+
+        if (!success1 || !success2) revert CallbackWhitelistingFailed();
+
+        emit CallbacksWhitelisted(pool);
+    }
+
+    // ============================================================
+    // Admin Functions
+    // ============================================================
 
     /// @notice Updates the invoice provider adapter
     /// @param _newAdapter The new adapter address
@@ -204,6 +278,16 @@ contract BullaFactoringFactoryV2_1 is Ownable {
         address oldAddress = address(bullaFrendLend);
         bullaFrendLend = _newBullaFrendLend;
         emit BullaFrendLendChanged(oldAddress, address(_newBullaFrendLend));
+    }
+
+    /// @notice Configures Zodiac Roles Modifier for callback whitelisting
+    /// @param _rolesModifier Address of the Zodiac Roles Modifier contract
+    /// @param _roleKey The role key that grants permission to whitelist callbacks
+    function setZodiacRolesConfig(IZodiacRoles _rolesModifier, bytes32 _roleKey) external onlyOwner {
+        if (address(_rolesModifier) == address(0)) revert InvalidAddress();
+        rolesModifier = _rolesModifier;
+        roleKey = _roleKey;
+        emit ZodiacRolesConfigChanged(address(_rolesModifier), _roleKey);
     }
 
     /// @notice Updates the protocol fee in basis points

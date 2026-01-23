@@ -10,6 +10,8 @@ import { FactoringPermissions } from 'contracts/FactoringPermissions.sol';
 import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
+import { MockZodiacRoles } from 'contracts/mocks/MockZodiacRoles.sol';
+import { IZodiacRoles } from 'contracts/interfaces/IZodiacRoles.sol';
 import { IInvoiceProviderAdapterV2 } from 'contracts/interfaces/IInvoiceProviderAdapter.sol';
 import { IBullaFrendLendV2 } from 'bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol';
 import { BullaFrendLendV2 } from 'bulla-contracts-v2/src/BullaFrendLendV2.sol';
@@ -24,6 +26,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 contract TestBullaFactoringFactoryV2_1 is Test {
     BullaFactoringFactoryV2_1 public factory;
     PermissionsFactory public permissionsFactory;
+    MockZodiacRoles public mockZodiacRoles;
 
     BullaClaimV2InvoiceProviderAdapterV2 public invoiceAdapter;
     MockUSDC public usdc;
@@ -83,14 +86,21 @@ contract TestBullaFactoringFactoryV2_1 is Test {
 
         // Deploy factory with bullaDao as owner
         factory = new BullaFactoringFactoryV2_1(
-            IInvoiceProviderAdapterV2(address(invoiceAdapter)),
-            bullaFrendLend,
+            address(invoiceAdapter),
+            address(bullaFrendLend),
+            address(bullaClaim),
             bullaDao,
             protocolFeeBps
         );
 
         // Deploy permissions factory
         permissionsFactory = new PermissionsFactory();
+
+        // Deploy and configure mock Zodiac Roles
+        mockZodiacRoles = new MockZodiacRoles();
+        bytes32 testRoleKey = keccak256("CALLBACK_WHITELISTER");
+        vm.prank(bullaDao);
+        factory.setZodiacRolesConfig(IZodiacRoles(address(mockZodiacRoles)), testRoleKey);
 
         // Whitelist USDC as allowed asset
         vm.prank(bullaDao);
@@ -141,16 +151,42 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         assertEq(factory.owner(), bullaDao);
         assertEq(address(factory.invoiceProviderAdapter()), address(invoiceAdapter));
         assertEq(address(factory.bullaFrendLend()), address(bullaFrendLend));
+        assertEq(factory.bullaClaimV2(), address(bullaClaim));
         assertEq(factory.protocolFeeBps(), protocolFeeBps);
         assertEq(factory.poolNonce(), 0);
         assertEq(factory.poolCreationFee(), 0);
+        // Zodiac Roles configured in setUp
+        assertEq(address(factory.rolesModifier()), address(mockZodiacRoles));
     }
 
     function test_constructor_revertsOnZeroAdapter() public {
         vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
         new BullaFactoringFactoryV2_1(
-            IInvoiceProviderAdapterV2(address(0)),
-            bullaFrendLend,
+            address(0),
+            address(bullaFrendLend),
+            address(bullaClaim),
+            bullaDao,
+            protocolFeeBps
+        );
+    }
+
+    function test_constructor_revertsOnZeroBullaFrendLend() public {
+        vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
+        new BullaFactoringFactoryV2_1(
+            address(invoiceAdapter),
+            address(0),
+            address(bullaClaim),
+            bullaDao,
+            protocolFeeBps
+        );
+    }
+
+    function test_constructor_revertsOnZeroBullaClaimV2() public {
+        vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
+        new BullaFactoringFactoryV2_1(
+            address(invoiceAdapter),
+            address(bullaFrendLend),
+            address(0),
             bullaDao,
             protocolFeeBps
         );
@@ -159,8 +195,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     function test_constructor_revertsOnZeroOwner() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
         new BullaFactoringFactoryV2_1(
-            IInvoiceProviderAdapterV2(address(invoiceAdapter)),
-            bullaFrendLend,
+            address(invoiceAdapter),
+            address(bullaFrendLend),
+            address(bullaClaim),
             address(0),
             protocolFeeBps
         );
@@ -169,8 +206,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     function test_constructor_revertsOnInvalidProtocolFee() public {
         vm.expectRevert(BullaFactoringFactoryV2_1.InvalidPercentage.selector);
         new BullaFactoringFactoryV2_1(
-            IInvoiceProviderAdapterV2(address(invoiceAdapter)),
-            bullaFrendLend,
+            address(invoiceAdapter),
+            address(bullaFrendLend),
+            address(bullaClaim),
             bullaDao,
             10001 // > 100%
         );

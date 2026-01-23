@@ -53,8 +53,9 @@ contract DeployBullaFactoringFactory is Script {
         // Deploy BullaFactoringFactoryV2_1
         console.log("Deploying BullaFactoringFactoryV2_1...");
         BullaFactoringFactoryV2_1 factory = new BullaFactoringFactoryV2_1(
-            IInvoiceProviderAdapterV2(config.bullaClaimInvoiceProviderAdapterAddress),
-            IBullaFrendLendV2(config.bullaFrendLendAddress),
+            config.bullaClaimInvoiceProviderAdapterAddress,
+            config.bullaFrendLendAddress,
+            config.bullaClaim,
             config.bullaDao,
             config.protocolFeeBps
         );
