@@ -44,8 +44,9 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Counter for generating unique salts
     uint256 public poolNonce;
 
-    /// @notice Mapping of allowed asset tokens for pool creation
-    mapping(address => bool) public allowedAssets;
+    /// @notice Mapping of asset address to expected codehash for pools using that asset
+    /// @dev Codehash varies per asset because ERC4626 stores asset as immutable
+    mapping(address => bytes32) public assetCodehashes;
 
     /// @notice Fee required to create a new pool (in native ETH), used as anti-spam protection
     uint256 public poolCreationFee;
@@ -75,8 +76,9 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     /// @notice Emitted when the protocol fee is updated
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
 
-    /// @notice Emitted when an asset is added to or removed from the whitelist
-    event AssetWhitelistChanged(address indexed asset, bool allowed);
+    /// @notice Emitted when an asset's codehash is set or removed
+    /// @dev Setting codehash to bytes32(0) disables the asset
+    event AssetCodehashChanged(address indexed asset, bytes32 codehash);
 
     /// @notice Emitted when the pool creation fee is updated
     event PoolCreationFeeChanged(uint256 oldFee, uint256 newFee);
@@ -99,6 +101,7 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     error InvalidBullaFrendLend(address expected, address actual);
     error CallbackWhitelistingFailed();
     error ZodiacRolesNotConfigured();
+    error InvalidCodehash(bytes32 expected, bytes32 actual);
 
     /// @notice Creates a new BullaFactoringFactoryV2_1
     /// @param _invoiceProviderAdapter Address of the invoice provider adapter
@@ -150,7 +153,8 @@ contract BullaFactoringFactoryV2_1 is Ownable {
     ) external payable returns (address pool) {
         // Validations
         if (msg.value != poolCreationFee) revert IncorrectFee(poolCreationFee, msg.value);
-        if (!allowedAssets[asset]) revert AssetNotAllowed(asset);
+        bytes32 expectedCodehash = assetCodehashes[asset];
+        if (expectedCodehash == bytes32(0)) revert AssetNotAllowed(asset);
         if (_depositPermissions == address(0)) revert InvalidAddress();
         if (_redeemPermissions == address(0)) revert InvalidAddress();
         if (_factoringPermissions == address(0)) revert InvalidAddress();
@@ -164,6 +168,12 @@ contract BullaFactoringFactoryV2_1 is Ownable {
         }
 
         if (pool == address(0)) revert DeploymentFailed();
+
+        // Verify deployed contract is BullaFactoringV2_1 (prevents malicious contracts)
+        bytes32 actualCodehash = pool.codehash;
+        if (actualCodehash != expectedCodehash) {
+            revert InvalidCodehash(expectedCodehash, actualCodehash);
+        }
 
         // Verify protocol-controlled parameters
         IBullaFactoringPool deployedPool = IBullaFactoringPool(pool);
@@ -189,9 +199,9 @@ contract BullaFactoringFactoryV2_1 is Ownable {
             revert InvalidBullaFrendLend(address(bullaFrendLend), actualFrendLend);
         }
 
-        // Verify asset is allowed (check actual deployed asset, not just the parameter)
+        // Verify deployed asset matches the declared asset parameter
         address actualAsset = address(deployedPool.assetAddress());
-        if (!allowedAssets[actualAsset]) {
+        if (actualAsset != asset) {
             revert AssetNotAllowed(actualAsset);
         }
 
@@ -299,27 +309,22 @@ contract BullaFactoringFactoryV2_1 is Ownable {
         emit ProtocolFeeBpsChanged(oldProtocolFeeBps, _newProtocolFeeBps);
     }
 
-    /// @notice Adds an asset to the whitelist
-    /// @param asset The asset token address to allow
-    function allowAsset(address asset) external onlyOwner {
+    /// @notice Sets the expected codehash for an asset
+    /// @dev Setting to bytes32(0) disables pool creation for this asset
+    /// @dev Codehash varies per asset because ERC4626 stores asset as immutable
+    /// @param asset The asset token address
+    /// @param codehash The expected runtime codehash for pools using this asset
+    function setAssetCodehash(address asset, bytes32 codehash) external onlyOwner {
         if (asset == address(0)) revert InvalidAddress();
-        allowedAssets[asset] = true;
-        emit AssetWhitelistChanged(asset, true);
-    }
-
-    /// @notice Removes an asset from the whitelist
-    /// @param asset The asset token address to disallow
-    function disallowAsset(address asset) external onlyOwner {
-        if (asset == address(0)) revert InvalidAddress();
-        allowedAssets[asset] = false;
-        emit AssetWhitelistChanged(asset, false);
+        assetCodehashes[asset] = codehash;
+        emit AssetCodehashChanged(asset, codehash);
     }
 
     /// @notice Checks if an asset is allowed for pool creation
     /// @param asset The asset token address to check
-    /// @return Whether the asset is allowed
+    /// @return Whether the asset has a codehash set (and is thus allowed)
     function isAssetAllowed(address asset) external view returns (bool) {
-        return allowedAssets[asset];
+        return assetCodehashes[asset] != bytes32(0);
     }
 
     /// @notice Updates the pool creation fee
