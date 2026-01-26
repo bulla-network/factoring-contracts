@@ -55,28 +55,28 @@ export type FullConfig = NetworkConfig & PoolConfig & DeployedPoolConfig & { poo
 export const networkConfigs: Record<string, NetworkConfig> = {
     sepolia: {
         bullaClaim: '0x0d9EF9d436fF341E500360a6B5E5750aB85BCCB6',
-        bullaDao: '0xD80Bdb2c705A1176D8f3203DC5f08a952dD67C62', // Mike's address
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x4d6A66D32CF34270e4cc9C9F201CA4dB650Be3f2',
         bullaInvoiceAddress: '0xa2c4B7239A0d179A923751cC75277fe139AB092F',
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
     },
     polygon: {
         bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4',
-        bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
         bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
         BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     },
     mainnet: {
         bullaClaim: '0x127948A4286A67A0A5Cb56a2D0d54881077A4889',
-        bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
         bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
         BullaClaimInvoiceProviderAdapterAddress: '0xE14E624b29BcDa2ec409BBBf97037fEDe3803797',
     },
     base: {
         bullaClaim: '0x8D59E594a3e4D0647C15887Cde5ECBfBE583b441',
-        bullaDao: '0xca591b3b53521ccde47d2da4e0ea151f8b81f6c1', // Bulla Safe's address
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x777A7966464a4E5684FE95025aDb2AD56bdaE77B',
         bullaInvoiceAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
         BullaClaimInvoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca',
