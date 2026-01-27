@@ -55,8 +55,10 @@ export async function deployFactoryWorkflow(network: string, privateKey: string)
             if (code === 0) {
                 console.log('\n✅ Factory deployment completed successfully!');
                 console.log(`🏭 BullaFactoringFactoryV2_1 is now live on ${network}!`);
+                console.log('📋 Contracts should be auto-verified via --verify flag');
 
-                // Verify contracts using broadcast files
+                // Fallback: Manual verification in case auto-verify failed
+                console.log('\n🔄 Running fallback verification (in case auto-verify missed any)...');
                 await verifyBroadcastContracts('DeployBullaFactoringFactory.s.sol', network, false);
 
                 console.log('\n📝 Next steps:');

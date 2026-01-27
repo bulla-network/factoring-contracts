@@ -22,3 +22,10 @@ remappings = [
 ]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+# Etherscan V2 API configuration
+# Use a V2 compatible API key (created on etherscan.io mainnet works for all chains)
+[etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+polygon = { key = "${ETHERSCAN_API_KEY}" }

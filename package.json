@@ -17,8 +17,10 @@
         "run-node": "npx hardhat node --fork https://rpc.xdaichain.com",
         "dev": "npx hardhat node",
         "deploy:adapter": "dotenv -e .env -- npx ts-node scripts/deploy-adapter.ts",
+        "deploy:factory": "dotenv -e .env -- npx ts-node scripts/deploy-bullaFactoringFactory.ts",
         "deploy:full": "dotenv -e .env -- npx ts-node scripts/full-deploy-flow.ts",
         "verify": "dotenv -e .env -- npx ts-node scripts/verify-all-contracts.ts",
+        "verify:factory": "dotenv -e .env -- npx ts-node scripts/verify-factory.ts",
         "set-impair-reserve": "dotenv -e .env -- npx ts-node scripts/set-impair-reserve.ts",
         "whitelist-callback": "dotenv -e .env -- npx ts-node scripts/whitelist-callback.ts"
     },
