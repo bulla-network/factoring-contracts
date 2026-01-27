@@ -48,7 +48,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     address randomUser = address(0x6666);
 
     uint16 protocolFeeBps = 20;
-    bytes32 expectedCodehash;
+    uint256 initBytecodeLength;
+    bytes32 expectedInitBytecodeHash;
 
     event PoolCreated(
         address indexed pool,
@@ -65,7 +66,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     event InvoiceProviderAdapterChanged(address indexed oldAdapter, address indexed newAdapter);
     event BullaFrendLendChanged(address indexed oldAddress, address indexed newAddress);
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
-    event AssetCodehashChanged(address indexed asset, bytes32 codehash);
+    event AssetWhitelistChanged(address indexed asset, bool allowed);
+    event InitBytecodeConfigChanged(uint256 length, bytes32 hash);
     event PoolCreationFeeChanged(uint256 oldFee, uint256 newFee);
     event FeesWithdrawn(address indexed to, uint256 amount);
     event PermissionsCreated(address indexed permissions, address indexed owner);
@@ -85,13 +87,20 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         invoiceAdapter = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
         bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);
 
+        // Compute init bytecode config for BullaFactoringV2_1
+        bytes memory initBytecode = type(BullaFactoringV2_1).creationCode;
+        initBytecodeLength = initBytecode.length;
+        expectedInitBytecodeHash = keccak256(initBytecode);
+
         // Deploy factory with bullaDao as owner
         factory = new BullaFactoringFactoryV2_1(
             address(invoiceAdapter),
             address(bullaFrendLend),
             address(bullaClaim),
             bullaDao,
-            protocolFeeBps
+            protocolFeeBps,
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
 
         // Deploy permissions factory
@@ -103,29 +112,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.prank(bullaDao);
         factory.setZodiacRolesConfig(IZodiacRoles(address(mockZodiacRoles)), testRoleKey);
 
-        // Deploy a reference pool to get the expected codehash for USDC
-        MockPermissions mockPerms = new MockPermissions();
-        BullaFactoringV2_1 referencePool = new BullaFactoringV2_1(
-            IERC20(address(usdc)),
-            IInvoiceProviderAdapterV2(address(invoiceAdapter)),
-            bullaFrendLend,
-            underwriter,
-            Permissions(address(mockPerms)),
-            Permissions(address(mockPerms)),
-            Permissions(address(mockPerms)),
-            bullaDao,
-            protocolFeeBps,
-            50,
-            "Reference",
-            800,
-            "Ref",
-            "REF"
-        );
-        expectedCodehash = address(referencePool).codehash;
-
-        // Set codehash for USDC
+        // Whitelist USDC as allowed asset
         vm.prank(bullaDao);
-        factory.setAssetCodehash(address(usdc), expectedCodehash);
+        factory.allowAsset(address(usdc));
 
         // Fund accounts
         vm.deal(poolCreator, 10 ether);
@@ -176,10 +165,10 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         assertEq(factory.protocolFeeBps(), protocolFeeBps);
         assertEq(factory.poolNonce(), 0);
         assertEq(factory.poolCreationFee(), 0);
+        assertEq(factory.initBytecodeLength(), initBytecodeLength);
+        assertEq(factory.expectedInitBytecodeHash(), expectedInitBytecodeHash);
         // Zodiac Roles configured in setUp
         assertEq(address(factory.rolesModifier()), address(mockZodiacRoles));
-        // Asset codehash configured in setUp
-        assertEq(factory.assetCodehashes(address(usdc)), expectedCodehash);
     }
 
     function test_constructor_revertsOnZeroAdapter() public {
@@ -189,7 +178,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             address(bullaFrendLend),
             address(bullaClaim),
             bullaDao,
-            protocolFeeBps
+            protocolFeeBps,
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
     }
 
@@ -200,7 +191,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             address(0),
             address(bullaClaim),
             bullaDao,
-            protocolFeeBps
+            protocolFeeBps,
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
     }
 
@@ -211,7 +204,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             address(bullaFrendLend),
             address(0),
             bullaDao,
-            protocolFeeBps
+            protocolFeeBps,
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
     }
 
@@ -222,7 +217,9 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             address(bullaFrendLend),
             address(bullaClaim),
             address(0),
-            protocolFeeBps
+            protocolFeeBps,
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
     }
 
@@ -233,51 +230,115 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             address(bullaFrendLend),
             address(bullaClaim),
             bullaDao,
-            10001 // > 100%
+            10001, // > 100%
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
     }
 
-    // ============ Asset Codehash Tests ============
+    // ============ Asset Whitelist Tests ============
 
-    function test_setAssetCodehash_setsCodehash() public {
-        bytes32 newCodehash = keccak256("test");
-        
+    function test_allowAsset_addsToWhitelist() public {
+        assertFalse(factory.isAssetAllowed(address(usdt)));
+
         vm.prank(bullaDao);
         vm.expectEmit(true, true, true, true);
-        emit AssetCodehashChanged(address(usdt), newCodehash);
-        factory.setAssetCodehash(address(usdt), newCodehash);
+        emit AssetWhitelistChanged(address(usdt), true);
+        factory.allowAsset(address(usdt));
 
-        assertEq(factory.assetCodehashes(address(usdt)), newCodehash);
         assertTrue(factory.isAssetAllowed(address(usdt)));
     }
 
-    function test_setAssetCodehash_disablesAssetWhenZero() public {
-        // First verify USDC is enabled
+    function test_disallowAsset_removesFromWhitelist() public {
         assertTrue(factory.isAssetAllowed(address(usdc)));
-        
-        // Disable by setting to zero
+
         vm.prank(bullaDao);
-        factory.setAssetCodehash(address(usdc), bytes32(0));
+        vm.expectEmit(true, true, true, true);
+        emit AssetWhitelistChanged(address(usdc), false);
+        factory.disallowAsset(address(usdc));
 
         assertFalse(factory.isAssetAllowed(address(usdc)));
     }
 
-    function test_setAssetCodehash_revertsWhenNonOwner() public {
-        vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
-        factory.setAssetCodehash(address(usdt), keccak256("test"));
-    }
-
-    function test_setAssetCodehash_revertsOnZeroAsset() public {
+    function test_allowAsset_revertsOnZeroAddress() public {
         vm.prank(bullaDao);
         vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
-        factory.setAssetCodehash(address(0), keccak256("test"));
+        factory.allowAsset(address(0));
     }
 
-    function test_createPool_revertsOnInvalidCodehash() public {
-        // Set wrong codehash for USDC
+    function test_assetWhitelist_onlyOwner() public {
+        vm.prank(randomUser);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
+        factory.allowAsset(address(usdt));
+
+        vm.prank(randomUser);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
+        factory.disallowAsset(address(usdc));
+    }
+
+    // ============ Init Bytecode Tests ============
+
+    function test_setInitBytecodeConfig_updatesConfig() public {
+        uint256 newLength = 12345;
+        bytes32 newHash = keccak256("new bytecode");
+
         vm.prank(bullaDao);
-        factory.setAssetCodehash(address(usdc), keccak256("wrong"));
+        vm.expectEmit(true, true, true, true);
+        emit InitBytecodeConfigChanged(newLength, newHash);
+        factory.setInitBytecodeConfig(newLength, newHash);
+
+        assertEq(factory.initBytecodeLength(), newLength);
+        assertEq(factory.expectedInitBytecodeHash(), newHash);
+    }
+
+    function test_setInitBytecodeConfig_revertsWhenNonOwner() public {
+        vm.prank(randomUser);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
+        factory.setInitBytecodeConfig(12345, keccak256("test"));
+    }
+
+    function test_createPool_revertsOnInvalidInitBytecode() public {
+        MockPermissions perms = new MockPermissions();
+        
+        // Build bytecode with corrupted init bytecode (wrong contract)
+        bytes memory wrongBytecode = abi.encodePacked(
+            hex"6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea264697066",
+            abi.encode(address(usdc)) // dummy args
+        );
+
+        vm.prank(poolCreator);
+        vm.expectRevert(); // Will revert with InvalidInitBytecode
+        factory.createPool(
+            wrongBytecode,
+            address(usdc),
+            "Test",
+            "Test",
+            "T",
+            address(perms),
+            address(perms),
+            address(perms)
+        );
+    }
+
+    function test_createPool_revertsWhenInitBytecodeNotConfigured() public {
+        // Deploy factory without init bytecode config
+        BullaFactoringFactoryV2_1 unconfiguredFactory = new BullaFactoringFactoryV2_1(
+            address(invoiceAdapter),
+            address(bullaFrendLend),
+            address(bullaClaim),
+            bullaDao,
+            protocolFeeBps,
+            0, // no length
+            bytes32(0) // no hash
+        );
+
+        vm.prank(bullaDao);
+        unconfiguredFactory.allowAsset(address(usdc));
+
+        // Configure Zodiac Roles
+        bytes32 testRoleKey = keccak256("CALLBACK_WHITELISTER");
+        vm.prank(bullaDao);
+        unconfiguredFactory.setZodiacRolesConfig(IZodiacRoles(address(mockZodiacRoles)), testRoleKey);
 
         MockPermissions perms = new MockPermissions();
         bytes memory creationBytecode = _buildCreationBytecode(
@@ -294,8 +355,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         );
 
         vm.prank(poolCreator);
-        vm.expectRevert(); // InvalidCodehash - exact args depend on deployed bytecode
-        factory.createPool(
+        vm.expectRevert(BullaFactoringFactoryV2_1.InitBytecodeNotConfigured.selector);
+        unconfiguredFactory.createPool(
             creationBytecode,
             address(usdc),
             "Test",
@@ -307,8 +368,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         );
     }
 
-    function test_createPool_revertsWhenAssetNotConfigured() public {
-        // USDT has no codehash set
+    function test_createPool_revertsWhenAssetNotWhitelisted() public {
+        // USDT is not whitelisted
         MockPermissions perms = new MockPermissions();
         bytes memory creationBytecode = _buildCreationBytecode(
             IERC20(address(usdt)),
