@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import "../contracts/BullaFactoringFactoryV2_1.sol";
+import "../contracts/BullaFactoring.sol";
 import "../contracts/BullaClaimV2InvoiceProviderAdapterV2.sol";
 import "../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
@@ -50,6 +51,15 @@ contract DeployBullaFactoringFactory is Script {
         } else {
             console.log("Using existing BullaClaimInvoiceProviderAdapter:", config.bullaClaimInvoiceProviderAdapterAddress);
         }
+
+        // Compute init bytecode config for BullaFactoringV2_1
+        bytes memory initBytecode = type(BullaFactoringV2_1).creationCode;
+        uint256 initBytecodeLength = initBytecode.length;
+        bytes32 expectedInitBytecodeHash = keccak256(initBytecode);
+        console.log("- InitBytecodeLength:", initBytecodeLength);
+        console.log("- ExpectedInitBytecodeHash:");
+        console.logBytes32(expectedInitBytecodeHash);
+
         // Deploy BullaFactoringFactoryV2_1
         console.log("Deploying BullaFactoringFactoryV2_1...");
         BullaFactoringFactoryV2_1 factory = new BullaFactoringFactoryV2_1(
@@ -57,7 +67,9 @@ contract DeployBullaFactoringFactory is Script {
             config.bullaFrendLendAddress,
             config.bullaClaim,
             config.bullaDao,
-            config.protocolFeeBps
+            config.protocolFeeBps,
+            initBytecodeLength,
+            expectedInitBytecodeHash
         );
         console.log("BullaFactoringFactoryV2_1 deployed at:", address(factory));
 
