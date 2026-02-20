@@ -1018,7 +1018,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         string memory description = "Interest rate verification test";
         
         // Calculate expected total interest rate
-        uint16 expectedTotalInterestRateBps = targetYieldBps + _spreadBps + adminFeeBps + protocolFeeBps;
+        uint16 expectedTotalInterestRateBps = targetYieldBps + _spreadBps + adminFeeBps;
         
         // Create loan offer
         vm.startPrank(underwriter);
@@ -1069,7 +1069,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Calculate the total interest rate that was passed to BullaFrendLend
         // This should be the sum of all fee components
-        uint16 actualTotalFeeBps = feeParams.targetYieldBps + feeParams.spreadBps + feeParams.protocolFeeBps + feeParams.adminFeeBps;
+        uint16 actualTotalFeeBps = feeParams.targetYieldBps + feeParams.spreadBps + feeParams.adminFeeBps;
         
         assertEq(
             actualTotalFeeBps,
