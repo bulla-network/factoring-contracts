@@ -1,0 +1,14 @@
+{
+  "repo": "factoring-contracts",
+  "contracts": {
+    "8453": {
+      "bullaFactoringV2_1_TCS": "0xc65abf8aba06510f777be4ba2c29da4d93257d42"
+    },
+    "151": {
+      "bullaFactoringV1_TARAM": "0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D"
+    },
+    "11155111": {
+      "bullaFactoringV2_1_TCS": "0xa5e94f122d421c9579a5cb1e687f55e109ba270b"
+    }
+  }
+}
