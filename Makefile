@@ -15,7 +15,8 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 # ex: 0x316..FB5 "Name" 10
 constructor-args := 
 
-build  :; forge build --via-ir --sizes
+build  :; forge build --via-ir
+sizes  :; forge build --via-ir --sizes
 test   :; forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
 test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" $(ARGS)
 test-s   :; forge test --match-test "testFuzz_OfferLoanNeverFailsNorGeneratesKickback" -vv --via-ir
