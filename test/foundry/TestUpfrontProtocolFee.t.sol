@@ -215,6 +215,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
 
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0 after withdrawal");
 
+        // Wait a few days so interest accrues on the active invoice
+        vm.warp(block.timestamp + 7 days);
+
+        uint256 capitalAccountBeforeUnfactor = bullaFactoring.calculateCapitalAccount();
+        uint256 adminFeeBalanceBeforeUnfactor = bullaFactoring.adminFeeBalance();
+
         // Now unfactor — this should work fine, protocol fee should NOT be re-added
         vm.startPrank(bob);
         asset.approve(address(bullaFactoring), 1 ether);
@@ -223,6 +229,14 @@ contract TestUpfrontProtocolFee is CommonSetup {
 
         // Protocol fee balance should still be 0 (not re-added during unfactor)
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee should not be re-added during unfactoring");
+
+        // Verify capital account went up from realized interest
+        uint256 capitalAccountAfterUnfactor = bullaFactoring.calculateCapitalAccount();
+        assertTrue(capitalAccountAfterUnfactor > capitalAccountBeforeUnfactor, "Capital account should increase after unfactoring (realized interest)");
+
+        // Verify admin fee balance went up from realized admin fee + spread
+        uint256 adminFeeBalanceAfterUnfactor = bullaFactoring.adminFeeBalance();
+        assertTrue(adminFeeBalanceAfterUnfactor > adminFeeBalanceBeforeUnfactor, "Admin fee balance should increase after unfactoring");
     }
 
     /// @notice Verify protocol-withdraw-then-reconcile edge case
