@@ -512,7 +512,11 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps);   
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps);
+
+        // Realize protocol fee immediately at funding time
+        protocolFeeBalance += protocolFee;
+
         uint256 _totalAssets = totalAssets();
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
         if(fundedAmountGross > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross);
@@ -623,7 +627,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
 
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee, approval.protocolFee);   
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee, 0); // protocol fee already realized at funding
 
         address receiverAddress = approval.receiverAddress;
         
@@ -769,7 +773,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IERC721(invoiceContractAddress).transferFrom(address(this), msg.sender, invoiceId);
 
         removeActivePaidInvoice(invoiceId);
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee, approvedInvoices[invoiceId].protocolFee);
+        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee, 0); // protocol fee already realized at funding
         
         delete originalCreditors[invoiceId];
 

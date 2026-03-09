@@ -226,33 +226,47 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         bullaFactoring.approveInvoice(loanId2, 730, 300, 7500, 0); // Identical factoring terms
         vm.stopPrank();
         
+        // Record protocol fee balance before funding to verify upfront realization
+        uint256 protocolFeeBeforeFunding = bullaFactoring.protocolFeeBalance();
+
         // Factor both loans
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId1);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId2);
         uint256 fundedAmount1 = bullaFactoring.fundInvoice(loanId1, 7500, address(0));
+
+        uint256 protocolFeeAfterLoan1Funding = bullaFactoring.protocolFeeBalance();
+
         uint256 fundedAmount2 = bullaFactoring.fundInvoice(loanId2, 7500, address(0));
         vm.stopPrank();
-        
+
+        uint256 protocolFeeAfterBothFunded = bullaFactoring.protocolFeeBalance();
+
+        // Protocol fees should be realized at funding time
+        uint256 protocolFeeFromLoan1 = protocolFeeAfterLoan1Funding - protocolFeeBeforeFunding;
+        uint256 protocolFeeFromLoan2 = protocolFeeAfterBothFunded - protocolFeeAfterLoan1Funding;
+        assertNotEq(protocolFeeFromLoan1, 0, "Protocol fee should be realized at funding for loan 1");
+        assertEq(protocolFeeFromLoan1, protocolFeeFromLoan2, "Equal loans should generate equal protocol fees at funding");
+
         // Both loans should be funded with identical amounts (same factoring terms)
         assertEq(fundedAmount1, fundedAmount2, "Both loans should have identical funding amounts");
-        
+
         // Fast forward to loan due date (1 year)
         vm.warp(block.timestamp + termLength);
-        
+
         // Check accrued amounts before payment
         IInvoiceProviderAdapterV2.Invoice memory invoice1BeforePayment = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
         IInvoiceProviderAdapterV2.Invoice memory invoice2BeforePayment = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId2);
-        
+
         // Daily compounding should result in higher invoice amount than monthly compounding
-        assertGt(invoice2BeforePayment.invoiceAmount, invoice1BeforePayment.invoiceAmount, 
+        assertGt(invoice2BeforePayment.invoiceAmount, invoice1BeforePayment.invoiceAmount,
             "Daily compounding should result in higher invoice amount");
-        
-        // Record initial fee balances before any payments
+
+        // Record fee balances before payments (protocol fee already realized at funding)
         uint256 initialAdminFeeBalance = bullaFactoring.adminFeeBalance();
-        uint256 initialProtocolFeeBalance = bullaFactoring.protocolFeeBalance();
+        uint256 protocolFeeBeforePayments = bullaFactoring.protocolFeeBalance();
         uint256 gainBeforeLoans = bullaFactoring.paidInvoicesGain(); // Record initial cumulative gain
-        
+
         // Pay and reconcile loan 1 (monthly compounding) first
         vm.startPrank(charlie);
         (uint256 principal1, uint256 interest1) = bullaFrendLend.getTotalAmountDue(loanId1);
@@ -263,9 +277,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
 
         // Capture fee balances after loan 1 payment
         uint256 adminFeeAfterLoan1 = bullaFactoring.adminFeeBalance();
-        uint256 protocolFeeAfterLoan1 = bullaFactoring.protocolFeeBalance();
         uint256 gainAfterLoan1 = bullaFactoring.paidInvoicesGain();
-        
+
         // Pay and reconcile loan 2 (daily compounding)
         vm.startPrank(charlie);
         (uint256 principal2, uint256 interest2) = bullaFrendLend.getTotalAmountDue(loanId2);
@@ -273,25 +286,23 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         asset.approve(address(bullaFrendLend), totalDue2);
         bullaFrendLend.payLoan(loanId2, totalDue2);
         vm.stopPrank();
-        
+
         // Capture final fee balances after loan 2 payment
         uint256 finalAdminFeeBalance = bullaFactoring.adminFeeBalance();
-        uint256 finalProtocolFeeBalance = bullaFactoring.protocolFeeBalance();
         uint256 gainAfterLoan2 = bullaFactoring.paidInvoicesGain();
-        
-        // Calculate individual loan contributions to fees and gains
+
+        // Protocol fee should NOT increase at reconciliation (already realized at funding)
+        assertEq(bullaFactoring.protocolFeeBalance(), protocolFeeBeforePayments, "Protocol fee should not change at reconciliation");
+
+        // Calculate individual loan contributions to admin fees and gains
         uint256 adminFeeFromLoan1 = adminFeeAfterLoan1 - initialAdminFeeBalance;
         uint256 adminFeeFromLoan2 = finalAdminFeeBalance - adminFeeAfterLoan1;
-        uint256 protocolFeeFromLoan1 = protocolFeeAfterLoan1 - initialProtocolFeeBalance;
-        uint256 protocolFeeFromLoan2 = finalProtocolFeeBalance - protocolFeeAfterLoan1;
         uint256 gainFromLoan1 = gainAfterLoan1 - gainBeforeLoans;
         uint256 gainFromLoan2 = gainAfterLoan2 - gainAfterLoan1;
-        
+
         // Critical validation: daily compounding loan should generate higher gains and fees than monthly compounding
         assertGt(gainFromLoan2, gainFromLoan1, "Daily compounding loan should generate higher pool gains");
         assertGt(adminFeeFromLoan2, adminFeeFromLoan1, "Daily compounding loan should generate higher admin fees");
-        assertEq(protocolFeeFromLoan1, protocolFeeFromLoan2, "Loans generate protocol fees");
-        assertNotEq(protocolFeeFromLoan1, 0, "Loans generate protocol fees");
         
         // Get final invoice details to check total amounts
         IInvoiceProviderAdapterV2.Invoice memory finalInvoice1 = bullaFactoring.invoiceProviderAdapter().getInvoiceDetails(loanId1);
