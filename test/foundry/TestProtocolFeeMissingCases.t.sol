@@ -141,22 +141,22 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         uint256 protocolFeeBalanceAfterFunding = bullaFactoring.protocolFeeBalance();
         uint256 protocolFeeCollected = protocolFeeBalanceAfterFunding - protocolFeeBalanceBefore;
         
-        // Verify protocol fee is NOT collected at funding (it's now realized at reconciliation/unfactoring)
-        assertEq(protocolFeeCollected, 0, "Protocol fee should not be collected at funding time");
-        
+        // Protocol fee IS collected at funding time (upfront realization)
+        assertEq(protocolFeeCollected, expectedProtocolFee, "Protocol fee should be collected at funding time");
+
         // Fast forward some time and unfactor
         vm.warp(block.timestamp + 15 days);
-        
+
         vm.startPrank(bob);
         vm.expectEmit(true, true, false, false);
         emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0, false); // Protocol fee not in event
         bullaFactoring.unfactorInvoice(invoiceId);
         vm.stopPrank();
-        
+
         uint256 protocolFeeBalanceAfterUnfactoring = bullaFactoring.protocolFeeBalance();
-        
-        // Protocol fee should now be realized during unfactoring
-        assertEq(protocolFeeBalanceAfterUnfactoring - protocolFeeBalanceBefore, expectedProtocolFee, "Protocol fee should be realized during unfactoring");
+
+        // Protocol fee should NOT increase during unfactoring (already realized at funding)
+        assertEq(protocolFeeBalanceAfterUnfactoring, protocolFeeBalanceAfterFunding, "Protocol fee should not increase during unfactoring");
     }
 
     // ==================== INSUFFICIENT FUNDS FOR PROTOCOL FEE COLLECTION ====================
@@ -221,8 +221,8 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
         
-        // Protocol fee is now realized on reconciliation, not funding
-        assertEq(protocolFeeBalanceAfter - protocolFeeBalanceBefore, 0, "Protocol fee should not be collected at funding time");
+        // Protocol fee is realized at funding time (upfront realization)
+        assertEq(protocolFeeBalanceAfter - protocolFeeBalanceBefore, protocolFee, "Protocol fee should be collected at funding time");
         vm.stopPrank();
     }
 
@@ -580,28 +580,28 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         uint256 bobBalanceAfterFunding = asset.balanceOf(bob);
         
-        // Verify protocol fee was NOT collected at funding time
+        // Verify protocol fee WAS collected at funding time (upfront realization)
         uint256 protocolFeeBalanceAfterFunding = bullaFactoring.protocolFeeBalance();
-        assertEq(protocolFeeBalanceAfterFunding - protocolFeeBalanceBefore, 0, "Protocol fee should NOT be collected at funding time");
-        
+        assertEq(protocolFeeBalanceAfterFunding - protocolFeeBalanceBefore, expectedProtocolFee, "Protocol fee should be collected at funding time");
+
         // Record capital account and total assets after funding
         uint256 capitalAccountAfterFunding = bullaFactoring.calculateCapitalAccount();
         uint256 totalAssetsAfterFunding = bullaFactoring.totalAssets();
-        
+
         // Immediately unfactor the invoice (no time passes, no interest accrued)
         uint256 bobBalanceBefore = asset.balanceOf(bob);
-        
+
         vm.startPrank(bob);
         bullaFactoring.unfactorInvoice(invoiceId);
         vm.stopPrank();
-        
+
         uint256 bobBalanceAfter = asset.balanceOf(bob);
         uint256 capitalAccountAfterUnfactoring = bullaFactoring.calculateCapitalAccount();
         uint256 totalAssetsAfterUnfactoring = bullaFactoring.totalAssets();
-        
-        // Verify protocol fee was collected during unfactoring
+
+        // Verify protocol fee was NOT re-added during unfactoring (already realized at funding)
         uint256 protocolFeeBalanceAfterUnfactor = bullaFactoring.protocolFeeBalance();
-        assertEq(protocolFeeBalanceAfterUnfactor - protocolFeeBalanceBefore, expectedProtocolFee, "Protocol fee should be collected at unfactoring time");
+        assertEq(protocolFeeBalanceAfterUnfactor, protocolFeeBalanceAfterFunding, "Protocol fee should not increase during unfactoring");
         
         // Verify unfactoring payment was made
         assertTrue(bobBalanceBefore > bobBalanceAfter, "Bob should have paid for unfactoring");
@@ -1070,24 +1070,21 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
         }
         
-        // Verify protocol fee balance is still 0 after funding (fees realized on payment/reconciliation now)
-        assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0 after funding");
-        
-        // Pay some invoices and verify protocol fees are realized
-        uint256 paidInvoicesExpectedFees = 0;
-        
+        // Protocol fees are realized at funding time (upfront), so balance should equal total expected
+        assertEq(bullaFactoring.protocolFeeBalance(), totalExpectedProtocolFees, "Protocol fee balance should equal total expected after funding");
+
+        // Pay some invoices — protocol fees should NOT increase (already realized at funding)
+        uint256 protocolFeeBalanceBeforePaying = bullaFactoring.protocolFeeBalance();
+
         for (uint i = 0; i < 3; i++) {
-            (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceIds[i], upfrontBps);
-            paidInvoicesExpectedFees += expectedProtocolFee;
-            
             vm.startPrank(alice);
             asset.approve(address(bullaClaim), invoiceAmounts[i]);
             bullaClaim.payClaim(invoiceIds[i], invoiceAmounts[i]);
             vm.stopPrank();
         }
-        
-        // Verify protocol fees were realized for paid invoices
-        assertEq(bullaFactoring.protocolFeeBalance(), paidInvoicesExpectedFees, "Protocol fees should be realized when invoices are paid");
+
+        // Protocol fee balance should not increase after reconciliation
+        assertEq(bullaFactoring.protocolFeeBalance(), protocolFeeBalanceBeforePaying, "Protocol fees should not increase during reconciliation");
         
         // Withdraw protocol fees
         vm.startPrank(bullaDao);
