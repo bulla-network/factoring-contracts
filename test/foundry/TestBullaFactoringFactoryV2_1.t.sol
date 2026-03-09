@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
 import { BullaFactoringFactoryV2_1 } from 'contracts/BullaFactoringFactoryV2_1.sol';
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { Permissions } from 'contracts/Permissions.sol';
 import { PermissionsFactory } from 'contracts/PermissionsFactory.sol';
 import { FactoringPermissions } from 'contracts/FactoringPermissions.sol';
@@ -87,8 +87,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         invoiceAdapter = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
         bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);
 
-        // Compute init bytecode config for BullaFactoringV2_1
-        bytes memory initBytecode = type(BullaFactoringV2_1).creationCode;
+        // Compute init bytecode config for BullaFactoringV2_2
+        bytes memory initBytecode = type(BullaFactoringV2_2).creationCode;
         initBytecodeLength = initBytecode.length;
         expectedInitBytecodeHash = keccak256(initBytecode);
 
@@ -121,7 +121,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.deal(randomUser, 10 ether);
     }
 
-    /// @notice Helper to build creation bytecode for BullaFactoringV2_1
+    /// @notice Helper to build creation bytecode for BullaFactoringV2_2
     function _buildCreationBytecode(
         IERC20 asset,
         address _underwriter,
@@ -135,7 +135,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         string memory tokenSymbol
     ) internal view returns (bytes memory) {
         return abi.encodePacked(
-            type(BullaFactoringV2_1).creationCode,
+            type(BullaFactoringV2_2).creationCode,
             abi.encode(
                 asset,
                 invoiceAdapter,
@@ -150,7 +150,11 @@ contract TestBullaFactoringFactoryV2_1 is Test {
                 poolName,
                 targetYieldBps,
                 tokenName,
-                tokenSymbol
+                tokenSymbol,
+                address(0x1999),
+                uint16(100),
+                uint16(500),
+                uint16(5000)
             )
         );
     }
@@ -437,7 +441,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.stopPrank();
 
         // Verify pool properties
-        BullaFactoringV2_1 poolContract = BullaFactoringV2_1(pool);
+        BullaFactoringV2_2 poolContract = BullaFactoringV2_2(pool);
         assertEq(address(poolContract.assetAddress()), address(usdc));
         assertEq(poolContract.underwriter(), underwriter);
         assertEq(poolContract.adminFeeBps(), 50);
@@ -506,7 +510,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         
         // Build bytecode with wrong bullaDao
         bytes memory badBytecode = abi.encodePacked(
-            type(BullaFactoringV2_1).creationCode,
+            type(BullaFactoringV2_2).creationCode,
             abi.encode(
                 IERC20(address(usdc)),
                 invoiceAdapter,
@@ -521,7 +525,11 @@ contract TestBullaFactoringFactoryV2_1 is Test {
                 "Test",
                 800,
                 "Test",
-                "T"
+                "T",
+                address(0x1999),
+                uint16(100),
+                uint16(500),
+                uint16(5000)
             )
         );
 
@@ -548,7 +556,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         
         // Build bytecode with wrong protocolFee
         bytes memory badBytecode = abi.encodePacked(
-            type(BullaFactoringV2_1).creationCode,
+            type(BullaFactoringV2_2).creationCode,
             abi.encode(
                 IERC20(address(usdc)),
                 invoiceAdapter,
@@ -563,7 +571,11 @@ contract TestBullaFactoringFactoryV2_1 is Test {
                 "Test",
                 800,
                 "Test",
-                "T"
+                "T",
+                address(0x1999),
+                uint16(100),
+                uint16(500),
+                uint16(5000)
             )
         );
 
@@ -595,7 +607,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         
         // Build bytecode with wrong adapter
         bytes memory badBytecode = abi.encodePacked(
-            type(BullaFactoringV2_1).creationCode,
+            type(BullaFactoringV2_2).creationCode,
             abi.encode(
                 IERC20(address(usdc)),
                 wrongAdapter, // Wrong adapter
@@ -610,7 +622,11 @@ contract TestBullaFactoringFactoryV2_1 is Test {
                 "Test",
                 800,
                 "Test",
-                "T"
+                "T",
+                address(0x1999),
+                uint16(100),
+                uint16(500),
+                uint16(5000)
             )
         );
 
@@ -1013,8 +1029,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
 
         vm.stopPrank();
 
-        BullaFactoringV2_1 p1 = BullaFactoringV2_1(pool1);
-        BullaFactoringV2_1 p2 = BullaFactoringV2_1(pool2);
+        BullaFactoringV2_2 p1 = BullaFactoringV2_2(pool1);
+        BullaFactoringV2_2 p2 = BullaFactoringV2_2(pool2);
 
         // Verify independent configurations
         assertEq(p1.adminFeeBps(), 25);

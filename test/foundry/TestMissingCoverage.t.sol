@@ -269,11 +269,12 @@ contract TestMissingCoverage is CommonSetup {
         
         // Verify relationships between fields
         // Note: fundBalance + deployedCapital might not exactly equal capitalAccount due to withheld fees
+        // and the insurance premium held in insuranceBalance
         assertApproxEqAbs(
-            info.fundBalance + info.deployedCapital,
+            info.fundBalance + info.deployedCapital + bullaFactoring.insuranceBalance(),
             info.capitalAccount,
             1000, // Allow 1000 wei difference for fees
-            "fundBalance + deployedCapital should approximately equal capitalAccount"
+            "fundBalance + deployedCapital + insuranceBalance should approximately equal capitalAccount"
         );
     }
 

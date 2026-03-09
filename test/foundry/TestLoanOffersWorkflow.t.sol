@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import "contracts/interfaces/IBullaFactoring.sol";
 import {LoanOfferExpired, InvalidTermLength} from '@bulla/contracts-v2/src/BullaFrendLendV2.sol';
@@ -76,7 +76,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_OnlyUnderwriterCanOffer() public {
         vm.startPrank(alice);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotUnderwriter.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotUnderwriter.selector);
         bullaFactoring.offerLoan(
             bob,           // debtor
             1000,          // targetYieldBps (10%)
@@ -91,7 +91,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_OwnerCannotCall() public {
         vm.startPrank(address(this)); // Contract owner
-        vm.expectRevert(BullaFactoringV2_1.CallerNotUnderwriter.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotUnderwriter.selector);
         bullaFactoring.offerLoan(
             bob,
             1000,
@@ -106,19 +106,19 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOnLoanOfferAccepted_OnlyBullaFrendLendCanCallback() public {
         vm.startPrank(alice);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotBullaFrendLend.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotBullaFrendLend.selector);
         bullaFactoring.onLoanOfferAccepted(1, 2);
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotBullaFrendLend.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotBullaFrendLend.selector);
         bullaFactoring.onLoanOfferAccepted(1, 2);
         vm.stopPrank();
     }
     
     function testOnLoanOfferAccepted_UnderwriterCannotCallDirectly() public {
         vm.startPrank(underwriter);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotBullaFrendLend.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotBullaFrendLend.selector);
         bullaFactoring.onLoanOfferAccepted(999, 123);
         vm.stopPrank();
     }
@@ -404,7 +404,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOnLoanOfferAccepted_NonexistentLoanOffer() public {
         vm.prank(address(bullaFrendLend));
-        vm.expectRevert(BullaFactoringV2_1.LoanOfferNotExists.selector);
+        vm.expectRevert(BullaFactoringV2_2.LoanOfferNotExists.selector);
         bullaFactoring.onLoanOfferAccepted(999, 123);
     }
     
@@ -449,7 +449,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Try to accept the same loan offer again
         vm.prank(address(bullaFrendLend));
-        vm.expectRevert(BullaFactoringV2_1.LoanOfferAlreadyAccepted.selector);
+        vm.expectRevert(BullaFactoringV2_2.LoanOfferAlreadyAccepted.selector);
         bullaFactoring.onLoanOfferAccepted(nextLoanOfferId, loanId);
     }
     
@@ -458,7 +458,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 fakeLoanOfferId = 999999;
         
         vm.prank(address(bullaFrendLend));
-        vm.expectRevert(BullaFactoringV2_1.LoanOfferNotExists.selector);
+        vm.expectRevert(BullaFactoringV2_2.LoanOfferNotExists.selector);
         bullaFactoring.onLoanOfferAccepted(fakeLoanOfferId, 123);
     }
     

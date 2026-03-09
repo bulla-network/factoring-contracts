@@ -132,9 +132,11 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
-        // Calculate expected funded amount
-        (, , , , , uint256 expectedFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
-        
+        // Calculate expected funded amount (accounting for insurance premium deduction)
+        (, , , , , uint256 preInsuranceFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        uint256 insurancePremium = invoiceAmount * bullaFactoring.insuranceFeeBps() / 10000;
+        uint256 expectedFundedAmount = preInsuranceFundedAmount - insurancePremium;
+
         vm.expectEmit(true, true, true, true);
         emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps, 250, address(bob));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));

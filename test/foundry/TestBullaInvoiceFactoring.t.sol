@@ -106,17 +106,21 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         // Calculate expected fees
         (, , uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
+        // Account for insurance premium deduction (1% of invoice value)
+        uint256 insurancePremium = invoiceAmount * bullaFactoring.insuranceFeeBps() / 10000;
+        uint256 expectedFundedAmountNet = netFundedAmount - insurancePremium;
+
         // Fund the invoice
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
-        
+
         vm.expectEmit(true, false, false, true);
-        emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, protocolFee, address(bob));
-        
+        emit InvoiceFunded(invoiceId, expectedFundedAmountNet, bob, _dueBy, upfrontBps, protocolFee, address(bob));
+
         uint256 actualFundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        assertEq(actualFundedAmount, netFundedAmount);
+        assertEq(actualFundedAmount, expectedFundedAmountNet);
         assertGt(netFundedAmount, 0);
         assertGt(targetInterest, 0);
         assertGt(targetSpreadAmount, 0);
@@ -370,8 +374,10 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         (uint256 fundedAmountGross1, , , , , uint256 netFundedAmount1) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
         (uint256 fundedAmountGross2, , , , , uint256 netFundedAmount2) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
 
-        assertEq(fundedAmount1, netFundedAmount1);
-        assertEq(fundedAmount2, netFundedAmount2);
+        // Account for insurance premium deduction (1% of invoice value)
+        uint256 insurancePremium = invoiceAmount * bullaFactoring.insuranceFeeBps() / 10000;
+        assertEq(fundedAmount1, netFundedAmount1 - insurancePremium);
+        assertEq(fundedAmount2, netFundedAmount2 - insurancePremium);
         assertGt(fundedAmountGross1, fundedAmountGross2);
     }
 

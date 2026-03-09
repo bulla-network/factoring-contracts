@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import "./CommonSetup.t.sol";
 import "forge-std/console.sol";
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 
 contract TestActivePaidInvoicesCheck is CommonSetup {
     

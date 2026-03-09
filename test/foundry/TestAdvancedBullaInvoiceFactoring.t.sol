@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
@@ -186,7 +186,7 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
         
         // fundedAmountGross now includes protocol fee
         // Should revert due to insufficient funds
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, initialDeposit, fundedAmountGross));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_2.InsufficientFunds.selector, initialDeposit, fundedAmountGross));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
