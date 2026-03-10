@@ -10,7 +10,7 @@ import "./IRedemptionQueue.sol";
 import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
-interface IBullaFactoringV2 {
+interface IBullaFactoringV2_2 {
 
     // Structs
     struct FeeParams {
@@ -59,6 +59,12 @@ interface IBullaFactoringV2 {
         uint256 targetYieldBps;
     }
 
+    struct ImpairmentInfo {
+        bool isImpaired;
+        uint256 purchasePrice;
+        uint256 paidAmountAtImpairment;
+    }
+
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
@@ -80,6 +86,14 @@ interface IBullaFactoringV2 {
     event FactoringPermissionsChanged(address newAddress);
     event TargetYieldChanged(uint16 newTargetYield);
     event RedemptionQueueChanged(address indexed oldQueue, address indexed newQueue);
+
+    // Insurance events
+    event InsurerChanged(address indexed oldInsurer, address indexed newInsurer);
+    event InsuranceParamsChanged(uint16 insuranceFeeBps, uint16 impairmentGrossGainBps, uint16 recoveryProfitRatioBps);
+    event InsuranceWithdrawn(address indexed insurer, uint256 amount);
+    event InvoiceImpaired(uint256 indexed invoiceId, uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 impairmentNetGain);
+    event InsuranceRecovered(uint256 indexed invoiceId, uint256 amount);
+    event ImpairedInvoiceReconciled(uint256 indexed invoiceId, uint256 amountRecovered, uint256 insuranceShare, uint256 investorShare);
 
     // Functions
     function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint256 _principalAmountOverride) external;
@@ -105,4 +119,11 @@ interface IBullaFactoringV2 {
     function getActiveInvoices() external view returns (uint256[] memory);
     function getActiveInvoicesCount() external view returns (uint256);
     function getActiveInvoiceAt(uint256 index) external view returns (uint256);
+
+    // Insurance functions
+    function setInsurer(address _newInsurer) external;
+    function setInsuranceParams(uint16 _insuranceFeeBps, uint16 _impairmentGrossGainBps, uint16 _recoveryProfitRatioBps) external;
+    function withdrawInsuranceBalance() external;
+    function previewImpair(uint256 invoiceId) external view returns (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount);
+    function impairInvoice(uint256 invoiceId) external;
 }

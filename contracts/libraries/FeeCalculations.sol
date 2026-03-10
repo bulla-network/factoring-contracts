@@ -59,7 +59,7 @@ library FeeCalculations {
     /// @return adminFee The calculated admin fee amount
     /// @return kickbackAmount The calculated kickback amount
     function calculateFees(
-        IBullaFactoringV2.InvoiceApproval memory approval, 
+        IBullaFactoringV2_2.InvoiceApproval memory approval, 
         uint256 secondsOfInterest, 
         IInvoiceProviderAdapterV2.Invoice memory invoice
     ) internal pure returns (
@@ -119,7 +119,7 @@ library FeeCalculations {
     /// @return trueSpreadAmount The true spread amount
     /// @return trueAdminFee The true admin fee amount
     function calculateKickbackAmount(
-        IBullaFactoringV2.InvoiceApproval memory approval, 
+        IBullaFactoringV2_2.InvoiceApproval memory approval, 
         IInvoiceProviderAdapterV2.Invoice memory invoice
     ) internal view returns (
         uint256 kickbackAmount, 
@@ -141,39 +141,47 @@ library FeeCalculations {
     /// @param invoice The invoice data
     /// @param factorerUpfrontBps The upfront bps specified by the factorer
     /// @param protocolFeeBps The protocol fee in basis points (taken off the top)
+    /// @param insuranceFeeBps The insurance fee in basis points
     /// @return fundedAmountGross The gross amount to be funded to the factorer (includes protocol fee)
     /// @return adminFee The target calculated admin fee
     /// @return targetInterest The calculated interest fee
     /// @return targetSpreadAmount The calculated spread amount
     /// @return protocolFee The protocol fee amount
+    /// @return insurancePremium The insurance premium amount
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
     function calculateTargetFees(
-        IBullaFactoringV2.InvoiceApproval memory approval,
+        IBullaFactoringV2_2.InvoiceApproval memory approval,
         IInvoiceProviderAdapterV2.Invoice memory invoice,
         uint16 factorerUpfrontBps,
-        uint16 protocolFeeBps
+        uint16 protocolFeeBps,
+        uint16 insuranceFeeBps
     ) internal view returns (
-        uint256 fundedAmountGross, 
-        uint256 adminFee, 
-        uint256 targetInterest, 
+        uint256 fundedAmountGross,
+        uint256 adminFee,
+        uint256 targetInterest,
         uint256 targetSpreadAmount,
         uint256 protocolFee,
+        uint256 insurancePremium,
         uint256 netFundedAmount
     ) {
         // Calculate protocol fee (taken off the top)
         protocolFee = Math.mulDiv(approval.initialInvoiceValue, protocolFeeBps, 10000);
-        
+
+        // Calculate insurance premium on the outstanding balance being factored
+        // Note: initialInvoiceValue is already net of initialPaidAmount (set in approveInvoice)
+        insurancePremium = Math.mulDiv(approval.initialInvoiceValue, insuranceFeeBps, 10000);
+
         // Calculate funded amount gross from the full invoice value (includes protocol fee)
         fundedAmountGross = Math.mulDiv(approval.initialInvoiceValue, factorerUpfrontBps, 10000);
 
         uint256 secondsUntilDue = approval.invoiceDueDate - block.timestamp;
 
-        (targetInterest, targetSpreadAmount, adminFee, ) = 
+        (targetInterest, targetSpreadAmount, adminFee, ) =
             calculateFees(approval, secondsUntilDue, invoice);
 
-        uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + protocolFee;
+        uint256 totalFees = adminFee + targetInterest + targetSpreadAmount + protocolFee + insurancePremium;
         netFundedAmount = fundedAmountGross > totalFees ? fundedAmountGross - totalFees : 0;
 
-        return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, protocolFee, netFundedAmount);
+        return (fundedAmountGross, adminFee, targetInterest, targetSpreadAmount, protocolFee, insurancePremium, netFundedAmount);
     }
 }

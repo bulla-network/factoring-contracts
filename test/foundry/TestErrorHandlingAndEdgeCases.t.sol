@@ -18,7 +18,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestErrorHandlingAndEdgeCases is CommonSetup {
-    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2_2.FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
@@ -246,7 +246,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -519,7 +519,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
         bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
-        (, uint targetAdminFeeAfterFeeChange, , uint targetSpreadAfterFeeChange, uint targetProtocolFeeAfterFeeChange, ) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
+        (, uint targetAdminFeeAfterFeeChange, , uint targetSpreadAfterFeeChange, uint targetProtocolFeeAfterFeeChange, , ) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 
         vm.warp(dueBy - 1);

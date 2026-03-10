@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "./interfaces/IInvoiceProviderAdapter.sol";
-import {IBullaFactoringV2} from "./interfaces/IBullaFactoring.sol";
+import {IBullaFactoringV2_2} from "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
@@ -19,7 +19,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
+contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -106,7 +106,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     uint16 public impairmentGrossGainBps;
     uint16 public recoveryProfitRatioBps;
     uint256 public insuranceBalance;
-    mapping(uint256 => uint256) public impairmentPurchasePrice;
+    mapping(uint256 => ImpairmentInfo) public impairmentInfo;
     uint256[] public impairedInvoices;
 
     /// Errors
@@ -148,13 +148,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvoiceImpairFailed();
     error ImpairmentGrossGainBpsMustBePositive();
 
-    event InsurerChanged(address indexed oldInsurer, address indexed newInsurer);
-    event InsuranceParamsChanged(uint16 insuranceFeeBps, uint16 impairmentGrossGainBps, uint16 recoveryProfitRatioBps);
-    event InsuranceWithdrawn(address indexed insurer, uint256 amount);
-    event InvoiceImpaired(uint256 indexed invoiceId, uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 impairmentNetGain);
-    event InsuranceRecovered(uint256 indexed invoiceId, uint256 amount);
-    event ImpairedInvoiceReconciled(uint256 indexed invoiceId, uint256 amountRecovered, uint256 insuranceShare, uint256 investorShare);
-
     modifier onlyInsurer() {
         if (msg.sender != insurer) revert CallerNotInsurer();
         _;
@@ -185,7 +178,10 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
         if (_protocolFeeBps < 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps < 0 || _adminFeeBps > 10000) revert InvalidPercentage();
+        if (_insuranceFeeBps > 10000) revert InvalidPercentage();
         if (_impairmentGrossGainBps == 0) revert ImpairmentGrossGainBpsMustBePositive();
+        if (_impairmentGrossGainBps > 10000) revert InvalidPercentage();
+        if (_recoveryProfitRatioBps > 10000) revert InvalidPercentage();
 
         assetAddress = _asset;
         invoiceProviderAdapter = _invoiceProviderAdapter;
@@ -411,7 +407,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return trueAdminFee The true admin fee amount
     function calculateKickbackAmount(uint256 invoiceId) external view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         return FeeCalculations.calculateKickbackAmount(approval, invoice);
     }
 
@@ -510,15 +506,16 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return targetInterest The calculated interest fee
     /// @return targetSpreadAmount The calculated spread amount
     /// @return protocolFee The protocol fee amount
+    /// @return insurancePremium The insurance premium amount
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
-    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 netFundedAmount) {
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 insurancePremium, uint256 netFundedAmount) {
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, protocolFeeBps);
+        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
     }
 
     /// @notice Registers the reconcile callback with the invoice provider
@@ -539,7 +536,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
         
         // Cache approvedInvoices in memory to reduce storage reads
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
@@ -550,14 +547,13 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 insurancePremium, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
 
         // Realize protocol fee immediately at funding time
         protocolFeeBalance += protocolFee;
 
-        uint256 insurancePremium = Math.mulDiv(approval.initialInvoiceValue, insuranceFeeBps, 10000);
+        // Realize insurance premium at funding time
         insuranceBalance += insurancePremium;
-        fundedAmountNet = fundedAmountNet > insurancePremium ? fundedAmountNet - insurancePremium : 0;
 
         uint256 _totalAssets = totalAssets();
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
@@ -670,24 +666,19 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (!invoice.isPaid) revert InvoiceNotPaid();
 
-        uint256 _impairmentPurchasePrice = impairmentPurchasePrice[invoiceId];
+        ImpairmentInfo memory _impairment = impairmentInfo[invoiceId];
 
-        if (_impairmentPurchasePrice > 0) {
-            uint256 recoveredAmount = invoice.paidAmount;
-            uint256 insuranceShare;
-            uint256 investorShare;
+        if (_impairment.isImpaired) {
+            // recoveredAmount is the amount paid since impairment, not the full paidAmount
+            uint256 recoveredAmount = invoice.paidAmount - _impairment.paidAmountAtImpairment;
 
-            if (recoveredAmount <= _impairmentPurchasePrice) {
-                insuranceShare = recoveredAmount;
-                insuranceBalance += recoveredAmount;
-            } else {
-                insuranceShare = _impairmentPurchasePrice;
-                insuranceBalance += _impairmentPurchasePrice;
-                uint256 excess = recoveredAmount - _impairmentPurchasePrice;
-                investorShare = Math.mulDiv(excess, recoveryProfitRatioBps, 10000);
-                paidInvoicesGain += investorShare;
-                insuranceBalance += excess - investorShare;
-            }
+            // Insurance gets back purchasePrice first, then excess is split
+            uint256 excess = recoveredAmount > _impairment.purchasePrice ? recoveredAmount - _impairment.purchasePrice : 0;
+            uint256 investorShare = Math.mulDiv(excess, recoveryProfitRatioBps, 10000);
+            uint256 insuranceShare = recoveredAmount - investorShare;
+
+            insuranceBalance += insuranceShare;
+            paidInvoicesGain += investorShare;
 
             emit InsuranceRecovered(invoiceId, insuranceShare);
 
@@ -704,7 +695,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         } else {
             removeActivePaidInvoice(invoiceId);
 
-            IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+            IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
             (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
 
             incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
@@ -801,7 +792,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         
         if (invoice.isPaid) revert InvoiceAlreadyPaid();
 
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
         
         // Calculate fees and amounts
@@ -1047,7 +1038,10 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     function setInsuranceParams(uint16 _insuranceFeeBps, uint16 _impairmentGrossGainBps, uint16 _recoveryProfitRatioBps) external onlyOwner {
+        if (_insuranceFeeBps > 10000) revert InvalidPercentage();
         if (_impairmentGrossGainBps == 0) revert ImpairmentGrossGainBpsMustBePositive();
+        if (_impairmentGrossGainBps > 10000) revert InvalidPercentage();
+        if (_recoveryProfitRatioBps > 10000) revert InvalidPercentage();
         insuranceFeeBps = _insuranceFeeBps;
         impairmentGrossGainBps = _impairmentGrossGainBps;
         recoveryProfitRatioBps = _recoveryProfitRatioBps;
@@ -1069,7 +1063,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint256 outOfPocketCost
     ) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         outstandingBalance = invoice.invoiceAmount - invoice.paidAmount;
         impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
         if (impairmentGrossGain == 0) revert ImpairmentPriceTooLow();
@@ -1080,7 +1074,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     }
 
     function impairInvoice(uint256 invoiceId) external onlyInsurer {
-        if (impairmentPurchasePrice[invoiceId] > 0) revert InvoiceAlreadyImpaired();
+        if (impairmentInfo[invoiceId].isImpaired) revert InvoiceAlreadyImpaired();
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, ) = previewImpair(invoiceId);
         removeActivePaidInvoice(invoiceId);
         (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
@@ -1095,7 +1090,11 @@ contract BullaFactoringV2_2 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         }
         adminFeeBalance += adminFeeOwed;
         paidInvoicesGain += _impairmentNetGain;
-        impairmentPurchasePrice[invoiceId] = _impairmentGrossGain;
+        impairmentInfo[invoiceId] = ImpairmentInfo({
+            isImpaired: true,
+            purchasePrice: _impairmentGrossGain,
+            paidAmountAtImpairment: invoice.paidAmount
+        });
         impairedInvoices.push(invoiceId);
         processRedemptionQueue();
         emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain, _impairmentNetGain);

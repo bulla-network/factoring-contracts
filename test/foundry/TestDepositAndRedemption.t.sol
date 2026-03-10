@@ -19,7 +19,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 
 contract TestDepositAndRedemption is CommonSetup {
-    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2_2.FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event ActivePaidInvoicesReconciled(uint256[] paidInvoiceIds);
     event InvoicePaid(uint256 indexed invoiceId, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee, uint256 fundedAmountNet, uint256 kickbackAmount, address indexed originalCreditor);
@@ -115,7 +115,7 @@ contract TestDepositAndRedemption is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        IBullaFactoringV2.FeeParams memory expectedFeeParams = IBullaFactoringV2.FeeParams({
+        IBullaFactoringV2_2.FeeParams memory expectedFeeParams = IBullaFactoringV2_2.FeeParams({
             targetYieldBps: interestApr,
             spreadBps: spreadBps,
             upfrontBps: upfrontBps,
@@ -132,10 +132,8 @@ contract TestDepositAndRedemption is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
-        // Calculate expected funded amount (accounting for insurance premium deduction)
-        (, , , , , uint256 preInsuranceFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
-        uint256 insurancePremium = invoiceAmount * bullaFactoring.insuranceFeeBps() / 10000;
-        uint256 expectedFundedAmount = preInsuranceFundedAmount - insurancePremium;
+        // Calculate expected funded amount (calculateTargetFees now includes insurance premium)
+        (, , , , , , uint256 expectedFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         vm.expectEmit(true, true, true, true);
         emit InvoiceFunded(invoiceId, expectedFundedAmount, bob, dueBy, upfrontBps, 250, address(bob));

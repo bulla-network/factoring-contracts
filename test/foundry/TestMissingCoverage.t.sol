@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./CommonSetup.t.sol";
 import {IRedemptionQueue} from "../../contracts/interfaces/IRedemptionQueue.sol";
-import {IBullaFactoringV2} from "../../contracts/interfaces/IBullaFactoring.sol";
+import {IBullaFactoringV2_2} from "../../contracts/interfaces/IBullaFactoring.sol";
 
 /**
  * @title TestMissingCoverage
@@ -71,7 +71,7 @@ contract TestMissingCoverage is CommonSetup {
     // ============================================
 
     function testGetFundInfoInitialState() public view {
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         // Check initial values
         assertGt(bytes(info.name).length, 0, "Fund should have a name");
@@ -90,7 +90,7 @@ contract TestMissingCoverage is CommonSetup {
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         assertEq(info.capitalAccount, depositAmount, "capitalAccount should equal deposit");
         assertEq(info.fundBalance, depositAmount, "fundBalance should equal deposit (no deployed capital)");
@@ -116,7 +116,7 @@ contract TestMissingCoverage is CommonSetup {
         uint256 fundedAmountNet = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         assertEq(info.deployedCapital, fundedAmountNet, "deployedCapital should equal funded amount net");
         assertLt(info.fundBalance, depositAmount, "fundBalance should be less than initial deposit");
@@ -148,7 +148,7 @@ contract TestMissingCoverage is CommonSetup {
         bullaClaim.payClaim(invoiceId, 50000);
         vm.stopPrank();
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         assertEq(info.deployedCapital, 0, "deployedCapital should be 0 after invoice is paid");
         assertGt(info.capitalAccount, depositAmount, "capitalAccount should increase due to interest");
@@ -165,7 +165,7 @@ contract TestMissingCoverage is CommonSetup {
         bullaFactoring.withdraw(withdrawAmount, alice, alice);
         vm.stopPrank();
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         assertEq(info.capitalAccount, depositAmount - withdrawAmount, "capitalAccount should reflect withdrawal");
         assertEq(info.fundBalance, depositAmount - withdrawAmount, "fundBalance should reflect withdrawal");
@@ -195,7 +195,7 @@ contract TestMissingCoverage is CommonSetup {
             vm.stopPrank();
         }
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         assertGt(info.deployedCapital, 0, "Should have deployed capital");
         assertLt(info.fundBalance, depositAmount, "Fund balance should be reduced by deployed capital");
@@ -227,7 +227,7 @@ contract TestMissingCoverage is CommonSetup {
             description
         );
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         // Loan offers are pending and don't immediately deploy capital until accepted
         // Just verify getFundInfo works correctly
@@ -254,7 +254,7 @@ contract TestMissingCoverage is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         // Verify all fields are set correctly
         assertGt(bytes(info.name).length, 0, "name should be set");
@@ -366,7 +366,7 @@ contract TestMissingCoverage is CommonSetup {
 
     function testGetFundInfoNoDeployedCapital() public view {
         // Test with no activity
-        IBullaFactoringV2.FundInfo memory info = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
         
         assertEq(info.deployedCapital, 0, "No deployed capital initially");
         assertEq(info.fundBalance, 0, "No fund balance initially");
@@ -377,8 +377,8 @@ contract TestMissingCoverage is CommonSetup {
         vm.prank(alice);
         bullaFactoring.deposit(100000, alice);
         
-        IBullaFactoringV2.FundInfo memory info1 = bullaFactoring.getFundInfo();
-        IBullaFactoringV2.FundInfo memory info2 = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info1 = bullaFactoring.getFundInfo();
+        IBullaFactoringV2_2.FundInfo memory info2 = bullaFactoring.getFundInfo();
         
         assertEq(info1.fundBalance, info2.fundBalance, "Consistent fundBalance");
         assertEq(info1.capitalAccount, info2.capitalAccount, "Consistent capitalAccount");
