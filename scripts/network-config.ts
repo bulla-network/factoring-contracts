@@ -4,8 +4,8 @@
 // Global Constants
 // ============================================================================
 
-/** Default protocol fee in basis points (20 bps = 0.20%) */
-export const DEFAULT_PROTOCOL_FEE_BPS = 20;
+/** Default protocol fee in basis points (30 bps = 0.30%) */
+export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 
 // ============================================================================
 // Types
@@ -68,11 +68,11 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     },
     mainnet: {
-        bullaClaim: '0x127948A4286A67A0A5Cb56a2D0d54881077A4889',
+        bullaClaim: '0x10a55a4dbd24fa188eed98a2adae2ebff0ef1219',
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
-        bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
-        bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
-        BullaClaimInvoiceProviderAdapterAddress: '0xE14E624b29BcDa2ec409BBBf97037fEDe3803797',
+        bullaFrendLendAddress: '0x1097b7ecf0721aaffff147cf7bec154422896317',
+        bullaInvoiceAddress: '0xfe2631bcb3e622750b6fbb605a416173ffa3a770',
+        BullaClaimInvoiceProviderAdapterAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
     },
     base: {
         bullaClaim: '0x8D59E594a3e4D0647C15887Cde5ECBfBE583b441',
@@ -89,17 +89,17 @@ export const networkConfigs: Record<string, NetworkConfig> = {
 
 export const poolConfigs: Record<PoolName, PoolConfig> = {
     tcs: {
-        protocolFeeBps: 20,
+        protocolFeeBps: 30,
         adminFeeBps: 0,
-        targetYieldBps: 800,
+        targetYieldBps: 795,
     },
     taram: {
-        protocolFeeBps: 25,
+        protocolFeeBps: 30,
         adminFeeBps: 50,
         targetYieldBps: 800,
     },
     fundora: {
-        protocolFeeBps: 20,
+        protocolFeeBps: 30,
         adminFeeBps: 50,
         targetYieldBps: 900,
     },
@@ -170,15 +170,15 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
             switch (pool) {
                 case 'tcs':
                     return {
-                        underlyingAsset: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // Mainnet USDC
-                        poolDisplayName: 'Bulla TCS Settlement Pool - Mainnet V2',
-                        poolTokenName: 'Bulla TCS Settlement Pool Token',
-                        poolTokenSymbol: 'BFT-TCS',
+                        underlyingAsset: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8', // Mainnet PyUSD
+                        poolDisplayName: 'TCS Settlement Pool - Mainnet V2.1',
+                        poolTokenName: 'TCS Settlement Pool Token V2.1',
+                        poolTokenSymbol: 'BFT-TCS-V2_1',
                         underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
                         factoringPermissionsAddress: '0x1c534661326b41c8b8aab5631ECED6D9755ff192',
                         depositPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
-                        redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
-                        bullaFactoringAddress: '0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5',
+                        redeemPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
+                        bullaFactoringAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
                         writeNewAddresses: true,
                     };
                 default:
@@ -265,7 +265,7 @@ export function getRpcUrl(network: string): string {
         case 'sepolia':
             return `https://rpc.ankr.com/eth_sepolia/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc`;
         case 'polygon':
-            return 'https://polygon-rpc.com/';
+            return 'https://rpc.ankr.com/polygon/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
         case 'mainnet':
             return `https://go.getblock.io/${process.env.MAINNET_GETBLOCK_API_KEY}`;
         case 'base':
