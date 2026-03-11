@@ -1048,9 +1048,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         emit InsuranceParamsChanged(_insuranceFeeBps, _impairmentGrossGainBps, _recoveryProfitRatioBps);
     }
 
-    function withdrawInsuranceBalance(uint256 amount) external onlyInsurer {
-        if (amount > insuranceBalance) revert InsufficientInsuranceFunds(insuranceBalance, amount);
-        insuranceBalance -= amount;
+    function withdrawInsuranceBalance() external onlyInsurer {
+        uint256 amount = insuranceBalance;
+        insuranceBalance = 0;
         assetAddress.safeTransfer(insurer, amount);
         emit InsuranceWithdrawn(insurer, amount);
     }
@@ -1060,40 +1060,40 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         uint256 impairmentGrossGain,
         uint256 adminFeeOwed,
         uint256 impairmentNetGain,
-        uint256 outOfPocketCost
+        uint256 outOfPocketCost,
+        uint256 currentPaidAmount
     ) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        currentPaidAmount = invoice.paidAmount;
         outstandingBalance = invoice.invoiceAmount - invoice.paidAmount;
         impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
         if (impairmentGrossGain == 0) revert ImpairmentPriceTooLow();
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (, , adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
         impairmentNetGain = impairmentGrossGain > adminFeeOwed ? impairmentGrossGain - adminFeeOwed : 0;
-        outOfPocketCost = outstandingBalance > insuranceBalance ? outstandingBalance - insuranceBalance : 0;
+        outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
     }
 
     function impairInvoice(uint256 invoiceId) external onlyInsurer {
-        if (impairmentInfo[invoiceId].isImpaired) revert InvoiceAlreadyImpaired();
-        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, ) = previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, , uint256 currentPaidAmount) = previewImpair(invoiceId);
         removeActivePaidInvoice(invoiceId);
         (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
         (bool success, ) = target.call(abi.encodeWithSelector(selector, invoiceId));
         if (!success) revert InvoiceImpairFailed();
-        if (outstandingBalance <= insuranceBalance) {
-            insuranceBalance -= outstandingBalance;
+        if (_impairmentGrossGain <= insuranceBalance) {
+            insuranceBalance -= _impairmentGrossGain;
         } else {
-            uint256 fromInsurer = outstandingBalance - insuranceBalance;
+            uint256 outOfPocketCost = _impairmentGrossGain - insuranceBalance;
             insuranceBalance = 0;
-            assetAddress.safeTransferFrom(insurer, address(this), fromInsurer);
+            assetAddress.safeTransferFrom(insurer, address(this), outOfPocketCost);
         }
         adminFeeBalance += adminFeeOwed;
         paidInvoicesGain += _impairmentNetGain;
         impairmentInfo[invoiceId] = ImpairmentInfo({
             isImpaired: true,
             purchasePrice: _impairmentGrossGain,
-            paidAmountAtImpairment: invoice.paidAmount
+            paidAmountAtImpairment: currentPaidAmount
         });
         impairedInvoices.push(invoiceId);
         processRedemptionQueue();
