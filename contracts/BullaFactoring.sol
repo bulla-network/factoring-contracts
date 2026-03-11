@@ -14,6 +14,7 @@ import {IBullaFrendLendV2, LoanRequestParams, LoanOffer} from "@bulla/contracts-
 import {InterestConfig} from "@bulla/contracts-v2/src/libraries/CompoundInterestLib.sol";
 import "./RedemptionQueue.sol";
 import "./libraries/FeeCalculations.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
@@ -21,6 +22,7 @@ import "./libraries/FeeCalculations.sol";
 contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.UintSet;
 
     /// @notice Address of the Bulla DAO, a trusted multisig
     address public bullaDao;
@@ -71,8 +73,8 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice The duration of invoice approval before it expires
     uint256 public approvalDuration = 1 hours;
 
-    /// Array to hold the IDs of all active invoices
-    uint256[] public activeInvoices;
+    /// Set to hold the IDs of all active invoices (O(1) add/remove/contains)
+    EnumerableSet.UintSet private _activeInvoices;
 
     /// Mapping from loan offer ID to pending loan offer details
     mapping(uint256 => PendingLoanOfferInfo) public pendingLoanOffersByLoanOfferId;
@@ -301,7 +303,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         });
 
         originalCreditors[loanId] = address(this);
-        activeInvoices.push(loanId);
+        _activeInvoices.add(loanId);
         
         // Add loan to aggregate state tracking (RAY units)
         _addInvoiceToAggregate(approvedInvoices[loanId].perSecondInterestRateRay);
@@ -544,7 +546,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IERC721(invoiceProviderAdapter.getInvoiceContractAddress(invoiceId)).transferFrom(msg.sender, address(this), invoiceId);
 
         originalCreditors[invoiceId] = msg.sender;
-        activeInvoices.push(invoiceId);
+        _activeInvoices.add(invoiceId);
 
         // Add invoice to aggregate state tracking (RAY units)
         _addInvoiceToAggregate(approval.perSecondInterestRateRay);
@@ -559,6 +561,18 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         return fundedAmountNet;
     }
 
+    function getActiveInvoices() external view returns (uint256[] memory) {
+        return _activeInvoices.values();
+    }
+
+    function getActiveInvoicesCount() external view returns (uint256) {
+        return _activeInvoices.length();
+    }
+
+    function getActiveInvoiceAt(uint256 index) external view returns (uint256) {
+        return _activeInvoices.at(index);
+    }
+
     /// @notice View pool status with pagination to handle large numbers of active invoices
     /// @dev To be called by Gelato or similar automation services. Limit is capped at 25000 invoices to prevent gas issues.
     /// @param offset The starting index in the activeInvoices array
@@ -566,7 +580,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return impairedInvoiceIds Array of invoice IDs that are impaired in this page
     /// @return hasMore Whether there are more active invoices beyond this page
     function viewPoolStatus(uint256 offset, uint256 limit) external view returns (uint256[] memory impairedInvoiceIds, bool hasMore) {
-        uint256 activeCount = activeInvoices.length;
+        uint256 activeCount = _activeInvoices.length();
         
         // Cap the limit at 25000 to prevent gas issues
         if (limit > 25000) {
@@ -587,7 +601,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
 
         // Check active invoices in the specified range
         for (uint256 i = offset; i < endIndex; i++) {
-            uint256 invoiceId = activeInvoices[i];
+            uint256 invoiceId = _activeInvoices.at(i);
 
             if (_isInvoiceImpaired(invoiceId)) {
                 impairedInvoiceIds[impairedCount++] = invoiceId;
@@ -782,41 +796,32 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Removes an invoice from the list of active invoices once it has been paid
     /// @param invoiceId The ID of the invoice to remove
     function removeActivePaidInvoice(uint256 invoiceId) private {
-        for (uint256 i = 0; i < activeInvoices.length; i++) {
-            if (activeInvoices[i] == invoiceId) {
-                activeInvoices[i] = activeInvoices[activeInvoices.length - 1];
-                activeInvoices.pop();
-                
-                uint256 perSecondRateRay = approvedInvoices[invoiceId].perSecondInterestRateRay;
+        if (!_activeInvoices.remove(invoiceId)) revert InvoiceNotActive();
 
-                if (perSecondRateRay > 0) {
-                    // First, checkpoint to accumulate all interest up to this moment
-                    _checkpointAccruedProfits();
-                    
-                    // Calculate this invoice's total accrued interest since it was funded (in RAY units)
-                    uint256 secondsSinceFunding = block.timestamp - approvedInvoices[invoiceId].fundedTimestamp;
-                    uint256 invoiceAccruedInterestRay = perSecondRateRay * secondsSinceFunding;
-                    
-                    // Remove this invoice's accrued interest from the checkpoint (both in RAY)
-                    accruedProfitsAtCheckpointRay -= invoiceAccruedInterestRay;
-                    
-                    // Remove this invoice's per-second rate from future calculations (RAY units)
-                    totalPerSecondInterestRateRay -= perSecondRateRay;
-                }
-                // fundedAmountGross now includes protocol fee
-                uint256 atRiskPlusWithheldFees = approvedInvoices[invoiceId].fundedAmountGross;
+        uint256 perSecondRateRay = approvedInvoices[invoiceId].perSecondInterestRateRay;
 
-                // Remove from capital at risk plus withheld fees
-                capitalAtRiskPlusWithheldFees -= atRiskPlusWithheldFees;
+        if (perSecondRateRay > 0) {
+            // First, checkpoint to accumulate all interest up to this moment
+            _checkpointAccruedProfits();
 
-                // Remove from withheld fees
-                withheldFees -= atRiskPlusWithheldFees - approvedInvoices[invoiceId].fundedAmountNet;
+            // Calculate this invoice's total accrued interest since it was funded (in RAY units)
+            uint256 secondsSinceFunding = block.timestamp - approvedInvoices[invoiceId].fundedTimestamp;
+            uint256 invoiceAccruedInterestRay = perSecondRateRay * secondsSinceFunding;
 
-                return;
-            }
+            // Remove this invoice's accrued interest from the checkpoint (both in RAY)
+            accruedProfitsAtCheckpointRay -= invoiceAccruedInterestRay;
+
+            // Remove this invoice's per-second rate from future calculations (RAY units)
+            totalPerSecondInterestRateRay -= perSecondRateRay;
         }
+        // fundedAmountGross now includes protocol fee
+        uint256 atRiskPlusWithheldFees = approvedInvoices[invoiceId].fundedAmountGross;
 
-        revert InvoiceNotActive();
+        // Remove from capital at risk plus withheld fees
+        capitalAtRiskPlusWithheldFees -= atRiskPlusWithheldFees;
+
+        // Remove from withheld fees
+        withheldFees -= atRiskPlusWithheldFees - approvedInvoices[invoiceId].fundedAmountNet;
     }
 
     /// @notice Calculates the available assets in the fund net of fees
