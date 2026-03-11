@@ -69,19 +69,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     // Helper function to get active invoices count
     function getActiveInvoicesCount() internal view returns (uint256) {
-        uint256 count = 0;
-        try bullaFactoring.activeInvoices(count) {
-            while (true) {
-                try bullaFactoring.activeInvoices(count) {
-                    count++;
-                } catch {
-                    break;
-                }
-            }
-        } catch {
-            // Array is empty
-        }
-        return count;
+        return bullaFactoring.getActiveInvoicesCount();
     }
 
     // ============= ACCESS CONTROL TESTS =============

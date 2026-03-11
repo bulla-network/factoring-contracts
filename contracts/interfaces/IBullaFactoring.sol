@@ -100,4 +100,9 @@ interface IBullaFactoringV2 {
     
     // Pending loan offer management
     function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining);
+
+    // Active invoices
+    function getActiveInvoices() external view returns (uint256[] memory);
+    function getActiveInvoicesCount() external view returns (uint256);
+    function getActiveInvoiceAt(uint256 index) external view returns (uint256);
 }
