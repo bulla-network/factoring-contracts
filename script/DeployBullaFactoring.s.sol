@@ -47,6 +47,11 @@ contract DeployBullaFactoring is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOY_PK");
         address deployer = vm.addr(deployerPrivateKey);
         
+        // Default insurer to pool owner (deployer) if not specified
+        if (config.insurer == address(0)) {
+            config.insurer = deployer;
+        }
+
         console.log("Deploying with account:", deployer);
         console.log("Network Config:");
         console.log("- BullaClaim:", config.bullaClaim);
