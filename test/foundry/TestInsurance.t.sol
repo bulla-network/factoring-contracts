@@ -8,6 +8,12 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract TestInsurance is CommonSetup {
     address insurerAddr = address(0x1999);
 
+    // CommonSetup params:
+    // insuranceFeeBps = 100 (1%), impairmentGrossGainBps = 500 (5%), recoveryProfitRatioBps = 5000 (50%)
+    // adminFeeBps = 25 (0.25%), protocolFeeBps = 25 (0.25%)
+    // dueBy = block.timestamp + 30 days, impairmentGracePeriod = 60 days
+    // Need vm.warp(block.timestamp + 91 days) to pass grace period
+
     // ============================================
     // 1. Insurance BPS validation (constructor + setter)
     // ============================================
@@ -92,6 +98,8 @@ contract TestInsurance is CommonSetup {
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
 
+        // invoiceAmount = 100000, insuranceFeeBps = 100 (1%)
+        // expected premium = 100000 * 100 / 10000 = 1000
         uint256 invoiceAmount = 100000;
 
         vm.prank(bob);
@@ -107,13 +115,7 @@ contract TestInsurance is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        uint256 insuranceBalanceAfter = bullaFactoring.insuranceBalance();
-
-        // insuranceFeeBps is 100 (1%), initialInvoiceValue = 100000
-        // premium = 100000 * 100 / 10000 = 1000
-        uint256 expectedPremium = Math.mulDiv(invoiceAmount, bullaFactoring.insuranceFeeBps(), 10000);
-        assertEq(insuranceBalanceAfter - insuranceBalanceBefore, expectedPremium, "Insurance balance should increase by premium amount");
-        assertGt(expectedPremium, 0, "Premium should be non-zero");
+        assertEq(bullaFactoring.insuranceBalance() - insuranceBalanceBefore, 1000, "Premium should be 1% of 100000 = 1000");
     }
 
     function testInsurancePremiumHalfPaidInvoice() public {
@@ -123,11 +125,11 @@ contract TestInsurance is CommonSetup {
 
         uint256 invoiceAmount = 50000;
 
-        // Invoice 1: fully unpaid
+        // Invoice 1: fully unpaid → premium on full 50000
         vm.prank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueBy);
 
-        // Invoice 2: half paid before factoring
+        // Invoice 2: half paid → premium on remaining 25000
         vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueBy);
 
@@ -144,9 +146,9 @@ contract TestInsurance is CommonSetup {
         (, , , , , uint256 insurancePremium1, ) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
         (, , , , , uint256 insurancePremium2, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
 
-        assertEq(insurancePremium2, insurancePremium1 / 2, "Half-paid invoice should have half the insurance premium");
-        assertGt(insurancePremium1, 0, "Full invoice premium should be non-zero");
-        assertGt(insurancePremium2, 0, "Half-paid invoice premium should be non-zero");
+        // 50000 * 1% = 500, 25000 * 1% = 250
+        assertEq(insurancePremium1, 500, "Full invoice premium = 500");
+        assertEq(insurancePremium2, 250, "Half-paid invoice premium = 250");
     }
 
     function testInsuranceBalanceAccumulatesAcrossMultipleFundings() public {
@@ -154,28 +156,22 @@ contract TestInsurance is CommonSetup {
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
 
+        // Fund 3 invoices of 50000 each. Each premium = 50000 * 1% = 500
+        // Total expected = 1500
         uint256 invoiceAmount = 50000;
 
-        // Create and fund 3 invoices
-        uint256 totalExpectedPremium = 0;
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(bob);
             uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-
             vm.prank(underwriter);
             bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
-
-            (, , , , , uint256 insurancePremium, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
-            totalExpectedPremium += insurancePremium;
-
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceId);
             bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
             vm.stopPrank();
         }
 
-        assertEq(bullaFactoring.insuranceBalance(), totalExpectedPremium, "Insurance balance should accumulate across fundings");
-        assertGt(totalExpectedPremium, 0, "Total premium should be non-zero");
+        assertEq(bullaFactoring.insuranceBalance(), 1500, "3 x 500 premium = 1500");
     }
 
     // ============================================
@@ -220,10 +216,10 @@ contract TestInsurance is CommonSetup {
     // ============================================
 
     function testWithdrawInsuranceBalance() public {
+        // Fund a 100000 invoice → premium = 1000
         _fundSingleInvoice(100000);
 
-        uint256 insuranceBalance = bullaFactoring.insuranceBalance();
-        assertGt(insuranceBalance, 0, "Insurance balance should be non-zero after funding");
+        assertEq(bullaFactoring.insuranceBalance(), 1000, "Insurance balance should be 1000 after funding");
 
         uint256 insurerBalanceBefore = asset.balanceOf(insurerAddr);
 
@@ -231,7 +227,7 @@ contract TestInsurance is CommonSetup {
         bullaFactoring.withdrawInsuranceBalance();
 
         assertEq(bullaFactoring.insuranceBalance(), 0, "Insurance balance should be zero after withdrawal");
-        assertEq(asset.balanceOf(insurerAddr) - insurerBalanceBefore, insuranceBalance, "Insurer should receive full balance");
+        assertEq(asset.balanceOf(insurerAddr) - insurerBalanceBefore, 1000, "Insurer should receive 1000");
     }
 
     function testWithdrawInsuranceBalanceZero() public {
@@ -241,52 +237,45 @@ contract TestInsurance is CommonSetup {
     }
 
     // ============================================
-    // 5. Impairment with sufficient insurance
+    // 5. previewImpair then impair, verify all balances
     // ============================================
 
-    function testImpairInvoiceWithSufficientInsurance() public {
-        // insuranceFeeBps=100 (1%), impairmentGrossGainBps=500 (5%)
-        // Need 5x the invoice value in funded invoices to cover 1 impairment
-        // Fund 6 invoices of 20000 each, then impair 1
-        uint256 depositAmount = 600000;
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-
-        uint256 invoiceAmount = 20000;
-        uint256[] memory invoiceIds = new uint256[](6);
-
-        for (uint256 i = 0; i < 6; i++) {
-            vm.prank(bob);
-            invoiceIds[i] = createClaim(bob, alice, invoiceAmount, dueBy);
-            vm.prank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
-            vm.startPrank(bob);
-            bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
-            bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
-            vm.stopPrank();
-        }
-
+    function testPreviewImpairThenImpairVerifyBalances() public {
+        // Fund 6 invoices of 100000 to build insurance: 6 * 1000 = 6000
+        // impairmentGrossGain for 100000 = 100000 * 5% = 5000
+        // outOfPocketCost = 0 since 6000 >= 5000
+        uint256 invoiceId = _fundAndBuildInsurance(100000);
         vm.warp(block.timestamp + 91 days);
 
         uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
-        // 6 invoices * 20000 * 1% = 1200 insurance balance
-        // impairmentGrossGain = 20000 * 5% = 1000
-        // outOfPocketCost = 0 since 1200 >= 1000
+        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
+        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
 
-        (uint256 outstandingBalance, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, ) = bullaFactoring.previewImpair(invoiceIds[0]);
+        // Get expected values from preview
+        (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
 
-        assertEq(outOfPocketCost, 0, "No out-of-pocket cost when insurance covers full impairment");
-        assertEq(outstandingBalance, invoiceAmount, "Outstanding balance should equal full invoice amount");
-        assertGt(impairmentGrossGain, 0, "Impairment gross gain should be non-zero");
+        // Verify preview values
+        assertEq(outstandingBalance, 100000, "Outstanding = full invoice amount");
+        assertEq(currentPaidAmount, 0, "Nothing paid");
+        assertEq(impairmentGrossGain, 5000, "Gross gain = 100000 * 5% = 5000");
+        assertEq(outOfPocketCost, 0, "No out-of-pocket, insurance balance 6000 >= grossGain 5000");
+        assertGt(adminFeeOwed, 0, "Admin fee should be non-zero after 91 days");
+        assertEq(impairmentNetGain, impairmentGrossGain - adminFeeOwed, "Net gain = gross - admin fee");
 
+        // Execute impairment
         vm.prank(insurerAddr);
-        bullaFactoring.impairInvoice(invoiceIds[0]);
+        bullaFactoring.impairInvoice(invoiceId);
 
-        assertEq(bullaFactoring.insuranceBalance(), insuranceBalanceBefore - impairmentGrossGain, "Insurance balance should decrease by gross gain");
+        // Verify balances changed exactly as preview predicted
+        assertEq(bullaFactoring.insuranceBalance(), insuranceBalanceBefore - impairmentGrossGain, "Insurance decreased by grossGain");
+        assertEq(bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore, impairmentNetGain, "Investor gains increased by netGain");
+        assertEq(bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore, adminFeeOwed, "Admin fee increased by adminFeeOwed");
 
-        (bool isImpaired, uint256 purchasePrice, ) = bullaFactoring.impairmentInfo(invoiceIds[0]);
-        assertTrue(isImpaired, "Invoice should be marked as impaired");
-        assertEq(purchasePrice, impairmentGrossGain, "Purchase price should equal impairment gross gain");
+        // Verify impairment info
+        (bool isImpaired, uint256 purchasePrice, uint256 paidAmountAtImpairment) = bullaFactoring.impairmentInfo(invoiceId);
+        assertTrue(isImpaired, "Invoice should be impaired");
+        assertEq(purchasePrice, 5000, "Purchase price = grossGain = 5000");
+        assertEq(paidAmountAtImpairment, 0, "No payment at impairment");
     }
 
     // ============================================
@@ -294,12 +283,14 @@ contract TestInsurance is CommonSetup {
     // ============================================
 
     function testImpairInvoiceWithInsufficientInsurance() public {
+        // Single 200000 invoice: premium = 200000 * 1% = 2000
+        // impairmentGrossGain = 200000 * 5% = 10000
+        // outOfPocketCost = 10000 - 2000 = 8000
         uint256 depositAmount = 500000;
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
 
         uint256 invoiceAmount = 200000;
-
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
@@ -309,33 +300,29 @@ contract TestInsurance is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        // Insurance balance = 200000 * 1% = 2000
-        // Impairment gross gain = 200000 * 5% = 10000
-        // outOfPocketCost = 10000 - 2000 = 8000
+        assertEq(bullaFactoring.insuranceBalance(), 2000, "Premium = 200000 * 1% = 2000");
 
         vm.warp(block.timestamp + 91 days);
 
-        uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
         (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, ) = bullaFactoring.previewImpair(invoiceId);
+        assertEq(impairmentGrossGain, 10000, "Gross gain = 200000 * 5% = 10000");
+        assertEq(outOfPocketCost, 8000, "Out-of-pocket = 10000 - 2000 = 8000");
 
-        assertGt(outOfPocketCost, 0, "Should have out-of-pocket cost");
-        assertEq(outOfPocketCost, impairmentGrossGain - insuranceBalanceBefore, "Out-of-pocket should be difference");
-
-        // Give insurer enough tokens to cover out-of-pocket
-        asset.mint(insurerAddr, outOfPocketCost);
+        // Give insurer tokens for out-of-pocket
+        asset.mint(insurerAddr, 8000);
         vm.prank(insurerAddr);
-        asset.approve(address(bullaFactoring), outOfPocketCost);
+        asset.approve(address(bullaFactoring), 8000);
 
         uint256 insurerBalanceBefore = asset.balanceOf(insurerAddr);
 
         vm.prank(insurerAddr);
         bullaFactoring.impairInvoice(invoiceId);
 
-        assertEq(bullaFactoring.insuranceBalance(), 0, "Insurance balance should be zero");
-        assertEq(insurerBalanceBefore - asset.balanceOf(insurerAddr), outOfPocketCost, "Insurer should pay out-of-pocket cost");
+        assertEq(bullaFactoring.insuranceBalance(), 0, "Insurance fully depleted");
+        assertEq(insurerBalanceBefore - asset.balanceOf(insurerAddr), 8000, "Insurer paid 8000 out-of-pocket");
 
         (bool isImpaired, , ) = bullaFactoring.impairmentInfo(invoiceId);
-        assertTrue(isImpaired, "Invoice should be marked as impaired");
+        assertTrue(isImpaired, "Invoice should be impaired");
     }
 
     // ============================================
@@ -355,10 +342,16 @@ contract TestInsurance is CommonSetup {
     }
 
     // ============================================
-    // 8. Recovery flow - impaired invoice gets paid
+    // 8. Recovery: full payment after impairment, verify profit split
     // ============================================
 
-    function testRecoveryOfImpairedInvoice() public {
+    function testRecoveryProfitSplitFullPayment() public {
+        // Setup: 100000 invoice, fully unpaid at impairment
+        // impairmentGrossGain (= purchasePrice) = 100000 * 5% = 5000
+        // After full payment: recoveredAmount = 100000 - 0 = 100000
+        // excess = 100000 - 5000 = 95000
+        // investorShare = 95000 * 50% = 47500
+        // insuranceShare = 100000 - 47500 = 52500
         uint256 invoiceAmount = 100000;
         uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
         vm.warp(block.timestamp + 91 days);
@@ -367,100 +360,37 @@ contract TestInsurance is CommonSetup {
         bullaFactoring.impairInvoice(invoiceId);
 
         uint256 insuranceBalanceAfterImpair = bullaFactoring.insuranceBalance();
+        uint256 paidInvoicesGainAfterImpair = bullaFactoring.paidInvoicesGain();
 
-        // Debtor pays the full invoice
+        // Pay the full invoice
         vm.startPrank(alice);
         asset.approve(address(bullaClaim), invoiceAmount);
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        uint256 insuranceBalanceAfterRecovery = bullaFactoring.insuranceBalance();
-        assertGt(insuranceBalanceAfterRecovery, insuranceBalanceAfterImpair, "Insurance balance should increase after recovery");
-    }
+        // recoveredAmount = 100000, purchasePrice = 5000
+        // excess = 95000, investorShare = 47500, insuranceShare = 52500
+        uint256 insuranceGain = bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair;
+        uint256 investorGain = bullaFactoring.paidInvoicesGain() - paidInvoicesGainAfterImpair;
 
-    function testRecoveryProfitSplit() public {
-        uint256 invoiceAmount = 100000;
-        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
-        vm.warp(block.timestamp + 91 days);
-
-        (, uint256 impairmentGrossGain, , , , uint256 paidAmountAtImpairment) = bullaFactoring.previewImpair(invoiceId);
-
-        vm.prank(insurerAddr);
-        bullaFactoring.impairInvoice(invoiceId);
-
-        uint256 insuranceBalanceAfterImpair = bullaFactoring.insuranceBalance();
-        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
-
-        // Debtor pays the full invoice
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), invoiceAmount);
-        bullaClaim.payClaim(invoiceId, invoiceAmount);
-        vm.stopPrank();
-
-        uint256 recoveredAmount = invoiceAmount - paidAmountAtImpairment;
-
-        if (recoveredAmount > impairmentGrossGain) {
-            uint256 excess = recoveredAmount - impairmentGrossGain;
-            uint256 expectedInvestorShare = Math.mulDiv(excess, bullaFactoring.recoveryProfitRatioBps(), 10000);
-            uint256 expectedInsuranceShare = recoveredAmount - expectedInvestorShare;
-
-            assertEq(
-                bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair,
-                expectedInsuranceShare,
-                "Insurance should receive its share"
-            );
-            assertEq(
-                bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore,
-                expectedInvestorShare,
-                "Investors should receive their share"
-            );
-        } else {
-            assertEq(
-                bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair,
-                recoveredAmount,
-                "All recovery should go to insurance when no excess"
-            );
-        }
+        assertEq(insuranceGain, 52500, "Insurance recovers 52500");
+        assertEq(investorGain, 47500, "Investors receive 47500");
     }
 
     // ============================================
-    // 9. previewImpair returns correct values
+    // 9. previewImpair: partially paid invoice
     // ============================================
-
-    function testPreviewImpairValues() public {
-        uint256 invoiceAmount = 100000;
-        uint256 invoiceId = _fundSingleInvoice(invoiceAmount);
-        vm.warp(block.timestamp + 91 days);
-
-        (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
-
-        assertEq(outstandingBalance, invoiceAmount, "Outstanding balance should equal invoice amount");
-        assertEq(currentPaidAmount, 0, "No payments have been made");
-
-        uint256 expectedGrossGain = Math.mulDiv(outstandingBalance, bullaFactoring.impairmentGrossGainBps(), 10000);
-        assertEq(impairmentGrossGain, expectedGrossGain, "Gross gain calculation should be correct");
-
-        if (impairmentGrossGain > adminFeeOwed) {
-            assertEq(impairmentNetGain, impairmentGrossGain - adminFeeOwed, "Net gain should be gross minus admin fee");
-        } else {
-            assertEq(impairmentNetGain, 0, "Net gain should be 0 when admin fee exceeds gross gain");
-        }
-
-        uint256 insuranceBal = bullaFactoring.insuranceBalance();
-        if (impairmentGrossGain > insuranceBal) {
-            assertEq(outOfPocketCost, impairmentGrossGain - insuranceBal, "Out-of-pocket should be difference");
-        } else {
-            assertEq(outOfPocketCost, 0, "No out-of-pocket when insurance covers all");
-        }
-    }
 
     function testPreviewImpairPartiallyPaidInvoice() public {
+        // 100000 invoice, 40000 paid before impairment
+        // outstandingBalance = 60000
+        // impairmentGrossGain = 60000 * 5% = 3000
+        // currentPaidAmount = 40000
         uint256 depositAmount = 200000;
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
 
         uint256 invoiceAmount = 100000;
-
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
@@ -470,45 +400,97 @@ contract TestInsurance is CommonSetup {
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
-        uint256 partialPayment = 40000;
         vm.startPrank(alice);
-        asset.approve(address(bullaClaim), partialPayment);
-        bullaClaim.payClaim(invoiceId, partialPayment);
+        asset.approve(address(bullaClaim), 40000);
+        bullaClaim.payClaim(invoiceId, 40000);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 91 days);
 
         (uint256 outstandingBalance, uint256 impairmentGrossGain, , , , uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
 
-        assertEq(currentPaidAmount, partialPayment, "Current paid amount should reflect partial payment");
-        assertEq(outstandingBalance, invoiceAmount - partialPayment, "Outstanding balance should be reduced by payment");
-
-        uint256 expectedGrossGain = Math.mulDiv(outstandingBalance, bullaFactoring.impairmentGrossGainBps(), 10000);
-        assertEq(impairmentGrossGain, expectedGrossGain, "Gross gain should be based on outstanding balance");
+        assertEq(currentPaidAmount, 40000, "Paid amount = 40000");
+        assertEq(outstandingBalance, 60000, "Outstanding = 100000 - 40000 = 60000");
+        assertEq(impairmentGrossGain, 3000, "Gross gain = 60000 * 5% = 3000");
     }
 
     // ============================================
-    // 10. Impairment updates investor gains and admin fees
+    // 10. Impairment of partially paid invoice with balance verification
     // ============================================
 
-    function testImpairmentUpdatesGainsAndFees() public {
+    function testImpairPartiallyPaidInvoiceBalances() public {
+        // 100000 invoice, 60000 paid. outstanding = 40000
+        // grossGain = 40000 * 5% = 2000, purchasePrice = 2000
+        // Need insurance balance >= 2000, 6 invoices of 100000 → 6000 insurance
         uint256 invoiceId = _fundAndBuildInsurance(100000);
+
+        // Partial payment of 60000
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 60000);
+        bullaClaim.payClaim(invoiceId, 60000);
+        vm.stopPrank();
+
         vm.warp(block.timestamp + 91 days);
 
-        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
-        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
+        uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
 
-        (, , uint256 adminFeeOwed, uint256 impairmentNetGain, , ) = bullaFactoring.previewImpair(invoiceId);
+        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
+
+        assertEq(currentPaidAmount, 60000, "Paid amount = 60000");
+        assertEq(impairmentGrossGain, 2000, "Gross gain = 40000 * 5% = 2000");
+        assertEq(outOfPocketCost, 0, "No out-of-pocket, insurance 6000 >= 2000");
 
         vm.prank(insurerAddr);
         bullaFactoring.impairInvoice(invoiceId);
 
-        assertEq(bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore, impairmentNetGain, "Investor gains should increase by net gain");
-        assertEq(bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore, adminFeeOwed, "Admin fee balance should increase by admin fee owed");
+        assertEq(bullaFactoring.insuranceBalance(), insuranceBalanceBefore - 2000, "Insurance decreased by 2000");
+
+        (, uint256 purchasePrice, uint256 paidAmountAtImpairment) = bullaFactoring.impairmentInfo(invoiceId);
+        assertEq(purchasePrice, 2000, "Purchase price = 2000");
+        assertEq(paidAmountAtImpairment, 60000, "Paid at impairment = 60000");
     }
 
     // ============================================
-    // 11. Impairment records to impairedInvoices array
+    // 11. Recovery after partial payment at impairment
+    // ============================================
+
+    function testRecoveryAfterPartialPaymentAtImpairment() public {
+        // 100000 invoice, 60000 paid at impairment
+        // purchasePrice = (100000 - 60000) * 5% = 2000
+        // After remaining 40000 paid: recoveredAmount = 40000
+        // excess = 40000 - 2000 = 38000
+        // investorShare = 38000 * 50% = 19000
+        // insuranceShare = 40000 - 19000 = 21000
+        uint256 invoiceId = _fundAndBuildInsurance(100000);
+
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 60000);
+        bullaClaim.payClaim(invoiceId, 60000);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 91 days);
+
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        uint256 insuranceBalanceAfterImpair = bullaFactoring.insuranceBalance();
+        uint256 paidInvoicesGainAfterImpair = bullaFactoring.paidInvoicesGain();
+
+        // Pay remaining 40000
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 40000);
+        bullaClaim.payClaim(invoiceId, 40000);
+        vm.stopPrank();
+
+        uint256 insuranceGain = bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair;
+        uint256 investorGain = bullaFactoring.paidInvoicesGain() - paidInvoicesGainAfterImpair;
+
+        assertEq(insuranceGain, 21000, "Insurance recovers 21000");
+        assertEq(investorGain, 19000, "Investors receive 19000");
+    }
+
+    // ============================================
+    // 12. Impairment records to impairedInvoices array
     // ============================================
 
     function testImpairmentAddsToImpairedInvoicesArray() public {
@@ -522,7 +504,7 @@ contract TestInsurance is CommonSetup {
     }
 
     // ============================================
-    // 12. Recovery removes from impairedInvoices array
+    // 13. Recovery removes from impairedInvoices array
     // ============================================
 
     function testRecoveryRemovesFromImpairedInvoicesArray() public {
@@ -540,20 +522,18 @@ contract TestInsurance is CommonSetup {
         bullaClaim.payClaim(invoiceId, invoiceAmount);
         vm.stopPrank();
 
-        // impairedInvoices array should be empty now
         vm.expectRevert();
         bullaFactoring.impairedInvoices(0);
     }
 
     // ============================================
-    // 13. Multiple impairments
+    // 14. Multiple impairments
     // ============================================
 
     function testMultipleImpairments() public {
-        // Fund many invoices to build sufficient insurance for 3 impairments
-        // Each impairment costs 50000 * 5% = 2500, so 3 = 7500
-        // Each premium is 50000 * 1% = 500
-        // Need 15 invoices to cover 3 impairments (15 * 500 = 7500)
+        // 15 invoices of 50000: premiums = 15 * 500 = 7500
+        // 3 impairments: 3 * 50000 * 5% = 7500
+        // Insurance balance just covers all 3
         uint256 depositAmount = 1000000;
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
@@ -572,22 +552,26 @@ contract TestInsurance is CommonSetup {
             vm.stopPrank();
         }
 
+        assertEq(bullaFactoring.insuranceBalance(), 7500, "15 * 500 = 7500");
+
         vm.warp(block.timestamp + 91 days);
 
-        // Impair first 3
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(insurerAddr);
             bullaFactoring.impairInvoice(invoiceIds[i]);
         }
 
+        // 7500 - 3 * 2500 = 0
+        assertEq(bullaFactoring.insuranceBalance(), 0, "All insurance consumed by 3 impairments");
+
         for (uint256 i = 0; i < 3; i++) {
             (bool isImpaired, , ) = bullaFactoring.impairmentInfo(invoiceIds[i]);
-            assertTrue(isImpaired, "All invoices should be impaired");
+            assertTrue(isImpaired, "Invoice should be impaired");
         }
     }
 
     // ============================================
-    // 14. Insurance premium deducted from net funded amount
+    // 15. Insurance premium reduces net funded amount
     // ============================================
 
     function testInsurancePremiumReducesNetFunding() public {
@@ -596,7 +580,6 @@ contract TestInsurance is CommonSetup {
         bullaFactoring.deposit(depositAmount, alice);
 
         uint256 invoiceAmount = 100000;
-
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
@@ -604,7 +587,7 @@ contract TestInsurance is CommonSetup {
 
         (, , , , , uint256 insurancePremium, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
-        // Create a pool without insurance to compare
+        // Create pool with 0% insurance fee to compare
         BullaFactoringV2_2 noInsurancePool = new BullaFactoringV2_2(
             asset, invoiceAdapterBulla, bullaFrendLend, underwriter,
             depositPermissions, redeemPermissions, factoringPermissions,
@@ -625,147 +608,15 @@ contract TestInsurance is CommonSetup {
 
         (, , , , , uint256 noInsurancePremium, uint256 noInsuranceNetFunded) = noInsurancePool.calculateTargetFees(invoiceId2, upfrontBps);
 
-        assertEq(noInsurancePremium, 0, "No insurance pool should have zero premium");
-        assertEq(noInsuranceNetFunded - netFundedAmount, insurancePremium, "Difference in net funded should equal insurance premium");
-    }
-
-    // ============================================
-    // 15. Impairment of partially paid invoice
-    // ============================================
-
-    function testImpairPartiallyPaidInvoice() public {
-        // Fund extra invoices to build insurance balance
-        uint256 depositAmount = 800000;
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-
-        uint256 invoiceAmount = 100000;
-
-        // Fund 5 extra invoices to build insurance
-        for (uint256 i = 0; i < 5; i++) {
-            vm.prank(bob);
-            uint256 extraId = createClaim(bob, alice, invoiceAmount, dueBy);
-            vm.prank(underwriter);
-            bullaFactoring.approveInvoice(extraId, interestApr, spreadBps, upfrontBps, 0);
-            vm.startPrank(bob);
-            bullaClaim.approve(address(bullaFactoring), extraId);
-            bullaFactoring.fundInvoice(extraId, upfrontBps, address(0));
-            vm.stopPrank();
-        }
-
-        // Fund the target invoice
-        vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Partial payment
-        uint256 partialPayment = 60000;
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), partialPayment);
-        bullaClaim.payClaim(invoiceId, partialPayment);
-        vm.stopPrank();
-
-        vm.warp(block.timestamp + 91 days);
-
-        (, uint256 impairmentGrossGain, , , , uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
-
-        assertEq(currentPaidAmount, partialPayment, "Paid amount should reflect partial payment");
-        uint256 expectedGrossGain = Math.mulDiv(invoiceAmount - partialPayment, bullaFactoring.impairmentGrossGainBps(), 10000);
-        assertEq(impairmentGrossGain, expectedGrossGain, "Gross gain based on outstanding balance after partial payment");
-
-        vm.prank(insurerAddr);
-        bullaFactoring.impairInvoice(invoiceId);
-
-        (, uint256 purchasePrice, uint256 paidAmountAtImpairment) = bullaFactoring.impairmentInfo(invoiceId);
-        assertEq(purchasePrice, impairmentGrossGain, "Purchase price should match gross gain");
-        assertEq(paidAmountAtImpairment, partialPayment, "Paid amount at impairment should be recorded");
-    }
-
-    // ============================================
-    // 16. Recovery after partial payment at impairment
-    // ============================================
-
-    function testRecoveryAfterPartialPaymentAtImpairment() public {
-        uint256 depositAmount = 800000;
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-
-        uint256 invoiceAmount = 100000;
-
-        // Fund 5 extra invoices to build insurance
-        for (uint256 i = 0; i < 5; i++) {
-            vm.prank(bob);
-            uint256 extraId = createClaim(bob, alice, invoiceAmount, dueBy);
-            vm.prank(underwriter);
-            bullaFactoring.approveInvoice(extraId, interestApr, spreadBps, upfrontBps, 0);
-            vm.startPrank(bob);
-            bullaClaim.approve(address(bullaFactoring), extraId);
-            bullaFactoring.fundInvoice(extraId, upfrontBps, address(0));
-            vm.stopPrank();
-        }
-
-        vm.prank(bob);
-        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
-        vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
-        vm.startPrank(bob);
-        bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
-        vm.stopPrank();
-
-        // Partial payment before impairment
-        uint256 partialPayment = 60000;
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), partialPayment);
-        bullaClaim.payClaim(invoiceId, partialPayment);
-        vm.stopPrank();
-
-        vm.warp(block.timestamp + 91 days);
-
-        vm.prank(insurerAddr);
-        bullaFactoring.impairInvoice(invoiceId);
-
-        uint256 insuranceBalanceAfterImpair = bullaFactoring.insuranceBalance();
-
-        // Pay the remaining amount
-        uint256 remaining = invoiceAmount - partialPayment;
-        vm.startPrank(alice);
-        asset.approve(address(bullaClaim), remaining);
-        bullaClaim.payClaim(invoiceId, remaining);
-        vm.stopPrank();
-
-        uint256 recoveredAmount = remaining;
-        (, uint256 purchasePrice, ) = bullaFactoring.impairmentInfo(invoiceId);
-
-        if (recoveredAmount > purchasePrice) {
-            uint256 excess = recoveredAmount - purchasePrice;
-            uint256 investorShare = Math.mulDiv(excess, bullaFactoring.recoveryProfitRatioBps(), 10000);
-            uint256 insuranceShare = recoveredAmount - investorShare;
-            assertEq(
-                bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair,
-                insuranceShare,
-                "Insurance share should be correct"
-            );
-        } else {
-            // All goes to insurance
-            assertEq(
-                bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair,
-                recoveredAmount,
-                "All recovery should go to insurance when <= purchase price"
-            );
-        }
+        assertEq(insurancePremium, 1000, "Insurance premium = 100000 * 1% = 1000");
+        assertEq(noInsurancePremium, 0, "No insurance premium");
+        assertEq(noInsuranceNetFunded - netFundedAmount, 1000, "Net funded differs by exactly the premium");
     }
 
     // ============================================
     // Helpers
     // ============================================
 
-    /// @dev Fund a single invoice (insurance may be insufficient for impairment)
     function _fundSingleInvoice(uint256 invoiceAmount) internal returns (uint256 invoiceId) {
         uint256 depositAmount = invoiceAmount * 3;
         vm.prank(alice);
@@ -783,17 +634,15 @@ contract TestInsurance is CommonSetup {
         vm.stopPrank();
     }
 
-    /// @dev Fund an invoice plus extra invoices to build sufficient insurance balance for impairment
     function _fundAndBuildInsurance(uint256 invoiceAmount) internal returns (uint256 targetInvoiceId) {
         // insuranceFeeBps=100 (1%), impairmentGrossGainBps=500 (5%)
-        // Need at least 5 funded invoices of same size to cover 1 impairment
-        // Fund 6 to have a buffer
+        // 6 invoices: insurance = 6 * invoiceAmount * 1% = 6% of invoiceAmount
+        // grossGain = invoiceAmount * 5% → sufficient since 6% > 5%
         uint256 totalInvoices = 6;
         uint256 depositAmount = invoiceAmount * totalInvoices * 2;
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
 
-        // Fund extra invoices to build insurance
         for (uint256 i = 0; i < totalInvoices - 1; i++) {
             vm.prank(bob);
             uint256 extraId = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -805,7 +654,6 @@ contract TestInsurance is CommonSetup {
             vm.stopPrank();
         }
 
-        // Fund the target invoice
         vm.prank(bob);
         targetInvoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
