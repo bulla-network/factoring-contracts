@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 import "contracts/interfaces/IBullaFactoring.sol";
 import {LoanOfferExpired, InvalidTermLength} from '@bulla/contracts-v2/src/BullaFrendLendV2.sol';
@@ -76,7 +76,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_OnlyUnderwriterCanOffer() public {
         vm.startPrank(alice);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotUnderwriter.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotUnderwriter.selector);
         bullaFactoring.offerLoan(
             bob,           // debtor
             1000,          // targetYieldBps (10%)
@@ -91,7 +91,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOfferLoan_OwnerCannotCall() public {
         vm.startPrank(address(this)); // Contract owner
-        vm.expectRevert(BullaFactoringV2_1.CallerNotUnderwriter.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotUnderwriter.selector);
         bullaFactoring.offerLoan(
             bob,
             1000,
@@ -106,19 +106,19 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOnLoanOfferAccepted_OnlyBullaFrendLendCanCallback() public {
         vm.startPrank(alice);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotBullaFrendLend.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotBullaFrendLend.selector);
         bullaFactoring.onLoanOfferAccepted(1, 2);
         vm.stopPrank();
         
         vm.startPrank(underwriter);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotBullaFrendLend.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotBullaFrendLend.selector);
         bullaFactoring.onLoanOfferAccepted(1, 2);
         vm.stopPrank();
     }
     
     function testOnLoanOfferAccepted_UnderwriterCannotCallDirectly() public {
         vm.startPrank(underwriter);
-        vm.expectRevert(BullaFactoringV2_1.CallerNotBullaFrendLend.selector);
+        vm.expectRevert(BullaFactoringV2_2.CallerNotBullaFrendLend.selector);
         bullaFactoring.onLoanOfferAccepted(999, 123);
         vm.stopPrank();
     }
@@ -164,7 +164,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             uint256 storedPrincipal,
             uint256 storedTermLength,
             bool exists,
-            IBullaFactoringV2.FeeParams memory feeParams
+            IBullaFactoringV2_2.FeeParams memory feeParams
         ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertTrue(exists, "Loan offer should exist");
@@ -243,7 +243,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             uint256 initialPaidAmount,
             uint256 protocolFee,
             address receiverAddress,
-            IBullaFactoringV2.FeeParams memory approvalFeeParams,
+            IBullaFactoringV2_2.FeeParams memory approvalFeeParams,
             
         ) = bullaFactoring.approvedInvoices(loanId);
         
@@ -291,7 +291,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Get original fee params
-        (,,,, IBullaFactoringV2.FeeParams memory originalFeeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,, IBullaFactoringV2_2.FeeParams memory originalFeeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         // Alice makes a deposit to fund the pool
         uint256 depositAmount = principalAmount * 2; // Deposit more than needed
@@ -324,7 +324,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         );
         
         // Get transferred fee params (keyed by loanId, not loanOfferId)
-        (,,,,,,,,,,,, IBullaFactoringV2.FeeParams memory transferredFeeParams, ) = bullaFactoring.approvedInvoices(loanId);
+        (,,,,,,,,,,,, IBullaFactoringV2_2.FeeParams memory transferredFeeParams, ) = bullaFactoring.approvedInvoices(loanId);
         
         // Verify all fee params transferred correctly
         assertEq(transferredFeeParams.targetYieldBps, originalFeeParams.targetYieldBps, "Target yield should transfer");
@@ -404,7 +404,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
     
     function testOnLoanOfferAccepted_NonexistentLoanOffer() public {
         vm.prank(address(bullaFrendLend));
-        vm.expectRevert(BullaFactoringV2_1.LoanOfferNotExists.selector);
+        vm.expectRevert(BullaFactoringV2_2.LoanOfferNotExists.selector);
         bullaFactoring.onLoanOfferAccepted(999, 123);
     }
     
@@ -449,7 +449,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Try to accept the same loan offer again
         vm.prank(address(bullaFrendLend));
-        vm.expectRevert(BullaFactoringV2_1.LoanOfferAlreadyAccepted.selector);
+        vm.expectRevert(BullaFactoringV2_2.LoanOfferAlreadyAccepted.selector);
         bullaFactoring.onLoanOfferAccepted(nextLoanOfferId, loanId);
     }
     
@@ -458,7 +458,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         uint256 fakeLoanOfferId = 999999;
         
         vm.prank(address(bullaFrendLend));
-        vm.expectRevert(BullaFactoringV2_1.LoanOfferNotExists.selector);
+        vm.expectRevert(BullaFactoringV2_2.LoanOfferNotExists.selector);
         bullaFactoring.onLoanOfferAccepted(fakeLoanOfferId, 123);
     }
     
@@ -550,7 +550,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             uint256 storedPrincipal,
             uint256 storedTermLength,
             bool exists,
-            IBullaFactoringV2.FeeParams memory feeParams
+            IBullaFactoringV2_2.FeeParams memory feeParams
         ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertTrue(exists, "Loan offer should exist");
@@ -565,7 +565,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 0, 500, 100_000, 30 days, 365, "Zero yield test");
         vm.stopPrank();
-        (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,, IBullaFactoringV2_2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(feeParams.targetYieldBps, 0, "Target yield should be 0");
         // Total interest rate should still include protocol and admin fees
@@ -578,7 +578,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, highYield, 500, 100_000, 30 days, 365, "High yield test");
         vm.stopPrank();
-        (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,, IBullaFactoringV2_2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(feeParams.targetYieldBps, highYield, "Target yield should match high value");
     }
@@ -587,7 +587,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, 0, 100_000, 30 days, 365, "Zero spread test");
         vm.stopPrank();
-        (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,, IBullaFactoringV2_2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(feeParams.spreadBps, 0, "Spread should be 0");
     }
@@ -598,7 +598,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.startPrank(underwriter);
         uint256 loanOfferId = bullaFactoring.offerLoan(bob, 1000, maxSpread, 100_000, 30 days, 365, "Max spread test");
         vm.stopPrank();
-        (,,,, IBullaFactoringV2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,, IBullaFactoringV2_2.FeeParams memory feeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         assertEq(feeParams.spreadBps, maxSpread, "Spread should match maximum value");
     }
@@ -661,7 +661,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
             uint256 storedPrincipal,
             uint256 storedTermLength,
             bool exists,
-            IBullaFactoringV2.FeeParams memory feeParams
+            IBullaFactoringV2_2.FeeParams memory feeParams
         ) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         // Verify all fields are stored correctly
@@ -1027,7 +1027,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         vm.stopPrank();
         
         // Get pending loan offer fee params BEFORE acceptance (since they get removed after)
-        (,,,, IBullaFactoringV2.FeeParams memory pendingFeeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
+        (,,,, IBullaFactoringV2_2.FeeParams memory pendingFeeParams) = bullaFactoring.pendingLoanOffersByLoanOfferId(loanOfferId);
         
         // Accept loan offer
         vm.prank(bob);
@@ -1035,7 +1035,7 @@ contract TestLoanOffersWorkflow is CommonSetup {
         
         // Verify the loan was created correctly by checking the due date calculation
         // The due date should be funding timestamp + term length (keyed by loanId, not loanOfferId)
-        (,,,uint256 invoiceDueDate,,uint256 fundedTimestamp,,,,,,,IBullaFactoringV2.FeeParams memory feeParams, ) = bullaFactoring.approvedInvoices(loanId);
+        (,,,uint256 invoiceDueDate,,uint256 fundedTimestamp,,,,,,,IBullaFactoringV2_2.FeeParams memory feeParams, ) = bullaFactoring.approvedInvoices(loanId);
         
         assertEq(
             invoiceDueDate,

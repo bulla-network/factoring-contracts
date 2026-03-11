@@ -16,7 +16,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
     EIP712Helper public sigHelper;
     
     // Events to test
-    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2_2.FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed factorer, uint256 invoiceDueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event InvoicePaid(uint256 indexed invoiceId, uint256 targetInterest, uint256 spreadAmount, uint256 adminFee, uint256 fundedAmount, uint256 kickbackAmount, address indexed originalCreditor);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
@@ -68,7 +68,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         // Approve invoice for factoring
         vm.startPrank(underwriter);
         vm.expectEmit(true, false, false, true);
-        emit InvoiceApproved(invoiceId, block.timestamp + bullaFactoring.approvalDuration(), IBullaFactoringV2.FeeParams({
+        emit InvoiceApproved(invoiceId, block.timestamp + bullaFactoring.approvalDuration(), IBullaFactoringV2_2.FeeParams({
             targetYieldBps: interestApr,
             spreadBps: spreadBps,
             upfrontBps: upfrontBps,
@@ -103,16 +103,16 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
-        // Calculate expected fees
-        (, , uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        // Calculate expected fees (now includes insurance premium)
+        (, , uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice
         vm.startPrank(bob);
         IERC721(address(bullaInvoice)).approve(address(bullaFactoring), invoiceId);
-        
+
         vm.expectEmit(true, false, false, true);
         emit InvoiceFunded(invoiceId, netFundedAmount, bob, _dueBy, upfrontBps, protocolFee, address(bob));
-        
+
         uint256 actualFundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -367,9 +367,10 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         assertGt(fundedAmount1, fundedAmount2, "Higher upfront bps should result in higher funded amount");
 
         // Verify fee calculations reflect the chosen upfront percentage
-        (uint256 fundedAmountGross1, , , , , uint256 netFundedAmount1) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
-        (uint256 fundedAmountGross2, , , , , uint256 netFundedAmount2) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
+        (uint256 fundedAmountGross1, , , , , , uint256 netFundedAmount1) = bullaFactoring.calculateTargetFees(invoiceId1, approvedUpfrontBps);
+        (uint256 fundedAmountGross2, , , , , , uint256 netFundedAmount2) = bullaFactoring.calculateTargetFees(invoiceId2, factorerChosenUpfrontBps);
 
+        // calculateTargetFees now includes insurance premium in total fees
         assertEq(fundedAmount1, netFundedAmount1);
         assertEq(fundedAmount2, netFundedAmount2);
         assertGt(fundedAmountGross1, fundedAmountGross2);
@@ -634,7 +635,7 @@ contract TestBullaInvoiceFactoring is CommonSetup {
         vm.stopPrank();
 
         // Calculate target fees at funding time (t=0)
-        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, ) = 
+        (, uint256 targetAdminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 targetProtocolFee, , ) = 
             bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
 
         // Fund the invoice

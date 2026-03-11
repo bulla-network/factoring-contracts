@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { PermissionsWithAragon } from 'contracts/PermissionsWithAragon.sol';
 import { PermissionsWithSafe } from 'contracts/PermissionsWithSafe.sol';
 import { BullaClaimV2InvoiceProviderAdapterV2 } from 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol';
@@ -20,7 +20,7 @@ import { CommonSetup } from './CommonSetup.t.sol';
 
 contract TestPrincipalAmountOverride is CommonSetup {
     
-    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2.FeeParams feeParams);
+    event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, IBullaFactoringV2_2.FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
     event InvoiceKickbackAmountSent(uint256 indexed invoiceId, uint256 kickbackAmount, address indexed originalCreditor);
 
@@ -119,7 +119,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, overrideAmount);
         vm.stopPrank();
         
-        (uint256 fundedAmountGross, , , , , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
+        (uint256 fundedAmountGross, , , , , , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontPercentage);
         
         // Should be 80% of overrideAmount - fundedAmountGross now includes protocol fee
         uint256 expectedGross = (overrideAmount * upfrontPercentage) / 10000;
@@ -169,7 +169,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         // fundedAmountGross now includes protocol fee: 700000 * 80% = 560000
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, 500000, 560000));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_2.InsufficientFunds.selector, 500000, 560000));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
@@ -433,7 +433,7 @@ contract TestPrincipalAmountOverride is CommonSetup {
         vm.stopPrank();
         
         // Should allow partial exposure to high-risk invoice
-        (,,,,,,,,uint256 initialInvoiceValue,,,,IBullaFactoringV2.FeeParams memory feeParams, ) = bullaFactoring.approvedInvoices(invoiceId);
+        (,,,,,,,,uint256 initialInvoiceValue,,,,IBullaFactoringV2_2.FeeParams memory feeParams, ) = bullaFactoring.approvedInvoices(invoiceId);
         assertEq(initialInvoiceValue, conservativeOverrideAmount);
         assertEq(feeParams.targetYieldBps, higherInterestApr);
         assertEq(feeParams.spreadBps, higherSpreadBps);

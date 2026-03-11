@@ -425,8 +425,8 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.stopPrank();
 
         // Calculate target fees for both invoices
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, ) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, , ) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, , ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
 
         // Protocol fee should be the same regardless of interest rate
         assertApproxEqAbs(targetProtocolFee1, targetProtocolFee2, 1, "Protocol fee should be the same whether interest rate is 10% or 0%");

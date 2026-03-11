@@ -52,8 +52,8 @@ contract DeployBullaFactoringFactory is Script {
             console.log("Using existing BullaClaimInvoiceProviderAdapter:", config.bullaClaimInvoiceProviderAdapterAddress);
         }
 
-        // Compute init bytecode config for BullaFactoringV2_1
-        bytes memory initBytecode = type(BullaFactoringV2_1).creationCode;
+        // Compute init bytecode config for BullaFactoringV2_2
+        bytes memory initBytecode = type(BullaFactoringV2_2).creationCode;
         uint256 initBytecodeLength = initBytecode.length;
         bytes32 expectedInitBytecodeHash = keccak256(initBytecode);
         console.log("- InitBytecodeLength:", initBytecodeLength);

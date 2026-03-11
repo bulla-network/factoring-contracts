@@ -20,4 +20,5 @@ interface IInvoiceProviderAdapterV2 {
     function getInvoiceDetails(uint256 invoiceId) external view returns (Invoice memory);
     function getInvoiceContractAddress(uint256 invoiceId) external view returns (address);
     function getSetPaidInvoiceTarget(uint256 invoiceId) external view returns (address target, bytes4 selector);
+    function getImpairTarget(uint256 invoiceId) external view returns (address target, bytes4 selector);
 }

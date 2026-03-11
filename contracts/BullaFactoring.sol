@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "./interfaces/IInvoiceProviderAdapter.sol";
-import {IBullaFactoringV2} from "./interfaces/IBullaFactoring.sol";
+import {IBullaFactoringV2_2} from "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
@@ -19,7 +19,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 /// @title Bulla Factoring Fund
 /// @author @solidoracle
 /// @notice Bulla Factoring Fund is a ERC4626 compatible fund that allows for the factoring of invoices
-contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
+contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     using Math for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -100,6 +100,15 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @notice Total withheld fees (sum of withheld fees for all active invoices)
     uint256 private withheldFees = 0;
 
+    // ============ Insurance State Variables ============
+    address public insurer;
+    uint16 public insuranceFeeBps;
+    uint16 public impairmentGrossGainBps;
+    uint16 public recoveryProfitRatioBps;
+    uint256 public insuranceBalance;
+    mapping(uint256 => ImpairmentInfo) public impairmentInfo;
+    uint256[] public impairedInvoices;
+
     /// Errors
     error CallerNotUnderwriter();
     error FunctionNotSupported();
@@ -132,13 +141,24 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     error InvoiceCreditorChanged();
     error InvoiceNotPaid();
     error InvoiceNotImpaired();
-    
+    error CallerNotInsurer();
+    error InvoiceAlreadyImpaired();
+    error ImpairmentPriceTooLow();
+    error InsufficientInsuranceFunds(uint256 available, uint256 required);
+    error InvoiceImpairFailed();
+    error ImpairmentGrossGainBpsMustBePositive();
+
+    modifier onlyInsurer() {
+        if (msg.sender != insurer) revert CallerNotInsurer();
+        _;
+    }
+
     /// @param _asset underlying supported stablecoin asset for deposit 
     /// @param _invoiceProviderAdapter adapter for invoice provider
     /// @param _underwriter address of the underwriter
     constructor(
-        IERC20 _asset, 
-        IInvoiceProviderAdapterV2 _invoiceProviderAdapter, 
+        IERC20 _asset,
+        IInvoiceProviderAdapterV2 _invoiceProviderAdapter,
         IBullaFrendLendV2 _bullaFrendLend,
         address _underwriter,
         Permissions _depositPermissions,
@@ -149,11 +169,19 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         uint16 _adminFeeBps,
         string memory _poolName,
         uint16 _targetYieldBps,
-        string memory _tokenName, 
-        string memory _tokenSymbol
+        string memory _tokenName,
+        string memory _tokenSymbol,
+        address _insurer,
+        uint16 _insuranceFeeBps,
+        uint16 _impairmentGrossGainBps,
+        uint16 _recoveryProfitRatioBps
     ) ERC20(_tokenName, _tokenSymbol) ERC4626(_asset) Ownable(_msgSender()) {
         if (_protocolFeeBps < 0 || _protocolFeeBps > 10000) revert InvalidPercentage();
         if (_adminFeeBps < 0 || _adminFeeBps > 10000) revert InvalidPercentage();
+        if (_insuranceFeeBps > 10000) revert InvalidPercentage();
+        if (_impairmentGrossGainBps == 0) revert ImpairmentGrossGainBpsMustBePositive();
+        if (_impairmentGrossGainBps > 10000) revert InvalidPercentage();
+        if (_recoveryProfitRatioBps > 10000) revert InvalidPercentage();
 
         assetAddress = _asset;
         invoiceProviderAdapter = _invoiceProviderAdapter;
@@ -168,8 +196,12 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         creationTimestamp = block.timestamp;
         poolName = _poolName;
         targetYieldBps = _targetYieldBps;
+        insurer = _insurer;
+        insuranceFeeBps = _insuranceFeeBps;
+        impairmentGrossGainBps = _impairmentGrossGainBps;
+        recoveryProfitRatioBps = _recoveryProfitRatioBps;
         redemptionQueue = new RedemptionQueue(msg.sender, address(this));
-        
+
         // Initialize aggregate state tracking
         lastCheckpointTimestamp = block.timestamp;
     }
@@ -375,7 +407,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return trueAdminFee The true admin fee amount
     function calculateKickbackAmount(uint256 invoiceId) external view returns (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         return FeeCalculations.calculateKickbackAmount(approval, invoice);
     }
 
@@ -474,15 +506,16 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
     /// @return targetInterest The calculated interest fee
     /// @return targetSpreadAmount The calculated spread amount
     /// @return protocolFee The protocol fee amount
+    /// @return insurancePremium The insurance premium amount
     /// @return netFundedAmount The net amount that will be funded to the factorer after deducting fees
-    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 netFundedAmount) {
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+    function calculateTargetFees(uint256 invoiceId, uint16 factorerUpfrontBps) public view returns (uint256 fundedAmountGross, uint256 adminFee, uint256 targetInterest, uint256 targetSpreadAmount, uint256 protocolFee, uint256 insurancePremium, uint256 netFundedAmount) {
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
 
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
 
-        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, protocolFeeBps);
+        return FeeCalculations.calculateTargetFees(approval, invoice, factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
     }
 
     /// @notice Registers the reconcile callback with the invoice provider
@@ -503,7 +536,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
         
         // Cache approvedInvoices in memory to reduce storage reads
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         
         if (!approval.approved) revert InvoiceNotApproved();
         if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
@@ -514,10 +547,13 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 insurancePremium, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
 
         // Realize protocol fee immediately at funding time
         protocolFeeBalance += protocolFee;
+
+        // Realize insurance premium at funding time
+        insuranceBalance += insurancePremium;
 
         uint256 _totalAssets = totalAssets();
         // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
@@ -630,26 +666,51 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         if (!invoice.isPaid) revert InvoiceNotPaid();
 
-        // Remove the invoice from activeInvoices array
-        removeActivePaidInvoice(invoiceId);   
-        
-        // calculate kickback amount adjusting for true interest, protocol and admin fees
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
+        ImpairmentInfo memory _impairment = impairmentInfo[invoiceId];
 
-        incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
+        if (_impairment.isImpaired) {
+            // recoveredAmount is the amount paid since impairment, not the full paidAmount
+            uint256 recoveredAmount = invoice.paidAmount - _impairment.paidAmountAtImpairment;
 
-        address receiverAddress = approval.receiverAddress;
-        
-        if (kickbackAmount != 0) {
-            assetAddress.safeTransfer(receiverAddress, kickbackAmount);
-            emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
+            // Insurance gets back purchasePrice first, then excess is split
+            uint256 excess = recoveredAmount > _impairment.purchasePrice ? recoveredAmount - _impairment.purchasePrice : 0;
+            uint256 investorShare = Math.mulDiv(excess, recoveryProfitRatioBps, 10000);
+            uint256 insuranceShare = recoveredAmount - investorShare;
+
+            insuranceBalance += insuranceShare;
+            paidInvoicesGain += investorShare;
+
+            emit InsuranceRecovered(invoiceId, insuranceShare);
+
+            for (uint256 i = 0; i < impairedInvoices.length; i++) {
+                if (impairedInvoices[i] == invoiceId) {
+                    impairedInvoices[i] = impairedInvoices[impairedInvoices.length - 1];
+                    impairedInvoices.pop();
+                    break;
+                }
+            }
+
+            processRedemptionQueue();
+            emit ImpairedInvoiceReconciled(invoiceId, recoveredAmount, insuranceShare, investorShare);
+        } else {
+            removeActivePaidInvoice(invoiceId);
+
+            IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+            (uint256 kickbackAmount, uint256 trueInterest, uint256 trueSpreadAmount, uint256 trueAdminFee) = FeeCalculations.calculateKickbackAmount(approval, invoice);
+
+            incrementProfitAndFeeBalances(trueInterest, trueSpreadAmount, trueAdminFee);
+
+            address receiverAddress = approval.receiverAddress;
+
+            if (kickbackAmount != 0) {
+                assetAddress.safeTransfer(receiverAddress, kickbackAmount);
+                emit InvoiceKickbackAmountSent(invoiceId, kickbackAmount, receiverAddress);
+            }
+
+            processRedemptionQueue();
+
+            emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
         }
-        
-        // Process redemption queue after reconciliation due to capital returning to pool
-        processRedemptionQueue();
-        
-        emit InvoicePaid(invoiceId, trueInterest, trueSpreadAmount, trueAdminFee, approval.fundedAmountNet, kickbackAmount, receiverAddress);
     }
 
 
@@ -731,7 +792,7 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         
         if (invoice.isPaid) revert InvoiceAlreadyPaid();
 
-        IBullaFactoringV2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         uint256 paymentSinceFunding = invoice.paidAmount - approval.initialPaidAmount;
         
         // Calculate fees and amounts
@@ -970,8 +1031,72 @@ contract BullaFactoringV2_1 is IBullaFactoringV2, ERC20, ERC4626, Ownable {
         emit TargetYieldChanged(_targetYieldBps);
     }
 
-    /// @notice Retrieves the fund information
-    /// @return FundInfo The fund information
+    function setInsurer(address _newInsurer) external onlyOwner {
+        address oldInsurer = insurer;
+        insurer = _newInsurer;
+        emit InsurerChanged(oldInsurer, _newInsurer);
+    }
+
+    function setInsuranceParams(uint16 _insuranceFeeBps, uint16 _impairmentGrossGainBps, uint16 _recoveryProfitRatioBps) external onlyOwner {
+        if (_insuranceFeeBps > 10000) revert InvalidPercentage();
+        if (_impairmentGrossGainBps == 0) revert ImpairmentGrossGainBpsMustBePositive();
+        if (_impairmentGrossGainBps > 10000) revert InvalidPercentage();
+        if (_recoveryProfitRatioBps > 10000) revert InvalidPercentage();
+        insuranceFeeBps = _insuranceFeeBps;
+        impairmentGrossGainBps = _impairmentGrossGainBps;
+        recoveryProfitRatioBps = _recoveryProfitRatioBps;
+        emit InsuranceParamsChanged(_insuranceFeeBps, _impairmentGrossGainBps, _recoveryProfitRatioBps);
+    }
+
+    function withdrawInsuranceBalance() external onlyInsurer {
+        uint256 amount = insuranceBalance;
+        insuranceBalance = 0;
+        assetAddress.safeTransfer(insurer, amount);
+        emit InsuranceWithdrawn(insurer, amount);
+    }
+
+    function previewImpair(uint256 invoiceId) public view returns (
+        uint256 outstandingBalance,
+        uint256 impairmentGrossGain,
+        uint256 adminFeeOwed,
+        uint256 impairmentNetGain,
+        uint256 outOfPocketCost,
+        uint256 currentPaidAmount
+    ) {
+        IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
+        currentPaidAmount = invoice.paidAmount;
+        outstandingBalance = invoice.invoiceAmount - invoice.paidAmount;
+        impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
+        uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
+        (, , adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
+        impairmentNetGain = impairmentGrossGain > adminFeeOwed ? impairmentGrossGain - adminFeeOwed : 0;
+        outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
+    }
+
+    function impairInvoice(uint256 invoiceId) external onlyInsurer {
+        if (impairmentInfo[invoiceId].isImpaired) revert InvoiceAlreadyImpaired();
+        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, uint256 _outOfPocketCost, uint256 currentPaidAmount) = previewImpair(invoiceId);
+        removeActivePaidInvoice(invoiceId);
+        (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
+        (bool success, ) = target.call(abi.encodeWithSelector(selector, invoiceId));
+        if (!success) revert InvoiceImpairFailed();
+        insuranceBalance -= (_impairmentGrossGain - _outOfPocketCost);
+        if (_outOfPocketCost > 0) {
+            assetAddress.safeTransferFrom(insurer, address(this), _outOfPocketCost);
+        }
+        adminFeeBalance += adminFeeOwed;
+        paidInvoicesGain += _impairmentNetGain;
+        impairmentInfo[invoiceId] = ImpairmentInfo({
+            isImpaired: true,
+            purchasePrice: _impairmentGrossGain,
+            paidAmountAtImpairment: currentPaidAmount
+        });
+        impairedInvoices.push(invoiceId);
+        processRedemptionQueue();
+        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain, _impairmentNetGain);
+    }
+
     function getFundInfo() external view returns (FundInfo memory) {
         uint256 capitalAccount = calculateCapitalAccount();
         uint256 fundBalance = capitalAccount - capitalAtRiskPlusWithheldFees;

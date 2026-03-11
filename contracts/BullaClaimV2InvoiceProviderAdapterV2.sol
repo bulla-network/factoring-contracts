@@ -151,4 +151,17 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
             revert UnknownClaimType();
         }
     }
+
+    function getImpairTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
+        address controller = _getCachedController(invoiceId);
+        if (controller == address(0)) {
+            return (address(bullaClaimV2), IBullaClaimCore.impairClaim.selector);
+        } else if (controller == address(bullaFrendLend)) {
+            return (address(bullaFrendLend), IBullaFrendLendV2.impairLoan.selector);
+        } else if (controller == address(bullaInvoice)) {
+            return (address(bullaInvoice), IBullaInvoice.impairInvoice.selector);
+        } else {
+            revert UnknownClaimType();
+        }
+    }
 }

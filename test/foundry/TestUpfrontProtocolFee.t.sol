@@ -44,7 +44,7 @@ contract TestUpfrontProtocolFee is CommonSetup {
         assertTrue(protocolFeeBalanceAfter > 0, "Protocol fee balance should be > 0 after funding");
 
         // Verify the protocol fee amount is correct
-        (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 expectedProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         assertEq(protocolFeeBalanceAfter, expectedProtocolFee, "Protocol fee balance should match calculated protocol fee");
     }
 

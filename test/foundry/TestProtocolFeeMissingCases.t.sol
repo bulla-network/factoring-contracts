@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import 'forge-std/Test.sol';
-import { BullaFactoringV2_1 } from 'contracts/BullaFactoring.sol';
+import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { MockUSDC } from 'contracts/mocks/MockUSDC.sol';
 import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
@@ -35,39 +35,47 @@ contract TestProtocolFeeMissingCases is CommonSetup {
     function testConstructorProtocolFeeValidation() public {
         // Test constructor validation with invalid protocol fee rates
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        new BullaFactoringV2_1(
-            asset, 
-            invoiceAdapterBulla, 
-            bullaFrendLend, 
-            underwriter, 
-            depositPermissions, 
-            redeemPermissions, 
-            factoringPermissions, 
-            bullaDao, 
+        new BullaFactoringV2_2(
+            asset,
+            invoiceAdapterBulla,
+            bullaFrendLend,
+            underwriter,
+            depositPermissions,
+            redeemPermissions,
+            factoringPermissions,
+            bullaDao,
             10001, // Invalid protocol fee > 100%
-            adminFeeBps, 
-            poolName, 
-            targetYield, 
-            poolTokenName, 
-            poolTokenSymbol
+            adminFeeBps,
+            poolName,
+            targetYield,
+            poolTokenName,
+            poolTokenSymbol,
+            address(0x1999),
+            uint16(100),
+            uint16(500),
+            uint16(5000)
         );
         
         // Test constructor with maximum valid rate (should succeed)
-        BullaFactoringV2_1 validFactoring = new BullaFactoringV2_1(
-            asset, 
-            invoiceAdapterBulla, 
-            bullaFrendLend, 
-            underwriter, 
-            depositPermissions, 
-            redeemPermissions, 
-            factoringPermissions, 
-            bullaDao, 
+        BullaFactoringV2_2 validFactoring = new BullaFactoringV2_2(
+            asset,
+            invoiceAdapterBulla,
+            bullaFrendLend,
+            underwriter,
+            depositPermissions,
+            redeemPermissions,
+            factoringPermissions,
+            bullaDao,
             10000, // Valid maximum protocol fee = 100%
-            adminFeeBps, 
-            poolName, 
-            targetYield, 
-            poolTokenName, 
-            poolTokenSymbol
+            adminFeeBps,
+            poolName,
+            targetYield,
+            poolTokenName,
+            poolTokenSymbol,
+            address(0x1999),
+            uint16(100),
+            uint16(500),
+            uint16(5000)
         );
         
         assertEq(validFactoring.protocolFeeBps(), 10000, "Constructor should accept maximum valid protocol fee rate");
@@ -134,7 +142,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 expectedProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
@@ -182,12 +190,12 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
         // Calculate required funds including protocol fee
-        (uint256 fundedAmountGross, , , , , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (uint256 fundedAmountGross, , , , , , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         // fundedAmountGross now includes protocol fee
         uint256 totalRequired = fundedAmountGross;
         uint256 availableFunds = bullaFactoring.totalAssets();
         
-        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_1.InsufficientFunds.selector, availableFunds, totalRequired));
+        vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_2.InsufficientFunds.selector, availableFunds, totalRequired));
         bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
@@ -212,7 +220,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         // fundedAmountGross now includes protocol fee
         uint256 totalRequired = fundedAmountGross;
         uint256 availableFunds = bullaFactoring.totalAssets();
@@ -239,7 +247,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
-        (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         // Protocol fee on 1 wei should be 0 due to rounding down
         assertEq(protocolFee, 0, "Protocol fee on dust amount should be 0");
@@ -273,7 +281,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
-            (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+            (, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
             uint256 expectedFee = (testAmounts[i] * protocolFeeBps) / 10000;
             
             assertEq(protocolFee, expectedFee, "Protocol fee should match expected calculation");
@@ -306,7 +314,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
-        (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         uint256 expectedFee = (invoiceAmount * originalRate) / 10000;
         
         assertEq(protocolFee, expectedFee, "Protocol fee should use current (rolled back) rate");
@@ -493,7 +501,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
-            (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+            (, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
             uint256 expectedFee = (invoiceAmount * testBasisPoints[i]) / 10000;
             
             assertEq(protocolFee, expectedFee, "Protocol fee precision should be exact for various basis points");
@@ -517,7 +525,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
-            (, , , , uint256 protocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+            (, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
             totalExpectedFees += protocolFee;
             
             vm.startPrank(bob);
@@ -567,7 +575,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         // Calculate expected protocol fee
-        (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 expectedProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         assertTrue(expectedProtocolFee > 0, "Protocol fee should be non-zero for this test");
         
         // Fund the invoice (protocol fee NOT collected at funding time anymore)
@@ -616,7 +624,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         uint256 bobNetGainFromFunding = bobBalanceAfterFunding - bobBalanceInitial;
         
         // The unfactoring payment should be at least the net funded amount plus fees (including implicit protocol fee coverage)
-        (, , , , , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , , , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         assertTrue(unfactoringPayment >= netFundedAmount, "Unfactoring payment should at least cover net funded amount");
         
         
@@ -673,7 +681,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
-        (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 expectedProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -702,7 +710,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         assertGe(capitalAccountAfter, capitalAccountBefore, "Capital account should not decrease and may increase due to earned interest");
         
         // The unfactoring payment should be larger due to accrued interest and fees
-        (, , , , , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , , , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         assertTrue(unfactoringPayment > netFundedAmount, "Unfactoring payment should exceed net funded amount due to accrued interest and fees");
         
         // CRITICAL INSIGHT: With accrued interest, Bob pays MORE than he received (due to time cost of capital)
@@ -825,7 +833,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         vm.stopPrank();
         
         // Calculate expected fees
-        (, , , , uint256 expectedProtocolFee, uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, , , , uint256 expectedProtocolFee, , uint256 netFundedAmount) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         
         emit log_named_uint("Expected Protocol Fee", expectedProtocolFee);
         emit log_named_uint("Net Amount to Creditor", netFundedAmount);
@@ -1061,7 +1069,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
             vm.stopPrank();
             
             // Calculate expected protocol fee
-            (, , , , uint256 expectedProtocolFee, ) = bullaFactoring.calculateTargetFees(invoiceIds[i], upfrontBps);
+            (, , , , uint256 expectedProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceIds[i], upfrontBps);
             totalExpectedProtocolFees += expectedProtocolFee;
             
             vm.startPrank(bob);
