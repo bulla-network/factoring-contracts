@@ -253,7 +253,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         LoanRequestParams memory loanRequestParams = LoanRequestParams({
             termLength: termLength,
             interestConfig: InterestConfig({
-                interestRateBps: _targetYieldBps + spreadBps + adminFeeBps + protocolFeeBps,
+                interestRateBps: _targetYieldBps + spreadBps + adminFeeBps,
                 numberOfPeriodsPerYear: numberOfPeriodsPerYear
             }),
             loanAmount: principalAmount,
