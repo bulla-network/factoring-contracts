@@ -29,11 +29,11 @@ contract TestRedemptionQueueOversizedRequest is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // Get remaining liquidity after invoice funding
@@ -69,11 +69,11 @@ contract TestRedemptionQueueOversizedRequest is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // Get Alice's max assets (what her shares are worth)

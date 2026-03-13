@@ -38,12 +38,12 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Pay invoice
@@ -91,12 +91,12 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Pay invoice
@@ -144,12 +144,12 @@ contract TestReconciliationOfPaidInvoices is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Pay invoice

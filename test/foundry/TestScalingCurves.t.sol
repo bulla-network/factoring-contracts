@@ -38,12 +38,12 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(bob);
         uint256 id = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0);
+        _approveInvoice(id, 500, 300, 10000, 0);
         vm.prank(bob);
         IERC721(address(bullaClaim)).approve(address(bullaFactoring), id);
         uint256 g = gasleft();
         vm.prank(bob);
-        bullaFactoring.fundInvoice(id, 10000, address(0));
+        _fundInvoice(id, 10000, address(0));
         dataPoints[0] = g - gasleft();
 
         // Get to 10
@@ -53,7 +53,7 @@ contract TestScalingCurves is CommonSetup {
         id = _approveOneInvoice(invoiceAmount);
         g = gasleft();
         vm.prank(bob);
-        bullaFactoring.fundInvoice(id, 10000, address(0));
+        _fundInvoice(id, 10000, address(0));
         dataPoints[1] = g - gasleft();
 
         // Get to 50
@@ -63,7 +63,7 @@ contract TestScalingCurves is CommonSetup {
         id = _approveOneInvoice(invoiceAmount);
         g = gasleft();
         vm.prank(bob);
-        bullaFactoring.fundInvoice(id, 10000, address(0));
+        _fundInvoice(id, 10000, address(0));
         dataPoints[2] = g - gasleft();
 
         // Get to 100
@@ -73,7 +73,7 @@ contract TestScalingCurves is CommonSetup {
         id = _approveOneInvoice(invoiceAmount);
         g = gasleft();
         vm.prank(bob);
-        bullaFactoring.fundInvoice(id, 10000, address(0));
+        _fundInvoice(id, 10000, address(0));
         dataPoints[3] = g - gasleft();
 
         // Get to 200
@@ -83,7 +83,7 @@ contract TestScalingCurves is CommonSetup {
         id = _approveOneInvoice(invoiceAmount);
         g = gasleft();
         vm.prank(bob);
-        bullaFactoring.fundInvoice(id, 10000, address(0));
+        _fundInvoice(id, 10000, address(0));
         dataPoints[4] = g - gasleft();
 
         console.log("\nData Points:");
@@ -378,18 +378,18 @@ contract TestScalingCurves is CommonSetup {
         vm.prank(bob);
         uint256 id = createClaim(bob, alice, amount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0);
+        _approveInvoice(id, 500, 300, 10000, 0);
         vm.prank(bob);
         IERC721(address(bullaClaim)).approve(address(bullaFactoring), id);
         vm.prank(bob);
-        bullaFactoring.fundInvoice(id, 10000, address(0));
+        _fundInvoice(id, 10000, address(0));
     }
 
     function _approveOneInvoice(uint256 amount) internal returns (uint256) {
         vm.prank(bob);
         uint256 id = createClaim(bob, alice, amount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(id, 500, 300, 10000, 0);
+        _approveInvoice(id, 500, 300, 10000, 0);
         vm.prank(bob);
         IERC721(address(bullaClaim)).approve(address(bullaFactoring), id);
         return id;

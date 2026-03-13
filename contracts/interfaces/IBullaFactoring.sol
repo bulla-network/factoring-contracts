@@ -65,6 +65,20 @@ interface IBullaFactoringV2_2 {
         uint256 paidAmountAtImpairment;
     }
 
+    struct ApproveInvoiceParams {
+        uint256 invoiceId;
+        uint16 targetYieldBps;
+        uint16 spreadBps;
+        uint16 upfrontBps;
+        uint256 initialInvoiceValueOverride;
+    }
+
+    struct FundInvoiceParams {
+        uint256 invoiceId;
+        uint16 factorerUpfrontBps;
+        uint8 receiverAddressIndex;
+    }
+
     // Events
     event InvoiceApproved(uint256 indexed invoiceId, uint256 validUntil, FeeParams feeParams);
     event InvoiceFunded(uint256 indexed invoiceId, uint256 fundedAmount, address indexed originalCreditor, uint256 dueDate, uint16 upfrontBps, uint256 protocolFee, address fundsReceiver);
@@ -96,9 +110,9 @@ interface IBullaFactoringV2_2 {
     event ImpairedInvoiceReconciled(uint256 indexed invoiceId, uint256 amountRecovered, uint256 insuranceShare, uint256 investorShare);
 
     // Functions
-    function approveInvoice(uint256 invoiceId, uint16 _interestApr, uint16 _spreadBps, uint16 _upfrontBps, uint256 _principalAmountOverride) external;
+    function approveInvoices(ApproveInvoiceParams[] calldata params) external;
     function pricePerShare() external view returns (uint256);
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns (uint256);
+    function fundInvoices(FundInvoiceParams[] calldata params, address[] calldata receiverAddresses) external returns (uint256[] memory);
     function viewPoolStatus(uint256 offset, uint256 limit) external view returns (uint256[] memory impairedInvoiceIds, bool hasMore);
     function reconcileSingleInvoice(uint256 invoiceId) external;
     function setGracePeriodDays(uint256 _days) external;

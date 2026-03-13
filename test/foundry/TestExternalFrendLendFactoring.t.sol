@@ -124,13 +124,13 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Underwriter approves the loan for factoring
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 200, 8000, 0); // 7.3% yield, 2% spread, 80% upfront, 7 days min
+        _approveInvoice(loanId, 730, 200, 8000, 0); // 7.3% yield, 2% spread, 80% upfront, 7 days min
         vm.stopPrank();
         
         // Bob factors the loan
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(loanId, 8000, address(0));
+        uint256 fundedAmount = _fundInvoice(loanId, 8000, address(0));
         vm.stopPrank();
         
         assertGt(fundedAmount, 0, "Should have funded the loan");
@@ -222,8 +222,8 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve both loans for factoring with identical terms
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId1, 730, 300, 7500, 0); // 7.3% target yield, 3% spread, 75% upfront
-        bullaFactoring.approveInvoice(loanId2, 730, 300, 7500, 0); // Identical factoring terms
+        _approveInvoice(loanId1, 730, 300, 7500, 0); // 7.3% target yield, 3% spread, 75% upfront
+        _approveInvoice(loanId2, 730, 300, 7500, 0); // Identical factoring terms
         vm.stopPrank();
         
         // Record protocol fee balance before funding to verify upfront realization
@@ -233,11 +233,11 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId1);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId2);
-        uint256 fundedAmount1 = bullaFactoring.fundInvoice(loanId1, 7500, address(0));
+        uint256 fundedAmount1 = _fundInvoice(loanId1, 7500, address(0));
 
         uint256 protocolFeeAfterLoan1Funding = bullaFactoring.protocolFeeBalance();
 
-        uint256 fundedAmount2 = bullaFactoring.fundInvoice(loanId2, 7500, address(0));
+        uint256 fundedAmount2 = _fundInvoice(loanId2, 7500, address(0));
         vm.stopPrank();
 
         uint256 protocolFeeAfterBothFunded = bullaFactoring.protocolFeeBalance();
@@ -345,12 +345,12 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve and factor the loan
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 300, 7500, 0); // 10 days minimum
+        _approveInvoice(loanId, 730, 300, 7500, 0); // 10 days minimum
         vm.stopPrank();
         
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        bullaFactoring.fundInvoice(loanId, 7500, address(0));
+        _fundInvoice(loanId, 7500, address(0));
         vm.stopPrank();
         
         // Fast forward 20 days (early payment - less interest accrued)
@@ -404,12 +404,12 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve and factor the loan
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 365, 150, 6000, 0); // 3.65% yield, 1.5% spread, 60% upfront, 5 days min
+        _approveInvoice(loanId, 365, 150, 6000, 0); // 3.65% yield, 1.5% spread, 60% upfront, 5 days min
         vm.stopPrank();
         
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        bullaFactoring.fundInvoice(loanId, 6000, address(0));
+        _fundInvoice(loanId, 6000, address(0));
         vm.stopPrank();
         
         // Fast forward 15 days
@@ -468,12 +468,12 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve and factor the loan
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 400, 7000, 0); // 14 days minimum
+        _approveInvoice(loanId, 730, 400, 7000, 0); // 14 days minimum
         vm.stopPrank();
         
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
-        bullaFactoring.fundInvoice(loanId, 7000, address(0));
+        _fundInvoice(loanId, 7000, address(0));
         vm.stopPrank();
         
         // Fast forward 10 days
@@ -516,9 +516,9 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         
         // Approve all loans for factoring
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId1, 730, 200, 8000, 0);
-        bullaFactoring.approveInvoice(loanId2, 730, 200, 8000, 0);
-        bullaFactoring.approveInvoice(loanId3, 730, 200, 8000, 0);
+        _approveInvoice(loanId1, 730, 200, 8000, 0);
+        _approveInvoice(loanId2, 730, 200, 8000, 0);
+        _approveInvoice(loanId3, 730, 200, 8000, 0);
         vm.stopPrank();
         
         // Factor all loans
@@ -527,9 +527,9 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId2);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId3);
         
-        uint256 fundedAmount1 = bullaFactoring.fundInvoice(loanId1, 8000, address(0));
-        uint256 fundedAmount2 = bullaFactoring.fundInvoice(loanId2, 8000, address(0));
-        uint256 fundedAmount3 = bullaFactoring.fundInvoice(loanId3, 8000, address(0));
+        uint256 fundedAmount1 = _fundInvoice(loanId1, 8000, address(0));
+        uint256 fundedAmount2 = _fundInvoice(loanId2, 8000, address(0));
+        uint256 fundedAmount3 = _fundInvoice(loanId3, 8000, address(0));
         vm.stopPrank();
         
         // All loans should be funded with identical amounts
@@ -601,29 +601,29 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         vm.startPrank(bob);
         IERC721(address(bullaFrendLend)).approve(address(bullaFactoring), loanId);
         vm.expectRevert(abi.encodeWithSignature("InvoiceNotApproved()"));
-        bullaFactoring.fundInvoice(loanId, 8000, address(0));
+        _fundInvoiceExpectRevert(loanId, 8000, address(0));
         vm.stopPrank();
         
         // Approve with invalid upfront percentage
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(loanId, 730, 200, 8000, 0);
+        _approveInvoice(loanId, 730, 200, 8000, 0);
         vm.stopPrank();
         
         // Try to factor with too high upfront percentage - should fail
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        bullaFactoring.fundInvoice(loanId, 9000, address(0)); // 90% > 80% approved
+        _fundInvoiceExpectRevert(loanId, 9000, address(0));
         vm.stopPrank();
         
         // Try to factor with zero upfront percentage - should fail
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        bullaFactoring.fundInvoice(loanId, 0, address(0));
+        _fundInvoiceExpectRevert(loanId, 0, address(0));
         vm.stopPrank();
         
         // Factor successfully
         vm.startPrank(bob);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(loanId, 8000, address(0));
+        uint256 fundedAmount = _fundInvoice(loanId, 8000, address(0));
         vm.stopPrank();
         
         assertGt(fundedAmount, 0, "Should have funded the loan");
@@ -631,7 +631,7 @@ contract TestExternalFrendLendFactoring is CommonSetup {
         // Try to factor again - should fail since creditor changed
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvoiceCreditorChanged()"));
-        bullaFactoring.fundInvoice(loanId, 8000, address(0));
+        _fundInvoiceExpectRevert(loanId, 8000, address(0));
         vm.stopPrank();
     }
     

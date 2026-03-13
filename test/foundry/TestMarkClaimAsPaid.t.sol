@@ -50,7 +50,7 @@ contract TestMarkClaimAsPaid is CommonSetup {
         // Step 4: Underwriter approves
         vm.prank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyPaid()"));
-        bullaFactoring.approveInvoice(claimId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(claimId, interestApr, spreadBps, upfrontBps, 0);
 
         uint256 attackerBalanceAfter = asset.balanceOf(attacker);
         uint256 poolBalanceAfter = asset.balanceOf(address(bullaFactoring));
@@ -81,7 +81,7 @@ contract TestMarkClaimAsPaid is CommonSetup {
 
         // Step 3: Underwriter approves
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(claimId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(claimId, interestApr, spreadBps, upfrontBps, 0);
 
         // Step 4: Attacker marks claim as paid (frontrunning the approval)
         vm.prank(attacker);
@@ -95,7 +95,7 @@ contract TestMarkClaimAsPaid is CommonSetup {
         vm.startPrank(attacker);
         bullaClaim.approve(address(bullaFactoring), claimId);
         vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyPaid()"));
-        bullaFactoring.fundInvoice(claimId, upfrontBps, attacker);
+        _fundInvoiceExpectRevert(claimId, upfrontBps, attacker);
 
         uint256 attackerBalanceAfter = asset.balanceOf(attacker);
         uint256 poolBalanceAfter = asset.balanceOf(address(bullaFactoring));

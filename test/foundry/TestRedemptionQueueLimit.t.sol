@@ -51,11 +51,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 95000, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Queue redemption
@@ -80,11 +80,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 95000, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Queue redemption
@@ -117,11 +117,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 95000, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Queue redemption
@@ -161,11 +161,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 98000, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Queue 2 redemptions from existing balance
@@ -214,11 +214,11 @@ contract TestRedemptionQueueLimit is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 95000, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Queue one redemption

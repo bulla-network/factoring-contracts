@@ -120,12 +120,12 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(alice);
         uint256 invoiceId = createClaim(alice, bob, invoiceAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(alice);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(alice);
-        bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
+        _fundInvoice(invoiceId, 8000, address(0));
         
         // Alice attempts to redeem more than available - should partially redeem and queue
         vm.recordLogs();
@@ -153,12 +153,12 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, depositAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 10000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
+        _fundInvoice(invoiceId, 10000, address(0));
 
         // Alice attempts to redeem - should queue all shares
         vm.expectEmit(true, true, false, true);
@@ -203,12 +203,12 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
+        _fundInvoice(invoiceId, 8000, address(0));
         
         // Alice attempts to withdraw more than available - should partially withdraw and queue
         vm.recordLogs();
@@ -235,12 +235,12 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, depositAmount, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 10000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
+        _fundInvoice(invoiceId, 10000, address(0));
         
         vm.recordLogs();
         vm.expectEmit(true, true, false, true);
@@ -275,11 +275,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(david);
         uint256 invoiceId = createClaim(david, eve, 2500000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 10000, 0);
         vm.prank(david);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(david);
-        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
+        _fundInvoice(invoiceId, 10000, address(0));
         
         // Users queue redemptions in order: Alice, Bob, Charlie
         vm.prank(alice);
@@ -381,11 +381,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 9000, 0);
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
+        _fundInvoice(invoiceId, 9000, address(0));
         
         vm.prank(alice);
         bullaFactoring.redeem(queueAmount, alice, alice);
@@ -425,11 +425,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, 800000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 9000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 9000, 0);
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 9000, address(0));
+        _fundInvoice(invoiceId, 9000, address(0));
         
         vm.recordLogs();
         vm.prank(alice);
@@ -464,11 +464,11 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         vm.prank(david);
         uint256 invoiceId = createClaim(david, eve, 2500000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 10000, 0);
         vm.prank(david);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(david);
-        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
+        _fundInvoice(invoiceId, 10000, address(0));
         
         // Mixed redemption types
         vm.prank(alice);
