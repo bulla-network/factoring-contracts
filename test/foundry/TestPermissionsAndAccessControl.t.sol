@@ -26,12 +26,12 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         uint256 InvoiceId = createClaim(userWithoutPermissions, alice, invoiceId01Amount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(InvoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(InvoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(userWithoutPermissions);
         bullaClaim.approve(address(bullaFactoring), InvoiceId);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", userWithoutPermissions));
-        bullaFactoring.fundInvoice(InvoiceId, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(InvoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -103,19 +103,19 @@ contract TestPermissionsAndAccessControl is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Underwriter approves the invoice again
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyFunded()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
     }
 }

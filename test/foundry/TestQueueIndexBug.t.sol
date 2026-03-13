@@ -71,11 +71,11 @@ contract TestQueueIndexBug is CommonSetup {
         vm.prank(alice_investor);
         uint256 invoiceId = createClaim(alice_investor, bob_investor, 1000000, dueBy);
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 10000, 0);
         vm.prank(alice_investor);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(alice_investor);
-        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
+        _fundInvoice(invoiceId, 10000, address(0));
         
         console.log("Available liquidity after deployment:", bullaFactoring.maxRedeem());
         

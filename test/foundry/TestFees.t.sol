@@ -36,11 +36,11 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Check initial balances
@@ -87,11 +87,11 @@ contract TestFees is CommonSetup {
         uint invoiceId01Amount = 100000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -99,10 +99,10 @@ contract TestFees is CommonSetup {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -146,26 +146,26 @@ contract TestFees is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, 10000, 0); // 100% upfront
+        _approveInvoice(invoiceId1, interestApr, spreadBps, 10000, 0); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
         (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, , ) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
-        bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
+        _fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
         // Create and fund second invoice with 50% upfront
         vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, 10000, 0); // Approve with 100% max but fund with 50%
+        _approveInvoice(invoiceId2, interestApr, spreadBps, 10000, 0); // Approve with 100% max but fund with 50%
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
         (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, , ) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
-        bullaFactoring.fundInvoice(invoiceId2, 5000, address(0));
+        _fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
@@ -213,13 +213,13 @@ contract TestFees is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0); // 100% upfront
+        _approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
         (, uint256 targetAdminFee1, , , , , ) = bullaFactoring.calculateTargetFees(invoiceId1, upfrontBps);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
+        _fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
 
@@ -236,13 +236,13 @@ contract TestFees is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate2);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
         (, uint256 targetAdminFee2, , , , , ) = bullaFactoring.calculateTargetFees(invoiceId2, upfrontBps);
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        _fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
         assertEq(targetAdminFee2, targetAdminFee1, "Admin fee should be the same");
@@ -266,11 +266,11 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // alice pays invoice
@@ -322,11 +322,11 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // alice pays invoice
@@ -366,11 +366,11 @@ contract TestFees is CommonSetup {
         vm.stopPrank();
         vm.startPrank(underwriter);
         uint16 zeroSpreadBps = 0;
-        bullaFactoring.approveInvoice(invoiceId, interestApr, zeroSpreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, zeroSpreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // alice pays invoice
@@ -409,11 +409,11 @@ contract TestFees is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.stopPrank();
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, bullaFactoring.targetYieldBps(), spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, bullaFactoring.targetYieldBps(), spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // alice pays invoice

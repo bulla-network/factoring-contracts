@@ -34,11 +34,11 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint invoiceId01Amount = 100000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -46,10 +46,10 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         uint factorerBalanceAfterFactoring = asset.balanceOf(bob);
@@ -86,11 +86,11 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint invoiceId01Amount = 1000000;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -110,11 +110,11 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint invoiceId02Amount = 2000000;
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -142,11 +142,11 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint invoiceId01Amount = 500000; // 0.5 USDC
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward time by 30 days
@@ -175,11 +175,11 @@ contract TestPricePerShareCalculations is CommonSetup {
         uint invoiceId02Amount = 1000000; // 1 USDC
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward time by 30 days

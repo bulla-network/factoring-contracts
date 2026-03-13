@@ -33,7 +33,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint256 incorrectInvoiceId = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % 10000000000;
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("NotMinted()"));
-        bullaFactoring.approveInvoice(incorrectInvoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(incorrectInvoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
     }
 
@@ -49,7 +49,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
         vm.expectRevert(abi.encodeWithSignature("InvoiceNotApproved()"));
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -65,12 +65,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.warp(block.timestamp + 2 hours);
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("ApprovalExpired()"));
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -86,12 +86,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.cancelClaim(invoiceId, "");
         vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -99,7 +99,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -108,7 +108,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvoiceCanceled()"));
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -124,7 +124,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(alice);
@@ -134,7 +134,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvoiceAlreadyPaid()"));
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -150,7 +150,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
@@ -159,7 +159,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSignature("InvoiceCreditorChanged()"));
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -176,11 +176,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId01Amount = 100;
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days
@@ -201,11 +201,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId03Amount = 100;
         uint256 invoiceId03 = createClaim(bob, alice, invoiceId03Amount, dueByNew);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId03, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId03);
-        bullaFactoring.fundInvoice(invoiceId03, upfrontBps, address(0));
+        _fundInvoice(invoiceId03, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward time by 900 days to simulate interest rate cap
@@ -241,13 +241,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
@@ -287,11 +287,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId01Amount = 500000; // 0.5 USDC
         uint256 invoiceId01 = createClaim(bob, alice, invoiceId01Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward time by 30 days
@@ -310,11 +310,11 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint invoiceId02Amount = 1000000; // 1 USDC
         uint256 invoiceId02 = createClaim(bob, alice, invoiceId02Amount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoice(invoiceId02, upfrontBps, address(0));
         vm.stopPrank();
 
         uint priceBeforeRedeem = bullaFactoring.pricePerShare();
@@ -372,12 +372,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, 0, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, 0, 0);
         vm.stopPrank();
 
         vm.startPrank(underwriter);
         vm.expectRevert(abi.encodeWithSignature("InvalidPercentage()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, 10001, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, 10001, 0);
         vm.stopPrank();
     }
 
@@ -393,7 +393,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(alice);
         vm.expectRevert(abi.encodeWithSignature("CallerNotUnderwriter()"));
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(address(this));
@@ -401,7 +401,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(alice);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
     }
 
@@ -447,13 +447,13 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
+        _fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
         vm.startPrank(address(this));
@@ -470,14 +470,14 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedFactoring(address)", bob));
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        _fundInvoiceExpectRevert(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
     }
 
@@ -493,12 +493,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId01, targetYield, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId01, targetYield, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId01);
-        bullaFactoring.fundInvoice(invoiceId01, upfrontBps, address(0));
+        _fundInvoice(invoiceId01, upfrontBps, address(0));
         vm.stopPrank();
 
         // set new fees higher than initial fees
@@ -513,12 +513,12 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId02, newTargetYield, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId02, newTargetYield, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId02);
-        bullaFactoring.fundInvoice(invoiceId02, upfrontBps, address(0));
+        _fundInvoice(invoiceId02, upfrontBps, address(0));
         (, uint targetAdminFeeAfterFeeChange, , uint targetSpreadAfterFeeChange, uint targetProtocolFeeAfterFeeChange, , ) = bullaFactoring.calculateTargetFees(invoiceId02, upfrontBps);
         vm.stopPrank();
 

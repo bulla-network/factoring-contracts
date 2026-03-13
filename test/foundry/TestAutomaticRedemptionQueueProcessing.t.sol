@@ -53,11 +53,11 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         invoiceId = createClaim(bob, alice, 90000, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // 3. Alice tries to redeem all shares - should queue
@@ -111,11 +111,11 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         uint256 invoiceId = createClaim(charlie, alice, 180000, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, 10000, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, 10000, 0);
         
         vm.startPrank(charlie);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // 3. Both Alice and Bob queue redemptions
@@ -202,11 +202,11 @@ contract TestAutomaticRedemptionQueueProcessing is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, 90000, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // Both investors queue redemptions

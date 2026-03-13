@@ -349,18 +349,22 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         emit InvoiceFunded(loanId, pendingLoanOffer.principalAmount, address(this), block.timestamp + pendingLoanOffer.termLength, pendingLoanOffer.feeParams.upfrontBps, 0, address(0));
     }
 
-    /// @notice Approves an invoice for funding, can only be called by the underwriter
-    /// @param invoiceId The ID of the invoice to approve
-    /// @param _targetYieldBps The target yield in basis points
-    /// @param _spreadBps The spread in basis points to add on top of target yield
-    /// @param _upfrontBps The maximum upfront percentage the factorer can request
-    /// @param _initialInvoiceValueOverride The initial invoice value to override the invoice amount. For example in cases of loans or bonds.
-    function approveInvoice(uint256 invoiceId, uint16 _targetYieldBps, uint16 _spreadBps, uint16 _upfrontBps, uint256 _initialInvoiceValueOverride) external {
-        if (_upfrontBps <= 0 || _upfrontBps > 10000) revert InvalidPercentage();
+    /// @notice Approves multiple invoices for funding in a single transaction, can only be called by the underwriter
+    /// @param params Array of ApproveInvoiceParams structs
+    function approveInvoices(ApproveInvoiceParams[] calldata params) external {
         if (msg.sender != underwriter) revert CallerNotUnderwriter();
+        for (uint256 i = 0; i < params.length; i++) {
+            _approveInvoice(params[i]);
+        }
+    }
+
+    /// @notice Internal function to approve a single invoice for funding
+    /// @param params The approval parameters
+    function _approveInvoice(ApproveInvoiceParams calldata params) internal {
+        if (params.upfrontBps <= 0 || params.upfrontBps > 10000) revert InvalidPercentage();
         uint256 _validUntil = block.timestamp + approvalDuration;
-        invoiceProviderAdapter.initializeInvoice(invoiceId);
-        IInvoiceProviderAdapterV2.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        invoiceProviderAdapter.initializeInvoice(params.invoiceId);
+        IInvoiceProviderAdapterV2.Invoice memory invoiceSnapshot = invoiceProviderAdapter.getInvoiceDetails(params.invoiceId);
         if (invoiceSnapshot.isPaid) revert InvoiceAlreadyPaid();
         if (invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount == 0) revert InvoiceCannotBePaid();
         // if invoice already got approved and funded (creditor/owner of invoice is this contract), do not override storage
@@ -370,16 +374,16 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (invoiceSnapshot.tokenAddress != address(assetAddress)) revert InvoiceTokenMismatch();
 
         FeeParams memory feeParams = FeeParams({
-            targetYieldBps: _targetYieldBps,
-            spreadBps: _spreadBps,
-            upfrontBps: _upfrontBps,
+            targetYieldBps: params.targetYieldBps,
+            spreadBps: params.spreadBps,
+            upfrontBps: params.upfrontBps,
             protocolFeeBps: protocolFeeBps,
             adminFeeBps: adminFeeBps
         });
 
-        uint256 _initialInvoiceValue = _initialInvoiceValueOverride != 0 ? _initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount;
-        
-        approvedInvoices[invoiceId] = InvoiceApproval({
+        uint256 _initialInvoiceValue = params.initialInvoiceValueOverride != 0 ? params.initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount;
+
+        approvedInvoices[params.invoiceId] = InvoiceApproval({
             approved: true,
             validUntil: _validUntil,
             creditor: invoiceSnapshot.creditor,
@@ -393,9 +397,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             invoiceDueDate: invoiceSnapshot.dueDate,
             impairmentDate: invoiceSnapshot.dueDate + invoiceSnapshot.impairmentGracePeriod,
             protocolFee: 0,
-            perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(_initialInvoiceValue, _targetYieldBps)
+            perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(_initialInvoiceValue, params.targetYieldBps)
         });
-        emit InvoiceApproved(invoiceId, _validUntil, feeParams);
+        emit InvoiceApproved(params.invoiceId, _validUntil, feeParams);
     }
 
 
@@ -526,28 +530,70 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (!success) revert InvoiceSetPaidCallbackFailed();
     }
 
-    /// @notice Funds a single invoice, transferring the funded amount from the fund to the caller and transferring the invoice NFT to the fund
+    /// @notice Funds multiple invoices in a single transaction
     /// @dev No checks needed for the creditor, as transferFrom will revert unless it gets executed by the nft owner (i.e. claim creditor)
-    /// @param invoiceId The ID of the invoice to fund
-    /// @param factorerUpfrontBps factorer specified upfront bps
-    /// @param receiverAddress Address to receive the funds, if address(0) then funds go to msg.sender
-    function fundInvoice(uint256 invoiceId, uint16 factorerUpfrontBps, address receiverAddress) external returns(uint256) {
+    /// @param params Array of FundInvoiceParams structs
+    /// @param receiverAddresses Array of receiver addresses; each invoice references one by index. address(0) → msg.sender fallback.
+    /// @return fundedAmounts Array of net funded amounts for each invoice
+    function fundInvoices(FundInvoiceParams[] calldata params, address[] calldata receiverAddresses) external returns(uint256[] memory fundedAmounts) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
-        
+
+        // Single checkpoint for the entire batch
+        _checkpointAccruedProfits();
+
+        fundedAmounts = new uint256[](params.length);
+
+        // Aggregate state updates
+        uint256 totalProtocolFee = 0;
+        uint256 totalInsurancePremium = 0;
+        uint256 totalCapitalAtRisk = 0;
+        uint256 totalWithheldFeesInc = 0;
+        uint256 totalPerSecondRateInc = 0;
+
+        for (uint256 i = 0; i < params.length; i++) {
+            fundedAmounts[i] = _fundInvoice(
+                params[i],
+                receiverAddresses,
+                totalProtocolFee,
+                totalInsurancePremium,
+                totalCapitalAtRisk,
+                totalWithheldFeesInc,
+                totalPerSecondRateInc
+            );
+            // Update running totals from the return-via-storage pattern below
+        }
+
+        // We need a different approach since Solidity doesn't support returning multiple values from internal + aggregating easily
+        // Let's use the direct approach instead
+        return fundedAmounts;
+    }
+
+    /// @notice Internal function to fund a single invoice within a batch
+    /// @param params The funding parameters for this invoice
+    /// @param receiverAddresses The array of receiver addresses
+    function _fundInvoice(
+        FundInvoiceParams calldata params,
+        address[] calldata receiverAddresses,
+        uint256,
+        uint256,
+        uint256,
+        uint256,
+        uint256
+    ) internal returns (uint256) {
         // Cache approvedInvoices in memory to reduce storage reads
-        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
-        
+        IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[params.invoiceId];
+
         if (!approval.approved) revert InvoiceNotApproved();
-        if (factorerUpfrontBps > approval.feeParams.upfrontBps || factorerUpfrontBps == 0) revert InvalidPercentage();
+        if (params.factorerUpfrontBps > approval.feeParams.upfrontBps || params.factorerUpfrontBps == 0) revert InvalidPercentage();
         if (block.timestamp > approval.validUntil) revert ApprovalExpired();
-        IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
+        IInvoiceProviderAdapterV2.Invoice memory invoicesDetails = invoiceProviderAdapter.getInvoiceDetails(params.invoiceId);
         if (invoicesDetails.isCanceled) revert InvoiceCanceled();
         if (invoicesDetails.isPaid) revert InvoiceAlreadyPaid();
         if (approval.initialPaidAmount != invoicesDetails.paidAmount) revert InvoicePaidAmountChanged();
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
-        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 insurancePremium, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
+        (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 insurancePremium, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, params.factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
 
         // Realize protocol fee immediately at funding time
         protocolFeeBalance += protocolFee;
@@ -564,36 +610,42 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         approval.fundedAmountNet = fundedAmountNet;
         approval.fundedTimestamp = block.timestamp;
         // update upfrontBps with what was passed in the arg by the factorer
-        approval.feeParams.upfrontBps = factorerUpfrontBps;
+        approval.feeParams.upfrontBps = params.factorerUpfrontBps;
         approval.protocolFee = protocolFee;
 
-        // Determine the actual receiver address - use msg.sender if receiverAddress is address(0)
-        address actualReceiver = receiverAddress == address(0) ? msg.sender : receiverAddress;
+        // Determine the actual receiver address
+        address actualReceiver;
+        if (params.receiverAddressIndex < receiverAddresses.length) {
+            actualReceiver = receiverAddresses[params.receiverAddressIndex];
+        }
+        if (actualReceiver == address(0)) {
+            actualReceiver = msg.sender;
+        }
 
         // Store the receiver address for future kickback payments
         approval.receiverAddress = actualReceiver;
 
         // Write back to storage once
-        approvedInvoices[invoiceId] = approval;
+        approvedInvoices[params.invoiceId] = approval;
 
-        // transfer net funded amount to caller to the actual receiver
+        // transfer net funded amount to the actual receiver
         assetAddress.safeTransfer(actualReceiver, fundedAmountNet);
 
-        IERC721(invoiceProviderAdapter.getInvoiceContractAddress(invoiceId)).transferFrom(msg.sender, address(this), invoiceId);
+        IERC721(invoiceProviderAdapter.getInvoiceContractAddress(params.invoiceId)).transferFrom(msg.sender, address(this), params.invoiceId);
 
-        originalCreditors[invoiceId] = msg.sender;
-        _activeInvoices.add(invoiceId);
+        originalCreditors[params.invoiceId] = msg.sender;
+        _activeInvoices.add(params.invoiceId);
 
-        // Add invoice to aggregate state tracking (RAY units)
-        _addInvoiceToAggregate(approval.perSecondInterestRateRay);
-        
+        // Add to aggregate state tracking (skip checkpoint since we already did it at the top of fundInvoices)
+        totalPerSecondInterestRateRay += approval.perSecondInterestRateRay;
+
         // Add to capital at risk and withheld fees
         capitalAtRiskPlusWithheldFees += fundedAmountGross;
         withheldFees += fundedAmountGross - fundedAmountNet;
 
-        _registerInvoiceCallback(invoiceId);
+        _registerInvoiceCallback(params.invoiceId);
 
-        emit InvoiceFunded(invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, factorerUpfrontBps, protocolFee, actualReceiver);
+        emit InvoiceFunded(params.invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, params.factorerUpfrontBps, protocolFee, actualReceiver);
         return fundedAmountNet;
     }
 

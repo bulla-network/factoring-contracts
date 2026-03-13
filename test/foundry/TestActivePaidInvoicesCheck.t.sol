@@ -50,12 +50,12 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
 
         // Fund invoice to reduce liquidity
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 730, 1000, 8000, 0);
+        _approveInvoice(invoiceId, 730, 1000, 8000, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Queue a large redemption
@@ -92,12 +92,12 @@ contract TestActivePaidInvoicesCheck is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 730, 1000, 8000, 0);
+        _approveInvoice(invoiceId, 730, 1000, 8000, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Pay the invoice
