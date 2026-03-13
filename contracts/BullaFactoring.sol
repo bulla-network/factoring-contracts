@@ -539,49 +539,67 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
         if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
 
-        // Single checkpoint for the entire batch
         _checkpointAccruedProfits();
 
         fundedAmounts = new uint256[](params.length);
+        // Extra slot at the end for msg.sender fallback
+        uint256[] memory receiverAmounts = new uint256[](receiverAddresses.length + 1);
 
-        // Aggregate state updates
-        uint256 totalProtocolFee = 0;
-        uint256 totalInsurancePremium = 0;
-        uint256 totalCapitalAtRisk = 0;
-        uint256 totalWithheldFeesInc = 0;
-        uint256 totalPerSecondRateInc = 0;
+        // Accumulate per-invoice results
+        uint256[5] memory totals; // [protocolFee, insurancePremium, fundedGross, withheldFees, perSecondRate]
 
         for (uint256 i = 0; i < params.length; i++) {
-            fundedAmounts[i] = _fundInvoice(
-                params[i],
-                receiverAddresses,
-                totalProtocolFee,
-                totalInsurancePremium,
-                totalCapitalAtRisk,
-                totalWithheldFeesInc,
-                totalPerSecondRateInc
-            );
-            // Update running totals from the return-via-storage pattern below
+            (
+                uint256 fundedAmountGross,
+                uint256 fundedAmountNet,
+                uint256 pFee,
+                uint256 iPremium,
+                uint256 perSecondRate,
+                uint256 receiverSlot
+            ) = _fundInvoice(params[i], receiverAddresses);
+
+            fundedAmounts[i] = fundedAmountNet;
+            totals[0] += pFee;
+            totals[1] += iPremium;
+            totals[2] += fundedAmountGross;
+            totals[3] += fundedAmountGross - fundedAmountNet;
+            totals[4] += perSecondRate;
+            receiverAmounts[receiverSlot] += fundedAmountNet;
         }
 
-        // We need a different approach since Solidity doesn't support returning multiple values from internal + aggregating easily
-        // Let's use the direct approach instead
+        // Single liquidity check for the entire batch
+        {
+            uint256 _totalAssets = totalAssets();
+            if (totals[2] > _totalAssets) revert InsufficientFunds(_totalAssets, totals[2]);
+        }
+
+        // Batch state updates (single SSTORE per variable)
+        protocolFeeBalance += totals[0];
+        insuranceBalance += totals[1];
+        capitalAtRiskPlusWithheldFees += totals[2];
+        withheldFees += totals[3];
+        totalPerSecondInterestRateRay += totals[4];
+
+        // Batch transfers by receiver
+        for (uint256 i = 0; i < receiverAddresses.length; i++) {
+            if (receiverAmounts[i] > 0) {
+                assetAddress.safeTransfer(receiverAddresses[i], receiverAmounts[i]);
+            }
+        }
+        if (receiverAmounts[receiverAddresses.length] > 0) {
+            assetAddress.safeTransfer(msg.sender, receiverAmounts[receiverAddresses.length]);
+        }
+
         return fundedAmounts;
     }
 
-    /// @notice Internal function to fund a single invoice within a batch
-    /// @param params The funding parameters for this invoice
-    /// @param receiverAddresses The array of receiver addresses
+    /// @notice Internal function to process a single invoice within a batch — validates, calculates fees,
+    ///         updates per-invoice storage, transfers NFT, but does NOT transfer funds or update aggregate state.
+    /// @return fundedAmountGross, fundedAmountNet, protocolFee, insurancePremium, perSecondInterestRateRay, receiverSlot
     function _fundInvoice(
         FundInvoiceParams calldata params,
-        address[] calldata receiverAddresses,
-        uint256,
-        uint256,
-        uint256,
-        uint256,
-        uint256
-    ) internal returns (uint256) {
-        // Cache approvedInvoices in memory to reduce storage reads
+        address[] calldata receiverAddresses
+    ) internal returns (uint256, uint256, uint256, uint256, uint256, uint256) {
         IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[params.invoiceId];
 
         if (!approval.approved) revert InvoiceNotApproved();
@@ -595,58 +613,36 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
         (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 insurancePremium, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, params.factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
 
-        // Realize protocol fee immediately at funding time
-        protocolFeeBalance += protocolFee;
-
-        // Realize insurance premium at funding time
-        insuranceBalance += insurancePremium;
-
-        uint256 _totalAssets = totalAssets();
-        // needs to be gross amount here, because the fees will be locked, and we need liquidity to lock these
-        if(fundedAmountGross > _totalAssets) revert InsufficientFunds(_totalAssets, fundedAmountGross);
-
-        // Update memory struct
+        // Update per-invoice approval struct
         approval.fundedAmountGross = fundedAmountGross;
         approval.fundedAmountNet = fundedAmountNet;
         approval.fundedTimestamp = block.timestamp;
-        // update upfrontBps with what was passed in the arg by the factorer
         approval.feeParams.upfrontBps = params.factorerUpfrontBps;
         approval.protocolFee = protocolFee;
 
-        // Determine the actual receiver address
+        // Resolve receiver: valid index → receiverAddresses[index], otherwise msg.sender fallback
+        uint256 receiverSlot;
         address actualReceiver;
-        if (params.receiverAddressIndex < receiverAddresses.length) {
+        if (params.receiverAddressIndex < receiverAddresses.length && receiverAddresses[params.receiverAddressIndex] != address(0)) {
+            receiverSlot = params.receiverAddressIndex;
             actualReceiver = receiverAddresses[params.receiverAddressIndex];
-        }
-        if (actualReceiver == address(0)) {
+        } else {
+            receiverSlot = receiverAddresses.length; // fallback slot
             actualReceiver = msg.sender;
         }
 
-        // Store the receiver address for future kickback payments
         approval.receiverAddress = actualReceiver;
-
-        // Write back to storage once
         approvedInvoices[params.invoiceId] = approval;
 
-        // transfer net funded amount to the actual receiver
-        assetAddress.safeTransfer(actualReceiver, fundedAmountNet);
-
+        // Per-invoice operations: NFT transfer, tracking, callback
         IERC721(invoiceProviderAdapter.getInvoiceContractAddress(params.invoiceId)).transferFrom(msg.sender, address(this), params.invoiceId);
-
         originalCreditors[params.invoiceId] = msg.sender;
         _activeInvoices.add(params.invoiceId);
-
-        // Add to aggregate state tracking (skip checkpoint since we already did it at the top of fundInvoices)
-        totalPerSecondInterestRateRay += approval.perSecondInterestRateRay;
-
-        // Add to capital at risk and withheld fees
-        capitalAtRiskPlusWithheldFees += fundedAmountGross;
-        withheldFees += fundedAmountGross - fundedAmountNet;
-
         _registerInvoiceCallback(params.invoiceId);
 
         emit InvoiceFunded(params.invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, params.factorerUpfrontBps, protocolFee, actualReceiver);
-        return fundedAmountNet;
+
+        return (fundedAmountGross, fundedAmountNet, protocolFee, insurancePremium, approval.perSecondInterestRateRay, receiverSlot);
     }
 
     function getActiveInvoices() external view returns (uint256[] memory) {
