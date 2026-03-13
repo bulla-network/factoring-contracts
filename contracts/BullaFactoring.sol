@@ -534,7 +534,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @notice Funds multiple invoices in a single transaction
     /// @dev No checks needed for the creditor, as transferFrom will revert unless it gets executed by the nft owner (i.e. claim creditor)
     /// @param params Array of FundInvoiceParams structs
-    /// @param receiverAddresses Array of receiver addresses; each invoice references one by index. Reverts if index is invalid or address is zero.
+    /// @param receiverAddresses Array of receiver addresses; each invoice references one by index. address(0) means msg.sender. Reverts if index is out of bounds.
     /// @return fundedAmounts Array of net funded amounts for each invoice
     function fundInvoices(FundInvoiceParams[] calldata params, address[] calldata receiverAddresses) external returns(uint256[] memory fundedAmounts) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
@@ -580,11 +580,19 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         withheldFees += totals[3];
         totalPerSecondInterestRateRay += totals[4];
 
-        // Batch transfers by receiver
+        // Batch transfers by receiver (address(0) slots go to msg.sender)
+        uint256 msgSenderTotal = 0;
         for (uint256 i = 0; i < receiverAddresses.length; i++) {
             if (receiverAmounts[i] > 0) {
-                assetAddress.safeTransfer(receiverAddresses[i], receiverAmounts[i]);
+                if (receiverAddresses[i] == address(0)) {
+                    msgSenderTotal += receiverAmounts[i];
+                } else {
+                    assetAddress.safeTransfer(receiverAddresses[i], receiverAmounts[i]);
+                }
             }
+        }
+        if (msgSenderTotal > 0) {
+            assetAddress.safeTransfer(msg.sender, msgSenderTotal);
         }
         return fundedAmounts;
     }
@@ -616,8 +624,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         approval.feeParams.upfrontBps = params.factorerUpfrontBps;
         approval.protocolFee = protocolFee;
 
-        if (params.receiverAddressIndex >= receiverAddresses.length || receiverAddresses[params.receiverAddressIndex] == address(0)) revert InvalidReceiverAddressIndex();
-        address actualReceiver = receiverAddresses[params.receiverAddressIndex];
+        if (params.receiverAddressIndex >= receiverAddresses.length) revert InvalidReceiverAddressIndex();
+        address actualReceiver = receiverAddresses[params.receiverAddressIndex] == address(0) ? msg.sender : receiverAddresses[params.receiverAddressIndex];
 
         approval.receiverAddress = actualReceiver;
         approvedInvoices[params.invoiceId] = approval;

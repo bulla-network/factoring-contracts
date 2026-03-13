@@ -229,8 +229,7 @@ contract CommonSetup is Test {
     ) internal returns (uint256) {
         IBullaFactoringV2_2.FundInvoiceParams[] memory params = new IBullaFactoringV2_2.FundInvoiceParams[](1);
         address[] memory receivers = new address[](1);
-        // address(0) is no longer a valid receiver — use msg.sender as default
-        receivers[0] = receiverAddress == address(0) ? msg.sender : receiverAddress;
+        receivers[0] = receiverAddress;
         params[0] = IBullaFactoringV2_2.FundInvoiceParams({
             invoiceId: invoiceId,
             factorerUpfrontBps: factorerUpfrontBps,
@@ -248,8 +247,7 @@ contract CommonSetup is Test {
     ) internal {
         IBullaFactoringV2_2.FundInvoiceParams[] memory params = new IBullaFactoringV2_2.FundInvoiceParams[](1);
         address[] memory receivers = new address[](1);
-        // address(0) is no longer a valid receiver — use msg.sender as default
-        receivers[0] = receiverAddress == address(0) ? msg.sender : receiverAddress;
+        receivers[0] = receiverAddress;
         params[0] = IBullaFactoringV2_2.FundInvoiceParams({
             invoiceId: invoiceId,
             factorerUpfrontBps: factorerUpfrontBps,
