@@ -142,6 +142,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error InvoiceNotPaid();
     error InvoiceNotImpaired();
     error CallerNotInsurer();
+    error InvalidReceiverAddressIndex();
     error InvoiceAlreadyImpaired();
     error ImpairmentPriceTooLow();
     error InsufficientInsuranceFunds(uint256 available, uint256 required);
@@ -533,7 +534,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @notice Funds multiple invoices in a single transaction
     /// @dev No checks needed for the creditor, as transferFrom will revert unless it gets executed by the nft owner (i.e. claim creditor)
     /// @param params Array of FundInvoiceParams structs
-    /// @param receiverAddresses Array of receiver addresses; each invoice references one by index. address(0) → msg.sender fallback.
+    /// @param receiverAddresses Array of receiver addresses; each invoice references one by index. Reverts if index is invalid or address is zero.
     /// @return fundedAmounts Array of net funded amounts for each invoice
     function fundInvoices(FundInvoiceParams[] calldata params, address[] calldata receiverAddresses) external returns(uint256[] memory fundedAmounts) {
         if (!factoringPermissions.isAllowed(msg.sender)) revert UnauthorizedFactoring(msg.sender);
@@ -542,20 +543,19 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         _checkpointAccruedProfits();
 
         fundedAmounts = new uint256[](params.length);
-        // Extra slot at the end for msg.sender fallback
-        uint256[] memory receiverAmounts = new uint256[](receiverAddresses.length + 1);
+        uint256[] memory receiverAmounts = new uint256[](receiverAddresses.length);
 
         // Accumulate per-invoice results
         uint256[5] memory totals; // [protocolFee, insurancePremium, fundedGross, withheldFees, perSecondRate]
 
         for (uint256 i = 0; i < params.length; i++) {
+            uint256 receiverIdx = params[i].receiverAddressIndex;
             (
                 uint256 fundedAmountGross,
                 uint256 fundedAmountNet,
                 uint256 pFee,
                 uint256 iPremium,
-                uint256 perSecondRate,
-                uint256 receiverSlot
+                uint256 perSecondRate
             ) = _fundInvoice(params[i], receiverAddresses);
 
             fundedAmounts[i] = fundedAmountNet;
@@ -564,7 +564,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             totals[2] += fundedAmountGross;
             totals[3] += fundedAmountGross - fundedAmountNet;
             totals[4] += perSecondRate;
-            receiverAmounts[receiverSlot] += fundedAmountNet;
+            receiverAmounts[receiverIdx] += fundedAmountNet;
         }
 
         // Single liquidity check for the entire batch
@@ -586,20 +586,16 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
                 assetAddress.safeTransfer(receiverAddresses[i], receiverAmounts[i]);
             }
         }
-        if (receiverAmounts[receiverAddresses.length] > 0) {
-            assetAddress.safeTransfer(msg.sender, receiverAmounts[receiverAddresses.length]);
-        }
-
         return fundedAmounts;
     }
 
     /// @notice Internal function to process a single invoice within a batch — validates, calculates fees,
     ///         updates per-invoice storage, transfers NFT, but does NOT transfer funds or update aggregate state.
-    /// @return fundedAmountGross, fundedAmountNet, protocolFee, insurancePremium, perSecondInterestRateRay, receiverSlot
+    /// @return fundedAmountGross, fundedAmountNet, protocolFee, insurancePremium, perSecondInterestRateRay
     function _fundInvoice(
         FundInvoiceParams calldata params,
         address[] calldata receiverAddresses
-    ) internal returns (uint256, uint256, uint256, uint256, uint256, uint256) {
+    ) internal returns (uint256, uint256, uint256, uint256, uint256) {
         IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[params.invoiceId];
 
         if (!approval.approved) revert InvoiceNotApproved();
@@ -620,16 +616,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         approval.feeParams.upfrontBps = params.factorerUpfrontBps;
         approval.protocolFee = protocolFee;
 
-        // Resolve receiver: valid index → receiverAddresses[index], otherwise msg.sender fallback
-        uint256 receiverSlot;
-        address actualReceiver;
-        if (params.receiverAddressIndex < receiverAddresses.length && receiverAddresses[params.receiverAddressIndex] != address(0)) {
-            receiverSlot = params.receiverAddressIndex;
-            actualReceiver = receiverAddresses[params.receiverAddressIndex];
-        } else {
-            receiverSlot = receiverAddresses.length; // fallback slot
-            actualReceiver = msg.sender;
-        }
+        if (params.receiverAddressIndex >= receiverAddresses.length || receiverAddresses[params.receiverAddressIndex] == address(0)) revert InvalidReceiverAddressIndex();
+        address actualReceiver = receiverAddresses[params.receiverAddressIndex];
 
         approval.receiverAddress = actualReceiver;
         approvedInvoices[params.invoiceId] = approval;
@@ -642,7 +630,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
         emit InvoiceFunded(params.invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, params.factorerUpfrontBps, protocolFee, actualReceiver);
 
-        return (fundedAmountGross, fundedAmountNet, protocolFee, insurancePremium, approval.perSecondInterestRateRay, receiverSlot);
+        return (fundedAmountGross, fundedAmountNet, protocolFee, insurancePremium, approval.perSecondInterestRateRay);
     }
 
     function getActiveInvoices() external view returns (uint256[] memory) {
