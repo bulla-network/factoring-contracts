@@ -15,6 +15,7 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
+import './helpers/TestHelpers.sol';
 import {IBullaClaimV2, LockState} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol";
 import {IBullaFrendLendV2} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {BullaFrendLendV2} from "bulla-contracts-v2/src/BullaFrendLendV2.sol";
@@ -26,7 +27,7 @@ import {BullaApprovalRegistry} from "bulla-contracts-v2/src/BullaApprovalRegistr
 import {CreateClaimParams, ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
 import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 
-contract CommonSetup is Test {
+contract CommonSetup is Test, BatchTestHelpers {
     BullaFactoringV2_2 public bullaFactoring;
     BullaClaimV2InvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
@@ -121,6 +122,10 @@ contract CommonSetup is Test {
         vm.stopPrank();
     }
 
+    function _factoringContract() internal view override returns (IBullaFactoringV2_2) {
+        return bullaFactoring;
+    }
+
     function permitUser(address user, bool canFactor, uint256 fundingAmount) internal {
         depositPermissions.allow(user);
         redeemPermissions.allow(user);
@@ -200,131 +205,4 @@ contract CommonSetup is Test {
         return (0, 0);
     }
 
-    // ============ Convenience helpers for single-invoice approve/fund ============
-
-    /// @dev Wraps a single approveInvoice call into the batch approveInvoices interface
-    function _approveInvoice(
-        uint256 invoiceId,
-        uint16 _targetYieldBps,
-        uint16 _spreadBps,
-        uint16 _upfrontBps,
-        uint256 _initialInvoiceValueOverride
-    ) internal {
-        IBullaFactoringV2_2.ApproveInvoiceParams[] memory params = new IBullaFactoringV2_2.ApproveInvoiceParams[](1);
-        params[0] = IBullaFactoringV2_2.ApproveInvoiceParams({
-            invoiceId: invoiceId,
-            targetYieldBps: _targetYieldBps,
-            spreadBps: _spreadBps,
-            upfrontBps: _upfrontBps,
-            initialInvoiceValueOverride: _initialInvoiceValueOverride
-        });
-        bullaFactoring.approveInvoices(params);
-    }
-
-    /// @dev Wraps a single fundInvoice call into the batch fundInvoices interface
-    function _fundInvoice(
-        uint256 invoiceId,
-        uint16 factorerUpfrontBps,
-        address receiverAddress
-    ) internal returns (uint256) {
-        IBullaFactoringV2_2.FundInvoiceParams[] memory params = new IBullaFactoringV2_2.FundInvoiceParams[](1);
-        address[] memory receivers = new address[](1);
-        receivers[0] = receiverAddress;
-        params[0] = IBullaFactoringV2_2.FundInvoiceParams({
-            invoiceId: invoiceId,
-            factorerUpfrontBps: factorerUpfrontBps,
-            receiverAddressIndex: 0
-        });
-        uint256[] memory amounts = bullaFactoring.fundInvoices(params, receivers);
-        return amounts[0];
-    }
-
-    /// @dev Wraps a single fundInvoice call for use with vm.expectRevert (no return value access)
-    function _fundInvoiceExpectRevert(
-        uint256 invoiceId,
-        uint16 factorerUpfrontBps,
-        address receiverAddress
-    ) internal {
-        IBullaFactoringV2_2.FundInvoiceParams[] memory params = new IBullaFactoringV2_2.FundInvoiceParams[](1);
-        address[] memory receivers = new address[](1);
-        receivers[0] = receiverAddress;
-        params[0] = IBullaFactoringV2_2.FundInvoiceParams({
-            invoiceId: invoiceId,
-            factorerUpfrontBps: factorerUpfrontBps,
-            receiverAddressIndex: 0
-        });
-        bullaFactoring.fundInvoices(params, receivers);
-    }
-}
-
-// ============ Builder Patterns ============
-
-library ApproveInvoiceParamsBuilder {
-    function create() internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        return IBullaFactoringV2_2.ApproveInvoiceParams({
-            invoiceId: 0,
-            targetYieldBps: 0,
-            spreadBps: 0,
-            upfrontBps: 0,
-            initialInvoiceValueOverride: 0
-        });
-    }
-
-    function withInvoiceId(IBullaFactoringV2_2.ApproveInvoiceParams memory self, uint256 invoiceId) internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        self.invoiceId = invoiceId;
-        return self;
-    }
-
-    function withTargetYieldBps(IBullaFactoringV2_2.ApproveInvoiceParams memory self, uint16 targetYieldBps) internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        self.targetYieldBps = targetYieldBps;
-        return self;
-    }
-
-    function withSpreadBps(IBullaFactoringV2_2.ApproveInvoiceParams memory self, uint16 spreadBps) internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        self.spreadBps = spreadBps;
-        return self;
-    }
-
-    function withUpfrontBps(IBullaFactoringV2_2.ApproveInvoiceParams memory self, uint16 upfrontBps) internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        self.upfrontBps = upfrontBps;
-        return self;
-    }
-
-    function withInitialInvoiceValueOverride(IBullaFactoringV2_2.ApproveInvoiceParams memory self, uint256 initialInvoiceValueOverride) internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        self.initialInvoiceValueOverride = initialInvoiceValueOverride;
-        return self;
-    }
-
-    function build(IBullaFactoringV2_2.ApproveInvoiceParams memory self) internal pure returns (IBullaFactoringV2_2.ApproveInvoiceParams memory) {
-        return self;
-    }
-}
-
-library FundInvoiceParamsBuilder {
-    function create() internal pure returns (IBullaFactoringV2_2.FundInvoiceParams memory) {
-        return IBullaFactoringV2_2.FundInvoiceParams({
-            invoiceId: 0,
-            factorerUpfrontBps: 0,
-            receiverAddressIndex: 0
-        });
-    }
-
-    function withInvoiceId(IBullaFactoringV2_2.FundInvoiceParams memory self, uint256 invoiceId) internal pure returns (IBullaFactoringV2_2.FundInvoiceParams memory) {
-        self.invoiceId = invoiceId;
-        return self;
-    }
-
-    function withFactorerUpfrontBps(IBullaFactoringV2_2.FundInvoiceParams memory self, uint16 factorerUpfrontBps) internal pure returns (IBullaFactoringV2_2.FundInvoiceParams memory) {
-        self.factorerUpfrontBps = factorerUpfrontBps;
-        return self;
-    }
-
-    function withReceiverAddressIndex(IBullaFactoringV2_2.FundInvoiceParams memory self, uint8 receiverAddressIndex) internal pure returns (IBullaFactoringV2_2.FundInvoiceParams memory) {
-        self.receiverAddressIndex = receiverAddressIndex;
-        return self;
-    }
-
-    function build(IBullaFactoringV2_2.FundInvoiceParams memory self) internal pure returns (IBullaFactoringV2_2.FundInvoiceParams memory) {
-        return self;
-    }
 }
