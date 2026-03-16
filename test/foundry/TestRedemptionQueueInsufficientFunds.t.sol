@@ -99,7 +99,7 @@ contract TestRedemptionQueueInsufficientFunds is CommonSetup {
         
         // Underwriter approves
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 10000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 10000, 0);
         
         // Bob approves NFT transfer
         vm.prank(bob);
@@ -107,7 +107,7 @@ contract TestRedemptionQueueInsufficientFunds is CommonSetup {
         
         // Bob funds invoice
         vm.prank(bob);
-        bullaFactoring.fundInvoice(invoiceId, 10000, address(0));
+        _fundInvoice(invoiceId, 10000, address(0));
         
         return invoiceId;
     }

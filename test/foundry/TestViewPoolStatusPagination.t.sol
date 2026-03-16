@@ -29,11 +29,11 @@ contract TestViewPoolStatusPagination is CommonSetup {
             vm.prank(bob);
             invoiceIds[i] = createClaim(bob, alice, 100, dueBy);
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
-            bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
+            _fundInvoice(invoiceIds[i], upfrontBps, address(0));
             vm.stopPrank();
         }
 
@@ -62,11 +62,11 @@ contract TestViewPoolStatusPagination is CommonSetup {
             vm.prank(bob);
             invoiceIds[i] = createClaim(bob, alice, 100, dueBy);
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
-            bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
+            _fundInvoice(invoiceIds[i], upfrontBps, address(0));
             vm.stopPrank();
         }
 
@@ -118,11 +118,11 @@ contract TestViewPoolStatusPagination is CommonSetup {
             vm.prank(bob);
             uint256 invoiceId = createClaim(bob, alice, 100, dueBy);
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceId);
-            bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+            _fundInvoice(invoiceId, upfrontBps, address(0));
             vm.stopPrank();
         }
 
@@ -151,11 +151,11 @@ contract TestViewPoolStatusPagination is CommonSetup {
             vm.prank(bob);
             invoiceIds[i] = createClaim(bob, alice, 100, dueBy);
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
-            bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
+            _fundInvoice(invoiceIds[i], upfrontBps, address(0));
             vm.stopPrank();
         }
 

@@ -100,11 +100,11 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
+        _fundInvoice(invoiceId1, upfrontBps, address(0));
         vm.stopPrank();
 
         // Second invoice with higher fees to consume remaining assets
@@ -118,11 +118,11 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
 
         uint16 highSpread = 1500; // 15%
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, highSpread, upfrontBps, 0);
+        _approveInvoice(invoiceId2, interestApr, highSpread, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(charlie);
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        _fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
         // Check if we achieved totalAssets <= 0
@@ -136,12 +136,12 @@ contract TestInsufficientFundsWithDeployedCapital is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId3, interestApr, 0, 10000, 0); // High fees
+        _approveInvoice(invoiceId3, interestApr, 0, 10000, 0); // High fees
         vm.stopPrank();
 
         vm.startPrank(bob);
         vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_2.InsufficientFunds.selector, totalAssetsAfterFactoring, remainingAmount));
-        bullaFactoring.fundInvoice(invoiceId3, 10000, address(0));
+        _fundInvoiceExpectRevert(invoiceId3, 10000, address(0));
         vm.stopPrank();
 
         // Step 2: Create a loan offer for the remaining amount

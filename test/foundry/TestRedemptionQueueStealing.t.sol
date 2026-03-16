@@ -47,11 +47,11 @@ contract TestRedemptionQueueStealing is CommonSetup {
         uint256 invoiceId = createClaim(victim, attacker, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(victim);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // Create initial queue entry (attacker queues their own shares first)
@@ -149,11 +149,11 @@ contract TestRedemptionQueueStealing is CommonSetup {
         uint256 invoiceId = createClaim(victim, attacker, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(victim);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // Create initial queue entry

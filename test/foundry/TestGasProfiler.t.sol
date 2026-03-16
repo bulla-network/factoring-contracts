@@ -69,12 +69,12 @@ contract TestGasProfiler is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
-            bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
+            _fundInvoice(invoiceIds[i], upfrontBps, address(0));
         }
         vm.stopPrank();
 
@@ -277,12 +277,12 @@ contract TestGasProfiler is CommonSetup {
             vm.stopPrank();
             
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
             
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
-            bullaFactoring.fundInvoice(invoiceIds[i], upfrontBps, address(0));
+            _fundInvoice(invoiceIds[i], upfrontBps, address(0));
         }
         vm.stopPrank();
 

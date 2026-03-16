@@ -109,11 +109,11 @@ contract TestMissingCoverage is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, 50000, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        uint256 fundedAmountNet = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        uint256 fundedAmountNet = _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
@@ -134,11 +134,11 @@ contract TestMissingCoverage is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, 50000, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         // Pay the invoice - Alice is the debtor and needs funds to pay
@@ -186,11 +186,11 @@ contract TestMissingCoverage is CommonSetup {
             uint256 invoiceId = createClaim(bob, alice, 30000 + (i * 10000), dueBy);
             
             vm.prank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceId);
-            uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+            uint256 fundedAmount = _fundInvoice(invoiceId, upfrontBps, address(0));
             totalFunded += fundedAmount;
             vm.stopPrank();
         }
@@ -247,11 +247,11 @@ contract TestMissingCoverage is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, 50000, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
         
         IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();

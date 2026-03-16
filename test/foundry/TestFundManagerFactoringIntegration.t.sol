@@ -104,12 +104,12 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
+        uint256 fundedAmount = _fundInvoice(invoiceId, 8000, address(0));
         
         // Verify factoring operation succeeded
         assertGt(fundedAmount, 0);
@@ -135,7 +135,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
@@ -143,7 +143,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         vm.prank(bob);
         // fundedAmountGross now includes protocol fee: 80000 * 1e6 * 8000 / 10000 = 64000 * 1e6
         vm.expectRevert(abi.encodeWithSelector(BullaFactoringV2_2.InsufficientFunds.selector, 0, 64000000000));
-        bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
+        _fundInvoiceExpectRevert(invoiceId, 8000, address(0));
         
         // Capital call to fund the pool
         vm.prank(capitalCaller);
@@ -151,7 +151,7 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         
         // Now factoring should work
         vm.prank(bob);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
+        uint256 fundedAmount = _fundInvoice(invoiceId, 8000, address(0));
         
         assertGt(fundedAmount, 0);
     }
@@ -210,12 +210,12 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         
         vm.prank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, 1000, 100, 8000, 0);
+        _approveInvoice(invoiceId, 1000, 100, 8000, 0);
         
         vm.prank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
         vm.prank(bob);
-        uint256 fundedAmount = bullaFactoring.fundInvoice(invoiceId, 8000, address(0));
+        uint256 fundedAmount = _fundInvoice(invoiceId, 8000, address(0));
         
         // Fast forward and pay invoice
         vm.warp(block.timestamp + 30 days);
@@ -257,12 +257,12 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
             invoiceIds[i] = createClaim(bob, alice, invoiceAmounts[i], dueBy + (i * 10 days));
             
             vm.prank(underwriter);
-            bullaFactoring.approveInvoice(invoiceIds[i], 1000, 100, 8000, 0);
+            _approveInvoice(invoiceIds[i], 1000, 100, 8000, 0);
             
             vm.prank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
             vm.prank(bob);
-            bullaFactoring.fundInvoice(invoiceIds[i], 8000, address(0));
+            _fundInvoice(invoiceIds[i], 8000, address(0));
         }
         // Pay invoices at different times to simulate real portfolio
         vm.warp(block.timestamp + 25 days);

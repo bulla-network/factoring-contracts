@@ -52,16 +52,16 @@ contract TestUnfactoringTriggersReconciliation is CommonSetup {
 
         // Underwriter approves both invoices
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId1, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId2, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // Bob funds both invoices
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId1, upfrontBps, address(0));
-        bullaFactoring.fundInvoice(invoiceId2, upfrontBps, address(0));
+        _fundInvoice(invoiceId1, upfrontBps, address(0));
+        _fundInvoice(invoiceId2, upfrontBps, address(0));
         vm.stopPrank();
 
         // Wait 30 days

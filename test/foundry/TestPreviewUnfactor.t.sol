@@ -20,12 +20,12 @@ contract TestPreviewUnfactor is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Alice makes a large partial payment (95 out of 100) to create a refund scenario
@@ -63,12 +63,12 @@ contract TestPreviewUnfactor is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward to accrue some interest
@@ -117,12 +117,12 @@ contract TestPreviewUnfactor is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Alice pays the invoice in full
@@ -149,12 +149,12 @@ contract TestPreviewUnfactor is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
         
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Fast forward only 5 days - NOT past impairment (30 days due + 60 days grace = 90 days)

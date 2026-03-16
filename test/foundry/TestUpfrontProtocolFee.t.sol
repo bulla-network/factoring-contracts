@@ -28,7 +28,7 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
@@ -37,7 +37,7 @@ contract TestUpfrontProtocolFee is CommonSetup {
         // Fund invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
@@ -62,12 +62,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint256 protocolFeeBalance = bullaFactoring.protocolFeeBalance();
@@ -99,12 +99,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint256 protocolFeeAfterFunding = bullaFactoring.protocolFeeBalance();
@@ -136,12 +136,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint256 protocolFeeAfterFunding = bullaFactoring.protocolFeeBalance();
@@ -174,12 +174,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
@@ -200,12 +200,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Protocol withdraws fees immediately
@@ -253,12 +253,12 @@ contract TestUpfrontProtocolFee is CommonSetup {
         vm.stopPrank();
 
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Protocol withdraws fees immediately
@@ -293,14 +293,14 @@ contract TestUpfrontProtocolFee is CommonSetup {
             vm.stopPrank();
 
             vm.startPrank(underwriter);
-            bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+            _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
             vm.stopPrank();
 
             uint256 feeBefore = bullaFactoring.protocolFeeBalance();
 
             vm.startPrank(bob);
             bullaClaim.approve(address(bullaFactoring), invoiceId);
-            bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+            _fundInvoice(invoiceId, upfrontBps, address(0));
             vm.stopPrank();
 
             uint256 feeAfter = bullaFactoring.protocolFeeBalance();

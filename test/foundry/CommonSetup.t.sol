@@ -15,6 +15,7 @@ import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
+import './helpers/TestHelpers.sol';
 import {IBullaClaimV2, LockState} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol";
 import {IBullaFrendLendV2} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {BullaFrendLendV2} from "bulla-contracts-v2/src/BullaFrendLendV2.sol";
@@ -26,7 +27,7 @@ import {BullaApprovalRegistry} from "bulla-contracts-v2/src/BullaApprovalRegistr
 import {CreateClaimParams, ClaimBinding} from "bulla-contracts-v2/src/types/Types.sol";
 import {CreateInvoiceParams, InterestConfig} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 
-contract CommonSetup is Test {
+contract CommonSetup is Test, BatchTestHelpers {
     BullaFactoringV2_2 public bullaFactoring;
     BullaClaimV2InvoiceProviderAdapterV2 public invoiceAdapterBulla;
     MockUSDC public asset;
@@ -121,6 +122,10 @@ contract CommonSetup is Test {
         vm.stopPrank();
     }
 
+    function _factoringContract() internal view override returns (IBullaFactoringV2_2) {
+        return bullaFactoring;
+    }
+
     function permitUser(address user, bool canFactor, uint256 fundingAmount) internal {
         depositPermissions.allow(user);
         redeemPermissions.allow(user);
@@ -199,4 +204,5 @@ contract CommonSetup is Test {
         }
         return (0, 0);
     }
+
 }

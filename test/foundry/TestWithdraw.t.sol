@@ -43,13 +43,13 @@ contract TestWithdraw is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -94,12 +94,12 @@ contract TestWithdraw is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId1, interestApr, spreadBps, 10000, 0); // 100% upfront
+        _approveInvoice(invoiceId1, interestApr, spreadBps, 10000, 0); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        bullaFactoring.fundInvoice(invoiceId1, 10000, address(0));
+        _fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
         // Simulate invoices being paid on time
@@ -129,12 +129,12 @@ contract TestWithdraw is CommonSetup {
         vm.prank(bob);
         uint256 invoiceId2 = createClaim(bob, alice, invoiceAmount, dueDate);
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId2, interestApr, spreadBps, 10000, 0); // 100% upfront
+        _approveInvoice(invoiceId2, interestApr, spreadBps, 10000, 0); // 100% upfront
         vm.stopPrank();
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        bullaFactoring.fundInvoice(invoiceId2, 10000, address(0));
+        _fundInvoice(invoiceId2, 10000, address(0));
         vm.stopPrank();
 
         // Simulate invoices being paid on time
@@ -175,13 +175,13 @@ contract TestWithdraw is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
@@ -227,13 +227,13 @@ contract TestWithdraw is CommonSetup {
 
         // Underwriter approves the invoice
         vm.startPrank(underwriter);
-        bullaFactoring.approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
 
         // creditor funds the invoice
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        bullaFactoring.fundInvoice(invoiceId, upfrontBps, address(0));
+        _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
         // Simulate debtor paying in 30 days instead of 60
