@@ -362,6 +362,89 @@ contract TestBatchOperations is CommonSetup {
         vm.stopPrank();
     }
 
+    // ============================================
+    // C. FEE EQUIVALENCE: BATCH vs INDIVIDUAL
+    // ============================================
+
+    /// @dev Verifies that protocol fee, insurance premium, and net funded amounts are
+    ///      identical whether two invoices are funded in a single batch call or
+    ///      in two separate individual calls.
+    function test_fundInvoices_feesMatchIndividualFunding() public {
+        uint256 depositAmount = 500000;
+        uint256 invoiceAmount = 100000;
+
+        vm.prank(alice);
+        bullaFactoring.deposit(depositAmount, alice);
+
+        // Create 4 identical invoices (2 for individual, 2 for batch)
+        vm.startPrank(bob);
+        uint256 idA1 = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 idA2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 idB1 = createClaim(bob, alice, invoiceAmount, dueBy);
+        uint256 idB2 = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Approve all 4
+        vm.startPrank(underwriter);
+        _approveInvoice(idA1, targetYield, spreadBps, upfrontBps, 0);
+        _approveInvoice(idA2, targetYield, spreadBps, upfrontBps, 0);
+        _approveInvoice(idB1, targetYield, spreadBps, upfrontBps, 0);
+        _approveInvoice(idB2, targetYield, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+
+        // --- Scenario A: Fund 2 invoices individually ---
+        uint256 protocolFeeBefore_A = bullaFactoring.protocolFeeBalance();
+        uint256 insuranceBefore_A = bullaFactoring.insuranceBalance();
+
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), idA1);
+        uint256 netA1 = _fundInvoice(idA1, upfrontBps, bob);
+        bullaClaim.approve(address(bullaFactoring), idA2);
+        uint256 netA2 = _fundInvoice(idA2, upfrontBps, bob);
+        vm.stopPrank();
+
+        uint256 protocolFeeIndividual = bullaFactoring.protocolFeeBalance() - protocolFeeBefore_A;
+        uint256 insuranceIndividual = bullaFactoring.insuranceBalance() - insuranceBefore_A;
+
+        // --- Scenario B: Fund 2 invoices in a single batch ---
+        uint256 protocolFeeBefore_B = bullaFactoring.protocolFeeBalance();
+        uint256 insuranceBefore_B = bullaFactoring.insuranceBalance();
+
+        IBullaFactoringV2_2.FundInvoiceParams[] memory batchParams = new IBullaFactoringV2_2.FundInvoiceParams[](2);
+        address[] memory receivers = new address[](1);
+        receivers[0] = address(0);
+        batchParams[0] = IBullaFactoringV2_2.FundInvoiceParams({
+            invoiceId: idB1,
+            factorerUpfrontBps: upfrontBps,
+            receiverAddressIndex: 0
+        });
+        batchParams[1] = IBullaFactoringV2_2.FundInvoiceParams({
+            invoiceId: idB2,
+            factorerUpfrontBps: upfrontBps,
+            receiverAddressIndex: 0
+        });
+
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), idB1);
+        bullaClaim.approve(address(bullaFactoring), idB2);
+        uint256[] memory batchAmounts = bullaFactoring.fundInvoices(batchParams, receivers);
+        vm.stopPrank();
+
+        uint256 protocolFeeBatch = bullaFactoring.protocolFeeBalance() - protocolFeeBefore_B;
+        uint256 insuranceBatch = bullaFactoring.insuranceBalance() - insuranceBefore_B;
+
+        // --- Assertions ---
+        // Net funded amounts must match
+        assertEq(netA1, batchAmounts[0], "Net funded amount for invoice 1: individual vs batch");
+        assertEq(netA2, batchAmounts[1], "Net funded amount for invoice 2: individual vs batch");
+
+        // Aggregate protocol fee must match
+        assertEq(protocolFeeIndividual, protocolFeeBatch, "Total protocol fee: individual vs batch");
+
+        // Aggregate insurance fee must match
+        assertEq(insuranceIndividual, insuranceBatch, "Total insurance fee: individual vs batch");
+    }
+
     function test_fundInvoices_insufficientLiquidity() public {
         // Deposit only 50000 but try to fund 3 invoices of 100000 each (needs ~300000)
         uint256 depositAmount = 50000;
