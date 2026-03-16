@@ -6,6 +6,9 @@ solc = "0.8.30"
 via_ir = true
 optimizer = true
 optimizer_runs = 200
+
+[profile.test]
+optimizer_runs = 10
 remappings = [
     'contracts/=contracts/',
     '@ensdomains/=node_modules/@ensdomains/',
