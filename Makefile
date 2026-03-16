@@ -17,8 +17,8 @@ constructor-args :=
 
 build  :; forge build --via-ir --skip test
 sizes  :; forge build --via-ir --sizes
-test   :; FOUNDRY_PROFILE=test forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" $(ARGS)
-test_invariant :; FOUNDRY_PROFILE=test forge test -vvv --via-ir --match-path "**/Invariant.t.sol" $(ARGS)
+test   :; forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" --optimizer-runs 10 $(ARGS)
+test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" --optimizer-runs 10 $(ARGS)
 test-s   :; forge test --match-test "testFuzz_OfferLoanNeverFailsNorGeneratesKickback" -vv --via-ir
 trace   :; forge test -vvvv --via-ir
 coverage   :; forge coverage -vv --ir-minimum --report lcov
