@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "./Permissions.sol";
-import {IBullaKycIssuer, KYCRecord} from "./interfaces/IBullaKycIssuer.sol";
+import "./interfaces/IBullaKycIssuer.sol";
 
 contract BullaKycGate is Permissions, Ownable {
     IBullaKycIssuer[] public issuers;
@@ -19,8 +19,7 @@ contract BullaKycGate is Permissions, Ownable {
 
     function isAllowed(address _address) external view override returns (bool) {
         for (uint256 i = 0; i < issuers.length; i++) {
-            KYCRecord memory record = issuers[i].getKycRecord(_address);
-            if (record.isKyced && (record.expiry == 0 || record.expiry > block.timestamp)) {
+            if (issuers[i].isKyced(_address)) {
                 return true;
             }
         }
