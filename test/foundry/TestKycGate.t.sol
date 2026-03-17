@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import 'forge-std/Test.sol';
 import { ManualBullaKycIssuer } from 'contracts/ManualBullaKycIssuer.sol';
 import { BullaKycGate } from 'contracts/BullaKycGate.sol';
-import { IBullaKycIssuer } from 'contracts/interfaces/IBullaKycIssuer.sol';
+import { IBullaKycIssuer, KYCRecord, EntityType } from 'contracts/interfaces/IBullaKycIssuer.sol';
 import { BullaFactoringV2_2 } from 'contracts/BullaFactoring.sol';
 import { CommonSetup } from './CommonSetup.t.sol';
 
@@ -15,32 +15,59 @@ contract TestManualBullaKycIssuer is Test {
     address nonOwner = address(0xBEEF);
     address user = address(0xCAFE);
 
+    bytes32 inquiryId = keccak256("inquiry-001");
+    bytes32 identityHash = keccak256(abi.encodePacked("John", "A", "Doe"));
+
     function setUp() public {
         issuer = new ManualBullaKycIssuer();
     }
 
-    function testApproveSetIsKycedToTrue() public {
-        assertFalse(issuer.isKyced(user));
-        issuer.approve(user);
-        assertTrue(issuer.isKyced(user));
+    function testApproveStoresKycRecord() public {
+        KYCRecord memory before = issuer.getKycRecord(user);
+        assertFalse(before.isKyced);
+
+        issuer.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
+
+        KYCRecord memory record = issuer.getKycRecord(user);
+        assertTrue(record.isKyced);
+        assertEq(uint8(record.entityType), uint8(EntityType.Individual));
+        assertEq(record.approvedAt, uint64(block.timestamp));
+        assertEq(record.inquiryId, inquiryId);
+        assertEq(record.identityHash, identityHash);
     }
 
-    function testRevokeSetIsKycedToFalse() public {
-        issuer.approve(user);
-        assertTrue(issuer.isKyced(user));
+    function testApproveWithExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 365 days);
+        issuer.approve(user, EntityType.Business, expiry, inquiryId, identityHash);
+
+        KYCRecord memory record = issuer.getKycRecord(user);
+        assertTrue(record.isKyced);
+        assertEq(uint8(record.entityType), uint8(EntityType.Business));
+        assertEq(record.expiry, expiry);
+    }
+
+    function testRevokeClearsKycRecord() public {
+        issuer.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
+        assertTrue(issuer.getKycRecord(user).isKyced);
+
         issuer.revoke(user);
-        assertFalse(issuer.isKyced(user));
+
+        KYCRecord memory record = issuer.getKycRecord(user);
+        assertFalse(record.isKyced);
+        assertEq(uint8(record.entityType), uint8(EntityType.None));
+        assertEq(record.expiry, 0);
+        assertEq(record.approvedAt, 0);
     }
 
     function testNonOwnerCannotApprove() public {
         vm.startPrank(nonOwner);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", nonOwner));
-        issuer.approve(user);
+        issuer.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
         vm.stopPrank();
     }
 
     function testNonOwnerCannotRevoke() public {
-        issuer.approve(user);
+        issuer.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
         vm.startPrank(nonOwner);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", nonOwner));
         issuer.revoke(user);
@@ -57,6 +84,9 @@ contract TestBullaKycGate is Test {
     address nonOwner = address(0xBEEF);
     address user = address(0xCAFE);
 
+    bytes32 inquiryId = keccak256("inquiry-001");
+    bytes32 identityHash = keccak256(abi.encodePacked("John", "A", "Doe"));
+
     function setUp() public {
         gate = new BullaKycGate();
         issuer1 = new ManualBullaKycIssuer();
@@ -69,7 +99,7 @@ contract TestBullaKycGate is Test {
 
     function testIsAllowedReturnsTrueWhenOneIssuerApproves() public {
         gate.addIssuer(IBullaKycIssuer(address(issuer1)));
-        issuer1.approve(user);
+        issuer1.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
         assertTrue(gate.isAllowed(user));
     }
 
@@ -77,7 +107,7 @@ contract TestBullaKycGate is Test {
         gate.addIssuer(IBullaKycIssuer(address(issuer1)));
         gate.addIssuer(IBullaKycIssuer(address(issuer2)));
         // Only issuer2 approves the user
-        issuer2.approve(user);
+        issuer2.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
         assertTrue(gate.isAllowed(user));
     }
 
@@ -86,6 +116,28 @@ contract TestBullaKycGate is Test {
         gate.addIssuer(IBullaKycIssuer(address(issuer2)));
         // Neither issuer approves user
         assertFalse(gate.isAllowed(user));
+    }
+
+    function testIsAllowedRespectsExpiry() public {
+        gate.addIssuer(IBullaKycIssuer(address(issuer1)));
+        uint64 expiry = uint64(block.timestamp + 1 days);
+        issuer1.approve(user, EntityType.Individual, expiry, inquiryId, identityHash);
+
+        // Before expiry — allowed
+        assertTrue(gate.isAllowed(user));
+
+        // After expiry — denied
+        vm.warp(block.timestamp + 2 days);
+        assertFalse(gate.isAllowed(user));
+    }
+
+    function testIsAllowedWithZeroExpiryNeverExpires() public {
+        gate.addIssuer(IBullaKycIssuer(address(issuer1)));
+        issuer1.approve(user, EntityType.Individual, 0, inquiryId, identityHash);
+
+        // Warp far into the future
+        vm.warp(block.timestamp + 3650 days);
+        assertTrue(gate.isAllowed(user));
     }
 
     function testAddIssuerAndGetIssuers() public {
@@ -155,6 +207,9 @@ contract TestKycGateIntegration is CommonSetup {
     ManualBullaKycIssuer public kycIssuer;
     BullaFactoringV2_2 public kycFactoring;
 
+    bytes32 inquiryId = keccak256("inquiry-001");
+    bytes32 identityHash = keccak256(abi.encodePacked("John", "A", "Doe"));
+
     function setUp() public override {
         super.setUp();
 
@@ -200,7 +255,7 @@ contract TestKycGateIntegration is CommonSetup {
         uint256 depositAmount = 100 ether;
 
         // Approve alice via KYC issuer
-        kycIssuer.approve(alice);
+        kycIssuer.approve(alice, EntityType.Individual, 0, inquiryId, identityHash);
 
         vm.startPrank(alice);
         asset.approve(address(kycFactoring), depositAmount);
@@ -208,5 +263,22 @@ contract TestKycGateIntegration is CommonSetup {
         vm.stopPrank();
 
         assertGt(shares, 0);
+    }
+
+    function testExpiredKycUserCannotDeposit() public {
+        uint256 depositAmount = 100 ether;
+
+        // Approve alice with a short expiry
+        uint64 expiry = uint64(block.timestamp + 1 hours);
+        kycIssuer.approve(alice, EntityType.Individual, expiry, inquiryId, identityHash);
+
+        // Warp past expiry
+        vm.warp(block.timestamp + 2 hours);
+
+        vm.startPrank(alice);
+        asset.approve(address(kycFactoring), depositAmount);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", alice));
+        kycFactoring.deposit(depositAmount, alice);
+        vm.stopPrank();
     }
 }
