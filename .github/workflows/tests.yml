@@ -44,6 +44,11 @@ jobs:
 
             - name: Run invariant tests
               run: make test_invariant
+            
+            - name: Run fork tests (mainnet)
+              run: make test_fork
+              env:
+                  ETH_RPC_URL: https://1rpc.io/eth
 
             - name: Notify bulla-registry
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
