@@ -5,7 +5,7 @@ import 'forge-std/Test.sol';
 import { ISanctionsList } from 'contracts/interfaces/ISanctionsList.sol';
 
 // ============ Fork Tests: Chainalysis Sanctions Oracle (Mainnet) ============
-// Run with: forge test --match-contract TestSanctionCheckFork --fork-url $ETH_RPC_URL
+// Run with: make test_fork ETH_RPC_URL=<your-mainnet-rpc-url>
 
 contract TestSanctionCheckFork is Test {
     ISanctionsList public oracle;
@@ -13,8 +13,8 @@ contract TestSanctionCheckFork is Test {
     // Chainalysis sanctions oracle — same address on all EVM chains
     address constant SANCTIONS_ORACLE = 0x40C57923924B5c5c5455c48D93317139ADDaC8fb;
 
-    // Known sanctioned address (added to Chainalysis oracle in block 19562392)
-    address constant SANCTIONED_ADDRESS = 0x38735f03b30FbC022DdD06ABED01F0Ca823C6a94;
+    // Lazarus Group wallet — OFAC SDN listed, verified sanctioned on oracle
+    address constant SANCTIONED_ADDRESS = 0x098B716B8Aaf21512996dC57EB0615e2383E2f96;
 
     // A regular EOA that should not be sanctioned
     address constant CLEAN_ADDRESS = 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045; // vitalik.eth

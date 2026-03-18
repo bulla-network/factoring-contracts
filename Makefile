@@ -1,4 +1,4 @@
-.PHONY: test test_invariant
+.PHONY: test test_invariant test_fork
 
 # include .env file and export its env vars
 # (-include to ignore error if it does not exist)
@@ -17,7 +17,8 @@ constructor-args :=
 
 build  :; forge build --via-ir --skip test
 sizes  :; forge build --via-ir --sizes
-test   :; forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" --optimizer-runs 10 $(ARGS)
+test   :; forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" --no-match-contract "Fork" --optimizer-runs 10 $(ARGS)
+test_fork :; forge test -vv --via-ir --match-path "**/fork/**" --fork-url $(ETH_RPC_URL) --optimizer-runs 10 $(ARGS)
 test_invariant :; forge test -vvv --via-ir --match-path "**/Invariant.t.sol" --optimizer-runs 10 $(ARGS)
 test-s   :; forge test --match-test "testFuzz_OfferLoanNeverFailsNorGeneratesKickback" -vv --via-ir
 trace   :; forge test -vvvv --via-ir
