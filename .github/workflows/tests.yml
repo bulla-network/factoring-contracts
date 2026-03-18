@@ -48,7 +48,8 @@ jobs:
             - name: Run fork tests (mainnet)
               run: make test_fork
               env:
-                  ETH_RPC_URL: https://ethereum-rpc.publicnode.com 
+                  ETH_RPC_URL: https://ethereum-rpc.publicnode.com
+                  ETHERSCAN_API_KEY: "" 
 
             - name: Notify bulla-registry
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
