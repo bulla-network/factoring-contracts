@@ -1,7 +1,44 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { getChainId, getEtherscanApiKey } from '../network-config';
+import { getChainId } from '../network-config';
+
+/**
+ * Constructor signatures for ABI encoding
+ */
+const CONSTRUCTOR_SIGNATURES: Record<string, string> = {
+    BullaFactoringFactoryV2_1: 'constructor(address,address,address,address,uint16)',
+    BullaFactoringV2_1: 'constructor(string,string,address,address,address,address,address,address,address,address,uint16,uint16,uint16,uint256,uint256)',
+    FactoringPermissions: 'constructor(address)',
+    DepositPermissions: 'constructor(address)',
+    Permissions: 'constructor(address)',
+    RedemptionQueue: 'constructor()',
+    FactoringFundManager: 'constructor(address,address,address)',
+};
+
+/**
+ * ABI-encode constructor arguments using cast
+ * @param contractName Name of the contract
+ * @param args Constructor arguments
+ * @returns ABI-encoded constructor arguments or null if encoding fails
+ */
+function abiEncodeConstructorArgs(contractName: string, args: string[]): string | null {
+    const signature = CONSTRUCTOR_SIGNATURES[contractName];
+    if (!signature) {
+        console.log(`⚠️  No constructor signature defined for: ${contractName}`);
+        return null;
+    }
+
+    try {
+        // Use cast abi-encode to encode the arguments
+        const castCmd = `cast abi-encode "${signature}" ${args.map(a => `"${a}"`).join(' ')}`;
+        const encoded = execSync(castCmd, { encoding: 'utf8' }).trim();
+        return encoded;
+    } catch (error) {
+        console.error(`❌ Failed to ABI-encode constructor args for ${contractName}:`, (error as Error).message);
+        return null;
+    }
+}
 
 export interface BroadcastTransaction {
     hash: string;
@@ -83,35 +120,50 @@ export function readAllBroadcasts(scriptName: string, network: string): Broadcas
  * Verifies a contract using forge verify-contract command
  * @param contractAddress Contract address to verify
  * @param contractPath Contract path in format "contracts/Contract.sol:ContractName"
+ * @param contractName Name of the contract (for constructor signature lookup)
  * @param network Network name
+ * @param constructorArgs Optional array of constructor arguments
  * @returns Promise that resolves when verification completes
  */
-export function verifyContract(contractAddress: string, contractPath: string, network: string): Promise<void> {
+export function verifyContract(
+    contractAddress: string,
+    contractPath: string,
+    contractName: string,
+    network: string,
+    constructorArgs?: string[],
+): Promise<void> {
     return new Promise(resolve => {
-        // Get network-specific details
-        const etherscanApiKey = getEtherscanApiKey(network);
-        const chainId = getChainId(network);
-
-        // Build forge verify command (same as bulla-contracts-v2)
+        // Build forge verify command
+        // API key is read from foundry.toml [etherscan] section
         const verifyArgs = [
             'verify-contract',
             contractAddress,
             contractPath,
-            '--chain-id',
-            chainId.toString(),
-            '--etherscan-api-key',
-            etherscanApiKey,
-            '--compiler-version',
-            'v0.8.30+commit.13a70b2a', // Updated to 0.8.30
-            '--num-of-optimizations',
-            '200',
+            '--chain',
+            network, // Use network name (e.g., "sepolia")
             '--watch',
         ];
+
+        // Add ABI-encoded constructor arguments if provided
+        let encodedArgs: string | null = null;
+        if (constructorArgs && constructorArgs.length > 0) {
+            encodedArgs = abiEncodeConstructorArgs(contractName, constructorArgs);
+            if (encodedArgs) {
+                verifyArgs.push('--constructor-args');
+                verifyArgs.push(encodedArgs);
+            }
+        }
 
         console.log('\n🔍 Verifying contract on block explorer...');
         console.log(`📄 Contract: ${contractPath}`);
         console.log(`📍 Address: ${contractAddress}`);
-        console.log(`🌐 Network: ${network} (Chain ID: ${chainId})`);
+        console.log(`🌐 Network: ${network}`);
+        if (constructorArgs && constructorArgs.length > 0) {
+            console.log(`🔧 Constructor args: ${constructorArgs.join(', ')}`);
+            if (encodedArgs) {
+                console.log(`🔐 Encoded args: ${encodedArgs.substring(0, 66)}...`);
+            }
+        }
 
         const forgeProcess = spawn('forge', verifyArgs, {
             stdio: 'inherit',
@@ -161,7 +213,7 @@ export async function verifyBroadcastContracts(scriptName: string, network: stri
         }
 
         // Collect all unique contract deployments across all broadcasts
-        const allDeployments = new Map<string, { contractName: string; contractAddress: string }>();
+        const allDeployments = new Map<string, { contractName: string; contractAddress: string; constructorArgs?: string[] }>();
 
         for (const broadcast of broadcasts) {
             const contractDeployments = broadcast.transactions.filter(
@@ -173,6 +225,7 @@ export async function verifyBroadcastContracts(scriptName: string, network: stri
                 allDeployments.set(deployment.contractAddress, {
                     contractName: deployment.contractName,
                     contractAddress: deployment.contractAddress,
+                    constructorArgs: deployment.arguments as string[] | undefined,
                 });
             }
         }
@@ -191,14 +244,21 @@ export async function verifyBroadcastContracts(scriptName: string, network: stri
         const deploymentList = Array.from(allDeployments.values());
 
         for (const deployment of deploymentList) {
-            console.log(`   • ${deployment.contractName} at ${deployment.contractAddress}`);
+            const argsInfo = deployment.constructorArgs?.length ? ` (${deployment.constructorArgs.length} constructor args)` : '';
+            console.log(`   • ${deployment.contractName} at ${deployment.contractAddress}${argsInfo}`);
         }
 
         // Verify each unique contract
         for (const deployment of deploymentList) {
             const contractPath = getContractPath(deployment.contractName);
             if (contractPath) {
-                await verifyContract(deployment.contractAddress, contractPath, network);
+                await verifyContract(
+                    deployment.contractAddress,
+                    contractPath,
+                    deployment.contractName,
+                    network,
+                    deployment.constructorArgs,
+                );
             } else {
                 console.log(`⚠️  Unknown contract path for: ${deployment.contractName}`);
             }
@@ -219,11 +279,13 @@ export async function verifyBroadcastContracts(scriptName: string, network: stri
 function getContractPath(contractName: string): string | null {
     const contractPaths: Record<string, string> = {
         BullaFactoringV2_1: 'contracts/BullaFactoring.sol:BullaFactoringV2_1',
+        BullaFactoringFactoryV2_1: 'contracts/BullaFactoringFactoryV2_1.sol:BullaFactoringFactoryV2_1',
         BullaClaimV2InvoiceProviderAdapterV2: 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol:BullaClaimV2InvoiceProviderAdapterV2',
         BullaClaimV1InvoiceProviderAdapterV2: 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol:BullaClaimV1InvoiceProviderAdapterV2',
         DepositPermissions: 'contracts/DepositPermissions.sol:DepositPermissions',
         FactoringPermissions: 'contracts/FactoringPermissions.sol:FactoringPermissions',
         Permissions: 'contracts/Permissions.sol:Permissions',
+        PermissionsFactory: 'contracts/PermissionsFactory.sol:PermissionsFactory',
         RedemptionQueue: 'contracts/RedemptionQueue.sol:RedemptionQueue',
         FactoringFundManager: 'contracts/FactoringFundManager.sol:FactoringFundManager',
     };
