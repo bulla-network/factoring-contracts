@@ -1,6 +1,13 @@
 // Shared network and pool configurations for deployment and permissions scripts
 
 // ============================================================================
+// Global Constants
+// ============================================================================
+
+/** Default protocol fee in basis points (30 bps = 0.30%) */
+export const DEFAULT_PROTOCOL_FEE_BPS = 30;
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -14,6 +21,7 @@ export type NetworkConfig = {
     bullaFrendLendAddress: string;
     bullaInvoiceAddress: string;
     BullaClaimInvoiceProviderAdapterAddress?: string;
+    bullaFactoringFactoryAddress?: string;
 };
 
 /** Pool-specific configuration (not tied to any network) */
@@ -47,30 +55,31 @@ export type FullConfig = NetworkConfig & PoolConfig & DeployedPoolConfig & { poo
 export const networkConfigs: Record<string, NetworkConfig> = {
     sepolia: {
         bullaClaim: '0x0d9EF9d436fF341E500360a6B5E5750aB85BCCB6',
-        bullaDao: '0x89e03e7980c92fd81ed3a9b72f5c73fdf57e5e6d', // Mike's address
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x4d6A66D32CF34270e4cc9C9F201CA4dB650Be3f2',
         bullaInvoiceAddress: '0xa2c4B7239A0d179A923751cC75277fe139AB092F',
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
     },
     polygon: {
         bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4',
-        bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
         bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
         BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
     },
     mainnet: {
-        bullaClaim: '0x127948A4286A67A0A5Cb56a2D0d54881077A4889',
-        bullaDao: '0xD52199A8a2f94d0317641bA8a93d46C320403793',
-        bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
-        bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
-        BullaClaimInvoiceProviderAdapterAddress: '0xE14E624b29BcDa2ec409BBBf97037fEDe3803797',
+        bullaClaim: '0x10a55a4dbd24fa188eed98a2adae2ebff0ef1219',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
+        bullaFrendLendAddress: '0x1097b7ecf0721aaffff147cf7bec154422896317',
+        bullaInvoiceAddress: '0xfe2631bcb3e622750b6fbb605a416173ffa3a770',
+        BullaClaimInvoiceProviderAdapterAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
     },
     base: {
-        bullaClaim: '0x9d4EB59D166841FfbC66197ECAd8E70f2339905D',
-        bullaDao: '0xca591b3b53521ccde47d2da4e0ea151f8b81f6c1', // Bulla Safe's address
-        bullaFrendLendAddress: '0x03754cc78848FBc52130a8EEdD8d3d079F7Bb042',
-        bullaInvoiceAddress: '0x662303A841C0DDe7383939417581cBf34BE9f01D',
+        bullaClaim: '0x8D59E594a3e4D0647C15887Cde5ECBfBE583b441',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
+        bullaFrendLendAddress: '0x777A7966464a4E5684FE95025aDb2AD56bdaE77B',
+        bullaInvoiceAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
+        BullaClaimInvoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca',
     },
 };
 
@@ -80,17 +89,17 @@ export const networkConfigs: Record<string, NetworkConfig> = {
 
 export const poolConfigs: Record<PoolName, PoolConfig> = {
     tcs: {
-        protocolFeeBps: 25,
-        adminFeeBps: 50,
-        targetYieldBps: 730,
+        protocolFeeBps: 30,
+        adminFeeBps: 0,
+        targetYieldBps: 795,
     },
     taram: {
-        protocolFeeBps: 25,
+        protocolFeeBps: 30,
         adminFeeBps: 50,
         targetYieldBps: 800,
     },
     fundora: {
-        protocolFeeBps: 10,
+        protocolFeeBps: 30,
         adminFeeBps: 50,
         targetYieldBps: 900,
     },
@@ -123,15 +132,15 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                     };
                 case 'fundora':
                     return {
-                        underlyingAsset: '0x3894374b3ffd1DB45b760dD094963Dd1167e5568', // WYST
-                        poolDisplayName: 'Fundora Management Pool V2.1',
-                        poolTokenName: 'Fundora Management Token V2.1',
-                        poolTokenSymbol: 'FACT-V2_1',
+                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
+                        poolDisplayName: 'Test Pool V2.1',
+                        poolTokenName: 'Test Token V2.1',
+                        poolTokenSymbol: 'BFT-V2_1',
                         underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
                         depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0x59973c8dbb88c7d3f5480175cef253c771ccb3ef',
+                        bullaFactoringAddress: '0xa5e94f122d421c9579a5cb1e687f55e109ba270b',
                         writeNewAddresses: true,
                     };
                 default:
@@ -161,15 +170,15 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
             switch (pool) {
                 case 'tcs':
                     return {
-                        underlyingAsset: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // Mainnet USDC
-                        poolDisplayName: 'Bulla TCS Settlement Pool - Mainnet V2',
-                        poolTokenName: 'Bulla TCS Settlement Pool Token',
-                        poolTokenSymbol: 'BFT-TCS',
+                        underlyingAsset: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8', // Mainnet PyUSD
+                        poolDisplayName: 'TCS Settlement Pool - Mainnet V2.1',
+                        poolTokenName: 'TCS Settlement Pool Token V2.1',
+                        poolTokenSymbol: 'BFT-TCS-V2_1',
                         underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
                         factoringPermissionsAddress: '0x1c534661326b41c8b8aab5631ECED6D9755ff192',
                         depositPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
-                        redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
-                        bullaFactoringAddress: '0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5',
+                        redeemPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
+                        bullaFactoringAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
                         writeNewAddresses: true,
                     };
                 default:
@@ -185,10 +194,10 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         poolTokenName: 'TCS Settlement Pool Token V2',
                         poolTokenSymbol: 'BFT-TCS-V2',
                         underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        bullaFactoringAddress: '0x7c2Cc85Cb30844B81524E703f04a5eE98e3313FB',
                         depositPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         redeemPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         factoringPermissionsAddress: '0x0313433613F24c73efc15c5c74408F40B462fd9e',
+                        bullaFactoringAddress: '0xc65abf8aba06510f777be4ba2c29da4d93257d42',
                         writeNewAddresses: true,
                     };
                 default:
@@ -256,7 +265,7 @@ export function getRpcUrl(network: string): string {
         case 'sepolia':
             return `https://rpc.ankr.com/eth_sepolia/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc`;
         case 'polygon':
-            return 'https://polygon-rpc.com/';
+            return 'https://rpc.ankr.com/polygon/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
         case 'mainnet':
             return `https://go.getblock.io/${process.env.MAINNET_GETBLOCK_API_KEY}`;
         case 'base':

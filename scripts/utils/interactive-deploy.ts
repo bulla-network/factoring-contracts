@@ -69,14 +69,22 @@ export function runForgeScript(
     privateKey: string,
     env: NodeJS.ProcessEnv,
     network: string,
+    options?: { verify?: boolean },
 ): ChildProcess {
     const forgeArgs = ['script', scriptPath, '--rpc-url', rpcUrl, '--broadcast', '--private-key', privateKey, '--via-ir'];
+
+    // Add verification flags if requested (API key is read from foundry.toml [etherscan] section)
+    const shouldVerify = options?.verify ?? true; // Default to true
+    if (shouldVerify) {
+        forgeArgs.push('--verify');
+    }
 
     console.log('🔧 Running forge script...');
     console.log(`📄 Script: ${scriptPath}`);
     console.log(`🌐 Network: ${network}`);
     console.log(`📡 RPC: ${rpcUrl.replace(process.env.INFURA_API_KEY || '', '***')}`);
-    console.log(`🚀 Broadcasting: Yes\n`);
+    console.log(`🚀 Broadcasting: Yes`);
+    console.log(`✅ Auto-verify: ${shouldVerify ? 'Yes' : 'No'}\n`);
 
     return spawn('forge', forgeArgs, {
         env,
