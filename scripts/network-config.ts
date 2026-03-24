@@ -86,6 +86,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
         bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
+        BullaClaimInvoiceProviderAdapterAddress: '0x2C6c46d6b1b5121b0072c8B9F4eB836fE1252f78',
     },
 };
 
