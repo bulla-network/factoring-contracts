@@ -8,7 +8,8 @@ import { getChainId } from '../network-config';
  */
 const CONSTRUCTOR_SIGNATURES: Record<string, string> = {
     BullaFactoringFactoryV2_1: 'constructor(address,address,address,address,uint16)',
-    BullaFactoringV2_1: 'constructor(string,string,address,address,address,address,address,address,address,address,uint16,uint16,uint16,uint256,uint256)',
+    BullaFactoringV2_1: 'constructor(address,address,address,address,address,address,address,address,uint16,uint16,string,uint16,string,string)',
+    BullaFactoringV2_2: 'constructor(address,address,address,address,address,address,address,address,uint16,uint16,string,uint16,string,string,address,uint16,uint16,uint16)',
     FactoringPermissions: 'constructor(address)',
     DepositPermissions: 'constructor(address)',
     Permissions: 'constructor(address)',
@@ -279,6 +280,7 @@ export async function verifyBroadcastContracts(scriptName: string, network: stri
 function getContractPath(contractName: string): string | null {
     const contractPaths: Record<string, string> = {
         BullaFactoringV2_1: 'contracts/BullaFactoring.sol:BullaFactoringV2_1',
+        BullaFactoringV2_2: 'contracts/BullaFactoring.sol:BullaFactoringV2_2',
         BullaFactoringFactoryV2_1: 'contracts/BullaFactoringFactoryV2_1.sol:BullaFactoringFactoryV2_1',
         BullaClaimV2InvoiceProviderAdapterV2: 'contracts/BullaClaimV2InvoiceProviderAdapterV2.sol:BullaClaimV2InvoiceProviderAdapterV2',
         BullaClaimV1InvoiceProviderAdapterV2: 'contracts/BullaClaimV1InvoiceProviderAdapterV2.sol:BullaClaimV1InvoiceProviderAdapterV2',
