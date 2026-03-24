@@ -57,6 +57,19 @@
   },
   {
     "type": "function",
+    "name": "getMaxQueueSize",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getNextRedemption",
     "inputs": [],
     "outputs": [
@@ -225,6 +238,19 @@
   },
   {
     "type": "function",
+    "name": "maxQueueSize",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "owner",
     "inputs": [],
     "outputs": [
@@ -333,6 +359,19 @@
   },
   {
     "type": "function",
+    "name": "setMaxQueueSize",
+    "inputs": [
+      {
+        "name": "_maxQueueSize",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "transferOwnership",
     "inputs": [
       {
@@ -351,14 +390,14 @@
       {
         "name": "previousOwner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "newOwner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -370,14 +409,14 @@
       {
         "name": "owner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "queueIndex",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -389,32 +428,32 @@
       {
         "name": "owner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "receiver",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "shares",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "assets",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "queueIndex",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -426,32 +465,32 @@
       {
         "name": "owner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "receiver",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "shares",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "assets",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "queueIndex",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -531,6 +570,11 @@
   {
     "type": "error",
     "name": "RedemptionAlreadyCancelled",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RedemptionQueueFull",
     "inputs": []
   }
 ]

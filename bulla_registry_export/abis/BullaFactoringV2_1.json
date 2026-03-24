@@ -206,11 +206,6 @@
         "internalType": "uint16"
       },
       {
-        "name": "minDaysInterestApplied",
-        "type": "uint16",
-        "internalType": "uint16"
-      },
-      {
         "name": "_initialInvoiceValueOverride",
         "type": "uint256",
         "internalType": "uint256"
@@ -251,7 +246,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "impairmentGracePeriod",
+        "name": "impairmentDate",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -259,6 +254,36 @@
         "name": "fundedTimestamp",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "fundedAmountGross",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "fundedAmountNet",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "initialInvoiceValue",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "initialPaidAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "protocolFee",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "receiverAddress",
+        "type": "address",
+        "internalType": "address"
       },
       {
         "name": "feeParams",
@@ -289,41 +314,11 @@
             "name": "adminFeeBps",
             "type": "uint16",
             "internalType": "uint16"
-          },
-          {
-            "name": "minDaysInterestApplied",
-            "type": "uint16",
-            "internalType": "uint16"
           }
         ]
       },
       {
-        "name": "fundedAmountGross",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "fundedAmountNet",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "initialInvoiceValue",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "initialPaidAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "receiverAddress",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "protocolFee",
+        "name": "perSecondInterestRateRay",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -407,7 +402,7 @@
     "inputs": [],
     "outputs": [
       {
-        "name": "accruedProfits",
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -463,19 +458,6 @@
   },
   {
     "type": "function",
-    "name": "calculateRealizedGainLoss",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "int256",
-        "internalType": "int256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "calculateTargetFees",
     "inputs": [
       {
@@ -522,6 +504,40 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "clearStalePendingLoanOffers",
+    "inputs": [
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "processed",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "removed",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "remaining",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -717,11 +733,6 @@
             "internalType": "uint16"
           },
           {
-            "name": "impairReserve",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
             "name": "targetYieldBps",
             "type": "uint256",
             "internalType": "uint256"
@@ -753,61 +764,6 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "impairInvoice",
-    "inputs": [
-      {
-        "name": "invoiceId",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "impairReserve",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "impairments",
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "gainAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "lossAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "isImpaired",
-        "type": "bool",
-        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -1075,11 +1031,6 @@
     ],
     "outputs": [
       {
-        "name": "exists",
-        "type": "bool",
-        "internalType": "bool"
-      },
-      {
         "name": "offeredAt",
         "type": "uint256",
         "internalType": "uint256"
@@ -1093,6 +1044,11 @@
         "name": "termLength",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "exists",
+        "type": "bool",
+        "internalType": "bool"
       },
       {
         "name": "feeParams",
@@ -1121,11 +1077,6 @@
           },
           {
             "name": "adminFeeBps",
-            "type": "uint16",
-            "internalType": "uint16"
-          },
-          {
-            "name": "minDaysInterestApplied",
             "type": "uint16",
             "internalType": "uint16"
           }
@@ -1225,6 +1176,25 @@
   },
   {
     "type": "function",
+    "name": "previewUnfactor",
+    "inputs": [
+      {
+        "name": "invoiceId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "totalRefundOrPaymentAmount",
+        "type": "int256",
+        "internalType": "int256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "previewWithdraw",
     "inputs": [
       {
@@ -1287,13 +1257,6 @@
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "reconcileActivePaidInvoices",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -1441,19 +1404,6 @@
     "inputs": [
       {
         "name": "_days",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setImpairReserve",
-    "inputs": [
-      {
-        "name": "_impairReserve",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1673,121 +1623,28 @@
   {
     "type": "function",
     "name": "viewPoolStatus",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
-      {
-        "name": "paidInvoiceIds",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      },
-      {
-        "name": "paidInvoices",
-        "type": "tuple[]",
-        "internalType": "struct IInvoiceProviderAdapterV2.Invoice[]",
-        "components": [
-          {
-            "name": "invoiceAmount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "creditor",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "debtor",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "dueDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "tokenAddress",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "paidAmount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "isCanceled",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "isPaid",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "impairmentGracePeriod",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
-      },
       {
         "name": "impairedInvoiceIds",
         "type": "uint256[]",
         "internalType": "uint256[]"
       },
       {
-        "name": "impairedInvoices",
-        "type": "tuple[]",
-        "internalType": "struct IInvoiceProviderAdapterV2.Invoice[]",
-        "components": [
-          {
-            "name": "invoiceAmount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "creditor",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "debtor",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "dueDate",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "tokenAddress",
-            "type": "address",
-            "internalType": "address"
-          },
-          {
-            "name": "paidAmount",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "isCanceled",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "isPaid",
-            "type": "bool",
-            "internalType": "bool"
-          },
-          {
-            "name": "impairmentGracePeriod",
-            "type": "uint256",
-            "internalType": "uint256"
-          }
-        ]
+        "name": "hasMore",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -1842,8 +1699,8 @@
       {
         "name": "paidInvoiceIds",
         "type": "uint256[]",
-        "internalType": "uint256[]",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256[]"
       }
     ],
     "anonymous": false
@@ -1855,14 +1712,14 @@
       {
         "name": "oldFeeBps",
         "type": "uint16",
-        "internalType": "uint16",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint16"
       },
       {
         "name": "newFeeBps",
         "type": "uint16",
-        "internalType": "uint16",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint16"
       }
     ],
     "anonymous": false
@@ -1874,14 +1731,14 @@
       {
         "name": "bullaDao",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "amount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1893,20 +1750,20 @@
       {
         "name": "owner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "spender",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "value",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1918,8 +1775,8 @@
       {
         "name": "newDuration",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1931,14 +1788,14 @@
       {
         "name": "oldAddress",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "newAddress",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1950,26 +1807,26 @@
       {
         "name": "sender",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "owner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "assets",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "shares",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1981,8 +1838,8 @@
       {
         "name": "newAddress",
         "type": "address",
-        "internalType": "address",
-        "indexed": false
+        "indexed": false,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1994,8 +1851,8 @@
       {
         "name": "newAddress",
         "type": "address",
-        "internalType": "address",
-        "indexed": false
+        "indexed": false,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2007,21 +1864,8 @@
       {
         "name": "newGracePeriodDays",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "ImpairReserveChanged",
-    "inputs": [
-      {
-        "name": "newImpairReserve",
-        "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -2033,20 +1877,20 @@
       {
         "name": "invoiceId",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint256"
       },
       {
         "name": "validUntil",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "feeParams",
         "type": "tuple",
-        "internalType": "struct IBullaFactoringV2.FeeParams",
         "indexed": false,
+        "internalType": "struct IBullaFactoringV2.FeeParams",
         "components": [
           {
             "name": "targetYieldBps",
@@ -2072,11 +1916,6 @@
             "name": "adminFeeBps",
             "type": "uint16",
             "internalType": "uint16"
-          },
-          {
-            "name": "minDaysInterestApplied",
-            "type": "uint16",
-            "internalType": "uint16"
           }
         ]
       }
@@ -2090,63 +1929,44 @@
       {
         "name": "invoiceId",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint256"
       },
       {
         "name": "fundedAmount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "originalCreditor",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "dueDate",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "upfrontBps",
         "type": "uint16",
-        "internalType": "uint16",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint16"
       },
       {
         "name": "protocolFee",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "InvoiceImpaired",
-    "inputs": [
-      {
-        "name": "invoiceId",
-        "type": "uint256",
-        "internalType": "uint256",
-        "indexed": true
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
-        "name": "lossAmount",
-        "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
-      },
-      {
-        "name": "gainAmount",
-        "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "name": "fundsReceiver",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2158,20 +1978,20 @@
       {
         "name": "invoiceId",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint256"
       },
       {
         "name": "kickbackAmount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "originalCreditor",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2183,44 +2003,44 @@
       {
         "name": "invoiceId",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint256"
       },
       {
         "name": "trueInterest",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "trueSpreadAmount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "trueAdminFee",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "fundedAmountNet",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "kickbackAmount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "originalCreditor",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2232,38 +2052,44 @@
       {
         "name": "invoiceId",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": true
+        "indexed": true,
+        "internalType": "uint256"
       },
       {
         "name": "originalCreditor",
         "type": "address",
-        "internalType": "address",
-        "indexed": false
+        "indexed": false,
+        "internalType": "address"
       },
       {
         "name": "totalRefundOrPaymentAmount",
         "type": "int256",
-        "internalType": "int256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "int256"
       },
       {
         "name": "interestToCharge",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "spreadAmount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "adminFee",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "unfactoredByOwner",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
       }
     ],
     "anonymous": false
@@ -2275,14 +2101,14 @@
       {
         "name": "previousOwner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "newOwner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2294,14 +2120,14 @@
       {
         "name": "oldProtocolFeeBps",
         "type": "uint16",
-        "internalType": "uint16",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint16"
       },
       {
         "name": "newProtocolFeeBps",
         "type": "uint16",
-        "internalType": "uint16",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint16"
       }
     ],
     "anonymous": false
@@ -2313,14 +2139,14 @@
       {
         "name": "bullaDao",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "amount",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -2332,8 +2158,8 @@
       {
         "name": "newAddress",
         "type": "address",
-        "internalType": "address",
-        "indexed": false
+        "indexed": false,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2345,14 +2171,14 @@
       {
         "name": "oldQueue",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "newQueue",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2364,8 +2190,8 @@
       {
         "name": "newTargetYield",
         "type": "uint16",
-        "internalType": "uint16",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint16"
       }
     ],
     "anonymous": false
@@ -2377,20 +2203,20 @@
       {
         "name": "from",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "to",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "value",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -2402,14 +2228,14 @@
       {
         "name": "oldUnderwriter",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "newUnderwriter",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -2421,40 +2247,35 @@
       {
         "name": "sender",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "receiver",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "owner",
         "type": "address",
-        "internalType": "address",
-        "indexed": true
+        "indexed": true,
+        "internalType": "address"
       },
       {
         "name": "assets",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       },
       {
         "name": "shares",
         "type": "uint256",
-        "internalType": "uint256",
-        "indexed": false
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
-  },
-  {
-    "type": "error",
-    "name": "ActivePaidInvoicesExist",
-    "inputs": []
   },
   {
     "type": "error",
@@ -2469,6 +2290,11 @@
   {
     "type": "error",
     "name": "CallerNotBullaFrendLend",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CallerNotInvoiceContract",
     "inputs": []
   },
   {
@@ -2658,16 +2484,6 @@
   },
   {
     "type": "error",
-    "name": "ImpairReserveMustBeGreater",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "ImpairReserveNotSet",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InsufficientFunds",
     "inputs": [
       {
@@ -2699,11 +2515,6 @@
   },
   {
     "type": "error",
-    "name": "InvoiceAlreadyImpairedByFund",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "InvoiceAlreadyPaid",
     "inputs": []
   },
@@ -2724,6 +2535,11 @@
   },
   {
     "type": "error",
+    "name": "InvoiceNotActive",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvoiceNotApproved",
     "inputs": []
   },
@@ -2734,7 +2550,17 @@
   },
   {
     "type": "error",
+    "name": "InvoiceNotPaid",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvoicePaidAmountChanged",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvoiceSetPaidCallbackFailed",
     "inputs": []
   },
   {
@@ -2797,6 +2623,22 @@
   },
   {
     "type": "error",
+    "name": "TooManyPendingLoanOffers",
+    "inputs": [
+      {
+        "name": "current",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "max",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UnauthorizedDeposit",
     "inputs": [
       {
@@ -2809,6 +2651,28 @@
   {
     "type": "error",
     "name": "UnauthorizedFactoring",
+    "inputs": [
+      {
+        "name": "caller",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnauthorizedRedeem",
+    "inputs": [
+      {
+        "name": "caller",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "UnauthorizedWithdrawal",
     "inputs": [
       {
         "name": "caller",
