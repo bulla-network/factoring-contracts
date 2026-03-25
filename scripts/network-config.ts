@@ -81,6 +81,13 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaInvoiceAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
         BullaClaimInvoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca',
     },
+    arbitrum: {
+        bullaClaim: '0xb58f4f651553d51d95c69f59364a9ee1ca554b7e',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
+        bullaFrendLendAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
+        bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
+        BullaClaimInvoiceProviderAdapterAddress: '0x2C6c46d6b1b5121b0072c8B9F4eB836fE1252f78',
+    },
 };
 
 // ============================================================================
@@ -204,6 +211,25 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                     return undefined;
             }
 
+        case 'arbitrum':
+            switch (pool) {
+                case 'tcs':
+                    return {
+                        underlyingAsset: '0x46850aD61C2B7d64d08c9C754F45254596696984', // pyUSD
+                        poolDisplayName: 'TCS Settlement Pool - Arbitrum V2.1',
+                        poolTokenName: 'TCS Settlement Pool Token V2.1',
+                        poolTokenSymbol: 'BFT-TCS-V2_1',
+                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+                        factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
+                        depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
+                        redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
+                        bullaFactoringAddress: '0x30fbdae8d1a2946ca00137eaf3de9b512d1ee859',
+                        writeNewAddresses: true,
+                    };
+                default:
+                    return undefined;
+            }
+
         default:
             return undefined;
     }
@@ -270,6 +296,8 @@ export function getRpcUrl(network: string): string {
             return `https://go.getblock.io/${process.env.MAINNET_GETBLOCK_API_KEY}`;
         case 'base':
             return 'https://rpc.ankr.com/base/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
+        case 'arbitrum':
+            return 'https://rpc.ankr.com/arbitrum/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
         default:
             throw new Error(`Unsupported network: ${network}`);
     }
@@ -283,6 +311,8 @@ export function getEtherscanApiKey(network: string): string {
             return process.env.ETHERSCAN_API_KEY!;
         case 'polygon':
             return process.env.POLYGONSCAN_API_KEY!;
+        case 'arbitrum':
+            return process.env.ARBISCAN_API_KEY!;
         default:
             throw new Error(`No Etherscan API key configured for network: ${network}`);
     }
@@ -298,6 +328,8 @@ export function getChainId(network: string): number {
             return 1;
         case 'base':
             return 8453;
+        case 'arbitrum':
+            return 42161;
         default:
             throw new Error(`Unknown chain ID for network: ${network}`);
     }
