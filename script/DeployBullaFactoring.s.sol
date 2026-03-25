@@ -32,10 +32,6 @@ contract DeployBullaFactoring is Script {
         address bullaFrendLendAddress;
         address bullaInvoiceAddress;
         address bullaFactoringAddress;
-        address insurer;
-        uint256 insuranceFeeBps;
-        uint256 impairmentGrossGainBps;
-        uint256 recoveryProfitRatioBps;
     }
 
     NetworkConfig public config;
@@ -47,11 +43,6 @@ contract DeployBullaFactoring is Script {
         uint256 deployerPrivateKey = vm.envUint("DEPLOY_PK");
         address deployer = vm.addr(deployerPrivateKey);
         
-        // Default insurer to pool owner (deployer) if not specified
-        if (config.insurer == address(0)) {
-            config.insurer = deployer;
-        }
-
         console.log("Deploying with account:", deployer);
         console.log("Network Config:");
         console.log("- BullaClaim:", config.bullaClaim);
@@ -105,8 +96,8 @@ contract DeployBullaFactoring is Script {
 
         // Deploy BullaFactoring if not provided
         if (config.bullaFactoringAddress == address(0)) {
-            console.log("Deploying BullaFactoringV2_2...");
-            BullaFactoringV2_2 bullaFactoring = new BullaFactoringV2_2(
+            console.log("Deploying BullaFactoringV2_1...");
+            BullaFactoringV2_1 bullaFactoring = new BullaFactoringV2_1(
                 IERC20(config.underlyingAsset),
                 IInvoiceProviderAdapterV2(config.bullaClaimInvoiceProviderAdapterAddress),
                 IBullaFrendLendV2(config.bullaFrendLendAddress),
@@ -120,16 +111,12 @@ contract DeployBullaFactoring is Script {
                 config.poolName,
                 uint16(config.targetYieldBps),
                 config.poolTokenName,
-                config.poolTokenSymbol,
-                config.insurer,
-                uint16(config.insuranceFeeBps),
-                uint16(config.impairmentGrossGainBps),
-                uint16(config.recoveryProfitRatioBps)
+                config.poolTokenSymbol
             );
             config.bullaFactoringAddress = address(bullaFactoring);
-            console.log("BullaFactoringV2_2 deployed at:", address(bullaFactoring));
+            console.log("BullaFactoringV2_1 deployed at:", address(bullaFactoring));
         } else {
-            console.log("Using existing BullaFactoringV2_2:", config.bullaFactoringAddress);
+            console.log("Using existing BullaFactoringV2_1:", config.bullaFactoringAddress);
         }
 
         vm.stopBroadcast();
@@ -139,7 +126,7 @@ contract DeployBullaFactoring is Script {
         console.log("BullaClaimV2InvoiceProviderAdapterV2:", config.bullaClaimInvoiceProviderAdapterAddress);
         console.log("FactoringPermissions:", config.factoringPermissionsAddress);
         console.log("DepositPermissions:", config.depositPermissionsAddress);
-        console.log("BullaFactoringV2_2:", config.bullaFactoringAddress);
+        console.log("BullaFactoringV2_1:", config.bullaFactoringAddress);
     }
 
     function _loadConfig() internal {
@@ -163,9 +150,5 @@ contract DeployBullaFactoring is Script {
         config.bullaFrendLendAddress = vm.envOr("BULLA_FREND_LEND_ADDRESS", address(0));
         config.bullaInvoiceAddress = vm.envOr("BULLA_INVOICE_ADDRESS", address(0));
         config.bullaFactoringAddress = vm.envOr("BULLA_FACTORING_ADDRESS", address(0));
-        config.insurer = vm.envOr("INSURER_ADDRESS", address(0));
-        config.insuranceFeeBps = vm.envOr("INSURANCE_FEE_BPS", uint256(100));
-        config.impairmentGrossGainBps = vm.envOr("IMPAIRMENT_GROSS_GAIN_BPS", uint256(500));
-        config.recoveryProfitRatioBps = vm.envOr("RECOVERY_PROFIT_RATIO_BPS", uint256(5000));
     }
 }

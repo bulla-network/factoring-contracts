@@ -8,7 +8,7 @@ import { getChainId } from '../network-config';
  */
 const CONSTRUCTOR_SIGNATURES: Record<string, string> = {
     BullaFactoringFactoryV2_1: 'constructor(address,address,address,address,uint16)',
-    BullaFactoringV2_1: 'constructor(string,string,address,address,address,address,address,address,address,address,uint16,uint16,uint16,uint256,uint256)',
+    BullaFactoringV2_1: 'constructor(address,address,address,address,address,address,address,address,uint16,uint16,string,uint16,string,string)',
     FactoringPermissions: 'constructor(address)',
     DepositPermissions: 'constructor(address)',
     Permissions: 'constructor(address)',

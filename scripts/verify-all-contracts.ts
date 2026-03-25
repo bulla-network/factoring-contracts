@@ -10,6 +10,7 @@ function getNetworkFromChainId(chainId: string): string | null {
         '1': 'mainnet',
         '137': 'polygon',
         '11155111': 'sepolia',
+        '42161': 'arbitrum',
     };
     return chainIdMap[chainId] || null;
 }
