@@ -205,7 +205,6 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         redeemPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         factoringPermissionsAddress: '0x0313433613F24c73efc15c5c74408F40B462fd9e',
                         bullaFactoringAddress: '0xc65abf8aba06510f777be4ba2c29da4d93257d42',
-<<<<<<< HEAD
                         writeNewAddresses: true,
                     };
                 default:
