@@ -211,6 +211,10 @@ contract TestBatchOperations is CommonSetup {
         vm.prank(alice);
         bullaFactoring.deposit(depositAmount, alice);
 
+        // Allow charlie and alice in factoring permissions so they can be receivers
+        factoringPermissions.allow(charlie);
+        factoringPermissions.allow(alice);
+
         uint256 invoiceAmount = 100000;
         (uint256 id1, uint256 id2, uint256 id3) = _create3Invoices(invoiceAmount);
         _batchApprove3(id1, id2, id3);
