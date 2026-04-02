@@ -85,6 +85,92 @@ contract TestPermissionsAndAccessControl is CommonSetup {
         vm.stopPrank();
     }
 
+    function testReceiverAddressNotInFactoringPermissionsReverts() public {
+        // Setup: deposit liquidity
+        uint256 initialDeposit = 100000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // bob creates an invoice (bob is allowed in factoringPermissions)
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 1000000;
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+
+        // bob tries to fund invoice with charlie as receiver (charlie is NOT in factoringPermissions)
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedReceiverAddress(address)", charlie));
+        _fundInvoiceExpectRevert(invoiceId, upfrontBps, charlie);
+        vm.stopPrank();
+    }
+
+    function testReceiverAddressInFactoringPermissionsSucceeds() public {
+        // Setup: deposit liquidity
+        uint256 initialDeposit = 100000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // Allow alice in factoring permissions so she can be a receiver
+        factoringPermissions.allow(alice);
+
+        // bob creates an invoice (bob is allowed in factoringPermissions)
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 1000000;
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+
+        // bob funds invoice with alice as receiver (alice IS in factoringPermissions)
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        uint256 fundedAmount = _fundInvoice(invoiceId, upfrontBps, alice);
+        vm.stopPrank();
+
+        assertGt(fundedAmount, 0, "Funded amount should be greater than 0");
+    }
+
+    function testReceiverAddressZeroSucceeds() public {
+        // Setup: deposit liquidity
+        uint256 initialDeposit = 100000000000;
+        vm.startPrank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+        vm.stopPrank();
+
+        // bob creates an invoice (bob is allowed in factoringPermissions)
+        dueBy = block.timestamp + 30 days;
+        uint256 invoiceAmount = 1000000;
+        vm.startPrank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+        vm.stopPrank();
+
+        // Underwriter approves the invoice
+        vm.startPrank(underwriter);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.stopPrank();
+
+        // bob funds invoice with address(0) as receiver (should default to msg.sender = bob, skip permission check)
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        uint256 fundedAmount = _fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        assertGt(fundedAmount, 0, "Funded amount should be greater than 0");
+    }
+
     function testApproveDoesNotOverrideStorage() public {
         dueBy = block.timestamp + 30 days;
         uint256 invoiceAmount = 100000000000;

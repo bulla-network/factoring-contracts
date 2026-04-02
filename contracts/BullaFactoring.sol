@@ -148,6 +148,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error InsufficientInsuranceFunds(uint256 available, uint256 required);
     error InvoiceImpairFailed();
     error ImpairmentGrossGainBpsMustBePositive();
+    error UnauthorizedReceiverAddress(address receiver);
 
     modifier onlyInsurer() {
         if (msg.sender != insurer) revert CallerNotInsurer();
@@ -626,6 +627,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
         if (params.receiverAddressIndex >= receiverAddresses.length) revert InvalidReceiverAddressIndex();
         address actualReceiver = receiverAddresses[params.receiverAddressIndex] == address(0) ? msg.sender : receiverAddresses[params.receiverAddressIndex];
+        if (receiverAddresses[params.receiverAddressIndex] != address(0) && !factoringPermissions.isAllowed(actualReceiver)) {
+            revert UnauthorizedReceiverAddress(actualReceiver);
+        }
 
         approval.receiverAddress = actualReceiver;
         approvedInvoices[params.invoiceId] = approval;

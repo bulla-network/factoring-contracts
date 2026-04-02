@@ -674,6 +674,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
+        // Allow charlie in factoring permissions so they can be a receiver
+        factoringPermissions.allow(charlie);
+
         // Create invoice
         vm.startPrank(bob);
         uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -740,6 +743,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
 
+        // Allow charlie in factoring permissions so they can be a receiver
+        factoringPermissions.allow(charlie);
+
         // Create two identical invoices
         vm.startPrank(bob);
         uint256 invoiceId1 = createClaim(bob, alice, invoiceAmount, dueBy);
@@ -782,6 +788,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
         vm.stopPrank();
+
+        // Allow charlie in factoring permissions so they can be a receiver
+        factoringPermissions.allow(charlie);
 
         // Create invoice
         vm.startPrank(bob);
