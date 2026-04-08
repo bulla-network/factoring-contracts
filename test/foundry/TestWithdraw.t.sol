@@ -287,21 +287,29 @@ contract TestWithdraw is CommonSetup {
     function testOnlyAuthorizedOwnersCanWithdraw() public {
         uint256 initialDeposit = 20000000;
 
-         // Alice deposits
+        // Alice deposits
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
 
-        // Alice sends BFTs to unauthorized user
+        // Alice tries to send BFTs to unauthorized user — transfer restricted
         uint sharesBalance = bullaFactoring.balanceOf(alice);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedTransfer(address)", userWithoutPermissions));
         IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
+        vm.stopPrank();
 
-        // unauthorized user permits Alice
+        // Even if we grant deposit permissions (to allow receiving tokens),
+        // withdraw still requires redeem permissions
+        depositPermissions.allow(userWithoutPermissions);
+
+        vm.startPrank(alice);
+        IERC20(address(bullaFactoring)).transfer(userWithoutPermissions, sharesBalance);
+        vm.stopPrank();
+
         vm.startPrank(userWithoutPermissions);
         IERC20(address(bullaFactoring)).approve(alice, initialDeposit);
         vm.stopPrank();
 
         vm.startPrank(alice);
-        // Alice calls redeem/withdraw for unauthorized user
         vm.expectRevert(abi.encodeWithSignature("UnauthorizedWithdrawal(address)", userWithoutPermissions));
         bullaFactoring.withdraw(initialDeposit, userWithoutPermissions, userWithoutPermissions);
         vm.stopPrank();

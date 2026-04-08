@@ -149,6 +149,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error InvoiceImpairFailed();
     error ImpairmentGrossGainBpsMustBePositive();
     error UnauthorizedReceiverAddress(address receiver);
+    error UnauthorizedTransfer(address account);
 
     modifier onlyInsurer() {
         if (msg.sender != insurer) revert CallerNotInsurer();
@@ -212,6 +213,17 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @return The number of decimals for this token
     function decimals() public view override(ERC20, ERC4626) returns (uint8) {
         return ERC20(address(assetAddress)).decimals();
+    }
+
+    /// @notice Restricts token transfers to addresses approved by deposit permissions
+    /// @dev Minting (from == address(0)) and burning (to == address(0)) are exempt as they
+    ///      are already gated by deposit() and redeem()/withdraw() permission checks respectively
+    function _update(address from, address to, uint256 value) internal override(ERC20) {
+        if (from != address(0) && to != address(0)) {
+            if (!depositPermissions.isAllowed(from)) revert UnauthorizedTransfer(from);
+            if (!depositPermissions.isAllowed(to)) revert UnauthorizedTransfer(to);
+        }
+        super._update(from, to, value);
     }
 
     /// @notice Checkpoints the aggregate accrued profits state
