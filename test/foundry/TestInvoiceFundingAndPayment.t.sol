@@ -527,6 +527,9 @@ contract TestInvoiceFundingAndPayment is CommonSetup {
         bullaFactoring.deposit(depositAmount, redeemer);
         vm.stopPrank();
 
+        // Grant deposit permission to redeemer so they can receive token transfers
+        depositPermissions.allow(redeemer);
+
         // Transfer shares from depositor to redeemer to test redemption
         vm.startPrank(depositor);
         bullaFactoring.transfer(redeemer, shares);
