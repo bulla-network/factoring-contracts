@@ -25,6 +25,7 @@ function getChainIdForNetwork(network: string): string {
         polygon: '137',
         mainnet: '1',
         base: '8453',
+        arbitrum: '42161',
     };
     return chainIds[network] || '11155111';
 }
@@ -128,6 +129,60 @@ export function updatePoolDeployment(
 
     content = content.replace(match[0], `${match[1]}${deploymentConfig}${match[3]}`);
     writeFileSync(configPath, content, 'utf-8');
+}
+
+/**
+ * Update SumSub KYC Issuer address in network config
+ */
+export function updateSumsubKycIssuerAddress(network: string, issuerAddress: string): void {
+    const configPath = join('scripts', 'network-config.ts');
+    let content = readFileSync(configPath, 'utf-8');
+
+    // Find the network config section and update the issuer address
+    const networkPattern = new RegExp(`(${network}:\\s*{[^}]*sumsubKycIssuerAddress:\\s*)'[^']*'`, 's');
+
+    if (networkPattern.test(content)) {
+        content = content.replace(networkPattern, `$1'${issuerAddress}'`);
+        console.log(`✅ Updated sumsubKycIssuerAddress for ${network}: ${issuerAddress}`);
+    } else {
+        // If it doesn't exist, add it after BullaClaimInvoiceProviderAdapterAddress (or bullaInvoiceAddress as fallback)
+        const afterAdapterPattern = new RegExp(
+            `(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*'[^']*',)`,
+            's',
+        );
+        const afterInvoicePattern = new RegExp(`(${network}:\\s*{[^}]*bullaInvoiceAddress:\\s*'[^']*',)`, 's');
+
+        if (afterAdapterPattern.test(content)) {
+            content = content.replace(afterAdapterPattern, `$1\n        sumsubKycIssuerAddress: '${issuerAddress}',`);
+            console.log(`✅ Added sumsubKycIssuerAddress for ${network}: ${issuerAddress}`);
+        } else if (afterInvoicePattern.test(content)) {
+            content = content.replace(afterInvoicePattern, `$1\n        sumsubKycIssuerAddress: '${issuerAddress}',`);
+            console.log(`✅ Added sumsubKycIssuerAddress for ${network}: ${issuerAddress}`);
+        } else {
+            console.warn(`⚠️  Could not find ${network} network config to update`);
+            return;
+        }
+    }
+
+    writeFileSync(configPath, content, 'utf-8');
+}
+
+/**
+ * Extract SumSub KYC Issuer address from broadcast and update config
+ */
+export function updateSumsubKycIssuerFromBroadcast(scriptName: string, network: string): void {
+    try {
+        const broadcast = readLatestBroadcast(scriptName, network);
+        const issuerAddress = extractDeployedAddress(broadcast, 'SumsubKycIssuer');
+
+        if (issuerAddress) {
+            updateSumsubKycIssuerAddress(network, issuerAddress);
+        } else {
+            console.warn('⚠️  Could not find SumsubKycIssuer address in broadcast');
+        }
+    } catch (error) {
+        console.error('❌ Error updating SumsubKycIssuer address:', (error as Error).message);
+    }
 }
 
 /**

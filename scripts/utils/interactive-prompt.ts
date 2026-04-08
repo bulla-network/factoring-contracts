@@ -45,6 +45,23 @@ export function promptSelect(question: string, options: string[]): Promise<strin
 }
 
 /**
+ * Prompt user for free-form text input
+ */
+export function promptInput(question: string): Promise<string> {
+    return new Promise(resolve => {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+        });
+
+        rl.question(`\n${question} `, answer => {
+            rl.close();
+            resolve(answer.trim());
+        });
+    });
+}
+
+/**
  * Get network from environment or prompt user
  */
 export async function getNetworkInteractive(): Promise<string> {
