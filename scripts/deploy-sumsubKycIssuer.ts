@@ -4,7 +4,7 @@ import { getNetworkInteractive } from './utils/interactive-prompt';
 import { updateSumsubKycIssuerFromBroadcast } from './utils/update-config';
 import { verifyBroadcastContracts } from './utils/verify-forge';
 
-function getUnderwriterAddress(network: string): string {
+export function getUnderwriterAddress(network: string): string {
     const pools = getAvailablePools(network);
     for (const pool of pools) {
         const poolConfig = getDeployedPoolConfig(network, pool);
