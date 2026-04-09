@@ -186,6 +186,63 @@ export function updateSumsubKycIssuerFromBroadcast(scriptName: string, network: 
 }
 
 /**
+ * Update AgreementSignatureRepo address in network config
+ */
+export function updateAgreementSignatureRepoAddress(network: string, repoAddress: string): void {
+    const configPath = join('scripts', 'network-config.ts');
+    let content = readFileSync(configPath, 'utf-8');
+
+    // Find the network config section and update the repo address
+    const networkPattern = new RegExp(`(${network}:\\s*{[^}]*agreementSignatureRepoAddress:\\s*)'[^']*'`, 's');
+
+    if (networkPattern.test(content)) {
+        content = content.replace(networkPattern, `$1'${repoAddress}'`);
+        console.log(`✅ Updated agreementSignatureRepoAddress for ${network}: ${repoAddress}`);
+    } else {
+        // If it doesn't exist, add it after sumsubKycIssuerAddress (or BullaClaimInvoiceProviderAdapterAddress as fallback)
+        const afterSumsubPattern = new RegExp(
+            `(${network}:\\s*{[^}]*sumsubKycIssuerAddress:\\s*'[^']*',)`,
+            's',
+        );
+        const afterAdapterPattern = new RegExp(
+            `(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*'[^']*',)`,
+            's',
+        );
+
+        if (afterSumsubPattern.test(content)) {
+            content = content.replace(afterSumsubPattern, `$1\n        agreementSignatureRepoAddress: '${repoAddress}',`);
+            console.log(`✅ Added agreementSignatureRepoAddress for ${network}: ${repoAddress}`);
+        } else if (afterAdapterPattern.test(content)) {
+            content = content.replace(afterAdapterPattern, `$1\n        agreementSignatureRepoAddress: '${repoAddress}',`);
+            console.log(`✅ Added agreementSignatureRepoAddress for ${network}: ${repoAddress}`);
+        } else {
+            console.warn(`⚠️  Could not find ${network} network config to update`);
+            return;
+        }
+    }
+
+    writeFileSync(configPath, content, 'utf-8');
+}
+
+/**
+ * Extract AgreementSignatureRepo address from broadcast and update config
+ */
+export function updateAgreementSignatureRepoFromBroadcast(scriptName: string, network: string): void {
+    try {
+        const broadcast = readLatestBroadcast(scriptName, network);
+        const repoAddress = extractDeployedAddress(broadcast, 'AgreementSignatureRepo');
+
+        if (repoAddress) {
+            updateAgreementSignatureRepoAddress(network, repoAddress);
+        } else {
+            console.warn('⚠️  Could not find AgreementSignatureRepo address in broadcast');
+        }
+    } catch (error) {
+        console.error('❌ Error updating AgreementSignatureRepo address:', (error as Error).message);
+    }
+}
+
+/**
  * Extract adapter address from broadcast and update config
  */
 export function updateAdapterFromBroadcast(scriptName: string, network: string): void {

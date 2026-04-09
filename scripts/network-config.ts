@@ -23,6 +23,7 @@ export type NetworkConfig = {
     BullaClaimInvoiceProviderAdapterAddress?: string;
     bullaFactoringFactoryAddress?: string;
     sumsubKycIssuerAddress?: string;
+    agreementSignatureRepoAddress?: string;
 };
 
 /** Pool-specific configuration (not tied to any network) */
