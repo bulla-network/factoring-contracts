@@ -1,19 +1,9 @@
-import { getAvailablePools, getDeployedPoolConfig, getNetworkOnlyConfig, getRpcUrl } from './network-config';
+import { getNetworkOnlyConfig, getRpcUrl } from './network-config';
+import { getUnderwriterAddress } from './deploy-sumsubKycIssuer';
 import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
 import { getNetworkInteractive } from './utils/interactive-prompt';
 import { updateAgreementSignatureRepoFromBroadcast } from './utils/update-config';
 import { verifyBroadcastContracts } from './utils/verify-forge';
-
-function getUnderwriterAddress(network: string): string {
-    const pools = getAvailablePools(network);
-    for (const pool of pools) {
-        const poolConfig = getDeployedPoolConfig(network, pool);
-        if (poolConfig?.underwriter) {
-            return poolConfig.underwriter;
-        }
-    }
-    throw new Error(`No deployed pool with an underwriter found on network '${network}'`);
-}
 
 /**
  * Deploy AgreementSignatureRepo workflow (can be called with parameters or standalone)
