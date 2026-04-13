@@ -62,6 +62,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaInvoiceAddress: '0xa2c4B7239A0d179A923751cC75277fe139AB092F',
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
         sumsubKycIssuerAddress: '0x4f51c54d5a335c4e42c974d0709ef034a5864858',
+        agreementSignatureRepoAddress: '0xead7c69c5216fdf189c4bed56185dbbdb456812c',
     },
     polygon: {
         bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4',
