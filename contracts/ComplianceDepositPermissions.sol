@@ -41,10 +41,12 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
         // 2. KYC check
         if (!kycGate.isAllowed(_address))
             return false;
-        // 3. Agreement signature check (skip if docVersion == 0)
-        uint256 docVersion = poolDocumentVersion[msg.sender];
-        if (docVersion > 0 && !agreementSignatureRepo.hasSigned(msg.sender, docVersion, _address))
-            return false;
+        // 3. Agreement signature check (skip if agreementSignatureRepo not set)
+        if (address(agreementSignatureRepo) != address(0)) {
+            uint256 docVersion = poolDocumentVersion[msg.sender];
+            if (!agreementSignatureRepo.hasSigned(msg.sender, docVersion, _address))
+                return false;
+        }
         return true;
     }
 

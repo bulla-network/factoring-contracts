@@ -97,11 +97,11 @@ contract TestComplianceDepositPermissions is Test {
     }
 
     function test_sanctionsListZeroSkipsCheck() public {
-        // Deploy permissions with no sanctions list
+        // Deploy permissions with no sanctions list but no agreement repo either
         ComplianceDepositPermissions noSanctions = new ComplianceDepositPermissions(
             ISanctionsList(address(0)),
             IBullaKycGate(address(kycGate)),
-            IAgreementSignatureRepo(address(agreementRepo))
+            IAgreementSignatureRepo(address(0))
         );
 
         kycIssuer.setKyced(depositor, true);
@@ -129,12 +129,33 @@ contract TestComplianceDepositPermissions is Test {
         assertFalse(permissions.isAllowed(depositor));
     }
 
-    function test_docVersionZeroSkipsAgreementCheck() public {
+    function test_docVersionZeroIsValid() public {
         kycIssuer.setKyced(depositor, true);
-        // poolDocumentVersion defaults to 0 — agreement check skipped
+        // poolDocumentVersion defaults to 0 — version 0 is valid, requires signature
+
+        vm.prank(pool);
+        assertFalse(permissions.isAllowed(depositor));
+
+        // Sign for version 0
+        vm.prank(signatureApprover);
+        agreementRepo.recordSignature(pool, 0, depositor);
 
         vm.prank(pool);
         assertTrue(permissions.isAllowed(depositor));
+    }
+
+    function test_agreementRepoZeroSkipsCheck() public {
+        // Deploy permissions with no agreement repo
+        ComplianceDepositPermissions noAgreement = new ComplianceDepositPermissions(
+            ISanctionsList(address(sanctionsList)),
+            IBullaKycGate(address(kycGate)),
+            IAgreementSignatureRepo(address(0))
+        );
+
+        kycIssuer.setKyced(depositor, true);
+
+        vm.prank(pool);
+        assertTrue(noAgreement.isAllowed(depositor));
     }
 
     // ============ Admin: setPoolDocumentVersion ============
