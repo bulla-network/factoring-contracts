@@ -96,39 +96,12 @@ contract TestComplianceDepositPermissions is Test {
         assertFalse(permissions.isAllowed(depositor));
     }
 
-    function test_sanctionsListZeroSkipsCheck() public {
-        // Deploy permissions with no sanctions list but no agreement repo either
-        ComplianceDepositPermissions noSanctions = new ComplianceDepositPermissions(
-            ISanctionsList(address(0)),
-            IBullaKycGate(address(kycGate)),
-            IAgreementSignatureRepo(address(0))
-        );
-
-        kycIssuer.setKyced(depositor, true);
-
-        vm.prank(pool);
-        assertTrue(noSanctions.isAllowed(depositor));
-    }
-
     // ============ KYC Check ============
 
     function test_nonKycedDepositorRejected() public {
         // depositor is NOT KYC'd
         vm.prank(pool);
         assertFalse(permissions.isAllowed(depositor));
-    }
-
-    function test_kycGateZeroSkipsCheck() public {
-        // Deploy permissions with no KYC gate
-        ComplianceDepositPermissions noKyc = new ComplianceDepositPermissions(
-            ISanctionsList(address(sanctionsList)),
-            IBullaKycGate(address(0)),
-            IAgreementSignatureRepo(address(0))
-        );
-
-        // depositor is NOT KYC'd but KYC gate is address(0) → skipped
-        vm.prank(pool);
-        assertTrue(noKyc.isAllowed(depositor));
     }
 
     // ============ Agreement Check ============
@@ -155,31 +128,6 @@ contract TestComplianceDepositPermissions is Test {
 
         vm.prank(pool);
         assertTrue(permissions.isAllowed(depositor));
-    }
-
-    function test_agreementRepoZeroSkipsCheck() public {
-        // Deploy permissions with no agreement repo
-        ComplianceDepositPermissions noAgreement = new ComplianceDepositPermissions(
-            ISanctionsList(address(sanctionsList)),
-            IBullaKycGate(address(kycGate)),
-            IAgreementSignatureRepo(address(0))
-        );
-
-        kycIssuer.setKyced(depositor, true);
-
-        vm.prank(pool);
-        assertTrue(noAgreement.isAllowed(depositor));
-    }
-
-    function test_allDepsZeroAllowsEveryone() public {
-        ComplianceDepositPermissions allZero = new ComplianceDepositPermissions(
-            ISanctionsList(address(0)),
-            IBullaKycGate(address(0)),
-            IAgreementSignatureRepo(address(0))
-        );
-
-        vm.prank(pool);
-        assertTrue(allZero.isAllowed(depositor));
     }
 
     // ============ Admin: setPoolDocumentVersion ============
@@ -210,10 +158,15 @@ contract TestComplianceDepositPermissions is Test {
         assertEq(address(permissions.sanctionsList()), address(newList));
     }
 
+    function test_setSanctionsList_zeroAddressReverts() public {
+        vm.expectRevert(ComplianceDepositPermissions.ZeroAddress.selector);
+        permissions.setSanctionsList(ISanctionsList(address(0)));
+    }
+
     function test_setSanctionsList_nonOwnerReverts() public {
         vm.prank(depositor);
         vm.expectRevert();
-        permissions.setSanctionsList(ISanctionsList(address(0)));
+        permissions.setSanctionsList(ISanctionsList(address(sanctionsList)));
     }
 
     // ============ Admin: setKycGate ============
@@ -228,9 +181,9 @@ contract TestComplianceDepositPermissions is Test {
         assertEq(address(permissions.kycGate()), address(newGate));
     }
 
-    function test_setKycGate_zeroAddressAllowed() public {
+    function test_setKycGate_zeroAddressReverts() public {
+        vm.expectRevert(ComplianceDepositPermissions.ZeroAddress.selector);
         permissions.setKycGate(IBullaKycGate(address(0)));
-        assertEq(address(permissions.kycGate()), address(0));
     }
 
     function test_setKycGate_nonOwnerReverts() public {
@@ -251,24 +204,44 @@ contract TestComplianceDepositPermissions is Test {
         assertEq(address(permissions.agreementSignatureRepo()), address(newRepo));
     }
 
+    function test_setAgreementSignatureRepo_zeroAddressReverts() public {
+        vm.expectRevert(ComplianceDepositPermissions.ZeroAddress.selector);
+        permissions.setAgreementSignatureRepo(IAgreementSignatureRepo(address(0)));
+    }
+
     function test_setAgreementSignatureRepo_nonOwnerReverts() public {
         vm.prank(depositor);
         vm.expectRevert();
-        permissions.setAgreementSignatureRepo(IAgreementSignatureRepo(address(0)));
+        permissions.setAgreementSignatureRepo(IAgreementSignatureRepo(address(agreementRepo)));
     }
 
     // ============ Constructor ============
 
-    function test_constructor_zeroKycGateAllowed() public {
-        // All deps can be address(0)
-        ComplianceDepositPermissions allZero = new ComplianceDepositPermissions(
+    function test_constructor_zeroSanctionsListReverts() public {
+        vm.expectRevert(ComplianceDepositPermissions.ZeroAddress.selector);
+        new ComplianceDepositPermissions(
             ISanctionsList(address(0)),
+            IBullaKycGate(address(kycGate)),
+            IAgreementSignatureRepo(address(agreementRepo))
+        );
+    }
+
+    function test_constructor_zeroKycGateReverts() public {
+        vm.expectRevert(ComplianceDepositPermissions.ZeroAddress.selector);
+        new ComplianceDepositPermissions(
+            ISanctionsList(address(sanctionsList)),
             IBullaKycGate(address(0)),
+            IAgreementSignatureRepo(address(agreementRepo))
+        );
+    }
+
+    function test_constructor_zeroAgreementRepoReverts() public {
+        vm.expectRevert(ComplianceDepositPermissions.ZeroAddress.selector);
+        new ComplianceDepositPermissions(
+            ISanctionsList(address(sanctionsList)),
+            IBullaKycGate(address(kycGate)),
             IAgreementSignatureRepo(address(0))
         );
-        assertEq(address(allZero.sanctionsList()), address(0));
-        assertEq(address(allZero.kycGate()), address(0));
-        assertEq(address(allZero.agreementSignatureRepo()), address(0));
     }
 
     function test_constructor_emitsEvents() public {

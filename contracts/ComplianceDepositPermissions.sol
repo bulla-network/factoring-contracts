@@ -18,11 +18,16 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
     event AgreementSignatureRepoUpdated(address indexed oldRepo, address indexed newRepo);
     event PoolDocumentVersionSet(address indexed pool, uint256 documentVersion);
 
+    error ZeroAddress();
+
     constructor(
         ISanctionsList _sanctionsList,
         IBullaKycGate _kycGate,
         IAgreementSignatureRepo _agreementSignatureRepo
     ) Ownable(_msgSender()) {
+        if (address(_sanctionsList) == address(0)) revert ZeroAddress();
+        if (address(_kycGate) == address(0)) revert ZeroAddress();
+        if (address(_agreementSignatureRepo) == address(0)) revert ZeroAddress();
         sanctionsList = _sanctionsList;
         kycGate = _kycGate;
         agreementSignatureRepo = _agreementSignatureRepo;
@@ -32,18 +37,16 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
     }
 
     function isAllowed(address _address) external view override returns (bool) {
-        // 1. Sanction check (optional — skip if address(0))
-        if (address(sanctionsList) != address(0) && sanctionsList.isSanctioned(_address))
+        // 1. Sanction check
+        if (sanctionsList.isSanctioned(_address))
             return false;
-        // 2. KYC check (optional — skip if address(0))
-        if (address(kycGate) != address(0) && !kycGate.isAllowed(_address))
+        // 2. KYC check
+        if (!kycGate.isAllowed(_address))
             return false;
-        // 3. Agreement signature check (skip if agreementSignatureRepo not set)
-        if (address(agreementSignatureRepo) != address(0)) {
-            uint256 docVersion = poolDocumentVersion[msg.sender];
-            if (!agreementSignatureRepo.hasSigned(msg.sender, docVersion, _address))
-                return false;
-        }
+        // 3. Agreement signature check
+        uint256 docVersion = poolDocumentVersion[msg.sender];
+        if (!agreementSignatureRepo.hasSigned(msg.sender, docVersion, _address))
+            return false;
         return true;
     }
 
@@ -53,18 +56,21 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
     }
 
     function setSanctionsList(ISanctionsList _sanctionsList) external onlyOwner {
+        if (address(_sanctionsList) == address(0)) revert ZeroAddress();
         address old = address(sanctionsList);
         sanctionsList = _sanctionsList;
         emit SanctionsListUpdated(old, address(_sanctionsList));
     }
 
     function setKycGate(IBullaKycGate _kycGate) external onlyOwner {
+        if (address(_kycGate) == address(0)) revert ZeroAddress();
         address old = address(kycGate);
         kycGate = _kycGate;
         emit KycGateUpdated(old, address(_kycGate));
     }
 
     function setAgreementSignatureRepo(IAgreementSignatureRepo _agreementSignatureRepo) external onlyOwner {
+        if (address(_agreementSignatureRepo) == address(0)) revert ZeroAddress();
         address old = address(agreementSignatureRepo);
         agreementSignatureRepo = _agreementSignatureRepo;
         emit AgreementSignatureRepoUpdated(old, address(_agreementSignatureRepo));
