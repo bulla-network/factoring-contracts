@@ -21,6 +21,8 @@
         "deploy:full": "dotenv -e .env -- npx ts-node scripts/full-deploy-flow.ts",
         "deploy:sumsub": "dotenv -e .env -- npx ts-node scripts/deploy-sumsubKycIssuer.ts",
         "deploy:agreementSignatureRepo": "dotenv -e .env -- npx ts-node scripts/deploy-agreementSignatureRepo.ts",
+        "deploy:complianceDepositPermissions": "dotenv -e .env -- npx ts-node scripts/deploy-complianceDepositPermissions.ts",
+        "deploy:mockSanctionsList": "dotenv -e .env -- npx ts-node scripts/deploy-mockSanctionsList.ts",
         "verify": "dotenv -e .env -- npx ts-node scripts/verify-all-contracts.ts",
         "verify:factory": "dotenv -e .env -- npx ts-node scripts/verify-factory.ts",
         "set-impair-reserve": "dotenv -e .env -- npx ts-node scripts/set-impair-reserve.ts",

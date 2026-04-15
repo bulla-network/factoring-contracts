@@ -362,6 +362,62 @@ export function updateComplianceDepositPermissionsFromBroadcast(scriptName: stri
 }
 
 /**
+ * Update sanctions list address in network config (handles both 'undefined' and existing string values)
+ */
+export function updateSanctionsListAddress(network: string, sanctionsListAddress: string): void {
+    const configPath = join('scripts', 'network-config.ts');
+    let content = readFileSync(configPath, 'utf-8');
+
+    // Match either: sanctionsListAddress: '0x...',  OR  sanctionsListAddress: undefined,
+    const networkPattern = new RegExp(
+        `(${network}:\\s*{[^}]*sanctionsListAddress:\\s*)(?:'[^']*'|undefined)`,
+        's',
+    );
+
+    if (networkPattern.test(content)) {
+        content = content.replace(networkPattern, `$1'${sanctionsListAddress}'`);
+        console.log(`✅ Updated sanctionsListAddress for ${network}: ${sanctionsListAddress}`);
+    } else {
+        // Field doesn't exist — add it after BullaClaimInvoiceProviderAdapterAddress
+        const afterAdapterPattern = new RegExp(
+            `(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*'[^']*',)`,
+            's',
+        );
+
+        if (afterAdapterPattern.test(content)) {
+            content = content.replace(
+                afterAdapterPattern,
+                `$1\n        sanctionsListAddress: '${sanctionsListAddress}',`,
+            );
+            console.log(`✅ Added sanctionsListAddress for ${network}: ${sanctionsListAddress}`);
+        } else {
+            console.warn(`⚠️  Could not find ${network} network config to update`);
+            return;
+        }
+    }
+
+    writeFileSync(configPath, content, 'utf-8');
+}
+
+/**
+ * Extract MockSanctionsList address from broadcast and update config
+ */
+export function updateMockSanctionsListFromBroadcast(scriptName: string, network: string): void {
+    try {
+        const broadcast = readLatestBroadcast(scriptName, network);
+        const sanctionsListAddress = extractDeployedAddress(broadcast, 'MockSanctionsList');
+
+        if (sanctionsListAddress) {
+            updateSanctionsListAddress(network, sanctionsListAddress);
+        } else {
+            console.warn('⚠️  Could not find MockSanctionsList address in broadcast');
+        }
+    } catch (error) {
+        console.error('❌ Error updating MockSanctionsList address:', (error as Error).message);
+    }
+}
+
+/**
  * Extract adapter address from broadcast and update config
  */
 export function updateAdapterFromBroadcast(scriptName: string, network: string): void {
