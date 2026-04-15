@@ -1,5 +1,4 @@
 import { getNetworkOnlyConfig, getRpcUrl } from './network-config';
-import { getUnderwriterAddress } from './deploy-sumsubKycIssuer';
 import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
 import { getNetworkInteractive } from './utils/interactive-prompt';
 import {
@@ -7,31 +6,6 @@ import {
     updateComplianceDepositPermissionsFromBroadcast,
 } from './utils/update-config';
 import { verifyBroadcastContracts } from './utils/verify-forge';
-
-/**
- * Chainalysis OFAC sanctions oracle addresses per network.
- * See: https://go.chainalysis.com/chainalysis-oracle-docs.html
- */
-const CHAINALYSIS_SANCTIONS_LIST: Record<string, string> = {
-    mainnet: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb',
-    polygon: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb',
-    base: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb',
-    arbitrum: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb',
-    sepolia: '0x0000000000000000000000000000000000000000', // No Chainalysis on testnet — will need a mock
-};
-
-function getSanctionsListAddress(network: string): string {
-    const address = CHAINALYSIS_SANCTIONS_LIST[network];
-    if (!address) {
-        throw new Error(`No sanctions list address configured for network '${network}'`);
-    }
-    if (address === '0x0000000000000000000000000000000000000000') {
-        throw new Error(
-            `Sanctions list address is zero for network '${network}'. Deploy a mock SanctionsList first, then pass its address via SANCTIONS_LIST_ADDRESS env var.`,
-        );
-    }
-    return address;
-}
 
 /**
  * Deploy ComplianceDepositPermissions workflow
@@ -63,8 +37,14 @@ export async function deployComplianceDepositPermissionsWorkflow(
         return;
     }
 
-    // Resolve sanctions list address
-    const sanctionsListAddress = overrides?.sanctionsListAddress || getSanctionsListAddress(network);
+    // Resolve sanctions list address (from config, overridable via env var for testnets with mocks)
+    const sanctionsListAddress = overrides?.sanctionsListAddress || config.sanctionsListAddress;
+    if (!sanctionsListAddress) {
+        throw new Error(
+            `No sanctions list address configured for '${network}'. ` +
+                `Set sanctionsListAddress in network-config.ts or pass SANCTIONS_LIST_ADDRESS env var.`,
+        );
+    }
 
     // SumsubKycIssuer must already be deployed
     if (!config.sumsubKycIssuerAddress || config.sumsubKycIssuerAddress === '0x0000000000000000000000000000000000000000') {
