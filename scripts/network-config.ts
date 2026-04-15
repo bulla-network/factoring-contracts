@@ -24,6 +24,8 @@ export type NetworkConfig = {
     bullaFactoringFactoryAddress?: string;
     sumsubKycIssuerAddress?: string;
     agreementSignatureRepoAddress?: string;
+    bullaKycGateAddress?: string;
+    complianceDepositPermissionsAddress?: string;
 };
 
 /** Pool-specific configuration (not tied to any network) */

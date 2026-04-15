@@ -15,6 +15,10 @@ const CONSTRUCTOR_SIGNATURES: Record<string, string> = {
     Permissions: 'constructor(address)',
     RedemptionQueue: 'constructor()',
     FactoringFundManager: 'constructor(address,address,address)',
+    BullaKycGate: 'constructor()',
+    ComplianceDepositPermissions: 'constructor(address,address,address)',
+    SumsubKycIssuer: 'constructor(address)',
+    AgreementSignatureRepo: 'constructor(address)',
 };
 
 /**
