@@ -24,6 +24,9 @@ export type NetworkConfig = {
     bullaFactoringFactoryAddress?: string;
     sumsubKycIssuerAddress?: string;
     agreementSignatureRepoAddress?: string;
+    sanctionsListAddress?: string;
+    bullaKycGateAddress?: string;
+    complianceDepositPermissionsAddress?: string;
 };
 
 /** Pool-specific configuration (not tied to any network) */
@@ -63,6 +66,8 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
         sumsubKycIssuerAddress: '0x4f51c54d5a335c4e42c974d0709ef034a5864858',
         agreementSignatureRepoAddress: '0xead7c69c5216fdf189c4bed56185dbbdb456812c',
+        // Chainalysis does not deploy on Sepolia — deploy a mock and set the address here
+        sanctionsListAddress: undefined,
     },
     polygon: {
         bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4',
@@ -70,6 +75,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
         bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
         BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
+        sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
     },
     mainnet: {
         bullaClaim: '0x10a55a4dbd24fa188eed98a2adae2ebff0ef1219',
@@ -77,6 +83,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaFrendLendAddress: '0x1097b7ecf0721aaffff147cf7bec154422896317',
         bullaInvoiceAddress: '0xfe2631bcb3e622750b6fbb605a416173ffa3a770',
         BullaClaimInvoiceProviderAdapterAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
+        sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
     },
     base: {
         bullaClaim: '0x8D59E594a3e4D0647C15887Cde5ECBfBE583b441',
@@ -84,6 +91,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaFrendLendAddress: '0x777A7966464a4E5684FE95025aDb2AD56bdaE77B',
         bullaInvoiceAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
         BullaClaimInvoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca',
+        sanctionsListAddress: '0x3A91A31cB3dC49b4db9Ce721F50a9D076c8D739B', // Chainalysis OFAC oracle (Base-specific)
     },
     arbitrum: {
         bullaClaim: '0xb58f4f651553d51d95c69f59364a9ee1ca554b7e',
@@ -91,6 +99,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaFrendLendAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
         bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
         BullaClaimInvoiceProviderAdapterAddress: '0x2C6c46d6b1b5121b0072c8B9F4eB836fE1252f78',
+        sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
     },
 };
 

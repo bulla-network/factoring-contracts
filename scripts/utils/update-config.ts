@@ -243,6 +243,125 @@ export function updateAgreementSignatureRepoFromBroadcast(scriptName: string, ne
 }
 
 /**
+ * Update BullaKycGate address in network config
+ */
+export function updateBullaKycGateAddress(network: string, gateAddress: string): void {
+    const configPath = join('scripts', 'network-config.ts');
+    let content = readFileSync(configPath, 'utf-8');
+
+    const networkPattern = new RegExp(`(${network}:\\s*{[^}]*bullaKycGateAddress:\\s*)'[^']*'`, 's');
+
+    if (networkPattern.test(content)) {
+        content = content.replace(networkPattern, `$1'${gateAddress}'`);
+        console.log(`✅ Updated bullaKycGateAddress for ${network}: ${gateAddress}`);
+    } else {
+        const afterAgreementPattern = new RegExp(
+            `(${network}:\\s*{[^}]*agreementSignatureRepoAddress:\\s*'[^']*',)`,
+            's',
+        );
+        const afterSumsubPattern = new RegExp(
+            `(${network}:\\s*{[^}]*sumsubKycIssuerAddress:\\s*'[^']*',)`,
+            's',
+        );
+
+        if (afterAgreementPattern.test(content)) {
+            content = content.replace(afterAgreementPattern, `$1\n        bullaKycGateAddress: '${gateAddress}',`);
+            console.log(`✅ Added bullaKycGateAddress for ${network}: ${gateAddress}`);
+        } else if (afterSumsubPattern.test(content)) {
+            content = content.replace(afterSumsubPattern, `$1\n        bullaKycGateAddress: '${gateAddress}',`);
+            console.log(`✅ Added bullaKycGateAddress for ${network}: ${gateAddress}`);
+        } else {
+            console.warn(`⚠️  Could not find ${network} network config to update`);
+            return;
+        }
+    }
+
+    writeFileSync(configPath, content, 'utf-8');
+}
+
+/**
+ * Extract BullaKycGate address from broadcast and update config
+ */
+export function updateBullaKycGateFromBroadcast(scriptName: string, network: string): void {
+    try {
+        const broadcast = readLatestBroadcast(scriptName, network);
+        const gateAddress = extractDeployedAddress(broadcast, 'BullaKycGate');
+
+        if (gateAddress) {
+            updateBullaKycGateAddress(network, gateAddress);
+        } else {
+            console.log('ℹ️  No BullaKycGate in broadcast (likely using existing deployment)');
+        }
+    } catch (error) {
+        console.error('❌ Error updating BullaKycGate address:', (error as Error).message);
+    }
+}
+
+/**
+ * Update ComplianceDepositPermissions address in network config
+ */
+export function updateComplianceDepositPermissionsAddress(network: string, permissionsAddress: string): void {
+    const configPath = join('scripts', 'network-config.ts');
+    let content = readFileSync(configPath, 'utf-8');
+
+    const networkPattern = new RegExp(
+        `(${network}:\\s*{[^}]*complianceDepositPermissionsAddress:\\s*)'[^']*'`,
+        's',
+    );
+
+    if (networkPattern.test(content)) {
+        content = content.replace(networkPattern, `$1'${permissionsAddress}'`);
+        console.log(`✅ Updated complianceDepositPermissionsAddress for ${network}: ${permissionsAddress}`);
+    } else {
+        const afterGatePattern = new RegExp(
+            `(${network}:\\s*{[^}]*bullaKycGateAddress:\\s*'[^']*',)`,
+            's',
+        );
+        const afterAgreementPattern = new RegExp(
+            `(${network}:\\s*{[^}]*agreementSignatureRepoAddress:\\s*'[^']*',)`,
+            's',
+        );
+
+        if (afterGatePattern.test(content)) {
+            content = content.replace(
+                afterGatePattern,
+                `$1\n        complianceDepositPermissionsAddress: '${permissionsAddress}',`,
+            );
+            console.log(`✅ Added complianceDepositPermissionsAddress for ${network}: ${permissionsAddress}`);
+        } else if (afterAgreementPattern.test(content)) {
+            content = content.replace(
+                afterAgreementPattern,
+                `$1\n        complianceDepositPermissionsAddress: '${permissionsAddress}',`,
+            );
+            console.log(`✅ Added complianceDepositPermissionsAddress for ${network}: ${permissionsAddress}`);
+        } else {
+            console.warn(`⚠️  Could not find ${network} network config to update`);
+            return;
+        }
+    }
+
+    writeFileSync(configPath, content, 'utf-8');
+}
+
+/**
+ * Extract ComplianceDepositPermissions address from broadcast and update config
+ */
+export function updateComplianceDepositPermissionsFromBroadcast(scriptName: string, network: string): void {
+    try {
+        const broadcast = readLatestBroadcast(scriptName, network);
+        const permissionsAddress = extractDeployedAddress(broadcast, 'ComplianceDepositPermissions');
+
+        if (permissionsAddress) {
+            updateComplianceDepositPermissionsAddress(network, permissionsAddress);
+        } else {
+            console.warn('⚠️  Could not find ComplianceDepositPermissions address in broadcast');
+        }
+    } catch (error) {
+        console.error('❌ Error updating ComplianceDepositPermissions address:', (error as Error).message);
+    }
+}
+
+/**
  * Extract adapter address from broadcast and update config
  */
 export function updateAdapterFromBroadcast(scriptName: string, network: string): void {

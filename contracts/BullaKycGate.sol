@@ -4,8 +4,9 @@ pragma solidity ^0.8.20;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "./Permissions.sol";
 import "./interfaces/IBullaKycIssuer.sol";
+import "./interfaces/IBullaKycGate.sol";
 
-contract BullaKycGate is Permissions, Ownable {
+contract BullaKycGate is IBullaKycGate, Permissions, Ownable {
     IBullaKycIssuer[] public issuers;
 
     event IssuerAdded(address indexed issuer);
@@ -17,7 +18,7 @@ contract BullaKycGate is Permissions, Ownable {
 
     constructor() Ownable(_msgSender()) {}
 
-    function isAllowed(address _address) external view override returns (bool) {
+    function isAllowed(address _address) external view override(IBullaKycGate, Permissions) returns (bool) {
         for (uint256 i = 0; i < issuers.length; i++) {
             if (issuers[i].isKyced(_address)) {
                 return true;
