@@ -118,6 +118,19 @@ contract TestComplianceDepositPermissions is Test {
         assertFalse(permissions.isAllowed(depositor));
     }
 
+    function test_kycGateZeroSkipsCheck() public {
+        // Deploy permissions with no KYC gate
+        ComplianceDepositPermissions noKyc = new ComplianceDepositPermissions(
+            ISanctionsList(address(sanctionsList)),
+            IBullaKycGate(address(0)),
+            IAgreementSignatureRepo(address(0))
+        );
+
+        // depositor is NOT KYC'd but KYC gate is address(0) → skipped
+        vm.prank(pool);
+        assertTrue(noKyc.isAllowed(depositor));
+    }
+
     // ============ Agreement Check ============
 
     function test_unsignedAgreementRejected() public {
@@ -156,6 +169,17 @@ contract TestComplianceDepositPermissions is Test {
 
         vm.prank(pool);
         assertTrue(noAgreement.isAllowed(depositor));
+    }
+
+    function test_allDepsZeroAllowsEveryone() public {
+        ComplianceDepositPermissions allZero = new ComplianceDepositPermissions(
+            ISanctionsList(address(0)),
+            IBullaKycGate(address(0)),
+            IAgreementSignatureRepo(address(0))
+        );
+
+        vm.prank(pool);
+        assertTrue(allZero.isAllowed(depositor));
     }
 
     // ============ Admin: setPoolDocumentVersion ============
@@ -204,9 +228,9 @@ contract TestComplianceDepositPermissions is Test {
         assertEq(address(permissions.kycGate()), address(newGate));
     }
 
-    function test_setKycGate_zeroAddressReverts() public {
-        vm.expectRevert(ComplianceDepositPermissions.InvalidKycGate.selector);
+    function test_setKycGate_zeroAddressAllowed() public {
         permissions.setKycGate(IBullaKycGate(address(0)));
+        assertEq(address(permissions.kycGate()), address(0));
     }
 
     function test_setKycGate_nonOwnerReverts() public {
@@ -235,13 +259,16 @@ contract TestComplianceDepositPermissions is Test {
 
     // ============ Constructor ============
 
-    function test_constructor_zeroKycGateReverts() public {
-        vm.expectRevert(ComplianceDepositPermissions.InvalidKycGate.selector);
-        new ComplianceDepositPermissions(
-            ISanctionsList(address(sanctionsList)),
+    function test_constructor_zeroKycGateAllowed() public {
+        // All deps can be address(0)
+        ComplianceDepositPermissions allZero = new ComplianceDepositPermissions(
+            ISanctionsList(address(0)),
             IBullaKycGate(address(0)),
-            IAgreementSignatureRepo(address(agreementRepo))
+            IAgreementSignatureRepo(address(0))
         );
+        assertEq(address(allZero.sanctionsList()), address(0));
+        assertEq(address(allZero.kycGate()), address(0));
+        assertEq(address(allZero.agreementSignatureRepo()), address(0));
     }
 
     function test_constructor_emitsEvents() public {

@@ -18,14 +18,11 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
     event AgreementSignatureRepoUpdated(address indexed oldRepo, address indexed newRepo);
     event PoolDocumentVersionSet(address indexed pool, uint256 documentVersion);
 
-    error InvalidKycGate();
-
     constructor(
         ISanctionsList _sanctionsList,
         IBullaKycGate _kycGate,
         IAgreementSignatureRepo _agreementSignatureRepo
     ) Ownable(_msgSender()) {
-        if (address(_kycGate) == address(0)) revert InvalidKycGate();
         sanctionsList = _sanctionsList;
         kycGate = _kycGate;
         agreementSignatureRepo = _agreementSignatureRepo;
@@ -38,8 +35,8 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
         // 1. Sanction check (optional — skip if address(0))
         if (address(sanctionsList) != address(0) && sanctionsList.isSanctioned(_address))
             return false;
-        // 2. KYC check
-        if (!kycGate.isAllowed(_address))
+        // 2. KYC check (optional — skip if address(0))
+        if (address(kycGate) != address(0) && !kycGate.isAllowed(_address))
             return false;
         // 3. Agreement signature check (skip if agreementSignatureRepo not set)
         if (address(agreementSignatureRepo) != address(0)) {
@@ -62,7 +59,6 @@ contract ComplianceDepositPermissions is Permissions, Ownable {
     }
 
     function setKycGate(IBullaKycGate _kycGate) external onlyOwner {
-        if (address(_kycGate) == address(0)) revert InvalidKycGate();
         address old = address(kycGate);
         kycGate = _kycGate;
         emit KycGateUpdated(old, address(_kycGate));
