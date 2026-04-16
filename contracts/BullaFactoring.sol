@@ -14,6 +14,7 @@ import {IBullaFrendLendV2, LoanRequestParams, LoanOffer} from "@bulla/contracts-
 import {InterestConfig} from "@bulla/contracts-v2/src/libraries/CompoundInterestLib.sol";
 import "./RedemptionQueue.sol";
 import "./libraries/FeeCalculations.sol";
+import "./libraries/ApprovalPacking.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /// @title Bulla Factoring Fund
@@ -341,7 +342,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             impairmentDate: invoiceDueDate + gracePeriodDays * 1 days,
             receiverAddress: address(this),
             creditor: address(this),
-            protocolFee: 0,
+            protocolFeeAndInsurancePremium: 0,
             perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(
                 pendingLoanOffer.principalAmount,
                 pendingLoanOffer.feeParams.targetYieldBps
@@ -410,7 +411,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             receiverAddress: address(0),
             invoiceDueDate: invoiceSnapshot.dueDate,
             impairmentDate: invoiceSnapshot.dueDate + invoiceSnapshot.impairmentGracePeriod,
-            protocolFee: 0,
+            protocolFeeAndInsurancePremium: 0,
             perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(_initialInvoiceValue, params.targetYieldBps)
         });
         emit InvoiceApproved(params.invoiceId, _validUntil, feeParams);
@@ -635,7 +636,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         approval.fundedAmountNet = fundedAmountNet;
         approval.fundedTimestamp = block.timestamp;
         approval.feeParams.upfrontBps = params.factorerUpfrontBps;
-        approval.protocolFee = protocolFee;
+        approval.protocolFeeAndInsurancePremium = ApprovalPacking.packFees(protocolFee, insurancePremium);
 
         if (params.receiverAddressIndex >= receiverAddresses.length) revert InvalidReceiverAddressIndex();
         address actualReceiver = receiverAddresses[params.receiverAddressIndex] == address(0) ? msg.sender : receiverAddresses[params.receiverAddressIndex];
@@ -858,7 +859,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         // Calculate fees and amounts
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (trueInterest, trueSpreadAmount, trueAdminFee, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
-        totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + approval.protocolFee) - int256(paymentSinceFunding);
+        totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + ApprovalPacking.protocolFee(approval)) - int256(paymentSinceFunding);
     }
 
     /// @notice Preview the refund or payment amount for unfactoring an invoice
@@ -1121,7 +1122,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         uint256 adminFeeOwed,
         uint256 impairmentNetGain,
         uint256 outOfPocketCost,
-        uint256 currentPaidAmount
+        uint256 currentPaidAmount,
+        uint256 spreadOwed
     ) {
         IInvoiceProviderAdapterV2.Invoice memory invoice = invoiceProviderAdapter.getInvoiceDetails(invoiceId);
         IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
@@ -1129,14 +1131,15 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         outstandingBalance = invoice.invoiceAmount - invoice.paidAmount;
         impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
-        (, , adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
-        impairmentNetGain = impairmentGrossGain > adminFeeOwed ? impairmentGrossGain - adminFeeOwed : 0;
+        (, spreadOwed, adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
+        uint256 managerFeesOwed = adminFeeOwed + spreadOwed;
+        impairmentNetGain = impairmentGrossGain > managerFeesOwed ? impairmentGrossGain - managerFeesOwed : 0;
         outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
     }
 
     function impairInvoice(uint256 invoiceId) external onlyInsurer {
         if (impairmentInfo[invoiceId].isImpaired) revert InvoiceAlreadyImpaired();
-        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, uint256 _outOfPocketCost, uint256 currentPaidAmount) = previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, uint256 _outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = previewImpair(invoiceId);
         removeActivePaidInvoice(invoiceId);
         (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
         (bool success, ) = target.call(abi.encodeWithSelector(selector, invoiceId));
@@ -1145,8 +1148,14 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (_outOfPocketCost > 0) {
             assetAddress.safeTransferFrom(insurer, address(this), _outOfPocketCost);
         }
-        adminFeeBalance += adminFeeOwed;
-        paidInvoicesGain += _impairmentNetGain;
+        adminFeeBalance += adminFeeOwed + spreadOwed;
+        // Withheld target fees (admin + interest + spread) were collected at funding but never paid
+        // anywhere — the accrued admin/spread at impairment are taken from the insurance gross gain.
+        // Credit the full pool-owned withheld back to LPs here so it doesn't silently dissolve into
+        // pool cash.
+        IBullaFactoringV2_2.InvoiceApproval memory _approval = approvedInvoices[invoiceId];
+        uint256 poolOwnedWithheld = _approval.fundedAmountGross - _approval.fundedAmountNet - ApprovalPacking.protocolFee(_approval) - ApprovalPacking.insurancePremium(_approval);
+        paidInvoicesGain += _impairmentNetGain + poolOwnedWithheld;
         impairmentInfo[invoiceId] = ImpairmentInfo({
             isImpaired: true,
             purchasePrice: _impairmentGrossGain,

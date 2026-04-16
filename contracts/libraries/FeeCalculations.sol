@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/IInvoiceProviderAdapter.sol";
 import "../interfaces/IBullaFactoring.sol";
+import "./ApprovalPacking.sol";
 
 /// @title Fee Calculations Library
 /// @notice Library for calculating various fees in the BullaFactoring contract
@@ -80,12 +81,13 @@ library FeeCalculations {
         uint256 totalFeeRateMbps = _targetYieldMbps + spreadRateMbps + adminFeeRateMbps;
 
         // cap kickback amount to the principal amount
-        uint256 capKickbackAmount = approval.initialInvoiceValue > approval.fundedAmountNet ? approval.initialInvoiceValue - approval.fundedAmountNet - approval.protocolFee : 0;
+        uint256 _protocolFee = ApprovalPacking.protocolFee(approval);
+        uint256 capKickbackAmount = approval.initialInvoiceValue > approval.fundedAmountNet ? approval.initialInvoiceValue - approval.fundedAmountNet - _protocolFee : 0;
         
         // cap total fees to max available to distribute
         // invoice amount includes interest
         // Handle case where override amount might be higher than invoice amount
-        uint256 availableFromInvoice = invoice.invoiceAmount - approval.initialPaidAmount - approval.protocolFee;
+        uint256 availableFromInvoice = invoice.invoiceAmount - approval.initialPaidAmount - _protocolFee;
         uint256 capTotalFees =
             availableFromInvoice > approval.fundedAmountNet
             ? availableFromInvoice - approval.fundedAmountNet
