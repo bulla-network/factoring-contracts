@@ -66,8 +66,10 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
         sumsubKycIssuerAddress: '0x4f51c54d5a335c4e42c974d0709ef034a5864858',
         agreementSignatureRepoAddress: '0xead7c69c5216fdf189c4bed56185dbbdb456812c',
+        bullaKycGateAddress: '0xe8681068fa56b8e1423fabb904e1413b2fff36aa',
+        complianceDepositPermissionsAddress: '0x62919a63ad1e3176c5b178a072ff2b04cd8a748a',
         // Chainalysis does not deploy on Sepolia — deploy a mock and set the address here
-        sanctionsListAddress: undefined,
+        sanctionsListAddress: '0x1743972c13e24da42330e8768ac3e18b5cfe0ae7',
     },
     polygon: {
         bullaClaim: '0x5A809C17d33c92f9EFF31e579E9DeDF247e1EBe4',
