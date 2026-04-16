@@ -21,7 +21,7 @@ contract TestInsurance is CommonSetup {
     function testConstructorRevertsInsuranceFeeBpsOver10000() public {
         vm.expectRevert();
         new BullaFactoringV2_2(
-            asset, invoiceAdapterBulla, bullaFrendLend, underwriter,
+            asset, invoiceAdapterBulla, underwriter,
             depositPermissions, redeemPermissions, factoringPermissions,
             bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield,
             poolTokenName, poolTokenSymbol,
@@ -32,7 +32,7 @@ contract TestInsurance is CommonSetup {
     function testConstructorRevertsImpairmentGrossGainBpsOver10000() public {
         vm.expectRevert();
         new BullaFactoringV2_2(
-            asset, invoiceAdapterBulla, bullaFrendLend, underwriter,
+            asset, invoiceAdapterBulla, underwriter,
             depositPermissions, redeemPermissions, factoringPermissions,
             bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield,
             poolTokenName, poolTokenSymbol,
@@ -43,7 +43,7 @@ contract TestInsurance is CommonSetup {
     function testConstructorRevertsRecoveryProfitRatioBpsOver10000() public {
         vm.expectRevert();
         new BullaFactoringV2_2(
-            asset, invoiceAdapterBulla, bullaFrendLend, underwriter,
+            asset, invoiceAdapterBulla, underwriter,
             depositPermissions, redeemPermissions, factoringPermissions,
             bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield,
             poolTokenName, poolTokenSymbol,
@@ -54,7 +54,7 @@ contract TestInsurance is CommonSetup {
     function testConstructorRevertsImpairmentGrossGainBpsZero() public {
         vm.expectRevert();
         new BullaFactoringV2_2(
-            asset, invoiceAdapterBulla, bullaFrendLend, underwriter,
+            asset, invoiceAdapterBulla, underwriter,
             depositPermissions, redeemPermissions, factoringPermissions,
             bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield,
             poolTokenName, poolTokenSymbol,
@@ -598,7 +598,7 @@ contract TestInsurance is CommonSetup {
 
         // Create pool with 0% insurance fee to compare
         BullaFactoringV2_2 noInsurancePool = new BullaFactoringV2_2(
-            asset, invoiceAdapterBulla, bullaFrendLend, underwriter,
+            asset, invoiceAdapterBulla, underwriter,
             depositPermissions, redeemPermissions, factoringPermissions,
             bullaDao, protocolFeeBps, adminFeeBps, poolName, targetYield,
             poolTokenName, poolTokenSymbol,

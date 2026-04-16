@@ -99,9 +99,8 @@ contract CommonSetup is Test, BatchTestHelpers {
         factoringPermissions.allow(bob);
         factoringPermissions.allow(address(this));
 
-        bullaFactoring = new BullaFactoringV2_2(asset, invoiceAdapterBulla, bullaFrendLend, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol, address(0x1999), uint16(100), uint16(500), uint16(5000));
+        bullaFactoring = new BullaFactoringV2_2(asset, invoiceAdapterBulla, underwriter, depositPermissions, redeemPermissions, factoringPermissions, bullaDao ,protocolFeeBps, adminFeeBps, poolName, targetYield, poolTokenName, poolTokenSymbol, address(0x1999), uint16(100), uint16(500), uint16(5000));
 
-        bullaFrendLend.addToCallbackWhitelist(address(bullaFactoring), bullaFactoring.onLoanOfferAccepted.selector);
         bullaClaim.addToPaidCallbackWhitelist(address(bullaFactoring), bullaFactoring.reconcileSingleInvoice.selector);
 
         asset.mint(address(this), 10000 ether);

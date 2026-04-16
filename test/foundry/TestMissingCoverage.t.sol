@@ -202,40 +202,6 @@ contract TestMissingCoverage is CommonSetup {
         assertEq(info.capitalAccount, depositAmount, "Capital account should still equal total deposit");
     }
 
-    function testGetFundInfoWithLoanOffer() public {
-        // Setup: Deposit
-        uint256 depositAmount = 200000;
-        vm.prank(alice);
-        bullaFactoring.deposit(depositAmount, alice);
-        
-        // Create loan offer
-        uint256 principalAmount = 50000;
-        uint16 targetYieldBps = 730; // 7.3%
-        uint16 spreadBpsValue = 100; // 1%
-        uint256 termLength = 90 days;
-        uint16 numberOfPeriodsPerYear = 365;
-        string memory description = "Test loan";
-        
-        vm.prank(underwriter);
-        bullaFactoring.offerLoan(
-            alice, // debtor
-            targetYieldBps,
-            spreadBpsValue,
-            principalAmount,
-            termLength,
-            numberOfPeriodsPerYear,
-            description
-        );
-        
-        IBullaFactoringV2_2.FundInfo memory info = bullaFactoring.getFundInfo();
-        
-        // Loan offers are pending and don't immediately deploy capital until accepted
-        // Just verify getFundInfo works correctly
-        assertEq(info.capitalAccount, depositAmount, "Capital account should equal deposit");
-        assertGt(bytes(info.name).length, 0, "Should have name");
-        assertGt(info.price, 0, "Should have price");
-    }
-
     function testGetFundInfoAllFields() public {
         // Comprehensive test setting up various states
         uint256 depositAmount = 200000;

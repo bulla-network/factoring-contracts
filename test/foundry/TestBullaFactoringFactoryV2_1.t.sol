@@ -64,7 +64,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     );
 
     event InvoiceProviderAdapterChanged(address indexed oldAdapter, address indexed newAdapter);
-    event BullaFrendLendChanged(address indexed oldAddress, address indexed newAddress);
     event ProtocolFeeBpsChanged(uint16 oldProtocolFeeBps, uint16 newProtocolFeeBps);
     event AssetWhitelistChanged(address indexed asset, bool allowed);
     event InitBytecodeConfigChanged(uint256 length, bytes32 hash);
@@ -95,7 +94,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         // Deploy factory with bullaDao as owner
         factory = new BullaFactoringFactoryV2_1(
             address(invoiceAdapter),
-            address(bullaFrendLend),
             address(bullaClaim),
             bullaDao,
             protocolFeeBps,
@@ -139,7 +137,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             abi.encode(
                 asset,
                 invoiceAdapter,
-                bullaFrendLend,
                 _underwriter,
                 Permissions(depositPerms),
                 Permissions(redeemPerms),
@@ -164,7 +161,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     function test_constructor_setsCorrectValues() public view {
         assertEq(factory.owner(), bullaDao);
         assertEq(address(factory.invoiceProviderAdapter()), address(invoiceAdapter));
-        assertEq(address(factory.bullaFrendLend()), address(bullaFrendLend));
         assertEq(factory.bullaClaimV2(), address(bullaClaim));
         assertEq(factory.protocolFeeBps(), protocolFeeBps);
         assertEq(factory.poolNonce(), 0);
@@ -179,20 +175,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
         new BullaFactoringFactoryV2_1(
             address(0),
-            address(bullaFrendLend),
-            address(bullaClaim),
-            bullaDao,
-            protocolFeeBps,
-            initBytecodeLength,
-            expectedInitBytecodeHash
-        );
-    }
-
-    function test_constructor_revertsOnZeroBullaFrendLend() public {
-        vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
-        new BullaFactoringFactoryV2_1(
-            address(invoiceAdapter),
-            address(0),
             address(bullaClaim),
             bullaDao,
             protocolFeeBps,
@@ -205,7 +187,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
         new BullaFactoringFactoryV2_1(
             address(invoiceAdapter),
-            address(bullaFrendLend),
             address(0),
             bullaDao,
             protocolFeeBps,
@@ -218,7 +199,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
         new BullaFactoringFactoryV2_1(
             address(invoiceAdapter),
-            address(bullaFrendLend),
             address(bullaClaim),
             address(0),
             protocolFeeBps,
@@ -231,7 +211,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         vm.expectRevert(BullaFactoringFactoryV2_1.InvalidPercentage.selector);
         new BullaFactoringFactoryV2_1(
             address(invoiceAdapter),
-            address(bullaFrendLend),
             address(bullaClaim),
             bullaDao,
             10001, // > 100%
@@ -328,7 +307,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         // Deploy factory without init bytecode config
         BullaFactoringFactoryV2_1 unconfiguredFactory = new BullaFactoringFactoryV2_1(
             address(invoiceAdapter),
-            address(bullaFrendLend),
             address(bullaClaim),
             bullaDao,
             protocolFeeBps,
@@ -514,7 +492,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             abi.encode(
                 IERC20(address(usdc)),
                 invoiceAdapter,
-                bullaFrendLend,
                 underwriter,
                 Permissions(address(perms)),
                 Permissions(address(perms)),
@@ -560,7 +537,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             abi.encode(
                 IERC20(address(usdc)),
                 invoiceAdapter,
-                bullaFrendLend,
                 underwriter,
                 Permissions(address(perms)),
                 Permissions(address(perms)),
@@ -611,7 +587,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
             abi.encode(
                 IERC20(address(usdc)),
                 wrongAdapter, // Wrong adapter
-                bullaFrendLend,
                 underwriter,
                 Permissions(address(perms)),
                 Permissions(address(perms)),
@@ -757,23 +732,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         factory.setInvoiceProviderAdapter(IInvoiceProviderAdapterV2(address(0)));
     }
 
-    function test_setBullaFrendLend_updatesAddress() public {
-        BullaFrendLendV2 newFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 50, 0);
-
-        vm.prank(bullaDao);
-        vm.expectEmit(true, true, true, true);
-        emit BullaFrendLendChanged(address(bullaFrendLend), address(newFrendLend));
-        factory.setBullaFrendLend(IBullaFrendLendV2(address(newFrendLend)));
-
-        assertEq(address(factory.bullaFrendLend()), address(newFrendLend));
-    }
-
-    function test_setBullaFrendLend_revertsOnZero() public {
-        vm.prank(bullaDao);
-        vm.expectRevert(BullaFactoringFactoryV2_1.InvalidAddress.selector);
-        factory.setBullaFrendLend(IBullaFrendLendV2(address(0)));
-    }
-
     function test_setProtocolFeeBps_updatesFee() public {
         vm.prank(bullaDao);
         vm.expectEmit(true, true, true, true);
@@ -794,9 +752,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
         factory.setInvoiceProviderAdapter(IInvoiceProviderAdapterV2(address(invoiceAdapter)));
-
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
-        factory.setBullaFrendLend(bullaFrendLend);
 
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, randomUser));
         factory.setProtocolFeeBps(100);

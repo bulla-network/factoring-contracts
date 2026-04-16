@@ -21,15 +21,6 @@ interface IBullaFactoringV2_2 {
         uint16 adminFeeBps;
     }
 
-    // The rest of the info can be retrieved from the loan offer
-    struct PendingLoanOfferInfo {
-        uint256 offeredAt;
-        uint256 principalAmount;
-        uint256 termLength;
-        bool exists;            // 1 byte
-        FeeParams feeParams;    // 12 bytes - packed in slot 3 (13 bytes total)
-    }
-
     struct InvoiceApproval {
         bool approved;              // 1 byte
         address creditor;           // 20 bytes - packed in slot 0 (21 bytes total)
@@ -129,9 +120,6 @@ interface IBullaFactoringV2_2 {
     // Preview functions
     function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);
     
-    // Pending loan offer management
-    function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining);
-
     // Active invoices
     function getActiveInvoices() external view returns (uint256[] memory);
     function getActiveInvoicesCount() external view returns (uint256);
