@@ -109,7 +109,6 @@ contract DeployBullaFactoring is Script {
             BullaFactoringV2_2 bullaFactoring = new BullaFactoringV2_2(
                 IERC20(config.underlyingAsset),
                 IInvoiceProviderAdapterV2(config.bullaClaimInvoiceProviderAdapterAddress),
-                IBullaFrendLendV2(config.bullaFrendLendAddress),
                 config.underwriter,
                 Permissions(config.depositPermissionsAddress),
                 Permissions(config.redeemPermissionsAddress),
