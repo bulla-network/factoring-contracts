@@ -267,6 +267,12 @@ contract TestWithdraw is CommonSetup {
         assertEq(bullaFactoring.protocolFeeBalance(), 0, "Protocol fee balance should be 0");
         vm.stopPrank();
 
+        // Insurance premiums are withheld at funding and remain in pool cash until the insurer
+        // withdraws them — drain insuranceBalance too before asserting pool cash is empty.
+        vm.prank(bullaFactoring.insurer());
+        bullaFactoring.withdrawInsuranceBalance();
+        assertEq(bullaFactoring.insuranceBalance(), 0, "Insurance balance should be 0");
+
         assertEq(asset.balanceOf(address(bullaFactoring)), 0, "Bulla Factoring should have no balance left");
     }
 

@@ -151,7 +151,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId1);
-        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, , ) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
+        (, uint256 adminFee1, uint256 targetInterest1, uint256 targetSpread1, uint256 targetProtocolFee1, uint256 targetInsurancePremium1, ) = bullaFactoring.calculateTargetFees(invoiceId1, 10000);
         _fundInvoice(invoiceId1, 10000, address(0));
         vm.stopPrank();
 
@@ -164,7 +164,7 @@ contract TestFees is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId2);
-        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, , ) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
+        (, uint256 adminFee2, uint256 targetInterest2, uint256 targetSpread2, uint256 targetProtocolFee2, uint256 targetInsurancePremium2, ) = bullaFactoring.calculateTargetFees(invoiceId2, 5000);
         _fundInvoice(invoiceId2, 5000, address(0));
         vm.stopPrank();
 
@@ -191,8 +191,10 @@ contract TestFees is CommonSetup {
         // Calculate realized fees
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
 
-        // Calculate expected fees (protocol fees are now taken upfront at funding time, so excluded here)
-        uint256 expectedFees = (adminFee1 + targetInterest1 + targetSpread1 + targetProtocolFee1) + (adminFee2 + targetInterest2 + targetSpread2 + targetProtocolFee2);
+        // Protocol fees and insurance premiums are both taken upfront at funding and held in
+        // protocolFeeBalance / insuranceBalance respectively. Both sit in pool cash but outside
+        // totalAssets(), so both must be included in expected realized-fee total for each invoice.
+        uint256 expectedFees = (adminFee1 + targetInterest1 + targetSpread1 + targetProtocolFee1 + targetInsurancePremium1) + (adminFee2 + targetInterest2 + targetSpread2 + targetProtocolFee2 + targetInsurancePremium2);
 
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
         // Assert that realized fees match expected fees

@@ -1132,8 +1132,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (, spreadOwed, adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
-        uint256 managerFeesOwed = adminFeeOwed + spreadOwed;
-        impairmentNetGain = impairmentGrossGain > managerFeesOwed ? impairmentGrossGain - managerFeesOwed : 0;
+        uint256 ownerFeesOwed = adminFeeOwed + spreadOwed;
+        impairmentNetGain = impairmentGrossGain > ownerFeesOwed ? impairmentGrossGain - ownerFeesOwed : 0;
         outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
     }
 

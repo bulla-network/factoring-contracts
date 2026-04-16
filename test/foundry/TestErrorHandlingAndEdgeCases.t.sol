@@ -246,7 +246,7 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
 
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        (, uint256 adminFee, uint256 targetInterest, uint256 targetSpread, uint256 targetProtocolFee, uint256 targetInsurancePremium, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
         _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
@@ -263,8 +263,10 @@ contract TestErrorHandlingAndEdgeCases is CommonSetup {
         uint availableAssetsAfter = bullaFactoring.totalAssets();
         uint totalAssetsAfter = asset.balanceOf(address(bullaFactoring));
 
-        // Protocol fees are collected upfront during funding, not as part of realized gains
-        uint targetFees = adminFee + targetInterest + targetSpread + targetProtocolFee;
+        // Protocol fees and the insurance premium are both collected upfront at funding and held
+        // in protocolFeeBalance / insuranceBalance respectively, so they sit in pool cash but
+        // outside totalAssets() — include both in the expected fee total.
+        uint targetFees = adminFee + targetInterest + targetSpread + targetProtocolFee + targetInsurancePremium;
         uint realizedFees = totalAssetsAfter - availableAssetsAfter;
         uint gainLoss = bullaFactoring.calculateCapitalAccount() - capitalAccountBefore;
 

@@ -758,4 +758,108 @@ contract TestInsurance is CommonSetup {
         _fundInvoice(targetInvoiceId, upfrontBps, address(0));
         vm.stopPrank();
     }
+
+    // ============================================
+    // Kickback at reconciliation must exclude the insurance premium.
+    // The premium is withheld from the gross funded amount at funding and earmarked
+    // into insuranceBalance — it is not pool cash that can be returned to the factorer.
+    // Without the fix, the cap on kickback only subtracted protocolFee, so the premium
+    // silently flowed back to the factorer as kickback (LP-funded gift).
+    // ============================================
+    function testReconciliationKickbackExcludesInsurancePremium() public {
+        // CommonSetup defaults: interestApr=730, spreadBps=1000, adminFeeBps=25,
+        //   protocolFeeBps=25, insuranceFeeBps=100, upfrontBps=8000, dueBy=+30d.
+        // Invoice = 100_000, paid in full exactly at dueBy (secondsOfInterest = 30d).
+        //
+        // Funding-time fees (per FeeCalculations math, SECONDS_PER_YEAR = 31_556_952):
+        //   protocolFee      = 100_000 * 25/10_000               = 250
+        //   insurancePremium = 100_000 * 100/10_000              = 1_000
+        //   targetYieldMbps  = 730_000  * 2_592_000 / 31_556_952 = 59_961
+        //   spreadRateMbps   = 1_000_000 * 2_592_000 / 31_556_952 = 82_138
+        //   adminFeeRateMbps = 25_000   * 2_592_000 / 31_556_952 =  2_053
+        //   totalFeeRateMbps = 144_152
+        //   totalFees_calc   = 100_000 * 144_152 / 10_000_000    = 1_441
+        //   adminFee         = 1_441 * 2_053  / 144_152          =     20
+        //   interest         = 1_441 * 59_961 / 144_152          =    599
+        //   spreadAmount     = 1_441 - 20 - 599                  =    822
+        //   totalFees        = 20 + 599 + 822 + 250 + 1_000      =  2_691
+        //   fundedAmountGross= 100_000 * 80%                     = 80_000
+        //   fundedAmountNet  = 80_000 - 2_691                    = 77_309
+        // Expected reconciliation kickback (with fix) = invoiceAmount - fundedAmountGross = 20_000.
+        // Without fix, kickback would be 21_000 — the extra 1_000 is the insurance premium
+        // erroneously refunded to the factorer.
+        uint256 invoiceAmount = 100_000;
+        uint256 expectedFundedNet = 77_309;
+        uint256 expectedKickback = 20_000;
+        uint256 expectedInsurancePremium = 1_000;
+        uint256 expectedProtocolFee = 250;
+        uint256 expectedAdminPlusSpread = 20 + 822;
+        uint256 expectedInterest = 599;
+
+        uint256 bobBalanceBeforeFunding = asset.balanceOf(bob);
+        uint256 invoiceId = _fundSingleInvoice(invoiceAmount);
+
+        // Bob received fundedAmountNet at funding.
+        uint256 bobReceivedAtFunding = asset.balanceOf(bob) - bobBalanceBeforeFunding;
+        assertEq(bobReceivedAtFunding, expectedFundedNet, "fundedAmountNet matches expected");
+        assertEq(
+            bullaFactoring.insuranceBalance(),
+            expectedInsurancePremium,
+            "insuranceBalance holds funding-time premium"
+        );
+
+        uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
+        uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
+        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
+        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
+        uint256 bobBalanceBeforePayment = asset.balanceOf(bob);
+
+        // Pay invoice in full exactly at dueBy. Triggers reconcileSingleInvoice via the
+        // paid-callback registered in CommonSetup.
+        vm.warp(dueBy);
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        // Kickback delivered to bob = invoice payment minus fundedAmountGross.
+        uint256 bobKickback = asset.balanceOf(bob) - bobBalanceBeforePayment;
+        assertEq(
+            bobKickback,
+            expectedKickback,
+            "kickback excludes insurance premium (would be 21_000 with bug)"
+        );
+
+        // Insurance balance unchanged at reconciliation — premium stays earmarked for insurer.
+        assertEq(
+            bullaFactoring.insuranceBalance() - insuranceBalanceBefore,
+            0,
+            "insuranceBalance unchanged at reconciliation"
+        );
+        // Protocol fee balance unchanged at reconciliation (already collected at funding).
+        assertEq(
+            bullaFactoring.protocolFeeBalance() - protocolFeeBalanceBefore,
+            0,
+            "protocolFeeBalance unchanged at reconciliation"
+        );
+        // Admin + spread credited to adminFeeBalance, interest credited to paidInvoicesGain.
+        assertEq(
+            bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore,
+            expectedAdminPlusSpread,
+            "adminFeeBalance += admin + spread"
+        );
+        assertEq(
+            bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore,
+            expectedInterest,
+            "paidInvoicesGain += interest"
+        );
+
+        // Conservation: bob's net P&L on the invoice equals -totalFees (incl. insurance).
+        uint256 bobTotalReceived = bobReceivedAtFunding + bobKickback;
+        assertEq(
+            invoiceAmount - bobTotalReceived,
+            expectedProtocolFee + expectedInsurancePremium + expectedAdminPlusSpread + expectedInterest,
+            "bob effectively paid all fees including the insurance premium"
+        );
+    }
 }
