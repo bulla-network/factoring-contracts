@@ -133,11 +133,13 @@ Removes all loan offer functionality from BullaFactoringV2_2 to reduce contract 
 
 **Contract size:** 26,773 → 23,500 bytes (1,076-byte margin under EIP-170 limit)
 
-**Files changed:** `BullaFactoring.sol`, `IBullaFactoring.sol`
+**Files changed:** `BullaFactoring.sol`, `IBullaFactoring.sol`, `BullaFactoringFactoryV2_1.sol`
+
+**Factory changes (`BullaFactoringFactoryV2_1.sol`):** Removed `bullaFrendLend` state variable, constructor parameter, and loan offer callback whitelisting logic in `_deployPool`. Deletion-only changes that simplify the factory.
 
 ## Out of Scope
 
-- `BullaFactoringFactoryV2_1.sol` and `PermissionsFactory.sol` (factory/deployment contracts)
+- `PermissionsFactory.sol` (deployment helper)
 - `BullaClaimV2InvoiceProviderAdapterV2.sol` (invoice provider adapter — unchanged)
 - Deploy scripts and TypeScript tooling
 - Existing core flow (deposit/withdraw/redeem) — unchanged since last audit
