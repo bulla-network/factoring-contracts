@@ -7,25 +7,22 @@ import {IBullaClaimCore} from "bulla-contracts-v2/src/interfaces/IBullaClaimCore
 import {Claim, Status} from "bulla-contracts-v2/src/types/Types.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {console} from "../lib/forge-std/src/console.sol";
-import {IBullaFrendLendV2, Loan} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {IBullaInvoice, Invoice as BullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 
 contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
     IBullaClaimV2 private bullaClaimV2;
-    IBullaFrendLendV2 private immutable bullaFrendLend;
     IBullaInvoice private immutable bullaInvoice;
 
     // Cache for controller addresses (immutable once set)
     mapping(uint256 => address) private controllerCache;
     mapping(uint256 => uint256) private impairmentGracePeriodCache;
     mapping(uint256 => bool) private isCached;
-    
+
     error InexistentInvoice();
     error UnknownClaimType();
 
-    constructor(address _bullaClaimV2Address, address _bullaFrendLend, address _bullaInvoice) {
+    constructor(address _bullaClaimV2Address, address _bullaInvoice) {
         bullaClaimV2 = IBullaClaimV2(_bullaClaimV2Address);
-        bullaFrendLend = IBullaFrendLendV2(_bullaFrendLend);
         bullaInvoice = IBullaInvoice(_bullaInvoice);
     }
 
@@ -50,7 +47,7 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         if (isCached[invoiceId]) {
             return controllerCache[invoiceId];
         }
-        
+
         revert InexistentInvoice();
     }
 
@@ -80,34 +77,12 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
             });
 
             return invoice;
-        } else if (controller == address(bullaFrendLend)) {
-            Loan memory loan = bullaFrendLend.getLoan(invoiceId);
-            // Cache interest computation state to avoid repeated access
-            uint256 totalGrossInterestPaid = loan.interestComputationState.totalGrossInterestPaid;
-            uint256 accruedInterest = loan.interestComputationState.accruedInterest;
-            
-            paidAmount = loan.paidAmount + totalGrossInterestPaid;
-            invoiceAmount = loan.claimAmount + accruedInterest + totalGrossInterestPaid;
-
-            Invoice memory invoice = Invoice({
-                invoiceAmount: invoiceAmount,
-                creditor: loan.creditor,
-                debtor: loan.debtor,
-                dueDate: loan.dueBy,
-                tokenAddress: loan.token,
-                paidAmount: paidAmount,
-                isCanceled: loan.status == Status.Rejected || loan.status == Status.Rescinded,
-                isPaid: loan.status == Status.Paid,
-                impairmentGracePeriod: impairmentGracePeriodCache[invoiceId]
-            });
-
-            return invoice;
         } else if (controller == address(bullaInvoice)) {
             BullaInvoice memory _bullaInvoice = bullaInvoice.getInvoice(invoiceId);
             // Cache interest computation state to avoid repeated access
             uint256 totalGrossInterestPaid = _bullaInvoice.interestComputationState.totalGrossInterestPaid;
             uint256 accruedInterest = _bullaInvoice.interestComputationState.accruedInterest;
-            
+
             paidAmount = _bullaInvoice.paidAmount + totalGrossInterestPaid;
             invoiceAmount = _bullaInvoice.claimAmount + accruedInterest + totalGrossInterestPaid;
 
@@ -131,19 +106,16 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
 
     function getInvoiceContractAddress(uint256 tokenId) external view returns (address) {
         address controller = _getCachedController(tokenId);
-        
+
         return controller == address(0) ? address(bullaClaimV2) : controller;
     }
 
     function getSetPaidInvoiceTarget(uint256 invoiceId) external view returns (address target, bytes4 selector) {
         address controller = _getCachedController(invoiceId);
-        
+
         if (controller == address(0)) {
             // BullaClaimV2 - use setPaidClaim function
             return (address(bullaClaimV2), IBullaClaimCore.setPaidClaimCallback.selector);
-        } else if (controller == address(bullaFrendLend)) {
-            // BullaFrendLend - use setPaidLoan function
-            return (address(bullaFrendLend), IBullaFrendLendV2.setPaidLoanCallback.selector);
         } else if (controller == address(bullaInvoice)) {
             // BullaInvoice - use setPaidInvoice function
             return (address(bullaInvoice), IBullaInvoice.setPaidInvoiceCallback.selector);
@@ -156,8 +128,6 @@ contract BullaClaimV2InvoiceProviderAdapterV2 is IInvoiceProviderAdapterV2 {
         address controller = _getCachedController(invoiceId);
         if (controller == address(0)) {
             return (address(bullaClaimV2), IBullaClaimCore.impairClaim.selector);
-        } else if (controller == address(bullaFrendLend)) {
-            return (address(bullaFrendLend), IBullaFrendLendV2.impairLoan.selector);
         } else if (controller == address(bullaInvoice)) {
             return (address(bullaInvoice), IBullaInvoice.impairInvoice.selector);
         } else {

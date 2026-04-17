@@ -17,8 +17,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
 import './helpers/TestHelpers.sol';
 import {IBullaClaimV2, LockState} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol";
-import {IBullaFrendLendV2} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
-import {BullaFrendLendV2} from "bulla-contracts-v2/src/BullaFrendLendV2.sol";
 import {BullaControllerRegistry} from "bulla-contracts-v2/src/BullaControllerRegistry.sol";
 import {BullaClaimV2} from "bulla-contracts-v2/src/BullaClaimV2.sol";
 import {IBullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
@@ -41,7 +39,6 @@ contract CommonSetup is Test, BatchTestHelpers {
     BullaControllerRegistry public bullaControllerRegistry;
     BullaApprovalRegistry public bullaApprovalRegistry;
     MockPermissions public feeExemptionWhitelist;
-    IBullaFrendLendV2 public bullaFrendLend;
     IBullaClaimV2 public bullaClaim;
     IBullaInvoice public bullaInvoice;
 
@@ -78,9 +75,8 @@ contract CommonSetup is Test, BatchTestHelpers {
         bullaControllerRegistry = new BullaControllerRegistry();
         bullaApprovalRegistry = new BullaApprovalRegistry(address(bullaControllerRegistry));
         bullaClaim = new BullaClaimV2(address(bullaApprovalRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 50, 0);
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 50);
-        invoiceAdapterBulla = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
+        invoiceAdapterBulla = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaInvoice));
         bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);
         
         address[] memory safeOwners = new address[](2);

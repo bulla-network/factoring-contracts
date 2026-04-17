@@ -28,23 +28,6 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         factoringPermissions.allow(alice);
         factoringPermissions.allow(charlie);
 
-        // Set up permitCreateClaim for Bob to create loans via BullaFrendLend
-        bullaClaim.approvalRegistry().permitCreateClaim({
-            user: bob,
-            controller: address(bullaFrendLend),
-            approvalType: CreateClaimApprovalType.Approved,
-            approvalCount: type(uint64).max,
-            isBindingAllowed: true,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: bobPK,
-                user: bob,
-                controller: address(bullaFrendLend),
-                approvalType: CreateClaimApprovalType.Approved,
-                approvalCount: type(uint64).max,
-                isBindingAllowed: true
-            })
-        });
-
         // Setup additional test users with asset
         deal(address(asset), david, 10000000);
         deal(address(asset), eve, 10000000);
