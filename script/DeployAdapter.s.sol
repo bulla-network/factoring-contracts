@@ -9,23 +9,20 @@ contract DeployAdapter is Script {
     function run() external {
         // Load configuration from environment
         address bullaClaim = vm.envAddress("BULLA_CLAIM");
-        address bullaFrendLend = vm.envOr("BULLA_FREND_LEND_ADDRESS", address(0));
         address bullaInvoice = vm.envOr("BULLA_INVOICE_ADDRESS", address(0));
-        
+
         uint256 deployerPrivateKey = vm.envUint("DEPLOY_PK");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         console.log("Deploying BullaClaimV2InvoiceProviderAdapterV2 with:");
         console.log("- Deployer:", deployer);
         console.log("- BullaClaim:", bullaClaim);
-        console.log("- BullaFrendLend:", bullaFrendLend);
         console.log("- BullaInvoice:", bullaInvoice);
-        
+
         vm.startBroadcast(deployerPrivateKey);
-        
+
         BullaClaimV2InvoiceProviderAdapterV2 adapter = new BullaClaimV2InvoiceProviderAdapterV2(
             bullaClaim,
-            bullaFrendLend,
             bullaInvoice
         );
         

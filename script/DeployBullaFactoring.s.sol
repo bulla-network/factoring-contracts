@@ -28,7 +28,6 @@ contract DeployBullaFactoring is Script {
         address factoringPermissionsAddress;
         address depositPermissionsAddress;
         address redeemPermissionsAddress;
-        address bullaFrendLendAddress;
         address bullaInvoiceAddress;
         address bullaFactoringAddress;
         address insurer;
@@ -64,7 +63,6 @@ contract DeployBullaFactoring is Script {
             console.log("Deploying BullaClaimV2InvoiceProviderAdapterV2...");
             BullaClaimV2InvoiceProviderAdapterV2 adapter = new BullaClaimV2InvoiceProviderAdapterV2(
                 config.bullaClaim,
-                config.bullaFrendLendAddress,
                 config.bullaInvoiceAddress
             );
             config.bullaClaimInvoiceProviderAdapterAddress = address(adapter);
@@ -158,7 +156,6 @@ contract DeployBullaFactoring is Script {
         config.factoringPermissionsAddress = vm.envOr("FACTORING_PERMISSIONS_ADDRESS", address(0));
         config.depositPermissionsAddress = vm.envOr("DEPOSIT_PERMISSIONS_ADDRESS", address(0));
         config.redeemPermissionsAddress = vm.envOr("REDEEM_PERMISSIONS_ADDRESS", address(0));
-        config.bullaFrendLendAddress = vm.envOr("BULLA_FREND_LEND_ADDRESS", address(0));
         config.bullaInvoiceAddress = vm.envOr("BULLA_INVOICE_ADDRESS", address(0));
         config.bullaFactoringAddress = vm.envOr("BULLA_FACTORING_ADDRESS", address(0));
         config.insurer = vm.envOr("INSURER_ADDRESS", address(0));

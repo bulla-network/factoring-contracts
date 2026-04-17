@@ -36,23 +36,6 @@ contract TestRedemptionQueueInsufficientFunds is CommonSetup {
         factoringPermissions.allow(alice);
         factoringPermissions.allow(charlie);
 
-        // Set up permitCreateClaim for Bob
-        bullaClaim.approvalRegistry().permitCreateClaim({
-            user: bob,
-            controller: address(bullaFrendLend),
-            approvalType: CreateClaimApprovalType.Approved,
-            approvalCount: type(uint64).max,
-            isBindingAllowed: true,
-            signature: sigHelper.signCreateClaimPermit({
-                pk: bobPK,
-                user: bob,
-                controller: address(bullaFrendLend),
-                approvalType: CreateClaimApprovalType.Approved,
-                approvalCount: type(uint64).max,
-                isBindingAllowed: true
-            })
-        });
-
         // Setup david and eve with more tokens
         deal(address(asset), david, 100000000);
         deal(address(asset), eve, 100000000);

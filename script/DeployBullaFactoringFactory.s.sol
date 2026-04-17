@@ -13,7 +13,6 @@ contract DeployBullaFactoringFactory is Script {
     struct FactoryConfig {
         address bullaClaim;
         address bullaDao;
-        address bullaFrendLendAddress;
         address bullaInvoiceAddress;
         address bullaClaimInvoiceProviderAdapterAddress;
         uint16 protocolFeeBps;
@@ -32,7 +31,6 @@ contract DeployBullaFactoringFactory is Script {
         console.log("Factory Config:");
         console.log("- BullaClaim:", config.bullaClaim);
         console.log("- BullaDao:", config.bullaDao);
-        console.log("- BullaFrendLend:", config.bullaFrendLendAddress);
         console.log("- ProtocolFeeBps:", config.protocolFeeBps);
         
         vm.startBroadcast(deployerPrivateKey);
@@ -42,7 +40,6 @@ contract DeployBullaFactoringFactory is Script {
             console.log("Deploying BullaClaimV2InvoiceProviderAdapterV2...");
             BullaClaimV2InvoiceProviderAdapterV2 adapter = new BullaClaimV2InvoiceProviderAdapterV2(
                 config.bullaClaim,
-                config.bullaFrendLendAddress,
                 config.bullaInvoiceAddress
             );
             config.bullaClaimInvoiceProviderAdapterAddress = address(adapter);
@@ -85,7 +82,6 @@ contract DeployBullaFactoringFactory is Script {
         // Load from environment variables (set by the TypeScript wrapper)
         config.bullaClaim = vm.envAddress("BULLA_CLAIM");
         config.bullaDao = vm.envAddress("BULLA_DAO");
-        config.bullaFrendLendAddress = vm.envOr("BULLA_FREND_LEND_ADDRESS", address(0));
         config.bullaInvoiceAddress = vm.envOr("BULLA_INVOICE_ADDRESS", address(0));
         config.bullaClaimInvoiceProviderAdapterAddress = vm.envOr("BULLA_CLAIM_INVOICE_PROVIDER_ADAPTER_ADDRESS", address(0));
         config.protocolFeeBps = uint16(vm.envUint("PROTOCOL_FEE_BPS"));

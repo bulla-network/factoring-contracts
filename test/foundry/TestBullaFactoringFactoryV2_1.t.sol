@@ -13,8 +13,6 @@ import { MockPermissions } from 'contracts/mocks/MockPermissions.sol';
 import { MockZodiacRoles } from 'contracts/mocks/MockZodiacRoles.sol';
 import { IZodiacRoles } from 'contracts/interfaces/IZodiacRoles.sol';
 import { IInvoiceProviderAdapterV2 } from 'contracts/interfaces/IInvoiceProviderAdapter.sol';
-import { IBullaFrendLendV2 } from 'bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol';
-import { BullaFrendLendV2 } from 'bulla-contracts-v2/src/BullaFrendLendV2.sol';
 import { BullaControllerRegistry } from 'bulla-contracts-v2/src/BullaControllerRegistry.sol';
 import { BullaClaimV2 } from 'bulla-contracts-v2/src/BullaClaimV2.sol';
 import { BullaApprovalRegistry } from 'bulla-contracts-v2/src/BullaApprovalRegistry.sol';
@@ -35,7 +33,6 @@ contract TestBullaFactoringFactoryV2_1 is Test {
     
     BullaControllerRegistry public bullaControllerRegistry;
     BullaApprovalRegistry public bullaApprovalRegistry;
-    IBullaFrendLendV2 public bullaFrendLend;
     IBullaClaimV2 public bullaClaim;
     BullaInvoice public bullaInvoice;
 
@@ -81,9 +78,8 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         bullaControllerRegistry = new BullaControllerRegistry();
         bullaApprovalRegistry = new BullaApprovalRegistry(address(bullaControllerRegistry));
         bullaClaim = new BullaClaimV2(address(bullaApprovalRegistry), LockState.Unlocked, 0, address(feeExemptionWhitelist));
-        bullaFrendLend = new BullaFrendLendV2(address(bullaClaim), address(this), 50, 0);
         bullaInvoice = new BullaInvoice(address(bullaClaim), address(this), 50);
-        invoiceAdapter = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaFrendLend), address(bullaInvoice));
+        invoiceAdapter = new BullaClaimV2InvoiceProviderAdapterV2(address(bullaClaim), address(bullaInvoice));
         bullaApprovalRegistry.setAuthorizedContract(address(bullaClaim), true);
 
         // Compute init bytecode config for BullaFactoringV2_2
@@ -578,7 +574,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
         
         // Create a different adapter
         BullaClaimV2InvoiceProviderAdapterV2 wrongAdapter = new BullaClaimV2InvoiceProviderAdapterV2(
-            address(bullaClaim), address(bullaFrendLend), address(bullaInvoice)
+            address(bullaClaim), address(bullaInvoice)
         );
         
         // Build bytecode with wrong adapter
@@ -715,7 +711,7 @@ contract TestBullaFactoringFactoryV2_1 is Test {
 
     function test_setInvoiceProviderAdapter_updatesAdapter() public {
         BullaClaimV2InvoiceProviderAdapterV2 newAdapter = new BullaClaimV2InvoiceProviderAdapterV2(
-            address(bullaClaim), address(bullaFrendLend), address(bullaInvoice)
+            address(bullaClaim), address(bullaInvoice)
         );
 
         vm.prank(bullaDao);
