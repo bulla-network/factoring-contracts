@@ -1,4 +1,4 @@
-# Bulla Factoring Contracts — Audit Scope
+# Bulla Factoring Contracts — V2.2 Audit Scope
 
 **Date:** April 2026
 **Repo:** `bulla-network/factoring-contracts`
@@ -43,6 +43,8 @@ The `kycApprover` role on `SumsubKycIssuer` is a backend hot wallet.
 `ComplianceDepositPermissions` checks the Chainalysis OFAC sanctions oracle (`ISanctionsList.isSanctioned(address)`) to reject sanctioned addresses.
 
 ### ComplianceDepositPermissions (combines all three)
+
+> **Note to auditors:** The compliance system gates who can deposit but does not affect how funds flow once inside the pool. A bug in these contracts could allow an unauthorized user to deposit, but cannot lead to loss of funds. This is lower priority than the core factoring and insurance logic — a standard review for correctness is sufficient without deep invariant analysis.
 
 `ComplianceDepositPermissions.isAllowed(address)` enforces AND logic:
 1. Not sanctioned (Chainalysis oracle)
@@ -129,23 +131,13 @@ Removes all loan offer functionality from BullaFactoringV2_2 to reduce contract 
 - `pendingLoanOffers` mapping and `pendingLoanOfferIds` array
 - All loan-offer-specific errors and events
 
-**Removed from factory (`BullaFactoringFactoryV2_1`):**
-- `bullaFrendLend` state variable and constructor parameter
-- Loan offer callback whitelisting logic in `_deployPool`
-
-**Removed from adapter (`BullaClaimV2InvoiceProviderAdapterV2`):**
-- All BullaFrendLend code paths (getInvoiceDetails, getSetPaidInvoiceTarget, getImpairTarget)
-- `bullaFrendLend` constructor parameter and state variable
-- `IBullaFrendLendV2` import
-
 **Contract size:** 26,773 → 23,500 bytes (1,076-byte margin under EIP-170 limit)
 
-**Files changed:** `BullaFactoring.sol`, `BullaFactoringFactoryV2_1.sol`, `BullaClaimV2InvoiceProviderAdapterV2.sol`, `IBullaFactoring.sol`, deploy scripts, test files
+**Files changed:** `BullaFactoring.sol`, `IBullaFactoring.sol`
 
 ## Out of Scope
 
-- `PermissionsFactory.sol` (deployment helper)
+- `BullaFactoringFactoryV2_1.sol` and `PermissionsFactory.sol` (factory/deployment contracts)
+- `BullaClaimV2InvoiceProviderAdapterV2.sol` (invoice provider adapter — unchanged)
 - Deploy scripts and TypeScript tooling
 - Existing core flow (deposit/withdraw/redeem) — unchanged since last audit
-
-**Note:** `BullaFactoringFactoryV2_1.sol` was previously out of scope but was modified as part of the Tap Credit removal (PR #224) — the `bullaFrendLend` state variable, constructor parameter, and loan offer callback whitelisting were removed. These are deletion-only changes that simplify the factory.
