@@ -135,7 +135,7 @@ Removes all loan offer functionality from BullaFactoringV2_2 to reduce contract 
 
 **Files changed:** `BullaFactoring.sol`, `IBullaFactoring.sol`
 
-**Adapter changes (`BullaClaimV2InvoiceProviderAdapterV2.sol`):** All BullaFrendLend code paths removed from `getInvoiceDetails`, `getSetPaidInvoiceTarget`, and `getImpairTarget`. The `bullaFrendLend` constructor parameter and state variable were removed. The adapter now only routes between BullaClaimV2 (controller == address(0)) and BullaInvoice.
+**Adapter changes (`BullaClaimV2InvoiceProviderAdapterV2.sol`):** Added `getImpairTarget(uint256 invoiceId)` function, which returns the correct contract address and function selector for impairing an invoice based on its controller type (BullaClaimV2, BullaFrendLend, or BullaInvoice). The existing FrendLend code paths remain — FrendLend invoices can still be factored via the `fundInvoices` flow.
 
 ## Out of Scope
 
