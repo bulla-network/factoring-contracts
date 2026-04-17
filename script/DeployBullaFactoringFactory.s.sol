@@ -7,7 +7,6 @@ import "../contracts/BullaFactoringFactoryV2_1.sol";
 import "../contracts/BullaFactoring.sol";
 import "../contracts/BullaClaimV2InvoiceProviderAdapterV2.sol";
 import "../contracts/interfaces/IInvoiceProviderAdapter.sol";
-import "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 
 contract DeployBullaFactoringFactory is Script {
     // Configuration struct to match TypeScript network config
