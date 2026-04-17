@@ -10,8 +10,6 @@ import {IBullaFactoringV2_2} from "./interfaces/IBullaFactoring.sol";
 import "./interfaces/IRedemptionQueue.sol";
 import "./Permissions.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721.sol';
-import {IBullaFrendLendV2, LoanRequestParams, LoanOffer} from "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
-import {InterestConfig} from "@bulla/contracts-v2/src/libraries/CompoundInterestLib.sol";
 import "./RedemptionQueue.sol";
 import "./libraries/FeeCalculations.sol";
 import "./libraries/ApprovalPacking.sol";
@@ -41,8 +39,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     IInvoiceProviderAdapterV2 public invoiceProviderAdapter;
     uint256 private totalDeposits; 
     uint256 private totalWithdrawals;
-    /// @notice Address of the bulla frendlend contract
-    IBullaFrendLendV2 public bullaFrendLend;
     /// @notice Address of the underwriter, trusted to approve invoices
     address public underwriter;
     /// @notice Timestamp of the fund's creation
@@ -76,12 +72,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
     /// Set to hold the IDs of all active invoices (O(1) add/remove/contains)
     EnumerableSet.UintSet private _activeInvoices;
-
-    /// Mapping from loan offer ID to pending loan offer details
-    mapping(uint256 => PendingLoanOfferInfo) public pendingLoanOffersByLoanOfferId;
-
-    /// Array to track IDs of pending loan offers
-    uint256[] public pendingLoanOffersIds;
 
     // ============ Aggregate State Tracking Variables ============
     /// @notice Total per-second interest rate across all active invoices in RAY units (sum of all perSecondInterestRate values)
@@ -119,19 +109,14 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error UnauthorizedFactoring(address caller);
     error InvoiceAlreadyPaid();
     error CallerNotOriginalCreditor();
-    error CallerNotBullaFrendLend();
     error CallerNotBullaDao();
     error NoFeesToWithdraw();
     error InvalidAddress();
     error InvoiceCannotBePaid();
     error InvoiceTokenMismatch();
     error InvoiceAlreadyFunded();
-    error LoanOfferNotExists();
-    error LoanOfferAlreadyAccepted();
-    error TooManyPendingLoanOffers(uint256 current, uint256 max);
     error InsufficientFunds(uint256 available, uint256 required);
     error RedemptionQueueNotEmpty();
-    error CallerNotInvoiceContract();
     error InvoiceNotActive();
     error InvoiceSetPaidCallbackFailed();
     error InvoiceNotApproved();
@@ -145,8 +130,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error CallerNotInsurer();
     error InvalidReceiverAddressIndex();
     error InvoiceAlreadyImpaired();
-    error ImpairmentPriceTooLow();
-    error InsufficientInsuranceFunds(uint256 available, uint256 required);
     error InvoiceImpairFailed();
     error ImpairmentGrossGainBpsMustBePositive();
     error UnauthorizedReceiverAddress(address receiver);
@@ -163,7 +146,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     constructor(
         IERC20 _asset,
         IInvoiceProviderAdapterV2 _invoiceProviderAdapter,
-        IBullaFrendLendV2 _bullaFrendLend,
         address _underwriter,
         Permissions _depositPermissions,
         Permissions _redeemPermissions,
@@ -189,7 +171,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
         assetAddress = _asset;
         invoiceProviderAdapter = _invoiceProviderAdapter;
-        bullaFrendLend = _bullaFrendLend;
         underwriter = _underwriter;
         depositPermissions = _depositPermissions;
         redeemPermissions = _redeemPermissions;
@@ -251,117 +232,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         
         // Add to aggregate (RAY units)
         totalPerSecondInterestRateRay += perSecondInterestRateRay;
-    }
-
-    /// @notice The underwriter approves a loan that was requested by a user
-    /// @dev This function is called by the underwriter to approve a loan that was requested by a user
-    /// @param debtor The address of the debtor
-    /// @param _targetYieldBps The target yield in basis points
-    /// @param spreadBps The spread in basis points to add on top of target yield
-    /// @param principalAmount The principal amount of the loan
-    /// @param termLength The term length of the loan
-    /// @param numberOfPeriodsPerYear The number of periods per year
-    function offerLoan(address debtor, uint16 _targetYieldBps, uint16 spreadBps, uint256 principalAmount, uint256 termLength, uint16 numberOfPeriodsPerYear, string memory description)
-        external returns (uint256 loanOfferId) {
-        if (msg.sender != underwriter) revert CallerNotUnderwriter();
-        
-        LoanRequestParams memory loanRequestParams = LoanRequestParams({
-            termLength: termLength,
-            interestConfig: InterestConfig({
-                interestRateBps: _targetYieldBps + spreadBps + adminFeeBps,
-                numberOfPeriodsPerYear: numberOfPeriodsPerYear
-            }),
-            loanAmount: principalAmount,
-            creditor: address(this),
-            debtor: debtor,
-            description: description,
-            token: address(assetAddress),
-            impairmentGracePeriod: gracePeriodDays * 1 days,
-            expiresAt: block.timestamp + approvalDuration,
-            callbackContract: address(this),
-            callbackSelector: this.onLoanOfferAccepted.selector
-        });
-
-        assetAddress.safeIncreaseAllowance(address(bullaFrendLend), principalAmount);
-        loanOfferId = bullaFrendLend.offerLoan(loanRequestParams);
-
-        pendingLoanOffersByLoanOfferId[loanOfferId] = PendingLoanOfferInfo({
-            exists: true,
-            feeParams: FeeParams({
-                spreadBps: spreadBps,
-                upfrontBps: 100_00,
-                protocolFeeBps: protocolFeeBps,
-                adminFeeBps: adminFeeBps,
-                targetYieldBps: _targetYieldBps
-            }),
-            principalAmount: principalAmount,
-            termLength: termLength,
-            offeredAt: block.timestamp
-        });
-
-        pendingLoanOffersIds.push(loanOfferId);
-
-        return loanOfferId;
-    }
-
-    /// @notice Callback function called when a loan offer is accepted
-    /// @dev This function is called by the bulla frendlend contract when a loan offer is accepted
-    /// @param loanOfferId The ID of the loan offer
-    /// @param loanId The ID of the loan
-    function onLoanOfferAccepted(uint256 loanOfferId, uint256 loanId) external {
-        if (msg.sender != address(bullaFrendLend)) revert CallerNotBullaFrendLend();
-        PendingLoanOfferInfo memory pendingLoanOffer = pendingLoanOffersByLoanOfferId[loanOfferId];
-        if (!pendingLoanOffer.exists) revert LoanOfferNotExists();
-        if (approvedInvoices[loanId].approved) revert LoanOfferAlreadyAccepted();
-        if (!redemptionQueue.isQueueEmpty()) revert RedemptionQueueNotEmpty();
-
-        // even though the funds have left, `totalAssets` only updates once the invoice has been added as an active invoice
-        // which reduces totalAssets
-        uint256 _totalAssets = totalAssets();
-        if (_totalAssets < pendingLoanOffer.principalAmount) revert InsufficientFunds(_totalAssets, pendingLoanOffer.principalAmount);
-
-        // We no longer force having an empty queue because if the queue is non-empty,
-        // it means there's no cash in the pool anyways, and
-        // the frendlend will fail before even getting to this function
-
-        pendingLoanOffersByLoanOfferId[loanOfferId].exists = false;
-        removePendingLoanOffer(loanOfferId);
-
-        uint256 invoiceDueDate = block.timestamp + pendingLoanOffer.termLength;
-
-        approvedInvoices[loanId] = InvoiceApproval({
-            approved: true,
-            validUntil: pendingLoanOffer.offeredAt,
-            fundedTimestamp: block.timestamp,
-            feeParams: pendingLoanOffer.feeParams,
-            fundedAmountGross: pendingLoanOffer.principalAmount,
-            fundedAmountNet: pendingLoanOffer.principalAmount,
-            initialInvoiceValue: pendingLoanOffer.principalAmount,
-            initialPaidAmount: 0,
-            invoiceDueDate: invoiceDueDate,
-            impairmentDate: invoiceDueDate + gracePeriodDays * 1 days,
-            receiverAddress: address(this),
-            creditor: address(this),
-            protocolFeeAndInsurancePremium: 0,
-            perSecondInterestRateRay: FeeCalculations.calculatePerSecondInterestRateRay(
-                pendingLoanOffer.principalAmount,
-                pendingLoanOffer.feeParams.targetYieldBps
-            )
-        });
-
-        originalCreditors[loanId] = address(this);
-        _activeInvoices.add(loanId);
-        
-        // Add loan to aggregate state tracking (RAY units)
-        _addInvoiceToAggregate(approvedInvoices[loanId].perSecondInterestRateRay);
-        
-        // Add to capital at risk (principalAmount + protocolFee which is 0)
-        capitalAtRiskPlusWithheldFees += pendingLoanOffer.principalAmount;
-        
-        invoiceProviderAdapter.initializeInvoice(loanId);
-        _registerInvoiceCallback(loanId);
-        
-        emit InvoiceFunded(loanId, pendingLoanOffer.principalAmount, address(this), block.timestamp + pendingLoanOffer.termLength, pendingLoanOffer.feeParams.upfrontBps, 0, address(0));
     }
 
     /// @notice Approves multiple invoices for funding in a single transaction, can only be called by the underwriter
@@ -774,68 +644,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         }
     }
 
-
-    function removePendingLoanOffer(uint256 loanOfferId) private {
-        for (uint256 i = 0; i < pendingLoanOffersIds.length; i++) {
-            if (pendingLoanOffersIds[i] == loanOfferId) {
-                pendingLoanOffersIds[i] = pendingLoanOffersIds[pendingLoanOffersIds.length - 1];
-                pendingLoanOffersIds.pop();
-                break;
-            }
-        }
-    }
-
-    /// @notice Clears stale pending loan offers that have expired or been rejected/rescinded
-    /// @dev This function allows the underwriter to cleanup offers that are expired, rejected, or rescinded.
-    ///      Since there's no callback from BullaFrendLend when a debtor rejects an offer, this provides
-    ///      a mechanism to prevent the pendingLoanOffersIds array from growing unbounded.
-    /// @param offset Starting index in the pendingLoanOffersIds array
-    /// @param limit Maximum number of pending loan offers to process in this call (0 = process all from offset)
-    /// @return processed Number of pending loan offers checked
-    /// @return removed Number of stale loan offers removed
-    /// @return remaining Number of pending loan offers remaining after this call
-    function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining) {
-        uint256 i = offset;
-        uint256 maxToProcess = limit == 0 ? pendingLoanOffersIds.length : limit;
-        
-        while (i < pendingLoanOffersIds.length && processed < maxToProcess) {
-            uint256 loanOfferId = pendingLoanOffersIds[i];
-            bool shouldRemove = false;
-            
-            if (pendingLoanOffersByLoanOfferId[loanOfferId].exists) {
-                // Check if the offer has expired (offeredAt + approvalDuration has passed)
-                if (block.timestamp >= pendingLoanOffersByLoanOfferId[loanOfferId].offeredAt + approvalDuration) {
-                    shouldRemove = true;
-                } else {
-                    // Check if the loan offer was rejected or rescinded in BullaFrendLend
-                    // getLoanOffer throws LoanOfferNotFound for rejected/rescinded offers
-                    try bullaFrendLend.getLoanOffer(loanOfferId) {
-                        // Offer still exists and is valid
-                    } catch {
-                        // getLoanOffer threw - loan was rejected/rescinded
-                        shouldRemove = true;
-                    }
-                }
-            }
-            
-            processed++;
-            
-            if (shouldRemove) {
-                removed++;
-                // Clear the mapping
-                pendingLoanOffersByLoanOfferId[loanOfferId].exists = false;
-                
-                // Remove from array by swapping with last element and popping
-                pendingLoanOffersIds[i] = pendingLoanOffersIds[pendingLoanOffersIds.length - 1];
-                pendingLoanOffersIds.pop();
-                // Don't increment i since we swapped in a new element at this index
-            } else {
-                i++;
-            }
-        }
-        
-        remaining = pendingLoanOffersIds.length;
-    }
 
     /// @notice Internal helper to calculate unfactor amounts
     /// @param invoiceId The ID of the invoice

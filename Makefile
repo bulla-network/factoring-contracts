@@ -15,7 +15,7 @@ SEPOLIA_RPC_URL := ${SEPOLIA_RPC_URL}
 # ex: 0x316..FB5 "Name" 10
 constructor-args := 
 
-build  :; forge build --via-ir --skip test
+build  :; forge build --via-ir --skip test --sizes
 sizes  :; forge build --via-ir --sizes
 test   :; forge test -vv --via-ir --no-match-path "**/Invariant.t.sol" --no-match-contract "Fork" --optimizer-runs 10 $(ARGS)
 test_fork :; forge test -vv --via-ir --match-path "**/fork/**" --fork-url $(ETH_RPC_URL) --optimizer-runs 10 $(ARGS)

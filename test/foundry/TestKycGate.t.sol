@@ -167,7 +167,6 @@ contract TestKycGateIntegration is CommonSetup {
         kycFactoring = new BullaFactoringV2_2(
             asset,
             invoiceAdapterBulla,
-            bullaFrendLend,
             underwriter,
             kycGate,            // KYC gate as deposit permissions
             redeemPermissions,

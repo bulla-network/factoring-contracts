@@ -3,11 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./IInvoiceProviderAdapter.sol";
 import "./IRedemptionQueue.sol";
-import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2_2 {
@@ -19,15 +17,6 @@ interface IBullaFactoringV2_2 {
         uint16 upfrontBps;
         uint16 protocolFeeBps;
         uint16 adminFeeBps;
-    }
-
-    // The rest of the info can be retrieved from the loan offer
-    struct PendingLoanOfferInfo {
-        uint256 offeredAt;
-        uint256 principalAmount;
-        uint256 termLength;
-        bool exists;            // 1 byte
-        FeeParams feeParams;    // 12 bytes - packed in slot 3 (13 bytes total)
     }
 
     struct InvoiceApproval {
@@ -129,9 +118,6 @@ interface IBullaFactoringV2_2 {
     // Preview functions
     function previewUnfactor(uint256 invoiceId) external view returns (int256 totalRefundOrPaymentAmount);
     
-    // Pending loan offer management
-    function clearStalePendingLoanOffers(uint256 offset, uint256 limit) external returns (uint256 processed, uint256 removed, uint256 remaining);
-
     // Active invoices
     function getActiveInvoices() external view returns (uint256[] memory);
     function getActiveInvoicesCount() external view returns (uint256);

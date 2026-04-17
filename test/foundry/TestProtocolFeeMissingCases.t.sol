@@ -38,7 +38,6 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         new BullaFactoringV2_2(
             asset,
             invoiceAdapterBulla,
-            bullaFrendLend,
             underwriter,
             depositPermissions,
             redeemPermissions,
@@ -60,7 +59,6 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         BullaFactoringV2_2 validFactoring = new BullaFactoringV2_2(
             asset,
             invoiceAdapterBulla,
-            bullaFrendLend,
             underwriter,
             depositPermissions,
             redeemPermissions,

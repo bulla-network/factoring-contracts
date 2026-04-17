@@ -10,7 +10,6 @@ import "../contracts/DepositPermissions.sol";
 import "../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import "../contracts/Permissions.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@bulla/contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 
 contract DeployBullaFactoring is Script {
     // Configuration struct to match TypeScript network config
@@ -109,7 +108,6 @@ contract DeployBullaFactoring is Script {
             BullaFactoringV2_2 bullaFactoring = new BullaFactoringV2_2(
                 IERC20(config.underlyingAsset),
                 IInvoiceProviderAdapterV2(config.bullaClaimInvoiceProviderAdapterAddress),
-                IBullaFrendLendV2(config.bullaFrendLendAddress),
                 config.underwriter,
                 Permissions(config.depositPermissionsAddress),
                 Permissions(config.redeemPermissionsAddress),
