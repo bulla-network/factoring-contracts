@@ -251,8 +251,15 @@ contract TestInsurance is CommonSetup {
         uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
         uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
 
+        // Compute pool-owned withheld (target interest + admin + spread held in pool cash)
+        uint256 poolOwnedWithheld;
+        {
+            (, , , , , , uint256 fag, uint256 fan, , , uint256 pAndI, , , ) = bullaFactoring.approvedInvoices(invoiceId);
+            poolOwnedWithheld = fag - fan - (pAndI & type(uint128).max) - (pAndI >> 128);
+        }
+
         // Get expected values from preview
-        (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = bullaFactoring.previewImpair(invoiceId);
 
         // Verify preview values
         assertEq(outstandingBalance, 100000, "Outstanding = full invoice amount");
@@ -260,7 +267,7 @@ contract TestInsurance is CommonSetup {
         assertEq(impairmentGrossGain, 5000, "Gross gain = 100000 * 5% = 5000");
         assertEq(outOfPocketCost, 0, "No out-of-pocket, insurance balance 6000 >= grossGain 5000");
         assertGt(adminFeeOwed, 0, "Admin fee should be non-zero after 91 days");
-        assertEq(impairmentNetGain, impairmentGrossGain - adminFeeOwed, "Net gain = gross - admin fee");
+        assertEq(impairmentNetGain, impairmentGrossGain - adminFeeOwed - spreadOwed, "Net gain = gross - admin - spread");
 
         // Execute impairment
         vm.prank(insurerAddr);
@@ -268,8 +275,10 @@ contract TestInsurance is CommonSetup {
 
         // Verify balances changed exactly as preview predicted
         assertEq(bullaFactoring.insuranceBalance(), insuranceBalanceBefore - impairmentGrossGain, "Insurance decreased by grossGain");
-        assertEq(bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore, impairmentNetGain, "Investor gains increased by netGain");
-        assertEq(bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore, adminFeeOwed, "Admin fee increased by adminFeeOwed");
+        // paidInvoicesGain gets both the insurance-funded net gain and the pool-owned withheld that
+        // was collected at funding but never spent on admin/spread at impairment.
+        assertEq(bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore, impairmentNetGain + poolOwnedWithheld, "Investor gains = netGain + poolOwnedWithheld");
+        assertEq(bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore, adminFeeOwed + spreadOwed, "Admin fee increased by adminFeeOwed + spreadOwed");
 
         // Verify impairment info
         (bool isImpaired, uint256 purchasePrice, uint256 paidAmountAtImpairment) = bullaFactoring.impairmentInfo(invoiceId);
@@ -304,7 +313,7 @@ contract TestInsurance is CommonSetup {
 
         vm.warp(block.timestamp + 91 days);
 
-        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, ) = bullaFactoring.previewImpair(invoiceId);
+        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, , ) = bullaFactoring.previewImpair(invoiceId);
         assertEq(impairmentGrossGain, 10000, "Gross gain = 200000 * 5% = 10000");
         assertEq(outOfPocketCost, 8000, "Out-of-pocket = 10000 - 2000 = 8000");
 
@@ -407,7 +416,7 @@ contract TestInsurance is CommonSetup {
 
         vm.warp(block.timestamp + 91 days);
 
-        (uint256 outstandingBalance, uint256 impairmentGrossGain, , , , uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 impairmentGrossGain, , , , uint256 currentPaidAmount, ) = bullaFactoring.previewImpair(invoiceId);
 
         assertEq(currentPaidAmount, 40000, "Paid amount = 40000");
         assertEq(outstandingBalance, 60000, "Outstanding = 100000 - 40000 = 60000");
@@ -434,7 +443,7 @@ contract TestInsurance is CommonSetup {
 
         uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
 
-        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, uint256 currentPaidAmount) = bullaFactoring.previewImpair(invoiceId);
+        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, uint256 currentPaidAmount, ) = bullaFactoring.previewImpair(invoiceId);
 
         assertEq(currentPaidAmount, 60000, "Paid amount = 60000");
         assertEq(impairmentGrossGain, 2000, "Gross gain = 40000 * 5% = 2000");
@@ -644,6 +653,82 @@ contract TestInsurance is CommonSetup {
         vm.stopPrank();
     }
 
+    // ============================================
+    // Spread must be credited to adminFeeBalance on impairment (matches reconcileSingleInvoice).
+    // Currently impairInvoice ignores spreadAmount — this test documents the expected behavior.
+    // ============================================
+    function testImpairmentCreditsSpreadToAdminFeeBalance() public {
+        // Using CommonSetup defaults: interestApr=730, spreadBps=1000, adminFeeBps=25,
+        // protocolFeeBps=25, insuranceFeeBps=100, impairmentGrossGainBps=500, upfrontBps=8000.
+        // Invoice = 100_000, dueBy = +30d, warp +91d -> secondsSinceFunded = 91d.
+        // calculateFees over 91d with initialInvoiceValue=100_000 (cap does not bind):
+        //   targetYieldMbps  = 730_000 * 91/365                = 182_000
+        //   spreadRateMbps   = 1_000_000 * 7_862_400 / 31_536_000 = 249_315
+        //   adminFeeRateMbps = 25_000    * 7_862_400 / 31_536_000 = 6_232
+        // (SECONDS_PER_YEAR = 31_556_952 in FeeCalculations.sol)
+        //   targetYieldMbps  = 730_000 * 7_862_400 / 31_556_952   = 181_879
+        //   spreadRateMbps   = 1_000_000 * 7_862_400 / 31_556_952 = 249_149
+        //   adminFeeRateMbps = 25_000    * 7_862_400 / 31_556_952 = 6_228
+        //   totalFeeRateMbps = 437_256
+        //   totalFees        = 100_000 * 437_256 / 10_000_000     = 4_372
+        //   adminFeeOwed     = 4_372 * 6_228   / 437_256          = 62
+        //   interestAccrued  = 4_372 * 181_879 / 437_256          = 1_818  (discarded at impairment)
+        //   spreadAccrued    = 4_372 - 62 - 1_818                 = 2_492
+        uint256 expectedAdminFeeOwed = 62;
+        uint256 expectedSpreadAccrued = 2_492;
+        uint256 expectedImpairmentGrossGain = 5_000; // 100_000 * 5%
+
+        uint256 invoiceId = _fundAndBuildInsurance(100_000);
+        // Capture pool-owned withheld (target admin + interest + spread) at funding-time.
+        // fundedAmountGross - fundedAmountNet includes protocolFee and insurancePremium which are
+        // not LP-owned, so we strip them out to get the LP-owned withheld portion.
+        uint256 poolOwnedWithheld;
+        {
+            // Packed field at position 10: upper 128 bits = insurancePremium, lower 128 = protocolFee.
+            (, , , , , , uint256 _fundedAmountGross, uint256 _fundedAmountNet, , , uint256 _protocolAndInsurance, , , ) = bullaFactoring.approvedInvoices(invoiceId);
+            uint256 _protocolFee = _protocolAndInsurance & type(uint128).max;
+            uint256 _insurancePremium = _protocolAndInsurance >> 128;
+            poolOwnedWithheld = _fundedAmountGross - _fundedAmountNet - _protocolFee - _insurancePremium;
+        }
+        assertGt(poolOwnedWithheld, 0, "pool-owned withheld should be non-zero when target fees > 0");
+
+        vm.warp(block.timestamp + 91 days);
+
+        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
+        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
+
+        (, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, , , uint256 spreadOwed) = bullaFactoring.previewImpair(invoiceId);
+        assertEq(impairmentGrossGain, expectedImpairmentGrossGain, "grossGain = invoiceAmount * 5%");
+        assertEq(adminFeeOwed, expectedAdminFeeOwed, "adminFeeOwed = 62");
+        assertEq(spreadOwed, expectedSpreadAccrued, "spreadOwed = 2492");
+        assertEq(
+            impairmentNetGain,
+            expectedImpairmentGrossGain - expectedAdminFeeOwed - expectedSpreadAccrued,
+            "impairmentNetGain = grossGain - admin - spread"
+        );
+
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        uint256 adminFeeBalanceDelta = bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore;
+        uint256 paidInvoicesGainDelta = bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore;
+
+        // adminFeeBalance captures BOTH admin fee and spread, matching
+        // incrementProfitAndFeeBalances() in the normal reconciliation path.
+        assertEq(
+            adminFeeBalanceDelta,
+            expectedAdminFeeOwed + expectedSpreadAccrued,
+            "adminFeeBalance must include accrued spread, not just admin fee"
+        );
+        // paidInvoicesGain = impairmentNetGain (from gross gain) + pool-owned withheld (target fees
+        // collected at funding that weren't spent on admin/spread payouts).
+        assertEq(
+            paidInvoicesGainDelta,
+            (expectedImpairmentGrossGain - expectedAdminFeeOwed - expectedSpreadAccrued) + poolOwnedWithheld,
+            "paidInvoicesGain = impairmentNetGain + poolOwnedWithheld"
+        );
+    }
+
     function _fundAndBuildInsurance(uint256 invoiceAmount) internal returns (uint256 targetInvoiceId) {
         // insuranceFeeBps=100 (1%), impairmentGrossGainBps=500 (5%)
         // 6 invoices: insurance = 6 * invoiceAmount * 1% = 6% of invoiceAmount
@@ -672,5 +757,109 @@ contract TestInsurance is CommonSetup {
         bullaClaim.approve(address(bullaFactoring), targetInvoiceId);
         _fundInvoice(targetInvoiceId, upfrontBps, address(0));
         vm.stopPrank();
+    }
+
+    // ============================================
+    // Kickback at reconciliation must exclude the insurance premium.
+    // The premium is withheld from the gross funded amount at funding and earmarked
+    // into insuranceBalance — it is not pool cash that can be returned to the factorer.
+    // Without the fix, the cap on kickback only subtracted protocolFee, so the premium
+    // silently flowed back to the factorer as kickback (LP-funded gift).
+    // ============================================
+    function testReconciliationKickbackExcludesInsurancePremium() public {
+        // CommonSetup defaults: interestApr=730, spreadBps=1000, adminFeeBps=25,
+        //   protocolFeeBps=25, insuranceFeeBps=100, upfrontBps=8000, dueBy=+30d.
+        // Invoice = 100_000, paid in full exactly at dueBy (secondsOfInterest = 30d).
+        //
+        // Funding-time fees (per FeeCalculations math, SECONDS_PER_YEAR = 31_556_952):
+        //   protocolFee      = 100_000 * 25/10_000               = 250
+        //   insurancePremium = 100_000 * 100/10_000              = 1_000
+        //   targetYieldMbps  = 730_000  * 2_592_000 / 31_556_952 = 59_961
+        //   spreadRateMbps   = 1_000_000 * 2_592_000 / 31_556_952 = 82_138
+        //   adminFeeRateMbps = 25_000   * 2_592_000 / 31_556_952 =  2_053
+        //   totalFeeRateMbps = 144_152
+        //   totalFees_calc   = 100_000 * 144_152 / 10_000_000    = 1_441
+        //   adminFee         = 1_441 * 2_053  / 144_152          =     20
+        //   interest         = 1_441 * 59_961 / 144_152          =    599
+        //   spreadAmount     = 1_441 - 20 - 599                  =    822
+        //   totalFees        = 20 + 599 + 822 + 250 + 1_000      =  2_691
+        //   fundedAmountGross= 100_000 * 80%                     = 80_000
+        //   fundedAmountNet  = 80_000 - 2_691                    = 77_309
+        // Expected reconciliation kickback (with fix) = invoiceAmount - fundedAmountGross = 20_000.
+        // Without fix, kickback would be 21_000 — the extra 1_000 is the insurance premium
+        // erroneously refunded to the factorer.
+        uint256 invoiceAmount = 100_000;
+        uint256 expectedFundedNet = 77_309;
+        uint256 expectedKickback = 20_000;
+        uint256 expectedInsurancePremium = 1_000;
+        uint256 expectedProtocolFee = 250;
+        uint256 expectedAdminPlusSpread = 20 + 822;
+        uint256 expectedInterest = 599;
+
+        uint256 bobBalanceBeforeFunding = asset.balanceOf(bob);
+        uint256 invoiceId = _fundSingleInvoice(invoiceAmount);
+
+        // Bob received fundedAmountNet at funding.
+        uint256 bobReceivedAtFunding = asset.balanceOf(bob) - bobBalanceBeforeFunding;
+        assertEq(bobReceivedAtFunding, expectedFundedNet, "fundedAmountNet matches expected");
+        assertEq(
+            bullaFactoring.insuranceBalance(),
+            expectedInsurancePremium,
+            "insuranceBalance holds funding-time premium"
+        );
+
+        uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
+        uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
+        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
+        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
+        uint256 bobBalanceBeforePayment = asset.balanceOf(bob);
+
+        // Pay invoice in full exactly at dueBy. Triggers reconcileSingleInvoice via the
+        // paid-callback registered in CommonSetup.
+        vm.warp(dueBy);
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        // Kickback delivered to bob = invoice payment minus fundedAmountGross.
+        uint256 bobKickback = asset.balanceOf(bob) - bobBalanceBeforePayment;
+        assertEq(
+            bobKickback,
+            expectedKickback,
+            "kickback excludes insurance premium (would be 21_000 with bug)"
+        );
+
+        // Insurance balance unchanged at reconciliation — premium stays earmarked for insurer.
+        assertEq(
+            bullaFactoring.insuranceBalance() - insuranceBalanceBefore,
+            0,
+            "insuranceBalance unchanged at reconciliation"
+        );
+        // Protocol fee balance unchanged at reconciliation (already collected at funding).
+        assertEq(
+            bullaFactoring.protocolFeeBalance() - protocolFeeBalanceBefore,
+            0,
+            "protocolFeeBalance unchanged at reconciliation"
+        );
+        // Admin + spread credited to adminFeeBalance, interest credited to paidInvoicesGain.
+        assertEq(
+            bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore,
+            expectedAdminPlusSpread,
+            "adminFeeBalance += admin + spread"
+        );
+        assertEq(
+            bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore,
+            expectedInterest,
+            "paidInvoicesGain += interest"
+        );
+
+        // Conservation: bob's net P&L on the invoice equals -totalFees (incl. insurance).
+        uint256 bobTotalReceived = bobReceivedAtFunding + bobKickback;
+        assertEq(
+            invoiceAmount - bobTotalReceived,
+            expectedProtocolFee + expectedInsurancePremium + expectedAdminPlusSpread + expectedInterest,
+            "bob effectively paid all fees including the insurance premium"
+        );
     }
 }

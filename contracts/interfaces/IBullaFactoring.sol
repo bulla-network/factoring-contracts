@@ -41,7 +41,10 @@ interface IBullaFactoringV2_2 {
         uint256 fundedAmountNet;
         uint256 initialInvoiceValue; // takes into account the principal amount override and the initial paid amount. Do not subtract the initial paid amount from this value.
         uint256 initialPaidAmount;
-        uint256 protocolFee;
+        /// Packed: upper 128 bits = insurancePremium (target, collected at funding),
+        ///         lower 128 bits = protocolFee (target, collected at funding and earmarked to DAO).
+        /// Use ApprovalPacking.protocolFee() and .insurancePremium() to read.
+        uint256 protocolFeeAndInsurancePremium;
         address receiverAddress;    // 20 bytes
         FeeParams feeParams;        // 12 bytes - packed in slot 11 (32 bytes total)
         uint256 perSecondInterestRateRay;  // Pre-calculated per-second interest in RAY units (1e27) for high precision (slot 12)
@@ -138,6 +141,6 @@ interface IBullaFactoringV2_2 {
     function setInsurer(address _newInsurer) external;
     function setInsuranceParams(uint16 _insuranceFeeBps, uint16 _impairmentGrossGainBps, uint16 _recoveryProfitRatioBps) external;
     function withdrawInsuranceBalance() external;
-    function previewImpair(uint256 invoiceId) external view returns (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount);
+    function previewImpair(uint256 invoiceId) external view returns (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed);
     function impairInvoice(uint256 invoiceId) external;
 }
