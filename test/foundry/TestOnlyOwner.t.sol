@@ -13,6 +13,7 @@ import { TestSafe } from 'contracts/mocks/gnosisSafe.sol';
 import "@bulla-network/contracts/contracts/interfaces/IBullaClaim.sol";
 import "../../contracts/interfaces/IInvoiceProviderAdapter.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "contracts/interfaces/IBullaFactoring.sol";
 

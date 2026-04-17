@@ -3,11 +3,9 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./IInvoiceProviderAdapter.sol";
 import "./IRedemptionQueue.sol";
-import "./IInvoiceProviderAdapter.sol";
 
 /// @notice Interface for the Bulla Factoring contract
 interface IBullaFactoringV2_2 {

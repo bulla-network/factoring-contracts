@@ -117,7 +117,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error InvoiceAlreadyFunded();
     error InsufficientFunds(uint256 available, uint256 required);
     error RedemptionQueueNotEmpty();
-    error CallerNotInvoiceContract();
     error InvoiceNotActive();
     error InvoiceSetPaidCallbackFailed();
     error InvoiceNotApproved();
@@ -131,8 +130,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error CallerNotInsurer();
     error InvalidReceiverAddressIndex();
     error InvoiceAlreadyImpaired();
-    error ImpairmentPriceTooLow();
-    error InsufficientInsuranceFunds(uint256 available, uint256 required);
     error InvoiceImpairFailed();
     error ImpairmentGrossGainBpsMustBePositive();
     error UnauthorizedReceiverAddress(address receiver);
