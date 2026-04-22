@@ -8,7 +8,8 @@
       "bullaFactoringV1_TARAM": "0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D"
     },
     "11155111": {
-      "bullaFactoringV2_1_TCS": "0xa5e94f122d421c9579a5cb1e687f55e109ba270b"
+      "bullaFactoringV2_1_TCS": "0xa5e94f122d421c9579a5cb1e687f55e109ba270b",
+      "bullaFactoringV2_2_FUNDORA": "0x262d36FA1740DBeEC72a88d69b6e1E4888dF41FF"
     },
     "42161": {
       "bullaFactoringV2_1_TCS": "0x30fbdae8d1a2946ca00137eaf3de9b512d1ee859"
