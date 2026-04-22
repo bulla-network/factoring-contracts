@@ -443,7 +443,7 @@ export function updateFactoringFromBroadcast(scriptName: string, network: string
         const broadcast = readLatestBroadcast(scriptName, network);
 
         const addresses = {
-            bullaFactoringAddress: extractDeployedAddress(broadcast, 'BullaFactoringV2_1'),
+            bullaFactoringAddress: extractDeployedAddress(broadcast, 'BullaFactoringV2_2'),
             factoringPermissionsAddress: extractDeployedAddress(broadcast, 'FactoringPermissions'),
             depositPermissionsAddress: extractDeployedAddress(broadcast, 'DepositPermissions'),
             redeemPermissionsAddress: extractDeployedAddress(broadcast, 'RedemptionQueue'),
