@@ -88,6 +88,13 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
         BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
     },
+    xdc: {
+        bullaClaim: '0xbe25a1086de2b587b2d20e4b14c442cda2437945',
+        bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
+        bullaFrendLendAddress: '0xf34aa523a1cf4d91a3cb1c53cb50acd6eed0b153',
+        bullaInvoiceAddress: '0xba80d22b532eb1a2326334f35565af551f9c8af7',
+        BullaClaimInvoiceProviderAdapterAddress: '0xdeB31D99d92D92988b2ccE4312c807FbF4406f4F',
+    },
 };
 
 // ============================================================================
@@ -230,6 +237,25 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                     return undefined;
             }
 
+        case 'xdc':
+            switch (pool) {
+                case 'taram':
+                    return {
+                        underlyingAsset: '0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1', // XDC USDC (Circle)
+                        poolDisplayName: 'TARAM Factoring Pool - XDC V2.1',
+                        poolTokenName: 'TARAM Factoring Pool Token V2.1',
+                        poolTokenSymbol: 'BFT-TARAM-V2_1',
+                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+                        factoringPermissionsAddress: '0xcc32679a9BBFCE9e49d1EbA4fAf42E68A227BD06',
+                        depositPermissionsAddress: '0xd8fae753F0122Ab92D75F7dF0D9Ec98Bda4C6903',
+                        redeemPermissionsAddress: '0xd8fae753F0122Ab92D75F7dF0D9Ec98Bda4C6903',
+                        bullaFactoringAddress: '0xa259331Cd3daCC5D1229beA06BAc7d957614a64E',
+                        writeNewAddresses: true,
+                    };
+                default:
+                    return undefined;
+            }
+
         default:
             return undefined;
     }
@@ -298,6 +324,8 @@ export function getRpcUrl(network: string): string {
             return 'https://rpc.ankr.com/base/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
         case 'arbitrum':
             return 'https://rpc.ankr.com/arbitrum/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
+        case 'xdc':
+            return 'https://rpc.xinfin.network';
         default:
             throw new Error(`Unsupported network: ${network}`);
     }
@@ -308,6 +336,7 @@ export function getEtherscanApiKey(network: string): string {
         case 'sepolia':
         case 'base':
         case 'mainnet':
+        case 'xdc':
             return process.env.ETHERSCAN_API_KEY!;
         case 'polygon':
             return process.env.POLYGONSCAN_API_KEY!;
@@ -315,6 +344,24 @@ export function getEtherscanApiKey(network: string): string {
             return process.env.ARBISCAN_API_KEY!;
         default:
             throw new Error(`No Etherscan API key configured for network: ${network}`);
+    }
+}
+
+/**
+ * Returns explicit verifier flags for forge verify-contract when the default
+ * chain resolution is insufficient (e.g., chains forge doesn't know by name).
+ * Uses Etherscan V2 multichain API, which accepts a single API key across chains.
+ */
+export function getVerifierConfig(network: string): { verifier?: string; verifierUrl?: string; apiKey?: string } {
+    switch (network) {
+        case 'xdc':
+            return {
+                verifier: 'etherscan',
+                verifierUrl: 'https://api.etherscan.io/v2/api',
+                apiKey: process.env.ETHERSCAN_API_KEY,
+            };
+        default:
+            return {};
     }
 }
 
@@ -330,6 +377,8 @@ export function getChainId(network: string): number {
             return 8453;
         case 'arbitrum':
             return 42161;
+        case 'xdc':
+            return 50;
         default:
             throw new Error(`Unknown chain ID for network: ${network}`);
     }

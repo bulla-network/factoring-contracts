@@ -1,7 +1,7 @@
 import { spawn, execSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { getChainId } from '../network-config';
+import { getChainId, getVerifierConfig } from '../network-config';
 
 /**
  * Constructor signatures for ABI encoding
@@ -134,15 +134,29 @@ export function verifyContract(
 ): Promise<void> {
     return new Promise(resolve => {
         // Build forge verify command
-        // API key is read from foundry.toml [etherscan] section
+        // API key is read from foundry.toml [etherscan] section unless getVerifierConfig
+        // provides an explicit override (e.g. for chains forge doesn't know by name).
+        const verifierConfig = getVerifierConfig(network);
+        const hasExplicitVerifier = Boolean(verifierConfig.verifierUrl);
+
         const verifyArgs = [
             'verify-contract',
             contractAddress,
             contractPath,
             '--chain',
-            network, // Use network name (e.g., "sepolia")
+            hasExplicitVerifier ? String(getChainId(network)) : network,
             '--watch',
         ];
+
+        if (verifierConfig.verifier) {
+            verifyArgs.push('--verifier', verifierConfig.verifier);
+        }
+        if (verifierConfig.verifierUrl) {
+            verifyArgs.push('--verifier-url', verifierConfig.verifierUrl);
+        }
+        if (verifierConfig.apiKey) {
+            verifyArgs.push('--etherscan-api-key', verifierConfig.apiKey);
+        }
 
         // Add ABI-encoded constructor arguments if provided
         let encodedArgs: string | null = null;
