@@ -3,7 +3,7 @@
 **Date:** April 2026
 **Repo:** `bulla-network/factoring-contracts`
 **Previous audit commit:** `5438af5f5869ecdbbd464a7954a246c6e91e7a8f` (December 17, 2025)
-**Current HEAD:** `6dfbe34d61d77d19e8e337d25a2ec28aa088f132`
+**Current HEAD:** `fba053185d359faa20313f2e34e2e2a8741e3f6e`
 
 ## Overview
 
@@ -115,6 +115,26 @@ Fixes two accounting bugs that silently leaked value on invoice impairment:
 Also renamed `managerFeesOwed` → `ownerFeesOwed` in `calculateFees` return values for clarity since this includes both admin fees and spread.
 
 **Files changed:** `BullaFactoring.sol`, `FeeCalculations.sol`, `IBullaFactoring.sol`
+
+### Impairment Capital Account Fix (PR #229)
+
+Fixes incorrect capital account and price-per-share calculations after invoice impairment. Previously, impairment incorrectly increased `paidInvoicesGain` (which inflated the capital account), when it should have recognized a loss. This PR restructures impairment accounting:
+
+1. **New `impairmentLosses` state variable:** Tracks accumulated principal losses from impaired invoices. `calculateCapitalAccount()` now subtracts `impairmentLosses`, so the capital account correctly decreases after impairment.
+
+2. **Combined fee deduction from gross LP credit:** Insurance payout (`impairmentGrossGain`) and pool-owned withheld fees (`poolOwnedWithheld`) are now combined into a single `grossLPCredit` pool before deducting accrued admin + spread fees. Previously, fees were only deducted from the insurance payout, which could produce incorrect results when fees exceeded insurance coverage.
+
+3. **Principal loss uses `paymentsSinceFunding`:** The loss calculation now uses `currentPaidAmount - initialPaidAmount` (payments since funding) instead of raw `currentPaidAmount`, so pre-funding payments don't inflate recovery figures. Formula: `principalLoss = max(0, fundedAmountNet - lpCredit - paymentsSinceFunding)`.
+
+4. **`paidInvoicesGain` no longer touched at impairment:** This field now only tracks realised interest (from reconciliation and recovery profit splits), not impairment accounting.
+
+5. **Loss reversal on recovery:** When an impaired invoice is fully repaid, `impairmentLosses` is decremented by the original `principalLoss`, correctly reversing the loss recognition.
+
+6. **Removed `impairmentNetGain`:** This return value from `previewImpair()` and the `InvoiceImpaired` event is no longer meaningful with the combined-pool approach. Replaced in the event with `feesCharged` and `principalLoss` for better transparency.
+
+7. **`ImpairmentInfo` struct extended:** Added `principalLoss` field to track the loss per invoice for accurate reversal on recovery.
+
+**Files changed:** `BullaFactoring.sol`, `IBullaFactoring.sol`
 
 ### Removal of Tap Credit / Loan Offers (PR #224)
 
