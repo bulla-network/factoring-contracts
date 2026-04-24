@@ -972,14 +972,13 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         uint256 feesCharged = totalFeesOwed > grossLPCredit ? grossLPCredit : totalFeesOwed;
         adminFeeBalance += feesCharged;
         uint256 lpCredit = grossLPCredit - feesCharged;
-        // Record the net principal loss: funded capital minus partial payments already
-        // received and any recovery from insurance/withheld fees.
+        // Principal loss = fundedAmountNet - lpCredit - paymentsSinceFunding.
+        // Only payments AFTER funding count as recovery (initialPaidAmount predates the pool).
         // paidInvoicesGain is not touched — it tracks only realised interest.
-        uint256 remainingPrincipal = _approval.fundedAmountNet > currentPaidAmount
-            ? _approval.fundedAmountNet - currentPaidAmount
-            : 0;
-        uint256 _principalLoss = remainingPrincipal > lpCredit
-            ? remainingPrincipal - lpCredit
+        uint256 paymentsSinceFunding = currentPaidAmount - _approval.initialPaidAmount;
+        uint256 credited = lpCredit + paymentsSinceFunding;
+        uint256 _principalLoss = _approval.fundedAmountNet > credited
+            ? _approval.fundedAmountNet - credited
             : 0;
         impairmentLosses += _principalLoss;
         impairmentInfo[invoiceId] = ImpairmentInfo({

@@ -1235,22 +1235,21 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("impairmentLosses", impairmentLosses);
 
         // The pool already recovered 40,000 of the 77,309 funded. Only the remaining
-        // principal is at risk. principalLoss should use (fundedAmountNet - paidAmount)
-        // as the base, not the full fundedAmountNet.
+        // principal is at risk. principalLoss = fundedAmountNet - lpCredit - paymentsSinceFunding.
+        // initialPaidAmount = 0 in this test, so paymentsSinceFunding = currentPaidAmount.
         uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
         uint256 grossLPCredit = impairmentGrossGain + poolOwnedWithheld;
         uint256 lpCredit = grossLPCredit > totalFeesOwed ? grossLPCredit - totalFeesOwed : 0;
 
-        uint256 remainingPrincipal = fundedAmountNet > currentPaidAmount
-            ? fundedAmountNet - currentPaidAmount
-            : 0;
-        uint256 expectedPrincipalLoss = remainingPrincipal > lpCredit
-            ? remainingPrincipal - lpCredit
+        uint256 paymentsSinceFunding = currentPaidAmount; // initialPaidAmount = 0
+        uint256 credited = lpCredit + paymentsSinceFunding;
+        uint256 expectedPrincipalLoss = fundedAmountNet > credited
+            ? fundedAmountNet - credited
             : 0;
 
-        emit log_named_uint("remainingPrincipal (fundedAmountNet - paidAmount)", remainingPrincipal);
+        emit log_named_uint("paymentsSinceFunding", paymentsSinceFunding);
         emit log_named_uint("lpCredit", lpCredit);
-        emit log_named_uint("expectedPrincipalLoss (remaining - lpCredit)", expectedPrincipalLoss);
+        emit log_named_uint("expectedPrincipalLoss (FAN - lpCredit - payments)", expectedPrincipalLoss);
 
         assertEq(
             impairmentLosses,
@@ -1265,6 +1264,80 @@ contract TestInsurance is CommonSetup {
         assertTrue(
             capitalAccountAfter < capitalAccountBefore,
             "Capital account should decrease after impairment"
+        );
+    }
+
+    // ============================================
+    // Edge case: payments since funding exceed fundedAmountNet
+    //
+    // If the debtor pays most of the invoice (e.g. 90,000 of 100,000) before
+    // impairment, then paymentsSinceFunding (90,000) > fundedAmountNet (77,309).
+    // In this case, the pool has already been fully repaid — principalLoss = 0.
+    //
+    // The impairment only covers the remaining outstanding (10,000), grossGain = 500.
+    // ============================================
+
+    function testImpairmentPaymentsExceedFundedAmountNet() public {
+        uint256 invoiceAmount = 100_000;
+        uint256 largePayment = 90_000;
+
+        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
+
+        uint256 fundedAmountNet;
+        {
+            (, , , , , , , uint256 fan, , , , , , ) = bullaFactoring.approvedInvoices(invoiceId);
+            fundedAmountNet = fan;
+        }
+
+        // Debtor pays 90,000 — more than fundedAmountNet (77,309)
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), largePayment);
+        bullaClaim.payClaim(invoiceId, largePayment);
+        vm.stopPrank();
+
+        assertTrue(largePayment > fundedAmountNet, "Payment must exceed fundedAmountNet for this test");
+
+        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+
+        vm.warp(block.timestamp + 91 days);
+
+        (
+            uint256 outstandingBalance,
+            ,
+            ,
+            ,
+            ,
+            uint256 currentPaidAmount,
+        ) = bullaFactoring.previewImpair(invoiceId);
+
+        assertEq(outstandingBalance, invoiceAmount - largePayment, "Outstanding = 10,000");
+        assertEq(currentPaidAmount, largePayment, "Paid = 90,000");
+
+        emit log_named_uint("fundedAmountNet", fundedAmountNet);
+        emit log_named_uint("paymentsSinceFunding", currentPaidAmount);
+        emit log_named_uint("outstandingBalance", outstandingBalance);
+
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        uint256 impairmentLosses = bullaFactoring.impairmentLosses();
+        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+
+        emit log_named_uint("impairmentLosses", impairmentLosses);
+        emit log_named_uint("capitalAccountBefore", capitalAccountBefore);
+        emit log_named_uint("capitalAccountAfter", capitalAccountAfter);
+
+        // Payments (90,000) > fundedAmountNet (77,309), so the pool has been fully
+        // repaid in principal. There is no principal loss.
+        assertEq(impairmentLosses, 0, "principalLoss should be 0 when payments exceed funded amount");
+
+        // paidInvoicesGain should still be 0 (interest only)
+        assertEq(bullaFactoring.paidInvoicesGain(), 0, "paidInvoicesGain unchanged - interest only");
+
+        // Capital account should not decrease — pool is fully repaid
+        assertTrue(
+            capitalAccountAfter >= capitalAccountBefore,
+            "Capital account should not decrease when pool is fully repaid"
         );
     }
 }
