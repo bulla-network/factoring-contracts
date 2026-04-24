@@ -124,6 +124,11 @@ const config: HardhatUserConfig = {
             accounts: [DEPLOY_PK],
             chainId: 42161,
         },
+        xdc: {
+            url: `https://rpc.xinfin.network`,
+            accounts: [DEPLOY_PK],
+            chainId: 50,
+        },
         fuse: {
             url: `https://rpc.fuse.io`,
             accounts: [DEPLOY_PK],

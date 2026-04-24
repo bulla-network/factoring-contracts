@@ -11,6 +11,7 @@ function getNetworkFromChainId(chainId: string): string | null {
         '137': 'polygon',
         '11155111': 'sepolia',
         '42161': 'arbitrum',
+        '50': 'xdc',
     };
     return chainIdMap[chainId] || null;
 }
