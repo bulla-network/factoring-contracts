@@ -86,7 +86,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
         bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
-        BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
+        BullaClaimInvoiceProviderAdapterAddress: '0xdb44baa27f4c4c57cdbdac684d39900a0c54bc89',
     },
     xdc: {
         bullaClaim: '0xbe25a1086de2b587b2d20e4b14c442cda2437945',
@@ -230,7 +230,7 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        bullaFactoringAddress: '0x30fbdae8d1a2946ca00137eaf3de9b512d1ee859',
+                        bullaFactoringAddress: '0xc099773267308D8e9E805f47EABf9ab13bBc9e37',
                         writeNewAddresses: true,
                     };
                 default:
