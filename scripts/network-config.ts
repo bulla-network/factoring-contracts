@@ -211,6 +211,7 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         depositPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         redeemPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
                         factoringPermissionsAddress: '0x0313433613F24c73efc15c5c74408F40B462fd9e',
+                        bullaFactoringAddress: '0xc65abf8aba06510f777be4ba2c29da4d93257d42',
                         writeNewAddresses: true,
                     };
                 default:
@@ -229,6 +230,7 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
+                        bullaFactoringAddress: '0xc099773267308D8e9E805f47EABf9ab13bBc9e37',
                         writeNewAddresses: true,
                     };
                 default:
