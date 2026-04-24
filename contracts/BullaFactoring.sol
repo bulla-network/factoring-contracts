@@ -965,20 +965,13 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         }
         IBullaFactoringV2_2.InvoiceApproval memory _approval = approvedInvoices[invoiceId];
         uint256 poolOwnedWithheld = _approval.fundedAmountGross - _approval.fundedAmountNet - ApprovalPacking.protocolFee(_approval) - ApprovalPacking.insurancePremium(_approval);
-        // When accrued fees exceed what insurance covers (impairmentGrossGain),
-        // the overage must come from the withheld target fees (poolOwnedWithheld).
+        // Combine insurance payout and withheld fees as the total gross LP credit,
+        // then subtract accrued fees from that combined pool.
         uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
-        uint256 lpCredit;
-        if (totalFeesOwed > _impairmentGrossGain) {
-            uint256 feeOverage = totalFeesOwed - _impairmentGrossGain;
-            // Cap the fee charge at what's available (insurance + withheld)
-            uint256 feeFromWithheld = feeOverage > poolOwnedWithheld ? poolOwnedWithheld : feeOverage;
-            adminFeeBalance += _impairmentGrossGain + feeFromWithheld;
-            lpCredit = poolOwnedWithheld - feeFromWithheld;
-        } else {
-            adminFeeBalance += totalFeesOwed;
-            lpCredit = _impairmentNetGain + poolOwnedWithheld;
-        }
+        uint256 grossLPCredit = _impairmentGrossGain + poolOwnedWithheld;
+        uint256 feesCharged = totalFeesOwed > grossLPCredit ? grossLPCredit : totalFeesOwed;
+        adminFeeBalance += feesCharged;
+        uint256 lpCredit = grossLPCredit - feesCharged;
         // Record the net principal loss: funded capital minus partial payments already
         // received and any recovery from insurance/withheld fees.
         // paidInvoicesGain is not touched — it tracks only realised interest.

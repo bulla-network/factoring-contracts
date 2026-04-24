@@ -1129,9 +1129,10 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("adminFeeBalance delta", adminFeeBalanceDelta);
 
         // paidInvoicesGain should NOT be touched at impairment — it tracks only
-        // realised interest. The LP credit (poolOwnedWithheld minus fee overage)
+        // realised interest. The LP credit (grossGain + poolOwnedWithheld - fees)
         // reduces impairmentLosses instead.
-        uint256 expectedLPCredit = poolOwnedWithheld > feeOverage ? poolOwnedWithheld - feeOverage : 0;
+        uint256 grossLPCredit = impairmentGrossGain + poolOwnedWithheld;
+        uint256 expectedLPCredit = grossLPCredit > totalFeesOwed ? grossLPCredit - totalFeesOwed : 0;
         uint256 expectedPrincipalLoss = fundedAmountNet - expectedLPCredit;
 
         emit log_named_uint("expected LP credit (reduces impairmentLosses)", expectedLPCredit);
@@ -1237,14 +1238,8 @@ contract TestInsurance is CommonSetup {
         // principal is at risk. principalLoss should use (fundedAmountNet - paidAmount)
         // as the base, not the full fundedAmountNet.
         uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
-        uint256 lpCredit;
-        if (totalFeesOwed > impairmentGrossGain) {
-            uint256 feeOverage = totalFeesOwed - impairmentGrossGain;
-            uint256 feeFromWithheld = feeOverage > poolOwnedWithheld ? poolOwnedWithheld : feeOverage;
-            lpCredit = poolOwnedWithheld - feeFromWithheld;
-        } else {
-            lpCredit = impairmentNetGain + poolOwnedWithheld;
-        }
+        uint256 grossLPCredit = impairmentGrossGain + poolOwnedWithheld;
+        uint256 lpCredit = grossLPCredit > totalFeesOwed ? grossLPCredit - totalFeesOwed : 0;
 
         uint256 remainingPrincipal = fundedAmountNet > currentPaidAmount
             ? fundedAmountNet - currentPaidAmount
