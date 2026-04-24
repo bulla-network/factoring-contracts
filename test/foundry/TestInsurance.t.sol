@@ -275,13 +275,13 @@ contract TestInsurance is CommonSetup {
 
         // Verify balances changed exactly as preview predicted
         assertEq(bullaFactoring.insuranceBalance(), insuranceBalanceBefore - impairmentGrossGain, "Insurance decreased by grossGain");
-        // paidInvoicesGain gets both the insurance-funded net gain and the pool-owned withheld that
-        // was collected at funding but never spent on admin/spread at impairment.
-        assertEq(bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore, impairmentNetGain + poolOwnedWithheld, "Investor gains = netGain + poolOwnedWithheld");
+        // paidInvoicesGain is NOT touched at impairment — it tracks only realised interest.
+        // The insurance net gain and withheld fees reduce impairmentLosses instead.
+        assertEq(bullaFactoring.paidInvoicesGain() - paidInvoicesGainBefore, 0, "paidInvoicesGain unchanged at impairment - interest only");
         assertEq(bullaFactoring.adminFeeBalance() - adminFeeBalanceBefore, adminFeeOwed + spreadOwed, "Admin fee increased by adminFeeOwed + spreadOwed");
 
         // Verify impairment info
-        (bool isImpaired, uint256 purchasePrice, uint256 paidAmountAtImpairment) = bullaFactoring.impairmentInfo(invoiceId);
+        (bool isImpaired, uint256 purchasePrice, uint256 paidAmountAtImpairment, ) = bullaFactoring.impairmentInfo(invoiceId);
         assertTrue(isImpaired, "Invoice should be impaired");
         assertEq(purchasePrice, 5000, "Purchase price = grossGain = 5000");
         assertEq(paidAmountAtImpairment, 0, "No payment at impairment");
@@ -330,7 +330,7 @@ contract TestInsurance is CommonSetup {
         assertEq(bullaFactoring.insuranceBalance(), 0, "Insurance fully depleted");
         assertEq(insurerBalanceBefore - asset.balanceOf(insurerAddr), 8000, "Insurer paid 8000 out-of-pocket");
 
-        (bool isImpaired, , ) = bullaFactoring.impairmentInfo(invoiceId);
+        (bool isImpaired, , , ) = bullaFactoring.impairmentInfo(invoiceId);
         assertTrue(isImpaired, "Invoice should be impaired");
     }
 
@@ -454,7 +454,7 @@ contract TestInsurance is CommonSetup {
 
         assertEq(bullaFactoring.insuranceBalance(), insuranceBalanceBefore - 2000, "Insurance decreased by 2000");
 
-        (, uint256 purchasePrice, uint256 paidAmountAtImpairment) = bullaFactoring.impairmentInfo(invoiceId);
+        (, uint256 purchasePrice, uint256 paidAmountAtImpairment, ) = bullaFactoring.impairmentInfo(invoiceId);
         assertEq(purchasePrice, 2000, "Purchase price = 2000");
         assertEq(paidAmountAtImpairment, 60000, "Paid at impairment = 60000");
     }
@@ -574,7 +574,7 @@ contract TestInsurance is CommonSetup {
         assertEq(bullaFactoring.insuranceBalance(), 0, "All insurance consumed by 3 impairments");
 
         for (uint256 i = 0; i < 3; i++) {
-            (bool isImpaired, , ) = bullaFactoring.impairmentInfo(invoiceIds[i]);
+            (bool isImpaired, , , ) = bullaFactoring.impairmentInfo(invoiceIds[i]);
             assertTrue(isImpaired, "Invoice should be impaired");
         }
     }
@@ -720,12 +720,12 @@ contract TestInsurance is CommonSetup {
             expectedAdminFeeOwed + expectedSpreadAccrued,
             "adminFeeBalance must include accrued spread, not just admin fee"
         );
-        // paidInvoicesGain = impairmentNetGain (from gross gain) + pool-owned withheld (target fees
-        // collected at funding that weren't spent on admin/spread payouts).
+        // paidInvoicesGain is NOT touched at impairment — it tracks only realised interest.
+        // The insurance net gain and withheld fees reduce impairmentLosses (net principal loss) instead.
         assertEq(
             paidInvoicesGainDelta,
-            (expectedImpairmentGrossGain - expectedAdminFeeOwed - expectedSpreadAccrued) + poolOwnedWithheld,
-            "paidInvoicesGain = impairmentNetGain + poolOwnedWithheld"
+            0,
+            "paidInvoicesGain unchanged at impairment - interest only"
         );
     }
 
@@ -960,6 +960,10 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("pricePerShareBefore", pricePerShareBefore);
         emit log_named_uint("pricePerShareAfterImpair", pricePerShareAfterImpair);
         emit log_named_uint("paidInvoicesGain after impair", bullaFactoring.paidInvoicesGain());
+        emit log_named_uint("impairmentLosses after impair", bullaFactoring.impairmentLosses());
+
+        // paidInvoicesGain should remain 0 - it only tracks realised interest
+        assertEq(bullaFactoring.paidInvoicesGain(), 0, "paidInvoicesGain unchanged at impairment - interest only");
 
         // The pool funded this invoice and will not get paid back (it's impaired).
         // Insurance covers 5,000 of the 100,000 outstanding.
@@ -1124,38 +1128,145 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("paidInvoicesGain delta", paidInvoicesGainDelta);
         emit log_named_uint("adminFeeBalance delta", adminFeeBalanceDelta);
 
-        // Current behavior: adminFeeBalance gets the FULL fee amount (adminFeeOwed + spreadOwed),
-        // even though insurance only covers impairmentGrossGain. The excess is silently taken
-        // from pool cash (LP capital via poolOwnedWithheld).
-        //
-        // paidInvoicesGain gets: impairmentNetGain (0) + poolOwnedWithheld (1,441)
-        // But poolOwnedWithheld should be reduced by the fee overage, because those
-        // withheld fees are being consumed by the admin/spread fees.
-        //
-        // Expected correct behavior:
-        //   adminFeeBalance += min(totalFeesOwed, impairmentGrossGain + poolOwnedWithheld)
-        //   paidInvoicesGain += max(0, poolOwnedWithheld - feeOverage)
-        //
-        // Or alternatively: the admin fee should be capped at impairmentGrossGain,
-        // and the remainder should NOT be charged to LP capital.
-
-        // The fee overage comes out of LP pocket (poolOwnedWithheld).
-        // paidInvoicesGain should credit LPs only what's left after the fee overage.
+        // paidInvoicesGain should NOT be touched at impairment — it tracks only
+        // realised interest. The LP credit (poolOwnedWithheld minus fee overage)
+        // reduces impairmentLosses instead.
         uint256 expectedLPCredit = poolOwnedWithheld > feeOverage ? poolOwnedWithheld - feeOverage : 0;
+        uint256 expectedPrincipalLoss = fundedAmountNet - expectedLPCredit;
 
-        emit log_named_uint("expected LP credit (poolOwnedWithheld - feeOverage)", expectedLPCredit);
-        emit log_named_uint("actual LP credit (paidInvoicesGain delta)", paidInvoicesGainDelta);
+        emit log_named_uint("expected LP credit (reduces impairmentLosses)", expectedLPCredit);
+        emit log_named_uint("expected principalLoss", expectedPrincipalLoss);
+        emit log_named_uint("actual impairmentLosses", bullaFactoring.impairmentLosses());
 
-        // This assertion checks that the LP credit accounts for the fee overage.
-        // If this FAILS, it means LPs are being credited the full poolOwnedWithheld
-        // even though part of it was consumed by admin/spread fees exceeding insurance.
         assertEq(
             paidInvoicesGainDelta,
-            expectedLPCredit,
-            "LP credit should be reduced by fee overage (fees exceeding insurance coverage)"
+            0,
+            "paidInvoicesGain should not change at impairment (interest only)"
+        );
+
+        assertEq(
+            bullaFactoring.impairmentLosses(),
+            expectedPrincipalLoss,
+            "impairmentLosses = fundedAmountNet - LP credit (net principal loss)"
         );
 
         // Capital account should still decrease after impairment
+        assertTrue(
+            capitalAccountAfter < capitalAccountBefore,
+            "Capital account should decrease after impairment"
+        );
+    }
+
+    // ============================================
+    // Impairment of a partially paid invoice
+    //
+    // When the debtor has already paid 40,000 of a 100,000 invoice before
+    // impairment, the pool has already recovered 40,000 in cash. The
+    // principalLoss should reflect only the REMAINING principal at risk
+    // (fundedAmountNet - paidAmount), not the full fundedAmountNet.
+    //
+    // CommonSetup: upfrontBps=8000 => fundedAmountGross=80,000
+    //   fundedAmountNet ~= 77,309
+    //   If debtor paid 40,000 before impairment: remaining at risk = 77,309 - 40,000 = 37,309
+    //   outstandingBalance = 100,000 - 40,000 = 60,000
+    //   impairmentGrossGain = 60,000 * 5% = 3,000
+    // ============================================
+
+    function testImpairmentPartialPaymentReducesPrincipalLoss() public {
+        uint256 invoiceAmount = 100_000;
+        uint256 partialPayment = 40_000;
+
+        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
+
+        // Get funded amounts
+        uint256 fundedAmountNet;
+        uint256 poolOwnedWithheld;
+        {
+            (, , , , , , uint256 fag, uint256 fan, , , uint256 pAndI, , , ) = bullaFactoring.approvedInvoices(invoiceId);
+            fundedAmountNet = fan;
+            poolOwnedWithheld = fag - fan - (pAndI & type(uint128).max) - (pAndI >> 128);
+        }
+
+        // Debtor makes a partial payment of 40,000
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), partialPayment);
+        bullaClaim.payClaim(invoiceId, partialPayment);
+        vm.stopPrank();
+
+        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+
+        // Warp past impairment grace period
+        vm.warp(block.timestamp + 91 days);
+
+        // Preview to get the numbers
+        (
+            uint256 outstandingBalance,
+            uint256 impairmentGrossGain,
+            uint256 adminFeeOwed,
+            uint256 impairmentNetGain,
+            ,
+            uint256 currentPaidAmount,
+            uint256 spreadOwed
+        ) = bullaFactoring.previewImpair(invoiceId);
+
+        assertEq(currentPaidAmount, partialPayment, "Paid amount = 40,000");
+        assertEq(outstandingBalance, invoiceAmount - partialPayment, "Outstanding = 60,000");
+        assertEq(impairmentGrossGain, 3_000, "grossGain = 60,000 * 5% = 3,000");
+
+        emit log_named_uint("fundedAmountNet", fundedAmountNet);
+        emit log_named_uint("currentPaidAmount", currentPaidAmount);
+        emit log_named_uint("outstandingBalance", outstandingBalance);
+        emit log_named_uint("impairmentGrossGain", impairmentGrossGain);
+        emit log_named_uint("adminFeeOwed", adminFeeOwed);
+        emit log_named_uint("spreadOwed", spreadOwed);
+        emit log_named_uint("impairmentNetGain", impairmentNetGain);
+        emit log_named_uint("poolOwnedWithheld", poolOwnedWithheld);
+
+        // ---- Execute impairment ----
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+        uint256 impairmentLosses = bullaFactoring.impairmentLosses();
+
+        emit log_named_uint("capitalAccountBefore", capitalAccountBefore);
+        emit log_named_uint("capitalAccountAfter", capitalAccountAfter);
+        emit log_named_uint("impairmentLosses", impairmentLosses);
+
+        // The pool already recovered 40,000 of the 77,309 funded. Only the remaining
+        // principal is at risk. principalLoss should use (fundedAmountNet - paidAmount)
+        // as the base, not the full fundedAmountNet.
+        uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
+        uint256 lpCredit;
+        if (totalFeesOwed > impairmentGrossGain) {
+            uint256 feeOverage = totalFeesOwed - impairmentGrossGain;
+            uint256 feeFromWithheld = feeOverage > poolOwnedWithheld ? poolOwnedWithheld : feeOverage;
+            lpCredit = poolOwnedWithheld - feeFromWithheld;
+        } else {
+            lpCredit = impairmentNetGain + poolOwnedWithheld;
+        }
+
+        uint256 remainingPrincipal = fundedAmountNet > currentPaidAmount
+            ? fundedAmountNet - currentPaidAmount
+            : 0;
+        uint256 expectedPrincipalLoss = remainingPrincipal > lpCredit
+            ? remainingPrincipal - lpCredit
+            : 0;
+
+        emit log_named_uint("remainingPrincipal (fundedAmountNet - paidAmount)", remainingPrincipal);
+        emit log_named_uint("lpCredit", lpCredit);
+        emit log_named_uint("expectedPrincipalLoss (remaining - lpCredit)", expectedPrincipalLoss);
+
+        assertEq(
+            impairmentLosses,
+            expectedPrincipalLoss,
+            "principalLoss should account for partial payments already received"
+        );
+
+        // paidInvoicesGain should still be 0 (interest only)
+        assertEq(bullaFactoring.paidInvoicesGain(), 0, "paidInvoicesGain unchanged - interest only");
+
+        // Capital account should decrease but less than if no partial payment
         assertTrue(
             capitalAccountAfter < capitalAccountBefore,
             "Capital account should decrease after impairment"

@@ -55,6 +55,7 @@ interface IBullaFactoringV2_2 {
         bool isImpaired;
         uint256 purchasePrice;
         uint256 paidAmountAtImpairment;
+        uint256 principalLoss;
     }
 
     struct ApproveInvoiceParams {

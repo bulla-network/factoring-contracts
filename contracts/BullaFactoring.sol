@@ -612,12 +612,11 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             uint256 insuranceShare = recoveredAmount - investorShare;
 
             insuranceBalance += insuranceShare;
+            // investorShare is realised profit (interest) above insurance purchase price
             paidInvoicesGain += investorShare;
 
-            // Reverse the impairment loss now that the invoice has been recovered.
-            // The funded capital is no longer lost since the debtor paid.
-            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
-            impairmentLosses -= fundedAmountNet;
+            // Reverse the net principal loss now that the invoice has been recovered.
+            impairmentLosses -= _impairment.principalLoss;
 
             emit InsuranceRecovered(invoiceId, insuranceShare);
 
@@ -980,14 +979,21 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             adminFeeBalance += totalFeesOwed;
             lpCredit = _impairmentNetGain + poolOwnedWithheld;
         }
-        // Credit the remaining withheld target fees and insurance net gain back to LPs
-        paidInvoicesGain += lpCredit;
-        // Record the loss of funded capital that won't be returned
-        impairmentLosses += _approval.fundedAmountNet;
+        // Record the net principal loss: funded capital minus partial payments already
+        // received and any recovery from insurance/withheld fees.
+        // paidInvoicesGain is not touched — it tracks only realised interest.
+        uint256 remainingPrincipal = _approval.fundedAmountNet > currentPaidAmount
+            ? _approval.fundedAmountNet - currentPaidAmount
+            : 0;
+        uint256 _principalLoss = remainingPrincipal > lpCredit
+            ? remainingPrincipal - lpCredit
+            : 0;
+        impairmentLosses += _principalLoss;
         impairmentInfo[invoiceId] = ImpairmentInfo({
             isImpaired: true,
             purchasePrice: _impairmentGrossGain,
-            paidAmountAtImpairment: currentPaidAmount
+            paidAmountAtImpairment: currentPaidAmount,
+            principalLoss: _principalLoss
         });
         impairedInvoices.push(invoiceId);
         processRedemptionQueue();
