@@ -98,7 +98,7 @@ interface IBullaFactoringV2_2 {
     event InsurerChanged(address indexed oldInsurer, address indexed newInsurer);
     event InsuranceParamsChanged(uint16 insuranceFeeBps, uint16 impairmentGrossGainBps, uint16 recoveryProfitRatioBps);
     event InsuranceWithdrawn(address indexed insurer, uint256 amount);
-    event InvoiceImpaired(uint256 indexed invoiceId, uint256 outstandingBalance, uint256 impairmentGrossGain);
+    event InvoiceImpaired(uint256 indexed invoiceId, uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 feesCharged, uint256 principalLoss);
     event InsuranceRecovered(uint256 indexed invoiceId, uint256 amount);
     event ImpairedInvoiceReconciled(uint256 indexed invoiceId, uint256 amountRecovered, uint256 insuranceShare, uint256 investorShare);
 

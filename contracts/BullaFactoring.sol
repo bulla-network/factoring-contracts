@@ -986,7 +986,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         });
         impairedInvoices.push(invoiceId);
         processRedemptionQueue();
-        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain);
+        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain, feesCharged, _principalLoss);
     }
 
     function getFundInfo() external view returns (FundInfo memory) {
