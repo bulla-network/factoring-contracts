@@ -862,4 +862,152 @@ contract TestInsurance is CommonSetup {
             "bob effectively paid all fees including the insurance premium"
         );
     }
+
+    // ============================================
+    // Capital account and price per share after impairment
+    //
+    // This test uses round numbers to verify whether impairment correctly
+    // reflects a loss in the capital account and price per share.
+    //
+    // Economic reality: when a 100,000 invoice is impaired with 0 paid,
+    // the pool has lost its entire funded amount. Insurance covers 5%
+    // (impairmentGrossGain = 5,000), but the remaining 95,000 is gone
+    // unless recovered later. The capital account and price per share
+    // should decrease to reflect this loss.
+    //
+    // Current behavior: paidInvoicesGain INCREASES at impairment by
+    // (impairmentNetGain + poolOwnedWithheld), which raises the capital
+    // account and price per share — the opposite of what should happen.
+    // ============================================
+
+    function testImpairmentCapitalAccountAndPricePerShare() public {
+        // ---- Setup: clean round numbers ----
+        // Deposit exactly 1,200,000 (enough for 6 × 100,000 invoices at 80% upfront)
+        uint256 depositAmount = 1_200_000;
+        uint256 invoiceAmount = 100_000;
+
+        vm.prank(alice);
+        bullaFactoring.deposit(depositAmount, alice);
+
+        uint256 sharesAfterDeposit = bullaFactoring.balanceOf(alice);
+        // Initial: 1 share = 1 asset (no gains/losses yet)
+        assertEq(sharesAfterDeposit, depositAmount, "1:1 share ratio on first deposit");
+
+        // ---- Fund 6 invoices to build insurance balance ----
+        // Each invoice: insurancePremium = 100,000 * 1% = 1,000
+        // After 6 invoices: insuranceBalance = 6,000
+        // impairmentGrossGain for 100,000 = 5,000 → insurance sufficient (6,000 > 5,000)
+        uint256[] memory invoiceIds = new uint256[](6);
+        for (uint256 i = 0; i < 6; i++) {
+            vm.prank(bob);
+            invoiceIds[i] = createClaim(bob, alice, invoiceAmount, dueBy);
+            vm.prank(underwriter);
+            _approveInvoice(invoiceIds[i], interestApr, spreadBps, upfrontBps, 0);
+            vm.startPrank(bob);
+            bullaClaim.approve(address(bullaFactoring), invoiceIds[i]);
+            _fundInvoice(invoiceIds[i], upfrontBps, address(0));
+            vm.stopPrank();
+        }
+
+        assertEq(bullaFactoring.insuranceBalance(), 6_000, "6 invoices * 1,000 premium = 6,000");
+
+        // ---- Record state before impairment ----
+        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
+        uint256 poolBalanceBefore = asset.balanceOf(address(bullaFactoring));
+
+        // ---- Warp past impairment date and impair the last invoice ----
+        // dueBy = +30d, impairmentGracePeriod = 60d → need >90d
+        vm.warp(block.timestamp + 91 days);
+
+        uint256 targetInvoiceId = invoiceIds[5]; // the 6th invoice
+
+        // Preview the impairment to get expected values
+        (
+            uint256 outstandingBalance,
+            uint256 impairmentGrossGain,
+            uint256 adminFeeOwed,
+            uint256 impairmentNetGain,
+            uint256 outOfPocketCost,
+            ,
+            uint256 spreadOwed
+        ) = bullaFactoring.previewImpair(targetInvoiceId);
+
+        // Verify basic impairment values
+        assertEq(outstandingBalance, 100_000, "Full invoice outstanding (nothing paid)");
+        assertEq(impairmentGrossGain, 5_000, "5% of 100,000 = 5,000");
+        assertEq(outOfPocketCost, 0, "Insurance balance 6,000 covers grossGain 5,000");
+
+        // Calculate pool-owned withheld fees for this invoice
+        uint256 poolOwnedWithheld;
+        {
+            (, , , , , , uint256 fag, uint256 fan, , , uint256 pAndI, , , ) = bullaFactoring.approvedInvoices(targetInvoiceId);
+            poolOwnedWithheld = fag - fan - (pAndI & type(uint128).max) - (pAndI >> 128);
+        }
+
+        // ---- Execute impairment ----
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(targetInvoiceId);
+
+        // ---- Verify state after impairment ----
+        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+        uint256 pricePerShareAfter = bullaFactoring.pricePerShare();
+        uint256 paidInvoicesGainAfter = bullaFactoring.paidInvoicesGain();
+        uint256 poolBalanceAfter = asset.balanceOf(address(bullaFactoring));
+
+        // ---- The key assertions ----
+
+        // 1. paidInvoicesGain increased (current behavior)
+        uint256 paidInvoicesGainDelta = paidInvoicesGainAfter - paidInvoicesGainBefore;
+        assertEq(
+            paidInvoicesGainDelta,
+            impairmentNetGain + poolOwnedWithheld,
+            "paidInvoicesGain increased by netGain + poolOwnedWithheld"
+        );
+
+        // 2. The pool's actual token balance did NOT increase — no new money came in
+        //    (insurance was already in the pool from premiums collected at funding)
+        assertEq(poolBalanceAfter, poolBalanceBefore, "Pool token balance unchanged - no new capital entered");
+
+        // 3. Capital account INCREASED after impairment (this is the bug)
+        //    Economic reality: pool lost 100,000 of capital at risk. Insurance covers only 5,000.
+        //    The capital account should DECREASE by ~95,000 (the unrecoverable loss).
+        //    Instead, it increases because paidInvoicesGain went up.
+        //
+        //    NOTE: capitalAtRiskPlusWithheldFees also decreased (removing the invoice from active),
+        //    but that only affects totalAssets(), not calculateCapitalAccount().
+        emit log_named_uint("capitalAccountBefore (with accrued interest)", capitalAccountBefore);
+        emit log_named_uint("capitalAccountAfter", capitalAccountAfter);
+        emit log_named_uint("paidInvoicesGain delta", paidInvoicesGainDelta);
+        emit log_named_uint("impairmentNetGain", impairmentNetGain);
+        emit log_named_uint("poolOwnedWithheld", poolOwnedWithheld);
+        emit log_named_uint("adminFeeOwed", adminFeeOwed);
+        emit log_named_uint("spreadOwed", spreadOwed);
+        emit log_named_uint("outstandingBalance lost", outstandingBalance);
+
+        // The capital account should be LESS than before impairment
+        // because the pool realized a loss on the impaired invoice.
+        // This assertion documents the expected correct behavior:
+        //
+        // The pool funded 80,000 gross for this invoice (100,000 * 80% upfront).
+        // At impairment, the pool will only recover 5,000 from insurance (the gross gain).
+        // The net loss to LPs = fundedAmountGross - impairmentGrossGain - fees already collected.
+        //
+        // If this assertion FAILS (capitalAccountAfter > capitalAccountBefore),
+        // it confirms the bug: impairment is being recorded as a gain instead of a loss.
+        assertTrue(
+            capitalAccountAfter < capitalAccountBefore,
+            "BUG: Capital account should DECREASE after impairment (loss), but it INCREASED"
+        );
+
+        // 4. Price per share should decrease after impairment
+        emit log_named_uint("pricePerShareBefore", pricePerShareBefore);
+        emit log_named_uint("pricePerShareAfter", pricePerShareAfter);
+
+        assertTrue(
+            pricePerShareAfter < pricePerShareBefore,
+            "BUG: Price per share should DECREASE after impairment (loss), but it INCREASED"
+        );
+    }
 }
