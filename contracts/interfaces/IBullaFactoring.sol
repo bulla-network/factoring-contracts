@@ -55,6 +55,7 @@ interface IBullaFactoringV2_2 {
         bool isImpaired;
         uint256 purchasePrice;
         uint256 paidAmountAtImpairment;
+        uint256 principalLoss;
     }
 
     struct ApproveInvoiceParams {
@@ -97,7 +98,7 @@ interface IBullaFactoringV2_2 {
     event InsurerChanged(address indexed oldInsurer, address indexed newInsurer);
     event InsuranceParamsChanged(uint16 insuranceFeeBps, uint16 impairmentGrossGainBps, uint16 recoveryProfitRatioBps);
     event InsuranceWithdrawn(address indexed insurer, uint256 amount);
-    event InvoiceImpaired(uint256 indexed invoiceId, uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 impairmentNetGain);
+    event InvoiceImpaired(uint256 indexed invoiceId, uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 feesCharged, uint256 principalLoss);
     event InsuranceRecovered(uint256 indexed invoiceId, uint256 amount);
     event ImpairedInvoiceReconciled(uint256 indexed invoiceId, uint256 amountRecovered, uint256 insuranceShare, uint256 investorShare);
 
@@ -127,6 +128,6 @@ interface IBullaFactoringV2_2 {
     function setInsurer(address _newInsurer) external;
     function setInsuranceParams(uint16 _insuranceFeeBps, uint16 _impairmentGrossGainBps, uint16 _recoveryProfitRatioBps) external;
     function withdrawInsuranceBalance() external;
-    function previewImpair(uint256 invoiceId) external view returns (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed);
+    function previewImpair(uint256 invoiceId) external view returns (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed);
     function impairInvoice(uint256 invoiceId) external;
 }

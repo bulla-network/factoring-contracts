@@ -62,6 +62,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// Mapping of paid invoices ID to track gains/losses
     uint256 public paidInvoicesGain = 0;
 
+    /// Accumulated losses from impaired invoices (the funded capital that was lost)
+    uint256 public impairmentLosses = 0;
+
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
 
@@ -303,7 +306,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-        int256 capitalAccount = int256(totalDeposits) + int256(paidInvoicesGain) - int256(totalWithdrawals);
+        int256 capitalAccount = int256(totalDeposits) + int256(paidInvoicesGain) - int256(totalWithdrawals) - int256(impairmentLosses);
 
         return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
@@ -609,7 +612,11 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             uint256 insuranceShare = recoveredAmount - investorShare;
 
             insuranceBalance += insuranceShare;
+            // investorShare is realised profit (interest) above insurance purchase price
             paidInvoicesGain += investorShare;
+
+            // Reverse the net principal loss now that the invoice has been recovered.
+            impairmentLosses -= _impairment.principalLoss;
 
             emit InsuranceRecovered(invoiceId, insuranceShare);
 
@@ -928,7 +935,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         uint256 outstandingBalance,
         uint256 impairmentGrossGain,
         uint256 adminFeeOwed,
-        uint256 impairmentNetGain,
         uint256 outOfPocketCost,
         uint256 currentPaidAmount,
         uint256 spreadOwed
@@ -940,14 +946,12 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (, spreadOwed, adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
-        uint256 ownerFeesOwed = adminFeeOwed + spreadOwed;
-        impairmentNetGain = impairmentGrossGain > ownerFeesOwed ? impairmentGrossGain - ownerFeesOwed : 0;
         outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
     }
 
     function impairInvoice(uint256 invoiceId) external onlyInsurer {
         if (impairmentInfo[invoiceId].isImpaired) revert InvoiceAlreadyImpaired();
-        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, uint256 _outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = previewImpair(invoiceId);
         removeActivePaidInvoice(invoiceId);
         (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
         (bool success, ) = target.call(abi.encodeWithSelector(selector, invoiceId));
@@ -956,22 +960,33 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (_outOfPocketCost > 0) {
             assetAddress.safeTransferFrom(insurer, address(this), _outOfPocketCost);
         }
-        adminFeeBalance += adminFeeOwed + spreadOwed;
-        // Withheld target fees (admin + interest + spread) were collected at funding but never paid
-        // anywhere — the accrued admin/spread at impairment are taken from the insurance gross gain.
-        // Credit the full pool-owned withheld back to LPs here so it doesn't silently dissolve into
-        // pool cash.
         IBullaFactoringV2_2.InvoiceApproval memory _approval = approvedInvoices[invoiceId];
         uint256 poolOwnedWithheld = _approval.fundedAmountGross - _approval.fundedAmountNet - ApprovalPacking.protocolFee(_approval) - ApprovalPacking.insurancePremium(_approval);
-        paidInvoicesGain += _impairmentNetGain + poolOwnedWithheld;
+        // Combine insurance payout and withheld fees as the total gross LP credit,
+        // then subtract accrued fees from that combined pool.
+        uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
+        uint256 grossLPCredit = _impairmentGrossGain + poolOwnedWithheld;
+        uint256 feesCharged = totalFeesOwed > grossLPCredit ? grossLPCredit : totalFeesOwed;
+        adminFeeBalance += feesCharged;
+        uint256 lpCredit = grossLPCredit - feesCharged;
+        // Principal loss = fundedAmountNet - lpCredit - paymentsSinceFunding.
+        // Only payments AFTER funding count as recovery (initialPaidAmount predates the pool).
+        // paidInvoicesGain is not touched — it tracks only realised interest.
+        uint256 paymentsSinceFunding = currentPaidAmount - _approval.initialPaidAmount;
+        uint256 credited = lpCredit + paymentsSinceFunding;
+        uint256 _principalLoss = _approval.fundedAmountNet > credited
+            ? _approval.fundedAmountNet - credited
+            : 0;
+        impairmentLosses += _principalLoss;
         impairmentInfo[invoiceId] = ImpairmentInfo({
             isImpaired: true,
             purchasePrice: _impairmentGrossGain,
-            paidAmountAtImpairment: currentPaidAmount
+            paidAmountAtImpairment: currentPaidAmount,
+            principalLoss: _principalLoss
         });
         impairedInvoices.push(invoiceId);
         processRedemptionQueue();
-        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain, _impairmentNetGain);
+        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain, feesCharged, _principalLoss);
     }
 
     function getFundInfo() external view returns (FundInfo memory) {
