@@ -935,7 +935,6 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         uint256 outstandingBalance,
         uint256 impairmentGrossGain,
         uint256 adminFeeOwed,
-        uint256 impairmentNetGain,
         uint256 outOfPocketCost,
         uint256 currentPaidAmount,
         uint256 spreadOwed
@@ -947,14 +946,12 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (, spreadOwed, adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
-        uint256 ownerFeesOwed = adminFeeOwed + spreadOwed;
-        impairmentNetGain = impairmentGrossGain > ownerFeesOwed ? impairmentGrossGain - ownerFeesOwed : 0;
         outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
     }
 
     function impairInvoice(uint256 invoiceId) external onlyInsurer {
         if (impairmentInfo[invoiceId].isImpaired) revert InvoiceAlreadyImpaired();
-        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _impairmentNetGain, uint256 _outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 _impairmentGrossGain, uint256 adminFeeOwed, uint256 _outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = previewImpair(invoiceId);
         removeActivePaidInvoice(invoiceId);
         (address target, bytes4 selector) = invoiceProviderAdapter.getImpairTarget(invoiceId);
         (bool success, ) = target.call(abi.encodeWithSelector(selector, invoiceId));
@@ -989,7 +986,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         });
         impairedInvoices.push(invoiceId);
         processRedemptionQueue();
-        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain, _impairmentNetGain);
+        emit InvoiceImpaired(invoiceId, outstandingBalance, _impairmentGrossGain);
     }
 
     function getFundInfo() external view returns (FundInfo memory) {

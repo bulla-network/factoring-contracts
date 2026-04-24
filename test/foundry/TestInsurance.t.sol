@@ -259,7 +259,7 @@ contract TestInsurance is CommonSetup {
         }
 
         // Get expected values from preview
-        (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, uint256 outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = bullaFactoring.previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 outOfPocketCost, uint256 currentPaidAmount, uint256 spreadOwed) = bullaFactoring.previewImpair(invoiceId);
 
         // Verify preview values
         assertEq(outstandingBalance, 100000, "Outstanding = full invoice amount");
@@ -267,7 +267,6 @@ contract TestInsurance is CommonSetup {
         assertEq(impairmentGrossGain, 5000, "Gross gain = 100000 * 5% = 5000");
         assertEq(outOfPocketCost, 0, "No out-of-pocket, insurance balance 6000 >= grossGain 5000");
         assertGt(adminFeeOwed, 0, "Admin fee should be non-zero after 91 days");
-        assertEq(impairmentNetGain, impairmentGrossGain - adminFeeOwed - spreadOwed, "Net gain = gross - admin - spread");
 
         // Execute impairment
         vm.prank(insurerAddr);
@@ -313,7 +312,7 @@ contract TestInsurance is CommonSetup {
 
         vm.warp(block.timestamp + 91 days);
 
-        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, , ) = bullaFactoring.previewImpair(invoiceId);
+        (, uint256 impairmentGrossGain, , uint256 outOfPocketCost, , ) = bullaFactoring.previewImpair(invoiceId);
         assertEq(impairmentGrossGain, 10000, "Gross gain = 200000 * 5% = 10000");
         assertEq(outOfPocketCost, 8000, "Out-of-pocket = 10000 - 2000 = 8000");
 
@@ -416,7 +415,7 @@ contract TestInsurance is CommonSetup {
 
         vm.warp(block.timestamp + 91 days);
 
-        (uint256 outstandingBalance, uint256 impairmentGrossGain, , , , uint256 currentPaidAmount, ) = bullaFactoring.previewImpair(invoiceId);
+        (uint256 outstandingBalance, uint256 impairmentGrossGain, , , uint256 currentPaidAmount, ) = bullaFactoring.previewImpair(invoiceId);
 
         assertEq(currentPaidAmount, 40000, "Paid amount = 40000");
         assertEq(outstandingBalance, 60000, "Outstanding = 100000 - 40000 = 60000");
@@ -443,7 +442,7 @@ contract TestInsurance is CommonSetup {
 
         uint256 insuranceBalanceBefore = bullaFactoring.insuranceBalance();
 
-        (, uint256 impairmentGrossGain, , , uint256 outOfPocketCost, uint256 currentPaidAmount, ) = bullaFactoring.previewImpair(invoiceId);
+        (, uint256 impairmentGrossGain, , uint256 outOfPocketCost, uint256 currentPaidAmount, ) = bullaFactoring.previewImpair(invoiceId);
 
         assertEq(currentPaidAmount, 60000, "Paid amount = 60000");
         assertEq(impairmentGrossGain, 2000, "Gross gain = 40000 * 5% = 2000");
@@ -697,15 +696,10 @@ contract TestInsurance is CommonSetup {
         uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
         uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
 
-        (, uint256 impairmentGrossGain, uint256 adminFeeOwed, uint256 impairmentNetGain, , , uint256 spreadOwed) = bullaFactoring.previewImpair(invoiceId);
+        (, uint256 impairmentGrossGain, uint256 adminFeeOwed, , , uint256 spreadOwed) = bullaFactoring.previewImpair(invoiceId);
         assertEq(impairmentGrossGain, expectedImpairmentGrossGain, "grossGain = invoiceAmount * 5%");
         assertEq(adminFeeOwed, expectedAdminFeeOwed, "adminFeeOwed = 62");
         assertEq(spreadOwed, expectedSpreadAccrued, "spreadOwed = 2492");
-        assertEq(
-            impairmentNetGain,
-            expectedImpairmentGrossGain - expectedAdminFeeOwed - expectedSpreadAccrued,
-            "impairmentNetGain = grossGain - admin - spread"
-        );
 
         vm.prank(insurerAddr);
         bullaFactoring.impairInvoice(invoiceId);
@@ -934,7 +928,6 @@ contract TestInsurance is CommonSetup {
             uint256 outstandingBalance,
             uint256 impairmentGrossGain,
             ,
-            ,
             uint256 outOfPocketCost,
             ,
         ) = bullaFactoring.previewImpair(targetInvoiceId);
@@ -1042,15 +1035,9 @@ contract TestInsurance is CommonSetup {
     // Impairment when accrued fees exceed impairmentGrossGain
     //
     // When an invoice sits long enough, accrued admin + spread fees
-    // can exceed the impairmentGrossGain (5% of outstanding). In that
-    // case impairmentNetGain = 0, but the full fees are still credited
-    // to adminFeeBalance.
-    //
-    // The concern: the excess fees beyond what insurance covers are
-    // effectively paid from poolOwnedWithheld (LP capital), but
-    // paidInvoicesGain still credits the full poolOwnedWithheld.
-    // The admin fee should be deducted from the LP credit if it
-    // exceeds what insurance can cover.
+    // can exceed the impairmentGrossGain (5% of outstanding). The fees
+    // are deducted from the combined grossLPCredit (grossGain + poolOwnedWithheld),
+    // so the LP credit correctly reflects the fee overage.
     //
     // CommonSetup: spreadBps=1000 (10%/yr), adminFeeBps=25 (0.25%/yr),
     //   impairmentGrossGainBps=500 (5%)
@@ -1086,7 +1073,6 @@ contract TestInsurance is CommonSetup {
             uint256 outstandingBalance,
             uint256 impairmentGrossGain,
             uint256 adminFeeOwed,
-            uint256 impairmentNetGain,
             ,
             ,
             uint256 spreadOwed
@@ -1099,14 +1085,12 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("adminFeeOwed", adminFeeOwed);
         emit log_named_uint("spreadOwed", spreadOwed);
         emit log_named_uint("totalFeesOwed", totalFeesOwed);
-        emit log_named_uint("impairmentNetGain", impairmentNetGain);
         emit log_named_uint("fundedAmountGross", fundedAmountGross);
         emit log_named_uint("fundedAmountNet", fundedAmountNet);
         emit log_named_uint("poolOwnedWithheld", poolOwnedWithheld);
 
-        // Confirm fees exceed grossGain => impairmentNetGain = 0
+        // Confirm fees exceed grossGain
         assertTrue(totalFeesOwed > impairmentGrossGain, "Fees must exceed grossGain for this test");
-        assertEq(impairmentNetGain, 0, "impairmentNetGain should be 0 when fees > grossGain");
 
         // The fee overage beyond what insurance covers
         uint256 feeOverage = totalFeesOwed - impairmentGrossGain;
@@ -1204,7 +1188,6 @@ contract TestInsurance is CommonSetup {
             uint256 outstandingBalance,
             uint256 impairmentGrossGain,
             uint256 adminFeeOwed,
-            uint256 impairmentNetGain,
             ,
             uint256 currentPaidAmount,
             uint256 spreadOwed
@@ -1220,7 +1203,6 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("impairmentGrossGain", impairmentGrossGain);
         emit log_named_uint("adminFeeOwed", adminFeeOwed);
         emit log_named_uint("spreadOwed", spreadOwed);
-        emit log_named_uint("impairmentNetGain", impairmentNetGain);
         emit log_named_uint("poolOwnedWithheld", poolOwnedWithheld);
 
         // ---- Execute impairment ----
@@ -1303,7 +1285,6 @@ contract TestInsurance is CommonSetup {
 
         (
             uint256 outstandingBalance,
-            ,
             ,
             ,
             ,
