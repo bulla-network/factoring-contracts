@@ -62,6 +62,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// Mapping of paid invoices ID to track gains/losses
     uint256 public paidInvoicesGain = 0;
 
+    /// Accumulated losses from impaired invoices (the funded capital that was lost)
+    uint256 public impairmentLosses = 0;
+
     /// Mapping from invoice ID to original creditor's address
     mapping(uint256 => address) public originalCreditors;
 
@@ -303,7 +306,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @notice Calculates the capital account balance, including deposits, withdrawals, and realized gains/losses
     /// @return The calculated capital account balance
     function calculateCapitalAccount() public view returns (uint256) {
-        int256 capitalAccount = int256(totalDeposits) + int256(paidInvoicesGain) - int256(totalWithdrawals);
+        int256 capitalAccount = int256(totalDeposits) + int256(paidInvoicesGain) - int256(totalWithdrawals) - int256(impairmentLosses);
 
         return capitalAccount > 0 ? uint(capitalAccount) : 0;
     }
@@ -610,6 +613,11 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
             insuranceBalance += insuranceShare;
             paidInvoicesGain += investorShare;
+
+            // Reverse the impairment loss now that the invoice has been recovered.
+            // The funded capital is no longer lost since the debtor paid.
+            uint256 fundedAmountNet = approvedInvoices[invoiceId].fundedAmountNet;
+            impairmentLosses -= fundedAmountNet;
 
             emit InsuranceRecovered(invoiceId, insuranceShare);
 
@@ -957,13 +965,15 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             assetAddress.safeTransferFrom(insurer, address(this), _outOfPocketCost);
         }
         adminFeeBalance += adminFeeOwed + spreadOwed;
-        // Withheld target fees (admin + interest + spread) were collected at funding but never paid
-        // anywhere — the accrued admin/spread at impairment are taken from the insurance gross gain.
-        // Credit the full pool-owned withheld back to LPs here so it doesn't silently dissolve into
-        // pool cash.
+        // The pool funded this invoice and the capital is now at risk of being unrecoverable.
+        // Record the LP's loss: the net funded amount (capital that left the pool) minus
+        // the insurance net gain and withheld target fees that are returned.
         IBullaFactoringV2_2.InvoiceApproval memory _approval = approvedInvoices[invoiceId];
         uint256 poolOwnedWithheld = _approval.fundedAmountGross - _approval.fundedAmountNet - ApprovalPacking.protocolFee(_approval) - ApprovalPacking.insurancePremium(_approval);
+        // Credit the withheld target fees and insurance net gain back to LPs
         paidInvoicesGain += _impairmentNetGain + poolOwnedWithheld;
+        // Record the loss of funded capital that won't be returned
+        impairmentLosses += _approval.fundedAmountNet;
         impairmentInfo[invoiceId] = ImpairmentInfo({
             isImpaired: true,
             purchasePrice: _impairmentGrossGain,
