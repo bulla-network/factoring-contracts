@@ -964,14 +964,24 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (_outOfPocketCost > 0) {
             assetAddress.safeTransferFrom(insurer, address(this), _outOfPocketCost);
         }
-        adminFeeBalance += adminFeeOwed + spreadOwed;
-        // The pool funded this invoice and the capital is now at risk of being unrecoverable.
-        // Record the LP's loss: the net funded amount (capital that left the pool) minus
-        // the insurance net gain and withheld target fees that are returned.
         IBullaFactoringV2_2.InvoiceApproval memory _approval = approvedInvoices[invoiceId];
         uint256 poolOwnedWithheld = _approval.fundedAmountGross - _approval.fundedAmountNet - ApprovalPacking.protocolFee(_approval) - ApprovalPacking.insurancePremium(_approval);
-        // Credit the withheld target fees and insurance net gain back to LPs
-        paidInvoicesGain += _impairmentNetGain + poolOwnedWithheld;
+        // When accrued fees exceed what insurance covers (impairmentGrossGain),
+        // the overage must come from the withheld target fees (poolOwnedWithheld).
+        uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
+        uint256 lpCredit;
+        if (totalFeesOwed > _impairmentGrossGain) {
+            uint256 feeOverage = totalFeesOwed - _impairmentGrossGain;
+            // Cap the fee charge at what's available (insurance + withheld)
+            uint256 feeFromWithheld = feeOverage > poolOwnedWithheld ? poolOwnedWithheld : feeOverage;
+            adminFeeBalance += _impairmentGrossGain + feeFromWithheld;
+            lpCredit = poolOwnedWithheld - feeFromWithheld;
+        } else {
+            adminFeeBalance += totalFeesOwed;
+            lpCredit = _impairmentNetGain + poolOwnedWithheld;
+        }
+        // Credit the remaining withheld target fees and insurance net gain back to LPs
+        paidInvoicesGain += lpCredit;
         // Record the loss of funded capital that won't be returned
         impairmentLosses += _approval.fundedAmountNet;
         impairmentInfo[invoiceId] = ImpairmentInfo({

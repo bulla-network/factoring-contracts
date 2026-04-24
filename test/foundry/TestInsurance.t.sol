@@ -1033,4 +1033,132 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("Final pricePerShare", pricePerShareAfterRepay);
         emit log_named_uint("Final paidInvoicesGain", paidInvoicesGainAfterRepay);
     }
+
+    // ============================================
+    // Impairment when accrued fees exceed impairmentGrossGain
+    //
+    // When an invoice sits long enough, accrued admin + spread fees
+    // can exceed the impairmentGrossGain (5% of outstanding). In that
+    // case impairmentNetGain = 0, but the full fees are still credited
+    // to adminFeeBalance.
+    //
+    // The concern: the excess fees beyond what insurance covers are
+    // effectively paid from poolOwnedWithheld (LP capital), but
+    // paidInvoicesGain still credits the full poolOwnedWithheld.
+    // The admin fee should be deducted from the LP credit if it
+    // exceeds what insurance can cover.
+    //
+    // CommonSetup: spreadBps=1000 (10%/yr), adminFeeBps=25 (0.25%/yr),
+    //   impairmentGrossGainBps=500 (5%)
+    // At ~200 days, spread alone ~= 10% * 200/365 ~= 5.5% > grossGain 5%
+    // ============================================
+
+    function testImpairmentFeesExceedGrossGain() public {
+        uint256 invoiceAmount = 100_000;
+        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
+
+        // Record state before impairment
+        uint256 capitalAccountBefore = bullaFactoring.calculateCapitalAccount();
+        uint256 paidInvoicesGainBefore = bullaFactoring.paidInvoicesGain();
+        uint256 adminFeeBalanceBefore = bullaFactoring.adminFeeBalance();
+
+        // Get the funded amounts and pool-owned withheld for this invoice
+        uint256 fundedAmountGross;
+        uint256 fundedAmountNet;
+        uint256 poolOwnedWithheld;
+        {
+            (, , , , , , uint256 fag, uint256 fan, , , uint256 pAndI, , , ) = bullaFactoring.approvedInvoices(invoiceId);
+            fundedAmountGross = fag;
+            fundedAmountNet = fan;
+            poolOwnedWithheld = fag - fan - (pAndI & type(uint128).max) - (pAndI >> 128);
+        }
+
+        // Warp to 200 days so accrued fees exceed impairmentGrossGain
+        // dueBy = +30d, impairmentGracePeriod = 60d, so 200d is well past
+        vm.warp(block.timestamp + 200 days);
+
+        // Preview to verify fees > grossGain
+        (
+            uint256 outstandingBalance,
+            uint256 impairmentGrossGain,
+            uint256 adminFeeOwed,
+            uint256 impairmentNetGain,
+            ,
+            ,
+            uint256 spreadOwed
+        ) = bullaFactoring.previewImpair(invoiceId);
+
+        uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
+
+        emit log_named_uint("outstandingBalance", outstandingBalance);
+        emit log_named_uint("impairmentGrossGain", impairmentGrossGain);
+        emit log_named_uint("adminFeeOwed", adminFeeOwed);
+        emit log_named_uint("spreadOwed", spreadOwed);
+        emit log_named_uint("totalFeesOwed", totalFeesOwed);
+        emit log_named_uint("impairmentNetGain", impairmentNetGain);
+        emit log_named_uint("fundedAmountGross", fundedAmountGross);
+        emit log_named_uint("fundedAmountNet", fundedAmountNet);
+        emit log_named_uint("poolOwnedWithheld", poolOwnedWithheld);
+
+        // Confirm fees exceed grossGain => impairmentNetGain = 0
+        assertTrue(totalFeesOwed > impairmentGrossGain, "Fees must exceed grossGain for this test");
+        assertEq(impairmentNetGain, 0, "impairmentNetGain should be 0 when fees > grossGain");
+
+        // The fee overage beyond what insurance covers
+        uint256 feeOverage = totalFeesOwed - impairmentGrossGain;
+        emit log_named_uint("feeOverage (fees exceeding insurance)", feeOverage);
+
+        // ---- Execute impairment ----
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        uint256 capitalAccountAfter = bullaFactoring.calculateCapitalAccount();
+        uint256 paidInvoicesGainAfter = bullaFactoring.paidInvoicesGain();
+        uint256 adminFeeBalanceAfter = bullaFactoring.adminFeeBalance();
+
+        uint256 paidInvoicesGainDelta = paidInvoicesGainAfter - paidInvoicesGainBefore;
+        uint256 adminFeeBalanceDelta = adminFeeBalanceAfter - adminFeeBalanceBefore;
+
+        emit log_named_uint("capitalAccountBefore", capitalAccountBefore);
+        emit log_named_uint("capitalAccountAfter", capitalAccountAfter);
+        emit log_named_uint("paidInvoicesGain delta", paidInvoicesGainDelta);
+        emit log_named_uint("adminFeeBalance delta", adminFeeBalanceDelta);
+
+        // Current behavior: adminFeeBalance gets the FULL fee amount (adminFeeOwed + spreadOwed),
+        // even though insurance only covers impairmentGrossGain. The excess is silently taken
+        // from pool cash (LP capital via poolOwnedWithheld).
+        //
+        // paidInvoicesGain gets: impairmentNetGain (0) + poolOwnedWithheld (1,441)
+        // But poolOwnedWithheld should be reduced by the fee overage, because those
+        // withheld fees are being consumed by the admin/spread fees.
+        //
+        // Expected correct behavior:
+        //   adminFeeBalance += min(totalFeesOwed, impairmentGrossGain + poolOwnedWithheld)
+        //   paidInvoicesGain += max(0, poolOwnedWithheld - feeOverage)
+        //
+        // Or alternatively: the admin fee should be capped at impairmentGrossGain,
+        // and the remainder should NOT be charged to LP capital.
+
+        // The fee overage comes out of LP pocket (poolOwnedWithheld).
+        // paidInvoicesGain should credit LPs only what's left after the fee overage.
+        uint256 expectedLPCredit = poolOwnedWithheld > feeOverage ? poolOwnedWithheld - feeOverage : 0;
+
+        emit log_named_uint("expected LP credit (poolOwnedWithheld - feeOverage)", expectedLPCredit);
+        emit log_named_uint("actual LP credit (paidInvoicesGain delta)", paidInvoicesGainDelta);
+
+        // This assertion checks that the LP credit accounts for the fee overage.
+        // If this FAILS, it means LPs are being credited the full poolOwnedWithheld
+        // even though part of it was consumed by admin/spread fees exceeding insurance.
+        assertEq(
+            paidInvoicesGainDelta,
+            expectedLPCredit,
+            "LP credit should be reduced by fee overage (fees exceeding insurance coverage)"
+        );
+
+        // Capital account should still decrease after impairment
+        assertTrue(
+            capitalAccountAfter < capitalAccountBefore,
+            "Capital account should decrease after impairment"
+        );
+    }
 }
