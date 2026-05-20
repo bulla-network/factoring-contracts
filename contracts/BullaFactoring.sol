@@ -76,6 +76,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// Set to hold the IDs of all active invoices (O(1) add/remove/contains)
     EnumerableSet.UintSet private _activeInvoices;
 
+    /// @notice Monotonic version of `_activeInvoices`, bumped on every add and remove.
+    uint256 public activeInvoicesVersion;
+
     // ============ Aggregate State Tracking Variables ============
     /// @notice Total per-second interest rate across all active invoices in RAY units (sum of all perSecondInterestRate values)
     /// @dev RAY = 1e27 for high-precision per-second interest accrual (Aave V3 style)
@@ -524,6 +527,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         IERC721(invoiceProviderAdapter.getInvoiceContractAddress(params.invoiceId)).transferFrom(msg.sender, address(this), params.invoiceId);
         originalCreditors[params.invoiceId] = msg.sender;
         _activeInvoices.add(params.invoiceId);
+        unchecked { ++activeInvoicesVersion; }
         _registerInvoiceCallback(params.invoiceId);
 
         emit InvoiceFunded(params.invoiceId, fundedAmountNet, msg.sender, approval.invoiceDueDate, params.factorerUpfrontBps, protocolFee, actualReceiver);
@@ -549,6 +553,10 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @param limit The maximum number of invoices to check (capped at 25000)
     /// @return impairedInvoiceIds Array of invoice IDs that are impaired in this page
     /// @return hasMore Whether there are more active invoices beyond this page
+    /// @dev Paginated callers should also read `activeInvoicesVersion` (pinned to the same
+    ///      block) before and after iteration; a change indicates `_activeInvoices` was
+    ///      mutated between pages (EnumerableSet swaps positions on remove) and iteration
+    ///      must be restarted from offset 0.
     function viewPoolStatus(uint256 offset, uint256 limit) external view returns (uint256[] memory impairedInvoiceIds, bool hasMore) {
         uint256 activeCount = _activeInvoices.length();
         
@@ -734,6 +742,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @param invoiceId The ID of the invoice to remove
     function removeActivePaidInvoice(uint256 invoiceId) private {
         if (!_activeInvoices.remove(invoiceId)) revert InvoiceNotActive();
+        unchecked { ++activeInvoicesVersion; }
 
         uint256 perSecondRateRay = approvedInvoices[invoiceId].perSecondInterestRateRay;
 
