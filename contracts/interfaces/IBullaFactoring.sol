@@ -17,6 +17,8 @@ interface IBullaFactoringV2_2 {
         uint16 upfrontBps;
         uint16 protocolFeeBps;
         uint16 adminFeeBps;
+        uint16 impairmentGrossGainBps;
+        uint16 recoveryProfitRatioBps;
     }
 
     struct InvoiceApproval {

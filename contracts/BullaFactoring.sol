@@ -266,7 +266,9 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             spreadBps: params.spreadBps,
             upfrontBps: params.upfrontBps,
             protocolFeeBps: protocolFeeBps,
-            adminFeeBps: adminFeeBps
+            adminFeeBps: adminFeeBps,
+            impairmentGrossGainBps: 0,
+            recoveryProfitRatioBps: 0
         });
 
         uint256 _initialInvoiceValue = params.initialInvoiceValueOverride != 0 ? params.initialInvoiceValueOverride : invoiceSnapshot.invoiceAmount - invoiceSnapshot.paidAmount;
@@ -509,6 +511,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         approval.fundedAmountNet = fundedAmountNet;
         approval.fundedTimestamp = block.timestamp;
         approval.feeParams.upfrontBps = params.factorerUpfrontBps;
+        approval.feeParams.impairmentGrossGainBps = impairmentGrossGainBps;
+        approval.feeParams.recoveryProfitRatioBps = recoveryProfitRatioBps;
         approval.protocolFeeAndInsurancePremium = ApprovalPacking.packFees(protocolFee, insurancePremium);
 
         if (params.receiverAddressIndex >= receiverAddresses.length) revert InvalidReceiverAddressIndex();
@@ -608,7 +612,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
 
             // Insurance gets back purchasePrice first, then excess is split
             uint256 excess = recoveredAmount > _impairment.purchasePrice ? recoveredAmount - _impairment.purchasePrice : 0;
-            uint256 investorShare = Math.mulDiv(excess, recoveryProfitRatioBps, 10000);
+            IBullaFactoringV2_2.InvoiceApproval memory recoveryApproval = approvedInvoices[invoiceId];
+            uint256 investorShare = Math.mulDiv(excess, recoveryApproval.feeParams.recoveryProfitRatioBps, 10000);
             uint256 insuranceShare = recoveredAmount - investorShare;
 
             insuranceBalance += insuranceShare;
@@ -943,7 +948,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         IBullaFactoringV2_2.InvoiceApproval memory approval = approvedInvoices[invoiceId];
         currentPaidAmount = invoice.paidAmount;
         outstandingBalance = invoice.invoiceAmount - invoice.paidAmount;
-        impairmentGrossGain = Math.mulDiv(outstandingBalance, impairmentGrossGainBps, 10000);
+        impairmentGrossGain = Math.mulDiv(outstandingBalance, approval.feeParams.impairmentGrossGainBps, 10000);
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (, spreadOwed, adminFeeOwed, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
         outOfPocketCost = impairmentGrossGain > insuranceBalance ? impairmentGrossGain - insuranceBalance : 0;
