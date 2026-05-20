@@ -1321,4 +1321,53 @@ contract TestInsurance is CommonSetup {
             "Capital account should not decrease when pool is fully repaid"
         );
     }
+
+    function testImpairmentGrossGainBpsIsSnapshotAtFunding() public {
+        // Fund at impairmentGrossGainBps = 500 (5%) — value set in CommonSetup
+        uint256 invoiceAmount = 100_000;
+        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
+
+        // Owner doubles the payout ratio AFTER funding, before impairment
+        bullaFactoring.setInsuranceParams(100, 1000, 5000); // 500 → 1000 bps
+
+        vm.warp(block.timestamp + 91 days);
+
+        (, uint256 impairmentGrossGain, , , , ) = bullaFactoring.previewImpair(invoiceId);
+
+        assertEq(
+            impairmentGrossGain,
+            5_000,
+            "impairmentGrossGain must be based on funding-time impairmentGrossGainBps, not live storage"
+        );
+    }
+
+    function testRecoveryProfitRatioBpsIsSnapshotAtFunding() public {
+        // Fund at recoveryProfitRatioBps = 5000 (50%) — value set in CommonSetup
+        uint256 invoiceAmount = 100_000;
+        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
+        vm.warp(block.timestamp + 91 days);
+
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        // Owner zeroes the investor share AFTER funding+impairment but before recovery,
+        // so the insurer takes 100% of the excess instead of the 50/50 split the LPs
+        // signed up for at funding.
+        bullaFactoring.setInsuranceParams(100, 500, 0); // 5000 → 0 bps
+
+        uint256 insuranceBalanceAfterImpair = bullaFactoring.insuranceBalance();
+        uint256 paidInvoicesGainAfterImpair = bullaFactoring.paidInvoicesGain();
+
+        // Pay the invoice in full → reconcileSingleInvoice recovery branch
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), invoiceAmount);
+        bullaClaim.payClaim(invoiceId, invoiceAmount);
+        vm.stopPrank();
+
+        uint256 insuranceGain = bullaFactoring.insuranceBalance() - insuranceBalanceAfterImpair;
+        uint256 investorGain = bullaFactoring.paidInvoicesGain() - paidInvoicesGainAfterImpair;
+
+        assertEq(investorGain, 47_500, "investorShare must use funding-time recoveryProfitRatioBps");
+        assertEq(insuranceGain, 52_500, "insuranceShare must use funding-time recoveryProfitRatioBps");
+    }
 }

@@ -73,7 +73,9 @@ contract TestBullaInvoiceFactoring is CommonSetup {
             spreadBps: spreadBps,
             upfrontBps: upfrontBps,
             protocolFeeBps: protocolFeeBps,
-            adminFeeBps: adminFeeBps
+            adminFeeBps: adminFeeBps,
+            impairmentGrossGainBps: 0,
+            recoveryProfitRatioBps: 0
         }));
         _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();

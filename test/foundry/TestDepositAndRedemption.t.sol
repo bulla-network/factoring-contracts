@@ -122,7 +122,9 @@ contract TestDepositAndRedemption is CommonSetup {
             spreadBps: spreadBps,
             upfrontBps: upfrontBps,
             protocolFeeBps: protocolFeeBps,
-            adminFeeBps: adminFeeBps
+            adminFeeBps: adminFeeBps,
+            impairmentGrossGainBps: 0,
+            recoveryProfitRatioBps: 0
         });
         
         vm.expectEmit(true, true, true, true);
