@@ -640,8 +640,11 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         emit log_string("Protocol fee reduces Bob's upfront funding, not his final cost!");
         emit log_string("Bob breaks even because he pays back exactly what he received!");
         
-        // Verify Bob breaks even (in immediate unfactoring scenario)
-        assertEq(bobTotalLoss, expectedProtocolFee, "Bob should pay the protocol fee");
+        // Verify Bob breaks even (in immediate unfactoring scenario). Bob pays
+        // back both the protocol fee and the insurance premium that were
+        // withheld at funding
+        (, , , , , uint256 expectedInsurancePremium, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        assertEq(bobTotalLoss, expectedProtocolFee + expectedInsurancePremium, "Bob should pay protocol fee + insurance premium");
         
         // Verify the protocol fee was indeed deducted from available funding
         assertEq(bobNetGainFromFunding, invoiceAmount - expectedProtocolFee - (invoiceAmount - expectedProtocolFee - bobNetGainFromFunding), "Protocol fee reduces available funding amount");
@@ -776,12 +779,14 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         emit log_string("=== PHASE 0: INITIAL STATE (Before Deposits) ===");
         
+        address insurer = bullaFactoring.insurer();
         uint256 creditor_initial = asset.balanceOf(bob);
         uint256 debtor_initial = asset.balanceOf(alice);
         uint256 investor_initial = asset.balanceOf(investor);
         uint256 bullaDao_initial = asset.balanceOf(bullaDao);
         uint256 pool_initial = asset.balanceOf(address(bullaFactoring));
         uint256 poolOwner_initial = asset.balanceOf(underwriter); // Assuming underwriter is pool owner
+        uint256 insurer_initial = asset.balanceOf(insurer);
         
         emit log_named_uint("Creditor (Bob) Initial", creditor_initial);
         emit log_named_uint("Debtor (Alice) Initial", debtor_initial);
@@ -790,7 +795,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         emit log_named_uint("Pool Owner Initial", poolOwner_initial);
         emit log_named_uint("Pool Contract Initial", pool_initial);
         
-        uint256 totalSystem_initial = creditor_initial + debtor_initial + investor_initial + bullaDao_initial + pool_initial + poolOwner_initial;
+        uint256 totalSystem_initial = creditor_initial + debtor_initial + investor_initial + bullaDao_initial + pool_initial + poolOwner_initial + insurer_initial;
         emit log_named_uint("TOTAL SYSTEM Initial", totalSystem_initial);
         
         // =================================================================
@@ -926,6 +931,16 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         emit log_named_int("Pool Contract Change from Admin Withdraw", int256(pool_afterAdminWithdraw) - int256(pool_afterProtocolWithdraw));
         
         // =================================================================
+        // PHASE 5b: WITHDRAW INSURANCE BALANCE
+        // =================================================================
+        // The insurance premium was withheld at funding and reclaimed from the
+        // factorer on unfactor, so the insurer is now owed cash.
+        if (bullaFactoring.insuranceBalance() > 0) {
+            vm.prank(insurer);
+            bullaFactoring.withdrawInsuranceBalance();
+        }
+
+        // =================================================================
         // PHASE 6: INVESTOR REDEEMS ALL FUNDS
         // =================================================================
         
@@ -954,6 +969,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         uint256 bullaDao_final = asset.balanceOf(bullaDao);
         uint256 pool_final = asset.balanceOf(address(bullaFactoring));
         uint256 poolOwner_final = asset.balanceOf(underwriter);
+        uint256 insurer_final = asset.balanceOf(insurer);
         
         emit log_named_int("Investor Change from Redemption", int256(investor_final) - int256(investor_afterAdminWithdraw));
         emit log_named_int("Pool Contract Change from Redemption", int256(pool_final) - int256(pool_afterAdminWithdraw));
@@ -970,6 +986,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         int256 bullaDao_netChange = int256(bullaDao_final) - int256(bullaDao_initial);
         int256 pool_netChange = int256(pool_final) - int256(pool_initial);
         int256 poolOwner_netChange = int256(poolOwner_final) - int256(poolOwner_initial);
+        int256 insurer_netChange = int256(insurer_final) - int256(insurer_initial);
         
         emit log_named_int("Creditor NET CHANGE", creditor_netChange);
         emit log_named_int("Debtor NET CHANGE", debtor_netChange);
@@ -978,7 +995,7 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         emit log_named_int("Pool Owner NET CHANGE", poolOwner_netChange);
         emit log_named_int("Pool Contract NET CHANGE", pool_netChange);
         
-        uint256 totalSystem_final = creditor_final + debtor_final + investor_final + bullaDao_final + pool_final + poolOwner_final;
+        uint256 totalSystem_final = creditor_final + debtor_final + investor_final + bullaDao_final + pool_final + poolOwner_final + insurer_final;
         int256 totalSystem_netChange = int256(totalSystem_final) - int256(totalSystem_initial);
         
         emit log_named_int("TOTAL SYSTEM NET CHANGE", totalSystem_netChange);
@@ -996,8 +1013,11 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         // Protocol fee should have gone to BullaDao
         assertEq(uint256(bullaDao_netChange), expectedProtocolFee, "Protocol fee should equal BullaDao gain");
         
-        // In immediate unfactoring with no interest, creditor should break even or have minimal loss
-        assertTrue(creditor_netChange >= -int256(expectedProtocolFee), "Creditor loss should not exceed protocol fee amount");
+        // In immediate unfactoring with no interest, creditor's loss is bounded
+        // by the protocol fee + insurance premium that were withheld at funding
+        // and repaid on unfactor
+        (, , , , , uint256 expectedInsurancePremium, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        assertTrue(creditor_netChange >= -int256(expectedProtocolFee + expectedInsurancePremium), "Creditor loss should not exceed protocol fee + insurance premium");
         
         // Investor should break even (or have minimal loss due to rounding)
         assertTrue(investor_netChange >= -1000, "Investor should approximately break even");
@@ -1035,6 +1055,9 @@ contract TestProtocolFeeMissingCases is CommonSetup {
         
         if (bullaDao_netChange < 0) totalLosses += -bullaDao_netChange;
         else totalGains += bullaDao_netChange;
+
+        if (insurer_netChange < 0) totalLosses += -insurer_netChange;
+        else totalGains += insurer_netChange;
         
         emit log_named_int("Total Losses", totalLosses);
         emit log_named_int("Total Gains", totalGains);
