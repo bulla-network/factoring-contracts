@@ -175,5 +175,83 @@ contract TestViewPoolStatusPagination is CommonSetup {
         assertEq(page1.length, 4, "Should return 4 impaired invoices (2 were paid off)");
         assertFalse(hasMore, "Should not have more invoices");
     }
+
+    function testActiveInvoicesVersionBumpsOnEveryMutation() public {
+        address insurerAddr = address(0x1999);
+
+        uint256 v0 = bullaFactoring.activeInvoicesVersion();
+
+        // Fund Alice's deposit pool
+        vm.prank(alice);
+        bullaFactoring.deposit(1_000_000, alice);
+
+        // ---- add (fund) ----
+        vm.prank(bob);
+        uint256 invoiceA = createClaim(bob, alice, 100_000, dueBy);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceA, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceA);
+        _fundInvoice(invoiceA, upfrontBps, address(0));
+        vm.stopPrank();
+
+        uint256 v1 = bullaFactoring.activeInvoicesVersion();
+        assertEq(v1, v0 + 1, "version must bump on fund (add)");
+
+        // ---- remove (unfactor) ----
+        vm.prank(bob);
+        asset.approve(address(bullaFactoring), type(uint256).max);
+        vm.prank(bob);
+        bullaFactoring.unfactorInvoice(invoiceA);
+
+        uint256 v2 = bullaFactoring.activeInvoicesVersion();
+        assertEq(v2, v1 + 1, "version must bump on unfactor (remove)");
+
+        // Fund a fresh invoice we'll use to test impair- and reconcile-driven removes
+        vm.prank(bob);
+        uint256 invoiceB = createClaim(bob, alice, 100_000, dueBy);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceB, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceB);
+        _fundInvoice(invoiceB, upfrontBps, address(0));
+        vm.stopPrank();
+        uint256 v3 = bullaFactoring.activeInvoicesVersion();
+        assertEq(v3, v2 + 1, "version must bump on second fund (add)");
+
+        // ---- remove (impair) ----
+        vm.warp(block.timestamp + 91 days);
+        // Cover any out-of-pocket cost for the insurer (premium < grossGain on a single invoice).
+        asset.mint(insurerAddr, 100_000);
+        vm.prank(insurerAddr);
+        asset.approve(address(bullaFactoring), type(uint256).max);
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceB);
+
+        uint256 v4 = bullaFactoring.activeInvoicesVersion();
+        assertEq(v4, v3 + 1, "version must bump on impair (remove)");
+
+        // ---- remove (reconcile after payment) ----
+        vm.prank(bob);
+        uint256 invoiceC = createClaim(bob, alice, 100_000, block.timestamp + 30 days);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceC, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceC);
+        _fundInvoice(invoiceC, upfrontBps, address(0));
+        vm.stopPrank();
+        uint256 v5 = bullaFactoring.activeInvoicesVersion();
+        assertEq(v5, v4 + 1, "version must bump on third fund (add)");
+
+        // payClaim triggers reconcileSingleInvoice via the set-paid callback registered at funding,
+        // which removes the invoice from _activeInvoices and bumps the version.
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), 100_000);
+        bullaClaim.payClaim(invoiceC, 100_000);
+        vm.stopPrank();
+
+        uint256 v6 = bullaFactoring.activeInvoicesVersion();
+        assertEq(v6, v5 + 1, "version must bump on reconcile (remove)");
+    }
 }
 
