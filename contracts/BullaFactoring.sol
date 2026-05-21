@@ -687,7 +687,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         // Calculate fees and amounts
         uint256 secondsSinceFunded = (block.timestamp > approval.fundedTimestamp) ? (block.timestamp - approval.fundedTimestamp) : 0;
         (trueInterest, trueSpreadAmount, trueAdminFee, ) = FeeCalculations.calculateFees(approval, secondsSinceFunded, invoice);
-        totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + ApprovalPacking.protocolFee(approval)) - int256(paymentSinceFunding);
+        totalRefundOrPaymentAmount = int256(approval.fundedAmountNet + trueInterest + trueSpreadAmount + trueAdminFee + ApprovalPacking.protocolFee(approval) + ApprovalPacking.insurancePremium(approval)) - int256(paymentSinceFunding);
     }
 
     /// @notice Preview the refund or payment amount for unfactoring an invoice

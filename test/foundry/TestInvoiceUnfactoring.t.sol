@@ -44,6 +44,8 @@ contract TestInvoiceUnfactoring is CommonSetup {
         _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
+        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+
         vm.expectEmit(true, false, false, false);
         emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0, false);
 
@@ -52,9 +54,15 @@ contract TestInvoiceUnfactoring is CommonSetup {
         bullaFactoring.unfactorInvoice(invoiceId);
         vm.stopPrank();
 
-        // Assert the invoice NFT is transferred back to Bob and that fund has received the funded amount back
+        // Assert the invoice NFT is transferred back to Bob and that the pool's
+        // cash fully backs every outstanding claim (LP equity + earmarked fees).
         assertEq(bullaClaim.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
-        assertEq(asset.balanceOf(address(bullaFactoring)), initialDeposit, "Funded amount should be refunded to BullaFactoring");
+        assertEq(bullaFactoring.pricePerShare(), pricePerShareBefore, "pricePerShare must be unchanged by an immediate unfactor");
+        uint256 claims = bullaFactoring.totalAssets()
+            + bullaFactoring.adminFeeBalance()
+            + bullaFactoring.protocolFeeBalance()
+            + bullaFactoring.insuranceBalance();
+        assertEq(asset.balanceOf(address(bullaFactoring)), claims, "Pool cash must back all outstanding claims after unfactor");
     }
 
     function testUnfactorImpairedInvoiceAffectsSharePrice() public {
@@ -715,5 +723,83 @@ contract TestInvoiceUnfactoring is CommonSetup {
 
         // Assert the invoice NFT is transferred back to Bob
         assertEq(bullaClaim.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
+    }
+
+    function testUnfactorLeavesInsuranceBalanceUnbackedByCash() public {
+        uint256 initialDeposit = 1_000_000;
+        vm.prank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+
+        uint256 invoiceAmount = 100_000;
+
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+
+        vm.prank(underwriter);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+
+        (, , , , uint256 protocolFee, uint256 insurancePremium, ) =
+            bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+        assertGt(insurancePremium, 0, "premium must be > 0 to be meaningful");
+
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        _fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        assertEq(bullaFactoring.insuranceBalance(), insurancePremium, "premium credited at funding");
+        assertEq(bullaFactoring.protocolFeeBalance(), protocolFee, "protocol fee credited at funding");
+
+        // Unfactor with no time elapsed → trueInterest/spread/adminFee all zero.
+        vm.prank(bob);
+        bullaFactoring.unfactorInvoice(invoiceId);
+
+        // poolCash  = initialDeposit + protocolFee  (bob paid back net + protocolFee)
+        // claims    = totalAssets + protocolFeeBalance + insuranceBalance + adminFeeBalance
+        //           = initialDeposit + protocolFee + insurancePremium + 0
+        // deficit   = claims - poolCash = insurancePremium
+        uint256 poolCash = asset.balanceOf(address(bullaFactoring));
+        uint256 claims = bullaFactoring.totalAssets()
+            + bullaFactoring.adminFeeBalance()
+            + bullaFactoring.protocolFeeBalance()
+            + bullaFactoring.insuranceBalance();
+
+        // Pool cash must fully back every outstanding claim.
+        assertEq(poolCash, claims, "pool cash must back all outstanding claims");
+    }
+
+    function testRepeatedUnfactorsCompoundInsuranceDeficit() public {
+        uint256 initialDeposit = 10_000_000;
+        vm.prank(alice);
+        bullaFactoring.deposit(initialDeposit, alice);
+
+        uint256 invoiceAmount = 100_000;
+        uint256 totalPremiumWithheld;
+
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(bob);
+            uint256 invoiceId = createClaim(bob, alice, invoiceAmount, dueBy);
+
+            vm.prank(underwriter);
+            _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+
+            (, , , , , uint256 premium, ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
+            totalPremiumWithheld += premium;
+
+            vm.startPrank(bob);
+            bullaClaim.approve(address(bullaFactoring), invoiceId);
+            _fundInvoice(invoiceId, upfrontBps, address(0));
+            bullaFactoring.unfactorInvoice(invoiceId);
+            vm.stopPrank();
+        }
+
+        uint256 poolCash = asset.balanceOf(address(bullaFactoring));
+        uint256 claims = bullaFactoring.totalAssets()
+            + bullaFactoring.adminFeeBalance()
+            + bullaFactoring.protocolFeeBalance()
+            + bullaFactoring.insuranceBalance();
+
+        // Pool cash must back all claims regardless of how many unfactors occurred.
+        assertEq(poolCash, claims, "pool cash must back all outstanding claims after repeated unfactors");
     }
 }
