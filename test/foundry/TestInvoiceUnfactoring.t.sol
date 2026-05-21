@@ -44,6 +44,8 @@ contract TestInvoiceUnfactoring is CommonSetup {
         _fundInvoice(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
 
+        uint256 pricePerShareBefore = bullaFactoring.pricePerShare();
+
         vm.expectEmit(true, false, false, false);
         emit InvoiceUnfactored(invoiceId, bob, 0, 0, 0, 0, false);
 
@@ -55,6 +57,7 @@ contract TestInvoiceUnfactoring is CommonSetup {
         // Assert the invoice NFT is transferred back to Bob and that the pool's
         // cash fully backs every outstanding claim (LP equity + earmarked fees).
         assertEq(bullaClaim.ownerOf(invoiceId), bob, "Invoice NFT should be returned to Bob");
+        assertEq(bullaFactoring.pricePerShare(), pricePerShareBefore, "pricePerShare must be unchanged by an immediate unfactor");
         uint256 claims = bullaFactoring.totalAssets()
             + bullaFactoring.adminFeeBalance()
             + bullaFactoring.protocolFeeBalance()
