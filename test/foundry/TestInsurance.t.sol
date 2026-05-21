@@ -1370,4 +1370,62 @@ contract TestInsurance is CommonSetup {
         assertEq(investorGain, 47_500, "investorShare must use funding-time recoveryProfitRatioBps");
         assertEq(insuranceGain, 52_500, "insuranceShare must use funding-time recoveryProfitRatioBps");
     }
+
+    // impairmentInfo[invoiceId] must be cleared after reconciling a previously impaired invoice. 
+    function testRecoveredImpairedInvoiceCanBeReconciledTwice() public {
+        uint256 invoiceAmount = 100_000;
+        uint256 preImpairmentPayment = 90_000;
+        uint256 finalPayment = invoiceAmount - preImpairmentPayment;
+
+        uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
+
+        // Drive the invoice into the zero-principal-loss impairment case so a replay
+        // does not revert on impairmentLosses underflow.
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), preImpairmentPayment);
+        bullaClaim.payClaim(invoiceId, preImpairmentPayment);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 91 days);
+
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        assertEq(bullaFactoring.impairmentLosses(), 0, "setup requires zero principalLoss");
+
+        uint256 insuranceBalanceBeforeRecovery = bullaFactoring.insuranceBalance();
+        uint256 paidInvoicesGainBeforeRecovery = bullaFactoring.paidInvoicesGain();
+
+        // Full repayment triggers the first recovery via the registered paid callback.
+        vm.startPrank(alice);
+        asset.approve(address(bullaClaim), finalPayment);
+        bullaClaim.payClaim(invoiceId, finalPayment);
+        vm.stopPrank();
+
+        uint256 firstInsuranceCredit =
+            bullaFactoring.insuranceBalance() - insuranceBalanceBeforeRecovery;
+        uint256 firstInvestorCredit =
+            bullaFactoring.paidInvoicesGain() - paidInvoicesGainBeforeRecovery;
+
+        assertGt(firstInsuranceCredit, 0, "first recovery should credit insurance");
+        assertGt(firstInvestorCredit, 0, "first recovery should credit LP gains");
+
+        (bool isImpaired, , , ) = bullaFactoring.impairmentInfo(invoiceId);
+        assertFalse(isImpaired, "impairmentInfo must be cleared after recovery");
+
+        vm.prank(userWithoutPermissions);
+        vm.expectRevert();
+        bullaFactoring.reconcileSingleInvoice(invoiceId);
+
+        assertEq(
+            bullaFactoring.insuranceBalance() - insuranceBalanceBeforeRecovery,
+            firstInsuranceCredit,
+            "replay must not duplicate the insurance credit"
+        );
+        assertEq(
+            bullaFactoring.paidInvoicesGain() - paidInvoicesGainBeforeRecovery,
+            firstInvestorCredit,
+            "replay must not duplicate LP gains"
+        );
+    }
 }

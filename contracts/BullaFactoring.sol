@@ -631,6 +631,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             // Reverse the net principal loss now that the invoice has been recovered.
             impairmentLosses -= _impairment.principalLoss;
 
+            delete impairmentInfo[invoiceId];
+
             emit InsuranceRecovered(invoiceId, insuranceShare);
 
             for (uint256 i = 0; i < impairedInvoices.length; i++) {
