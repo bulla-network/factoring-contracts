@@ -6,7 +6,6 @@ import {IBullaClaimV2} from "bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol
 import {IBullaClaimCore} from "bulla-contracts-v2/src/interfaces/IBullaClaimCore.sol";
 import {Claim, Status} from "bulla-contracts-v2/src/types/Types.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {console} from "../lib/forge-std/src/console.sol";
 import {IBullaFrendLendV2, Loan} from "bulla-contracts-v2/src/interfaces/IBullaFrendLendV2.sol";
 import {IBullaInvoice, Invoice as BullaInvoice} from "bulla-contracts-v2/src/interfaces/IBullaInvoice.sol";
 
