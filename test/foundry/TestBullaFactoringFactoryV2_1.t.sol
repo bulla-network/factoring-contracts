@@ -22,6 +22,8 @@ import { BullaInvoice } from 'bulla-contracts-v2/src/BullaInvoice.sol';
 import { IBullaClaimV2, LockState } from 'bulla-contracts-v2/src/interfaces/IBullaClaimV2.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import { IRedemptionQueue } from 'contracts/interfaces/IRedemptionQueue.sol';
+import { RedemptionQueue } from 'contracts/RedemptionQueue.sol';
 
 contract TestBullaFactoringFactoryV2_1 is Test {
     BullaFactoringFactoryV2_1 public factory;
@@ -435,6 +437,51 @@ contract TestBullaFactoringFactoryV2_1 is Test {
 
         // Verify nonce incremented
         assertEq(factory.poolNonce(), 1);
+    }
+
+    function test_createPool_transfersRedemptionQueueOwnershipToCreator() public {
+        address[] memory emptyAddresses = new address[](0);
+
+        vm.startPrank(poolCreator);
+        address depositRedeemPerms = permissionsFactory.createPermissions(emptyAddresses);
+        address factoringPerms = permissionsFactory.createPermissions(emptyAddresses);
+
+        bytes memory creationBytecode = _buildCreationBytecode(
+            IERC20(address(usdc)),
+            underwriter,
+            depositRedeemPerms,
+            depositRedeemPerms,
+            factoringPerms,
+            50,
+            "Test Pool",
+            800,
+            "Test Pool Token",
+            "TPT"
+        );
+
+        address pool = factory.createPool(
+            creationBytecode,
+            address(usdc),
+            "Test Pool",
+            "Test Pool Token",
+            "TPT",
+            depositRedeemPerms,
+            depositRedeemPerms,
+            factoringPerms
+        );
+        vm.stopPrank();
+
+        IRedemptionQueue queue = BullaFactoringV2_2(pool).getRedemptionQueue();
+
+        // Queue ownership must be aligned with pool ownership so the creator
+        // retains authority over setMaxQueueSize / clearQueue / compactQueue /
+        // setFactoringContract administrative functions.
+        assertEq(Ownable(address(queue)).owner(), poolCreator);
+
+        // Creator should be able to exercise owner-only queue admin.
+        vm.prank(poolCreator);
+        RedemptionQueue(address(queue)).setMaxQueueSize(1000);
+        assertEq(queue.getMaxQueueSize(), 1000);
     }
 
     function test_createPool_emitsPoolCreatedEvent() public {

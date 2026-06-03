@@ -5,12 +5,14 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IInvoiceProviderAdapter.sol";
 import "./interfaces/IZodiacRoles.sol";
+import "./interfaces/IRedemptionQueue.sol";
 /// @title Bulla Factoring Pool Interface (for verification)
 interface IBullaFactoringPool {
     function bullaDao() external view returns (address);
     function protocolFeeBps() external view returns (uint16);
     function invoiceProviderAdapter() external view returns (IInvoiceProviderAdapterV2);
     function assetAddress() external view returns (IERC20);
+    function getRedemptionQueue() external view returns (IRedemptionQueue);
 }
 
 /// @title Bulla Factoring Factory V2.1
@@ -207,6 +209,7 @@ contract BullaFactoringFactoryV2_1 is Ownable {
 
         // Transfer ownership to caller
         Ownable(pool).transferOwnership(msg.sender);
+        Ownable(address(deployedPool.getRedemptionQueue())).transferOwnership(msg.sender);
 
         emit PoolCreated(
             pool,
