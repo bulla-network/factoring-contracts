@@ -34,6 +34,8 @@ contract BaseFactoringFundManagerSpecTestSetup is CommonSetup, IBullaFactoringFu
     function _allowlistInvestor(address investor) internal {
         vm.startPrank(owner);
         fundManager.allowlistInvestor(investor);
+        // Mint recipients must satisfy the pool's depositPermissions
+        depositPermissions.allow(investor);
         vm.stopPrank();
     }
 
@@ -42,6 +44,8 @@ contract BaseFactoringFundManagerSpecTestSetup is CommonSetup, IBullaFactoringFu
         vm.startPrank(owner);
         for (uint256 i = 0; i < investorsToAllow.length; i++) {
             fundManager.allowlistInvestor(investorsToAllow[i]);
+            // Mint recipients must satisfy the pool's depositPermissions
+            depositPermissions.allow(investorsToAllow[i]);
         }
         vm.stopPrank();
     }

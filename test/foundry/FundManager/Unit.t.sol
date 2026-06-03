@@ -32,6 +32,8 @@ contract FactoringFundManagerUnitTest is CommonSetup {
     function _allowlistInvestor(address investor) internal {
         vm.startPrank(owner);
         fundManager.allowlistInvestor(investor);
+        // Mint recipients must satisfy the pool's depositPermissions
+        depositPermissions.allow(investor);
         vm.stopPrank();
     }
 
@@ -40,6 +42,8 @@ contract FactoringFundManagerUnitTest is CommonSetup {
         vm.startPrank(owner);
         for (uint256 i = 0; i < investorsToAllow.length; i++) {
             fundManager.allowlistInvestor(investorsToAllow[i]);
+            // Mint recipients must satisfy the pool's depositPermissions
+            depositPermissions.allow(investorsToAllow[i]);
         }
         vm.stopPrank();
     }

@@ -59,11 +59,16 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
     function _setupInvestor(address investor, uint256 amount) internal {
         // Mint USDC to investor
         asset.mint(investor, amount);
-        
-        // Allowlist investor
+
+        // Allowlist investor in the fund manager
         vm.prank(fundOwner);
         fundManager.allowlistInvestor(investor);
-        
+
+        // Allow investor in the pool's deposit permissions so they can receive
+        // pool shares minted by the fund manager (mint recipients must satisfy
+        // depositPermissions under the strengthened compliance model).
+        depositPermissions.allow(investor);
+
         // Investor approves fund manager
         vm.prank(investor);
         asset.approve(address(fundManager), amount);

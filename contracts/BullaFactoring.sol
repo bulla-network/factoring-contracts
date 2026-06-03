@@ -204,12 +204,17 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     }
 
     /// @notice Restricts token transfers and mints to addresses approved by deposit permissions
-    /// @dev Burning (to == address(0)) is exempt as it is gated by redeem()/withdraw() permission
-    ///      checks. Mint recipients are validated here so that deposit() cannot bypass compliance
-    ///      by nominating a non-approved receiver.
+    /// @dev Burning (to == address(0)) remains exempt because it is already gated by the
+    ///      redeem()/withdraw() permission checks, and forcing a from-check on burns would
+    ///      strand shares of users who are later removed from depositPermissions.
+    /// @dev Mint recipients (from == address(0)) are validated here so that no minting path —
+    ///      including deposit() nominating an arbitrary receiver — can bypass the compliance
+    ///      invariant that every pool-token holder must satisfy depositPermissions.
     function _update(address from, address to, uint256 value) internal override(ERC20) {
-        if (from != address(0) && !depositPermissions.isAllowed(from)) revert UnauthorizedTransfer(from);
         if (to != address(0) && !depositPermissions.isAllowed(to)) revert UnauthorizedTransfer(to);
+        if (from != address(0) && to != address(0) && !depositPermissions.isAllowed(from)) {
+            revert UnauthorizedTransfer(from);
+        }
         super._update(from, to, value);
     }
 
