@@ -410,6 +410,71 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         assertTrue(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should be empty after transfer");
     }
 
+    function testQueueProcessing_SkipsOwnerWithRevokedRedeemPermissions() public {
+        uint256 depositAmount = 1000000;
+        uint256 queueAmount = 500000;
+
+        // Alice deposits while permitted
+        vm.prank(alice);
+        bullaFactoring.deposit(depositAmount, alice);
+
+        // Create liquidity constraint so the redemption must be queued.
+        // Use david as the debtor so paying the invoice does not change alice's USDC balance.
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, david, 800000, dueBy);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceId, 1000, 100, 9000, 0);
+        vm.prank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        vm.prank(bob);
+        _fundInvoice(invoiceId, 9000, address(0));
+
+        // Alice queues a redemption while still permitted
+        vm.prank(alice);
+        bullaFactoring.redeem(queueAmount, alice, alice);
+        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should hold Alice's redemption");
+
+        uint256 aliceSharesBeforeRevoke = bullaFactoring.balanceOf(alice);
+        uint256 aliceAssetsBeforeRevoke = asset.balanceOf(alice);
+
+        // Admin revokes Alice's redeem permissions after the redemption is queued
+        redeemPermissions.disallow(alice);
+
+        // Restore liquidity so the queue would otherwise drain — invoice repayment
+        // automatically triggers processRedemptionQueue inside reconcileActivePaidInvoices.
+        vm.prank(david);
+        bullaClaim.payClaim(invoiceId, 800000);
+
+        // And an explicit call to be sure
+        bullaFactoring.processRedemptionQueue();
+
+        assertEq(
+            asset.balanceOf(alice),
+            aliceAssetsBeforeRevoke,
+            "Revoked owner should not receive queued payout"
+        );
+        assertEq(
+            bullaFactoring.balanceOf(alice),
+            aliceSharesBeforeRevoke,
+            "Revoked owner should retain their shares (no burn)"
+        );
+        assertTrue(
+            bullaFactoring.getRedemptionQueue().isQueueEmpty(),
+            "Queue entry for revoked owner should be dropped"
+        );
+
+        // Gate is on current state, not grandfathered.
+        redeemPermissions.allow(alice);
+        vm.prank(alice);
+        bullaFactoring.redeem(queueAmount, alice, alice);
+        bullaFactoring.processRedemptionQueue();
+        assertGt(
+            asset.balanceOf(alice),
+            aliceAssetsBeforeRevoke,
+            "Re-permitted owner should be able to redeem"
+        );
+    }
+
     // ============================================
     // 6. Queue State Management Tests
     // ============================================
