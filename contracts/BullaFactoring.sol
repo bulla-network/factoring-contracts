@@ -1124,8 +1124,14 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         
         while (redemption.owner != address(0) && _totalAssets > 0) {
             uint256 amountProcessed = 0; // this is shares or assets depending on the investor
-            
-            if (redemption.shares > 0) {
+
+            // Re-validate redeem permissions on every payout so that queued exits cannot
+            // bypass a later revocation of either the owner or the receiver.
+            if (!redeemPermissions.isAllowed(redemption.owner) || !redeemPermissions.isAllowed(redemption.receiver)) {
+                // Permission revoked - drop this redemption without paying out.
+                // Removal from the queue is handled by the shared block below.
+                amountProcessed = redemption.shares > 0 ? redemption.shares : redemption.assets;
+            } else if (redemption.shares > 0) {
                 // This is a share-based redemption
                 uint256 sharesToRedeem = Math.min(redemption.shares, maxRedeemableShares);
                 
