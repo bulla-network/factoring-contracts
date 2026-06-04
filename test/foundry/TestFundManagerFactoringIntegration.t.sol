@@ -64,9 +64,8 @@ contract TestFundManagerFactoringIntegration is CommonSetup {
         vm.prank(fundOwner);
         fundManager.allowlistInvestor(investor);
 
-        // Allow investor in the pool's deposit permissions so they can receive
-        // pool shares minted by the fund manager (mint recipients must satisfy
-        // depositPermissions under the strengthened compliance model).
+        // Allow investor in the pool's deposit permissions so that deposit()
+        // accepts them as a receiver when the fund manager calls deposit on their behalf.
         depositPermissions.allow(investor);
 
         // Investor approves fund manager

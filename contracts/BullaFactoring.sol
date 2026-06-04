@@ -203,17 +203,13 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         return ERC20(address(assetAddress)).decimals();
     }
 
-    /// @notice Restricts token transfers and mints to addresses approved by deposit permissions
-    /// @dev Burning (to == address(0)) remains exempt because it is already gated by the
-    ///      redeem()/withdraw() permission checks, and forcing a from-check on burns would
-    ///      strand shares of users who are later removed from depositPermissions.
-    /// @dev Mint recipients (from == address(0)) are validated here so that no minting path —
-    ///      including deposit() nominating an arbitrary receiver — can bypass the compliance
-    ///      invariant that every pool-token holder must satisfy depositPermissions.
+    /// @notice Restricts token transfers to addresses approved by deposit permissions
+    /// @dev Minting (from == address(0)) and burning (to == address(0)) are exempt as they
+    ///      are already gated by deposit() and redeem()/withdraw() permission checks respectively
     function _update(address from, address to, uint256 value) internal override(ERC20) {
-        if (to != address(0) && !depositPermissions.isAllowed(to)) revert UnauthorizedTransfer(to);
-        if (from != address(0) && to != address(0) && !depositPermissions.isAllowed(from)) {
-            revert UnauthorizedTransfer(from);
+        if (from != address(0) && to != address(0)) {
+            if (!depositPermissions.isAllowed(from)) revert UnauthorizedTransfer(from);
+            if (!depositPermissions.isAllowed(to)) revert UnauthorizedTransfer(to);
         }
         super._update(from, to, value);
     }
@@ -389,7 +385,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function deposit(uint256 assets,address receiver) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        
+        if (!depositPermissions.isAllowed(receiver)) revert UnauthorizedDeposit(receiver);
+
         uint256 shares = super.deposit(assets, receiver);
         totalDeposits += assets;
 
