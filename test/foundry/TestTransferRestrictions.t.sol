@@ -109,7 +109,15 @@ contract TestTransferRestrictions is CommonSetup {
         assertEq(bullaFactoring.balanceOf(charlie), shares);
     }
 
-    function testRemovedUserCannotTransfer() public {
+    function testDepositToUnapprovedReceiverReverts() public {
+        // alice is approved, charlie is not — alice cannot mint shares to charlie
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSignature("UnauthorizedDeposit(address)", charlie));
+        bullaFactoring.deposit(DEPOSIT_AMOUNT, charlie);
+        vm.stopPrank();
+    }
+
+function testRemovedUserCannotTransfer() public {
         uint256 shares = _depositAs(bob, DEPOSIT_AMOUNT);
 
         // Remove bob from deposit permissions after deposit

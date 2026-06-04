@@ -161,6 +161,8 @@ contract FactoringFundManagerAccessControlTest is CommonSetup {
         // Arrange
         vm.prank(owner);
         fundManager.allowlistInvestor(nonOwner);
+        // Mint recipients must satisfy the pool's depositPermissions
+        depositPermissions.allow(nonOwner);
 
         asset.mint(nonOwner, 1 ether);
         _commitInvestments(nonOwner, 1 ether);
@@ -210,6 +212,8 @@ contract FactoringFundManagerAccessControlTest is CommonSetup {
         vm.startPrank(owner);
         fundManager.setCapitalCaller(newCapitalCaller);
         fundManager.allowlistInvestor(nonOwner);
+        // Mint recipients must satisfy the pool's depositPermissions
+        depositPermissions.allow(nonOwner);
         asset.mint(nonOwner, 1 ether);
         _commitInvestments(nonOwner, 1 ether);
         vm.stopPrank();

@@ -385,7 +385,8 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     /// @return The number of shares issued for the deposit
     function deposit(uint256 assets,address receiver) public override returns (uint256) {
         if (!depositPermissions.isAllowed(_msgSender())) revert UnauthorizedDeposit(_msgSender());
-        
+        if (!depositPermissions.isAllowed(receiver)) revert UnauthorizedDeposit(receiver);
+
         uint256 shares = super.deposit(assets, receiver);
         totalDeposits += assets;
 
