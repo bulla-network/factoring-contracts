@@ -475,6 +475,75 @@ contract TestRedemptionQueueIntegration is CommonSetup {
         );
     }
 
+    function testQueueProcessing_SkipsReceiverWithRevokedRedeemPermissions() public {
+        uint256 depositAmount = 1000000;
+        uint256 queueAmount = 500000;
+
+        // Charlie is the payout receiver and plays no role in the invoice, so his
+        // balance only ever moves from a queued payout. Permit him to redeem.
+        redeemPermissions.allow(charlie);
+
+        // Alice deposits while permitted
+        vm.prank(alice);
+        bullaFactoring.deposit(depositAmount, alice);
+
+        // Create liquidity constraint so the redemption must be queued.
+        // Use david as the debtor so paying the invoice does not change charlie's USDC balance.
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, david, 800000, dueBy);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceId, 1000, 100, 9000, 0);
+        vm.prank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        vm.prank(bob);
+        _fundInvoice(invoiceId, 9000, address(0));
+
+        // Alice queues a redemption paying out to Charlie (receiver != owner) while both permitted
+        vm.prank(alice);
+        bullaFactoring.redeem(queueAmount, charlie, alice);
+        assertFalse(bullaFactoring.getRedemptionQueue().isQueueEmpty(), "Queue should hold Alice's redemption");
+
+        uint256 aliceSharesBeforeRevoke = bullaFactoring.balanceOf(alice);
+        uint256 charlieAssetsBeforeRevoke = asset.balanceOf(charlie);
+
+        // Admin revokes the receiver's (Charlie's) redeem permissions, leaving the owner (Alice) allowed
+        redeemPermissions.disallow(charlie);
+
+        // Restore liquidity so the queue would otherwise drain — invoice repayment
+        // automatically triggers processRedemptionQueue inside reconcileActivePaidInvoices.
+        vm.prank(david);
+        bullaClaim.payClaim(invoiceId, 800000);
+
+        // And an explicit call to be sure
+        bullaFactoring.processRedemptionQueue();
+
+        assertEq(
+            asset.balanceOf(charlie),
+            charlieAssetsBeforeRevoke,
+            "Revoked receiver should not receive queued payout"
+        );
+        assertEq(
+            bullaFactoring.balanceOf(alice),
+            aliceSharesBeforeRevoke,
+            "Owner should retain their shares when receiver is revoked (no burn)"
+        );
+        assertTrue(
+            bullaFactoring.getRedemptionQueue().isQueueEmpty(),
+            "Queue entry for revoked receiver should be dropped"
+        );
+
+        // Gate is on current state, not grandfathered.
+        redeemPermissions.allow(charlie);
+        vm.prank(alice);
+        bullaFactoring.redeem(queueAmount, charlie, alice);
+        bullaFactoring.processRedemptionQueue();
+        assertGt(
+            asset.balanceOf(charlie),
+            charlieAssetsBeforeRevoke,
+            "Re-permitted receiver should be able to receive the payout"
+        );
+    }
+
     // ============================================
     // 6. Queue State Management Tests
     // ============================================
