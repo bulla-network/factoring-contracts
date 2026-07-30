@@ -629,8 +629,11 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
             // investorShare is realised profit (interest) above insurance purchase price
             paidInvoicesGain += investorShare;
 
-            // Reverse the net principal loss now that the invoice has been recovered.
-            impairmentLosses -= _impairment.principalLoss;
+            // NOTE: impairmentLosses is intentionally NOT reversed here.
+            // The principal loss recorded at impairment was already offset by the insurance
+            // payout (lpCredit). Reversing it would double-count: LPs would get credit for
+            // the recovered principal AND the insurance payout that already reduced their loss.
+            // The LP's only benefit from recovery is investorShare (above).
 
             delete impairmentInfo[invoiceId];
 
