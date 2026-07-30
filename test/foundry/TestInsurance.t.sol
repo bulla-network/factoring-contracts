@@ -1311,8 +1311,9 @@ contract TestInsurance is CommonSetup {
         // repaid in principal. There is no principal loss.
         assertEq(impairmentLosses, 0, "principalLoss should be 0 when payments exceed funded amount");
 
-        // paidInvoicesGain should still be 0 (interest only)
-        assertEq(bullaFactoring.paidInvoicesGain(), 0, "paidInvoicesGain unchanged - interest only");
+        // Payments exceed fundedAmountGross, so the surplus is recognised as LP gain
+        // rather than being silently dropped (stranded).
+        assertTrue(bullaFactoring.paidInvoicesGain() > 0, "surplus credited to paidInvoicesGain");
 
         // Capital account should not decrease — pool is fully repaid
         assertTrue(
