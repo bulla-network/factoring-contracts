@@ -1684,5 +1684,5 @@ contract TestFeesExceedFundedAmount is CommonSetup {
         vm.stopPrank();
 
         assertTrue(funded > 0, "fundedAmountNet should be positive");
-   }
+    }
 }
