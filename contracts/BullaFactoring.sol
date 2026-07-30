@@ -1170,7 +1170,10 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
                         totalWithdrawals += assetsToWithdraw;
                         amountProcessed = assetsToWithdraw;
                         _totalAssets -= assetsToWithdraw;
-                        maxRedeemableShares -= sharesToBurn;
+                        // sharesToBurn (ceil) can exceed maxRedeemableShares (floor) by 1
+                        // on a full-drain (assetsToWithdraw == _totalAssets) when price != 1:1.
+                        // Cap at 0 to avoid arithmetic underflow.
+                        maxRedeemableShares = sharesToBurn >= maxRedeemableShares ? 0 : maxRedeemableShares - sharesToBurn;
                     } else {
                         // Owner doesn't have sufficient funds - remove from queue
                         amountProcessed = redemption.assets;
