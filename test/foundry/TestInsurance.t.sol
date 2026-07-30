@@ -1311,8 +1311,9 @@ contract TestInsurance is CommonSetup {
         // repaid in principal. There is no principal loss.
         assertEq(impairmentLosses, 0, "principalLoss should be 0 when payments exceed funded amount");
 
-        // paidInvoicesGain should still be 0 (interest only)
-        assertEq(bullaFactoring.paidInvoicesGain(), 0, "paidInvoicesGain unchanged - interest only");
+        // Payments exceed fundedAmountGross, so the surplus is recognised as LP gain
+        // rather than being silently dropped (stranded).
+        assertTrue(bullaFactoring.paidInvoicesGain() > 0, "surplus credited to paidInvoicesGain");
 
         // Capital account should not decrease — pool is fully repaid
         assertTrue(
@@ -1575,7 +1576,62 @@ contract TestInsurance is CommonSetup {
     }
 }
 
-contract TestFeesExceedFundedAmount is CommonSetup {
+contract TestImpairmentSurplusRegression is CommonSetup {
+    address insurerAddr = address(0x1999);
+
+    function _windDownAndAssertEmpty(string memory tag) internal {
+        if (bullaFactoring.insuranceBalance() > 0) { vm.prank(insurerAddr); bullaFactoring.withdrawInsuranceBalance(); }
+        uint256 shares = bullaFactoring.maxRedeem(alice);
+        if (shares > 0) { vm.prank(alice); bullaFactoring.redeem(shares, alice, alice); }
+        if (bullaFactoring.protocolFeeBalance() > 0) bullaFactoring.withdrawProtocolFees();
+        if (bullaFactoring.adminFeeBalance() > 0) { vm.prank(bullaFactoring.owner()); bullaFactoring.withdrawAdminFeesAndSpreadGains(); }
+        assertEq(bullaFactoring.balanceOf(alice), 0, string.concat(tag, ": alice fully redeemed"));
+        assertEq(bullaFactoring.calculateCapitalAccount(), 0, string.concat(tag, ": capital account zero"));
+        assertEq(asset.balanceOf(address(bullaFactoring)), 0, string.concat(tag, ": no stranded cash"));
+    }
+
+    // Default insurance params. Invoice paid 90k (> ~80k gross) then impaired -> surplus.
+    function testMostlyPaidThenImpairedCreditsSurplus() public {
+        asset.mint(insurerAddr, 1_000_000); vm.prank(insurerAddr); asset.approve(address(bullaFactoring), type(uint256).max);
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob); bullaClaim.approve(address(bullaFactoring), id); _fundInvoice(id, upfrontBps, address(0)); vm.stopPrank();
+        vm.startPrank(charlie); asset.approve(address(bullaClaim), 90_000); bullaClaim.payClaim(id, 90_000); vm.stopPrank();
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
+        _windDownAndAssertEmpty("mostly-paid");
+    }
+
+    // High impairmentGrossGainBps (100%), impaired unpaid then fully recovered.
+    function testHighGrossGainImpairThenRecoverStaysClean() public {
+        asset.mint(insurerAddr, 10_000_000); vm.prank(insurerAddr); asset.approve(address(bullaFactoring), type(uint256).max);
+        bullaFactoring.setInsuranceParams(uint16(100), uint16(10000), uint16(5000));
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob); bullaClaim.approve(address(bullaFactoring), id); _fundInvoice(id, upfrontBps, address(0)); vm.stopPrank();
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
+        // full recovery
+        vm.startPrank(charlie); asset.approve(address(bullaClaim), 100_000); bullaClaim.payClaim(id, 100_000); vm.stopPrank();
+        _windDownAndAssertEmpty("high-grossgain-recover");
+    }
+
+    // High impairmentGrossGainBps (100%), impaired unpaid, never recovers.
+    function testHighGrossGainImpairNoRecoveryStaysClean() public {
+        asset.mint(insurerAddr, 10_000_000); vm.prank(insurerAddr); asset.approve(address(bullaFactoring), type(uint256).max);
+        bullaFactoring.setInsuranceParams(uint16(100), uint16(10000), uint16(5000));
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob); bullaClaim.approve(address(bullaFactoring), id); _fundInvoice(id, upfrontBps, address(0)); vm.stopPrank();
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
+        _windDownAndAssertEmpty("high-grossgain-norecover");
+    }
+    
+    contract TestFeesExceedFundedAmount is CommonSetup {
 
     // upfrontBps (300) < protocolFeeBps (200) + insuranceFeeBps (200) = 400 → revert
     function testRevertWhenUpfrontBpsLessThanProtocolPlusInsurance() public {
@@ -1627,5 +1683,5 @@ contract TestFeesExceedFundedAmount is CommonSetup {
         vm.stopPrank();
 
         assertTrue(funded > 0, "fundedAmountNet should be positive");
-    }
+   }
 }

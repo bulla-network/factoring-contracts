@@ -1006,10 +1006,15 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         // paidInvoicesGain is not touched — it tracks only realised interest.
         uint256 paymentsSinceFunding = currentPaidAmount - _approval.initialPaidAmount;
         uint256 credited = lpCredit + paymentsSinceFunding;
-        uint256 _principalLoss = _approval.fundedAmountGross > credited
-            ? _approval.fundedAmountGross - credited
-            : 0;
-        impairmentLosses += _principalLoss;
+        uint256 _principalLoss;
+        if (_approval.fundedAmountGross > credited) {
+            _principalLoss = _approval.fundedAmountGross - credited;
+            impairmentLosses += _principalLoss;
+        } else {
+            // credited exceeds the gross funded exposure: the invoice was net-profitable at
+            // impairment. Recognise the surplus as an LP gain instead of stranding it.
+            paidInvoicesGain += credited - _approval.fundedAmountGross;
+        }
         impairmentInfo[invoiceId] = ImpairmentInfo({
             isImpaired: true,
             purchasePrice: _impairmentGrossGain,
