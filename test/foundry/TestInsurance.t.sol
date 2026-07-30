@@ -1575,3 +1575,59 @@ contract TestInsurance is CommonSetup {
         assertEq(asset.balanceOf(address(bullaFactoring)), 0, "pool token balance should be zero after full wind-down");
     }
 }
+
+contract TestImpairmentSurplusRegression is CommonSetup {
+    address insurerAddr = address(0x1999);
+
+    function _windDownAndAssertEmpty(string memory tag) internal {
+        if (bullaFactoring.insuranceBalance() > 0) { vm.prank(insurerAddr); bullaFactoring.withdrawInsuranceBalance(); }
+        uint256 shares = bullaFactoring.maxRedeem(alice);
+        if (shares > 0) { vm.prank(alice); bullaFactoring.redeem(shares, alice, alice); }
+        if (bullaFactoring.protocolFeeBalance() > 0) bullaFactoring.withdrawProtocolFees();
+        if (bullaFactoring.adminFeeBalance() > 0) { vm.prank(bullaFactoring.owner()); bullaFactoring.withdrawAdminFeesAndSpreadGains(); }
+        assertEq(bullaFactoring.balanceOf(alice), 0, string.concat(tag, ": alice fully redeemed"));
+        assertEq(bullaFactoring.calculateCapitalAccount(), 0, string.concat(tag, ": capital account zero"));
+        assertEq(asset.balanceOf(address(bullaFactoring)), 0, string.concat(tag, ": no stranded cash"));
+    }
+
+    // Default insurance params. Invoice paid 90k (> ~80k gross) then impaired -> surplus.
+    function testMostlyPaidThenImpairedCreditsSurplus() public {
+        asset.mint(insurerAddr, 1_000_000); vm.prank(insurerAddr); asset.approve(address(bullaFactoring), type(uint256).max);
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob); bullaClaim.approve(address(bullaFactoring), id); _fundInvoice(id, upfrontBps, address(0)); vm.stopPrank();
+        vm.startPrank(charlie); asset.approve(address(bullaClaim), 90_000); bullaClaim.payClaim(id, 90_000); vm.stopPrank();
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
+        _windDownAndAssertEmpty("mostly-paid");
+    }
+
+    // High impairmentGrossGainBps (100%), impaired unpaid then fully recovered.
+    function testHighGrossGainImpairThenRecoverStaysClean() public {
+        asset.mint(insurerAddr, 10_000_000); vm.prank(insurerAddr); asset.approve(address(bullaFactoring), type(uint256).max);
+        bullaFactoring.setInsuranceParams(uint16(100), uint16(10000), uint16(5000));
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob); bullaClaim.approve(address(bullaFactoring), id); _fundInvoice(id, upfrontBps, address(0)); vm.stopPrank();
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
+        // full recovery
+        vm.startPrank(charlie); asset.approve(address(bullaClaim), 100_000); bullaClaim.payClaim(id, 100_000); vm.stopPrank();
+        _windDownAndAssertEmpty("high-grossgain-recover");
+    }
+
+    // High impairmentGrossGainBps (100%), impaired unpaid, never recovers.
+    function testHighGrossGainImpairNoRecoveryStaysClean() public {
+        asset.mint(insurerAddr, 10_000_000); vm.prank(insurerAddr); asset.approve(address(bullaFactoring), type(uint256).max);
+        bullaFactoring.setInsuranceParams(uint16(100), uint16(10000), uint16(5000));
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob); bullaClaim.approve(address(bullaFactoring), id); _fundInvoice(id, upfrontBps, address(0)); vm.stopPrank();
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
+        _windDownAndAssertEmpty("high-grossgain-norecover");
+    }
+}
