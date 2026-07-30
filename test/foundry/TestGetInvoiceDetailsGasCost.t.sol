@@ -858,7 +858,7 @@ contract TestGetInvoiceDetailsGasCost is CommonSetup {
     function _setupAndPayCachedInvoices(uint256 numInvoices, uint256 numToPay) internal returns (uint256[] memory invoiceIds) {
         uint16 interestApr = 1000;
         uint16 spreadBps = 100;
-        uint16 upfrontBps = 500;
+        uint16 upfrontBps = 2500;
         uint256 dueBy = block.timestamp + 365 days;
 
         // Setup liquidity

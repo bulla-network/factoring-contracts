@@ -236,30 +236,27 @@ contract TestProtocolFeeMissingCases is CommonSetup {
 
     function testProtocolFeeCalculationWithDustAmounts() public {
         uint256 dustInvoiceAmount = 1; // 1 wei invoice
-        
+
         vm.startPrank(bob);
         uint256 invoiceId = createClaim(bob, alice, dustInvoiceAmount, dueBy);
         vm.stopPrank();
-        
+
         vm.startPrank(underwriter);
         _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
         vm.stopPrank();
-        
+
         (, , , , uint256 protocolFee, , ) = bullaFactoring.calculateTargetFees(invoiceId, upfrontBps);
-        
+
         // Protocol fee on 1 wei should be 0 due to rounding down
         assertEq(protocolFee, 0, "Protocol fee on dust amount should be 0");
-        
+
+        // Dust amounts round fundedAmountGross to 0, so funding correctly reverts
+        // to prevent insolvent fee accounting.
         vm.startPrank(bob);
         bullaClaim.approve(address(bullaFactoring), invoiceId);
-        
-        uint256 protocolFeeBalanceBefore = bullaFactoring.protocolFeeBalance();
-        _fundInvoice(invoiceId, upfrontBps, address(0));
-        uint256 protocolFeeBalanceAfter = bullaFactoring.protocolFeeBalance();
+        vm.expectRevert(abi.encodeWithSignature("FeesExceedFundedAmount()"));
+        _fundInvoiceExpectRevert(invoiceId, upfrontBps, address(0));
         vm.stopPrank();
-        
-        assertEq(protocolFeeBalanceAfter, protocolFeeBalanceBefore, "No protocol fee should be collected on dust amounts");
-        assertEq(protocolFeeBalanceAfter, 0, "Protocol fee should be 0 on dust amounts");
     }
 
     function testProtocolFeeRoundingBehavior() public {

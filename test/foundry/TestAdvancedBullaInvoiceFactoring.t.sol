@@ -226,8 +226,8 @@ contract TestAdvancedBullaInvoiceFactoring is CommonSetup {
 
     /// @notice Test RAY precision by checking interest accrual over 10,000 seconds (~2.8 hours)
     function testPerSecondInterestPrecision() public {
-        uint256 invoiceAmount = 10000; // 0.01 USDC
-        uint256 initialDeposit = 100000; // 0.1 USDC
+        uint256 invoiceAmount = 10_000_000; // 10 USDC
+        uint256 initialDeposit = 100_000_000; // 100 USDC
         
         vm.startPrank(alice);
         bullaFactoring.deposit(initialDeposit, alice);
