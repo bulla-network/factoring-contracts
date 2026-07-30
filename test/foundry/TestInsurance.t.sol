@@ -1113,7 +1113,7 @@ contract TestInsurance is CommonSetup {
         // reduces impairmentLosses instead.
         uint256 grossLPCredit = impairmentGrossGain + poolOwnedWithheld;
         uint256 expectedLPCredit = grossLPCredit > totalFeesOwed ? grossLPCredit - totalFeesOwed : 0;
-        uint256 expectedPrincipalLoss = fundedAmountNet - expectedLPCredit;
+        uint256 expectedPrincipalLoss = fundedAmountGross - expectedLPCredit;
 
         emit log_named_uint("expected LP credit (reduces impairmentLosses)", expectedLPCredit);
         emit log_named_uint("expected principalLoss", expectedPrincipalLoss);
@@ -1128,7 +1128,7 @@ contract TestInsurance is CommonSetup {
         assertEq(
             bullaFactoring.impairmentLosses(),
             expectedPrincipalLoss,
-            "impairmentLosses = fundedAmountNet - LP credit (net principal loss)"
+            "impairmentLosses = fundedAmountGross - LP credit (gross principal loss)"
         );
 
         // Capital account should still decrease after impairment
@@ -1160,10 +1160,12 @@ contract TestInsurance is CommonSetup {
         uint256 invoiceId = _fundAndBuildInsurance(invoiceAmount);
 
         // Get funded amounts
+        uint256 fundedAmountGross;
         uint256 fundedAmountNet;
         uint256 poolOwnedWithheld;
         {
             (, , , , , , uint256 fag, uint256 fan, , , uint256 pAndI, , , ) = bullaFactoring.approvedInvoices(invoiceId);
+            fundedAmountGross = fag;
             fundedAmountNet = fan;
             poolOwnedWithheld = fag - fan - (pAndI & type(uint128).max) - (pAndI >> 128);
         }
@@ -1212,8 +1214,9 @@ contract TestInsurance is CommonSetup {
         emit log_named_uint("capitalAccountAfter", capitalAccountAfter);
         emit log_named_uint("impairmentLosses", impairmentLosses);
 
-        // The pool already recovered 40,000 of the 77,309 funded. Only the remaining
-        // principal is at risk. principalLoss = fundedAmountNet - lpCredit - paymentsSinceFunding.
+        // The pool already recovered 40,000 in cash. Only the remaining principal is
+        // at risk. principalLoss = fundedAmountGross - lpCredit - paymentsSinceFunding
+        // (gross, so the LP absorbs the withheld-fee carve-outs on default).
         // initialPaidAmount = 0 in this test, so paymentsSinceFunding = currentPaidAmount.
         uint256 totalFeesOwed = adminFeeOwed + spreadOwed;
         uint256 grossLPCredit = impairmentGrossGain + poolOwnedWithheld;
@@ -1221,13 +1224,13 @@ contract TestInsurance is CommonSetup {
 
         uint256 paymentsSinceFunding = currentPaidAmount; // initialPaidAmount = 0
         uint256 credited = lpCredit + paymentsSinceFunding;
-        uint256 expectedPrincipalLoss = fundedAmountNet > credited
-            ? fundedAmountNet - credited
+        uint256 expectedPrincipalLoss = fundedAmountGross > credited
+            ? fundedAmountGross - credited
             : 0;
 
         emit log_named_uint("paymentsSinceFunding", paymentsSinceFunding);
         emit log_named_uint("lpCredit", lpCredit);
-        emit log_named_uint("expectedPrincipalLoss (FAN - lpCredit - payments)", expectedPrincipalLoss);
+        emit log_named_uint("expectedPrincipalLoss (FAG - lpCredit - payments)", expectedPrincipalLoss);
 
         assertEq(
             impairmentLosses,
@@ -1423,5 +1426,151 @@ contract TestInsurance is CommonSetup {
             firstInvestorCredit,
             "replay must not duplicate LP gains"
         );
+    }
+
+    /// @dev Every asset the pool owes: LP capital account + the fee/insurance buckets.
+    function _totalClaims() internal view returns (uint256) {
+        return bullaFactoring.calculateCapitalAccount()
+            + bullaFactoring.protocolFeeBalance()
+            + bullaFactoring.adminFeeBalance()
+            + bullaFactoring.insuranceBalance();
+    }
+
+    function testImpairThenRecoveryKeepsPoolSolvent() public {
+        // Fund the insurer so it can cover the out-of-pocket impairment cost.
+        asset.mint(insurerAddr, 1_000_000);
+        vm.prank(insurerAddr);
+        asset.approve(address(bullaFactoring), type(uint256).max);
+
+        // 1. Alice (LP) deposits.
+        vm.prank(alice);
+        bullaFactoring.deposit(1_000_000, alice);
+
+        // 2. Fund a single invoice (creditor=bob, debtor=charlie).
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        _fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // 3. Warp past the impairment grace period and impair.
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        // 4. Debtor later pays in full -> reconcileSingleInvoice recovery branch
+        //    runs automatically via the paid callback.
+        vm.startPrank(charlie);
+        asset.approve(address(bullaClaim), 100_000);
+        bullaClaim.payClaim(invoiceId, 100_000);
+        vm.stopPrank();
+
+        // The invoice is fully resolved, so no capital is deployed:
+        assertEq(
+            bullaFactoring.calculateCapitalAccount() - bullaFactoring.totalAssets(),
+            0,
+            "no capital should be deployed after full resolution"
+        );
+
+        // 5. SOLVENCY: outstanding claims are fully backed by the pool's token balance.
+        //    (Before the gross-based impairment loss fix, claims exceeded cash by
+        //    exactly fundedAmountGross - fundedAmountNet: the withheld fees were
+        //    credited to LPs at impairment while the protocol/admin fee claims they
+        //    back were left outstanding.)
+        uint256 poolCash = asset.balanceOf(address(bullaFactoring));
+        uint256 claims = _totalClaims();
+        emit log_named_uint("pool token balance", poolCash);
+        emit log_named_uint("sum of outstanding claims", claims);
+        assertEq(claims, poolCash, "claims should be exactly backed by pool cash");
+
+        // 6. Concrete impact: the insurer exits first, the LP redeems in full, and the
+        //    remaining fee claims are still fully backed by cash.
+        vm.prank(insurerAddr);
+        bullaFactoring.withdrawInsuranceBalance();
+
+        uint256 shares = bullaFactoring.maxRedeem(alice);
+        vm.prank(alice);
+        bullaFactoring.redeem(shares, alice, alice);
+
+        // Diagnostics: after the LP exits, every remaining claim must be payable.
+        emit log_named_uint("alice shares redeemed", shares);
+        emit log_named_uint("pool token balance after redeem", asset.balanceOf(address(bullaFactoring)));
+        emit log_named_uint("capitalAccount after redeem", bullaFactoring.calculateCapitalAccount());
+        emit log_named_uint("protocolFeeBalance after redeem", bullaFactoring.protocolFeeBalance());
+        emit log_named_uint("adminFeeBalance after redeem", bullaFactoring.adminFeeBalance());
+        emit log_named_uint("insuranceBalance after redeem", bullaFactoring.insuranceBalance());
+        uint256 remainingClaims = _totalClaims();
+        uint256 remainingCash = asset.balanceOf(address(bullaFactoring));
+        emit log_named_uint("remaining claims after redeem", remainingClaims);
+        assertGe(remainingCash, remainingClaims, "fee claims must remain fully backed after LP exit");
+
+        // 7. Full wind-down: the DAO and pool owner (both this test contract) collect
+        //    their fee balances. Every claimant has now exited, so the pool must be
+        //    completely empty — any residual balance would mean someone was shorted
+        //    or value was stranded.
+        bullaFactoring.withdrawProtocolFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
+
+        assertEq(bullaFactoring.calculateCapitalAccount(), 0, "capital account should be zero after full wind-down");
+        assertEq(asset.balanceOf(address(bullaFactoring)), 0, "pool token balance should be zero after full wind-down");
+    }
+
+    function testFullRedemptionAfterImpairmentBeforeRecoveryIsSolvent() public {
+        // Fund the insurer so it can cover the out-of-pocket impairment cost.
+        asset.mint(insurerAddr, 1_000_000);
+        vm.prank(insurerAddr);
+        asset.approve(address(bullaFactoring), type(uint256).max);
+
+        // 1. Alice (LP) deposits.
+        vm.prank(alice);
+        bullaFactoring.deposit(1_000_000, alice);
+
+        // 2. Fund a single invoice (creditor=bob, debtor=charlie).
+        vm.prank(bob);
+        uint256 invoiceId = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter);
+        _approveInvoice(invoiceId, interestApr, spreadBps, upfrontBps, 0);
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), invoiceId);
+        _fundInvoice(invoiceId, upfrontBps, address(0));
+        vm.stopPrank();
+
+        // 3. Warp past the impairment grace period and impair. The debtor never pays.
+        vm.warp(block.timestamp + 91 days);
+        vm.prank(insurerAddr);
+        bullaFactoring.impairInvoice(invoiceId);
+
+        // 4. SOLVENCY: the loss is recognised at impairment time, so claims must be
+        //    exactly backed by cash immediately — no recovery required.
+        uint256 poolCash = asset.balanceOf(address(bullaFactoring));
+        uint256 claims = _totalClaims();
+        emit log_named_uint("pool token balance after impair", poolCash);
+        emit log_named_uint("sum of outstanding claims after impair", claims);
+        assertEq(claims, poolCash, "claims should be exactly backed by pool cash right after impairment");
+
+        // insuranceBalance was fully consumed by the impairment payout.
+        assertEq(bullaFactoring.insuranceBalance(), 0, "insurance balance consumed by impairment payout");
+
+        // 5. Full wind-down between impairment and (never-happening) recovery:
+        //    the LP redeems everything, then the DAO and pool owner (both this test
+        //    contract) collect their fee balances.
+        uint256 shares = bullaFactoring.maxRedeem(alice);
+        vm.prank(alice);
+        bullaFactoring.redeem(shares, alice, alice);
+
+        emit log_named_uint("alice shares redeemed", shares);
+        emit log_named_uint("pool token balance after redeem", asset.balanceOf(address(bullaFactoring)));
+        emit log_named_uint("capitalAccount after redeem", bullaFactoring.calculateCapitalAccount());
+        emit log_named_uint("protocolFeeBalance after redeem", bullaFactoring.protocolFeeBalance());
+        emit log_named_uint("adminFeeBalance after redeem", bullaFactoring.adminFeeBalance());
+
+        bullaFactoring.withdrawProtocolFees();
+        bullaFactoring.withdrawAdminFeesAndSpreadGains();
+
+        assertEq(bullaFactoring.calculateCapitalAccount(), 0, "capital account should be zero after full wind-down");
+        assertEq(asset.balanceOf(address(bullaFactoring)), 0, "pool token balance should be zero after full wind-down");
     }
 }
