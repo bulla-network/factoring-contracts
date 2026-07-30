@@ -1630,8 +1630,9 @@ contract TestImpairmentSurplusRegression is CommonSetup {
         vm.prank(insurerAddr); bullaFactoring.impairInvoice(id);
         _windDownAndAssertEmpty("high-grossgain-norecover");
     }
-    
-    contract TestFeesExceedFundedAmount is CommonSetup {
+}
+
+contract TestFeesExceedFundedAmount is CommonSetup {
 
     // upfrontBps (300) < protocolFeeBps (200) + insuranceFeeBps (200) = 400 → revert
     function testRevertWhenUpfrontBpsLessThanProtocolPlusInsurance() public {
