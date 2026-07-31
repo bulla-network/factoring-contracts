@@ -1631,3 +1631,58 @@ contract TestImpairmentSurplusRegression is CommonSetup {
         _windDownAndAssertEmpty("high-grossgain-norecover");
     }
 }
+
+contract TestFeesExceedFundedAmount is CommonSetup {
+
+    // upfrontBps (300) < protocolFeeBps (200) + insuranceFeeBps (200) = 400 → revert
+    function testRevertWhenUpfrontBpsLessThanProtocolPlusInsurance() public {
+        // Raise protocol + insurance fees so they exceed a low upfrontBps
+        bullaFactoring.setProtocolFeeBps(uint16(200));
+        bullaFactoring.setInsuranceParams(uint16(200), uint16(500), uint16(5000));
+
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+
+        uint16 lowUpfront = 300; // 3% — less than protocol (2%) + insurance (2%)
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, lowUpfront, 0);
+
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), id);
+        vm.expectRevert(abi.encodeWithSignature("FeesExceedFundedAmount()"));
+        _fundInvoiceExpectRevert(id, lowUpfront, address(0));
+        vm.stopPrank();
+    }
+
+    // upfrontBps exactly equals protocolFeeBps + insuranceFeeBps → revert (boundary case)
+    function testRevertWhenUpfrontBpsEqualsProtocolPlusInsurance() public {
+        // Set protocol=200, insurance=200 so their sum (400) exactly equals upfrontBps
+        bullaFactoring.setProtocolFeeBps(uint16(200));
+        bullaFactoring.setInsuranceParams(uint16(200), uint16(500), uint16(5000));
+
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+
+        uint16 exactUpfront = 400; // 4% = protocolFeeBps (2%) + insuranceFeeBps (2%)
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, exactUpfront, 0);
+
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), id);
+        vm.expectRevert(abi.encodeWithSignature("FeesExceedFundedAmount()"));
+        _fundInvoiceExpectRevert(id, exactUpfront, address(0));
+        vm.stopPrank();
+    }
+
+    // Normal upfrontBps (8000) with default fees still works
+    function testNormalUpfrontBpsSucceeds() public {
+        vm.prank(alice); bullaFactoring.deposit(1_000_000, alice);
+        vm.prank(bob); uint256 id = createClaim(bob, charlie, 100_000, dueBy);
+        vm.prank(underwriter); _approveInvoice(id, interestApr, spreadBps, upfrontBps, 0);
+
+        vm.startPrank(bob);
+        bullaClaim.approve(address(bullaFactoring), id);
+        uint256 funded = _fundInvoice(id, upfrontBps, address(0));
+        vm.stopPrank();
+
+        assertTrue(funded > 0, "fundedAmountNet should be positive");
+    }
+}

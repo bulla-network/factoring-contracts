@@ -140,6 +140,7 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
     error ImpairmentGrossGainBpsMustBePositive();
     error UnauthorizedReceiverAddress(address receiver);
     error UnauthorizedTransfer(address account);
+    error FeesExceedFundedAmount();
 
     modifier onlyInsurer() {
         if (msg.sender != insurer) revert CallerNotInsurer();
@@ -509,6 +510,12 @@ contract BullaFactoringV2_2 is IBullaFactoringV2_2, ERC20, ERC4626, Ownable {
         if (approval.creditor != invoicesDetails.creditor) revert InvoiceCreditorChanged();
 
         (uint256 fundedAmountGross, , , , uint256 protocolFee, uint256 insurancePremium, uint256 fundedAmountNet) = FeeCalculations.calculateTargetFees(approval, invoicesDetails, params.factorerUpfrontBps, protocolFeeBps, insuranceFeeBps);
+
+        // Revert when protocol + insurance fees alone consume the entire funded amount.
+        // These fees are booked to protocolFeeBalance and insuranceBalance at funding,
+        // but can only be backed by withheldFees (= fundedAmountGross - fundedAmountNet).
+        // When they exceed fundedAmountGross the pool is instantly insolvent.
+        if (protocolFee + insurancePremium >= fundedAmountGross) revert FeesExceedFundedAmount();
 
         // Update per-invoice approval struct
         approval.fundedAmountGross = fundedAmountGross;
