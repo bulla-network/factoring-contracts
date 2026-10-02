@@ -22,7 +22,8 @@ export async function deployFactoringWorkflow(network: string, pool: PoolName, p
     console.log(`   Token Symbol: ${config.poolTokenSymbol}`);
     console.log(`   Protocol Fee: ${config.protocolFeeBps} bps`);
     console.log(`   Admin Fee: ${config.adminFeeBps} bps`);
-    console.log(`   Target Yield: ${config.targetYieldBps} bps\n`);
+    console.log(`   Target Yield: ${config.targetYieldBps} bps`);
+    console.log(`   Insurance Fee: ${config.insuranceFeeBps ?? 'script default (100)'} bps\n`);
 
     console.log(`📡 Starting deployment to ${network}...\n`);
 
@@ -53,6 +54,7 @@ export async function deployFactoringWorkflow(network: string, pool: PoolName, p
         BULLA_FREND_LEND_ADDRESS: config.bullaFrendLendAddress || '',
         BULLA_INVOICE_ADDRESS: config.bullaInvoiceAddress || '',
         BULLA_FACTORING_ADDRESS: config.bullaFactoringAddress || '',
+        ...(config.insuranceFeeBps !== undefined && { INSURANCE_FEE_BPS: config.insuranceFeeBps.toString() }),
     };
 
     // Run forge script and wait for completion
