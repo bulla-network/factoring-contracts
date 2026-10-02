@@ -11,7 +11,7 @@ export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 // Types
 // ============================================================================
 
-const allPools = ['tcs', 'taram', 'fundora'] as const;
+const allPools = ['tcs', 'taram', 'fundora', 'ola'] as const;
 export type PoolName = typeof allPools[number];
 
 /** Network-specific configuration (not tied to any pool) */
@@ -34,6 +34,7 @@ export type PoolConfig = {
     protocolFeeBps: number;
     adminFeeBps: number;
     targetYieldBps: number;
+    insuranceFeeBps?: number;
 };
 
 /** Deployed pool configuration (specific to network + pool combination) */
@@ -125,6 +126,13 @@ export const poolConfigs: Record<PoolName, PoolConfig> = {
         adminFeeBps: 50,
         targetYieldBps: 900,
     },
+    ola: {
+        protocolFeeBps: 50,
+        adminFeeBps: 0,
+        // 18% p.a. on the amount advanced, expressed on the full claim value (~80.24% advanced)
+        targetYieldBps: 1444,
+        insuranceFeeBps: 0,
+    },
 };
 
 // ============================================================================
@@ -163,6 +171,19 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
                         bullaFactoringAddress: '0x8ce8Fe0C4aDf44469f138A8389bDA91cC721A515',
+                        writeNewAddresses: true,
+                    };
+                case 'ola':
+                    return {
+                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
+                        poolDisplayName: 'Ola Truckload Test Pool',
+                        poolTokenName: 'Ola Truckload Test Token',
+                        poolTokenSymbol: 'BFT-OLA',
+                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+                        depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
+                        redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
+                        factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
+                        bullaFactoringAddress: '0x36c6cff33f726f05fa024fd3132f42998e713948',
                         writeNewAddresses: true,
                     };
                 default:
@@ -304,7 +325,9 @@ export function getNetworkConfig(network: string): FullConfig {
 export function getRpcUrl(network: string): string {
     switch (network) {
         case 'sepolia':
-            return `https://rpc.ankr.com/eth_sepolia/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc`;
+            return process.env.INFURA_API_KEY
+                ? `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`
+                : `https://rpc.ankr.com/eth_sepolia/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc`;
         case 'polygon':
             return 'https://rpc.ankr.com/polygon/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
         case 'mainnet':
