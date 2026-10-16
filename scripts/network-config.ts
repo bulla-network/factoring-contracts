@@ -11,7 +11,7 @@ export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 // Types
 // ============================================================================
 
-const allPools = ['tcs', 'taram', 'fundora', 'ola'] as const;
+const allPools = ['tcs', 'taram', 'fundora', 'ola', 'tcs-wyoming'] as const;
 export type PoolName = typeof allPools[number];
 
 /** Network-specific configuration (not tied to any pool) */
@@ -131,6 +131,13 @@ export const poolConfigs: Record<PoolName, PoolConfig> = {
         adminFeeBps: 0,
         // 18% p.a. on the amount advanced, expressed on the full claim value (~80.24% advanced)
         targetYieldBps: 1444,
+        insuranceFeeBps: 0,
+    },
+    // Mirrors the live Arbitrum PYUSD TCS pool (0x30fbdae8...): 30 bps protocol, 0 admin, 800 bps yield, no insurance
+    'tcs-wyoming': {
+        protocolFeeBps: 30,
+        adminFeeBps: 0,
+        targetYieldBps: 800,
         insuranceFeeBps: 0,
     },
 };
@@ -262,6 +269,20 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         bullaFactoringAddress: '0x30fbdae8d1a2946ca00137eaf3de9b512d1ee859',
                         writeNewAddresses: true,
                     };
+                case 'tcs-wyoming':
+                    return {
+                        underlyingAsset: '0x5E817F2AbCCB9095585D26c2a3ce234a440574Fc', // FRNT (Frontier Stable Token)
+                        poolDisplayName: 'TCS Wyoming Settlement Pool - Arbitrum V2.2',
+                        poolTokenName: 'TCS Wyoming Settlement Pool Token V2.2',
+                        poolTokenSymbol: 'BFT-TCSWY-V2_2',
+                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+                        // Shared with the Arbitrum PYUSD TCS pool (owned by Safe 0xB17f273e...)
+                        factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
+                        depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
+                        redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
+                        bullaFactoringAddress: '0x23406d0af351923d9845c5a726c21315cbf36915',
+                        writeNewAddresses: true,
+                    };
                 default:
                     return undefined;
             }
@@ -335,7 +356,7 @@ export function getRpcUrl(network: string): string {
         case 'base':
             return 'https://rpc.ankr.com/base/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
         case 'arbitrum':
-            return 'https://rpc.ankr.com/arbitrum/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
+            return 'https://arb1.arbitrum.io/rpc';
         default:
             throw new Error(`Unsupported network: ${network}`);
     }
