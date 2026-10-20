@@ -79,6 +79,11 @@ export function runForgeScript(
         forgeArgs.push('--verify');
     }
 
+    // Sepolia's contract-creation gas costs exceed forge's local simulation, so use the node's gas estimates
+    if (network === 'sepolia') {
+        forgeArgs.push('--skip-simulation');
+    }
+
     console.log('🔧 Running forge script...');
     console.log(`📄 Script: ${scriptPath}`);
     console.log(`🌐 Network: ${network}`);

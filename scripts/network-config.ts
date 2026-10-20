@@ -11,7 +11,7 @@ export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 // Types
 // ============================================================================
 
-const allPools = ['tcs', 'taram', 'fundora', 'ola', 'tcs-wyoming'] as const;
+const allPools = ['tcs', 'taram', 'fundora', 'ola', 'tcs-wyoming', 'egm'] as const;
 export type PoolName = typeof allPools[number];
 
 /** Network-specific configuration (not tied to any pool) */
@@ -140,6 +140,14 @@ export const poolConfigs: Record<PoolName, PoolConfig> = {
         targetYieldBps: 800,
         insuranceFeeBps: 0,
     },
+    // EGM Foundry Phase 0 test pool: 50 bps protocol, 0 admin, no insurance fee
+    egm: {
+        protocolFeeBps: 50,
+        adminFeeBps: 0,
+        // 11% p.a. on the amount advanced, expressed on the full claim value (95% advanced)
+        targetYieldBps: 1045,
+        insuranceFeeBps: 0,
+    },
 };
 
 // ============================================================================
@@ -191,6 +199,20 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
                         bullaFactoringAddress: '0x36c6cff33f726f05fa024fd3132f42998e713948',
+                        writeNewAddresses: true,
+                    };
+                case 'egm':
+                    return {
+                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
+                        poolDisplayName: 'EGM Pilot Test Pool',
+                        poolTokenName: 'EGM Pilot Test Token',
+                        poolTokenSymbol: 'BFT-EGM',
+                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
+                        // Shared with the Sepolia Ola pool
+                        depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
+                        redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
+                        factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
+                        bullaFactoringAddress: '0xe35f1637fc306da228e88747576e60a832ff40cd',
                         writeNewAddresses: true,
                     };
                 default:
