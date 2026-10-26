@@ -280,7 +280,7 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        // DEV-2824: cleared so the deploy script redeploys. Old pool 0x23406d0af351923d9845c5a726c21315cbf36915 used the wrong adapter
+                        // DEV-2824: redeployed with the correct adapter. Old pool 0x23406d0af351923d9845c5a726c21315cbf36915 used the wrong adapter
                         bullaFactoringAddress: '0x85314b08a20873c3eebc41111cd02a530bf5c6bc',
                         writeNewAddresses: true,
                     };
