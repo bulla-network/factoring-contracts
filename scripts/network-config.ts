@@ -101,7 +101,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
         bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
-        BullaClaimInvoiceProviderAdapterAddress: '0x2C6c46d6b1b5121b0072c8B9F4eB836fE1252f78',
+        BullaClaimInvoiceProviderAdapterAddress: '0xdb44baa27F4C4c57CdbdAC684D39900A0C54bc89', // DEV-2824: synced from release/v2.1 (#230); 0x2C6c46d6... was a Sepolia copy-paste with no code on Arbitrum
         sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
     },
 };
@@ -133,7 +133,7 @@ export const poolConfigs: Record<PoolName, PoolConfig> = {
         targetYieldBps: 1444,
         insuranceFeeBps: 0,
     },
-    // Mirrors the live Arbitrum PYUSD TCS pool (0x30fbdae8...): 30 bps protocol, 0 admin, 800 bps yield, no insurance
+    // Mirrors the live Arbitrum PYUSD TCS pool (0xc0997732...): 30 bps protocol, 0 admin, 800 bps yield, no insurance
     'tcs-wyoming': {
         protocolFeeBps: 30,
         adminFeeBps: 0,
@@ -266,7 +266,7 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        bullaFactoringAddress: '0x30fbdae8d1a2946ca00137eaf3de9b512d1ee859',
+                        bullaFactoringAddress: '0xc099773267308D8e9E805f47EABf9ab13bBc9e37', // synced from release/v2.1 (#230); 0x30fbdae8... was the dead pool on the bad adapter
                         writeNewAddresses: true,
                     };
                 case 'tcs-wyoming':
@@ -280,7 +280,8 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        bullaFactoringAddress: '0x23406d0af351923d9845c5a726c21315cbf36915',
+                        // DEV-2824: cleared so the deploy script redeploys. Old pool 0x23406d0af351923d9845c5a726c21315cbf36915 used the wrong adapter
+                        bullaFactoringAddress: '0x85314b08a20873c3eebc41111cd02a530bf5c6bc',
                         writeNewAddresses: true,
                     };
                 default:
