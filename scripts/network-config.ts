@@ -149,6 +149,7 @@ export const versionConfigs: Record<string, Partial<Record<PoolVersion, VersionC
     arbitrum: {
         // DEV-2824: synced from release/v2.1 (#230); 0x2C6c46d6... was a Sepolia copy-paste with no code on Arbitrum
         'v2.1': { invoiceProviderAdapterAddress: '0xdb44baa27F4C4c57CdbdAC684D39900A0C54bc89' },
+        'v2.2': { invoiceProviderAdapterAddress: '0x7b3776dccdb3965ab9d414f5c9db5a07177ea449' },
     },
 };
 
@@ -350,8 +351,9 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        // DEV-2824: redeployed with the correct adapter. Old pool 0x23406d0af351923d9845c5a726c21315cbf36915 used the wrong adapter
-                        bullaFactoringAddress: '0x85314b08a20873c3eebc41111cd02a530bf5c6bc',
+                        // DEV-2927: redeployed on the v2.2 adapter. Old pools 0x85314b08a20873c3eebc41111cd02a530bf5c6bc (adapter
+                        // 0xdb44baa2..., v2.1, no getImpairTarget) and 0x23406d0af351923d9845c5a726c21315cbf36915 (adapter with no code on Arbitrum)
+                        bullaFactoringAddress: '0xa7033191eb07dc6205015075b204ba0544bc460d',
                         writeNewAddresses: true,
                     };
                 default:
