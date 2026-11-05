@@ -7,7 +7,7 @@ via_ir = true
 optimizer = true
 optimizer_runs = 160
 # PreDeployChecks reads the compiled adapter interface ABI (PD-02)
-fs_permissions = [{ access = "read", path = "./artifacts/foundry" }]
+fs_permissions = [{ access = "read", path = "./artifacts/foundry" }, { access = "read", path = "./scripts" }, { access = "read", path = "./broadcast" }]
 remappings = [
     'contracts/=contracts/',
     '@ensdomains/=node_modules/@ensdomains/',
