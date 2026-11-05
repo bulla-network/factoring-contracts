@@ -259,7 +259,8 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0xe35f1637fc306da228e88747576e60a832ff40cd',
+                        // DEV-2932: redeployed on the v2.2 adapter. Old pool 0xe35f1637fc306da228e88747576e60a832ff40cd used adapter 0x2C6c46d6... (no getImpairTarget)
+                        bullaFactoringAddress: '0x04da9ebda15ad3009eb99754a34284e27c1c20bf',
                         writeNewAddresses: true,
                     };
                 default:
