@@ -135,6 +135,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
 export const versionConfigs: Record<string, Partial<Record<PoolVersion, VersionConfig>>> = {
     sepolia: {
         'v2.1': { invoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78' },
+        'v2.2': { invoiceProviderAdapterAddress: '0x63fadf50d85135baf709c9dc65553f14029fd89b' },
     },
     polygon: {
         'v2.1': { invoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10' },
@@ -243,7 +244,8 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0x36c6cff33f726f05fa024fd3132f42998e713948',
+                        // DEV-2928: redeployed on the v2.2 adapter. Old pool 0x36c6cff33f726f05fa024fd3132f42998e713948 used adapter 0x2C6c46d6... (no getImpairTarget)
+                        bullaFactoringAddress: '0x5068c979e40247de3903dbaa44ce1d90d5bf7a80',
                         writeNewAddresses: true,
                     };
                 case 'egm':
