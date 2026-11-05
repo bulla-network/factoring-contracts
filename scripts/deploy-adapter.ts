@@ -1,4 +1,4 @@
-import { getNetworkOnlyConfig, getRpcUrl } from './network-config';
+import { CURRENT_POOL_VERSION, getNetworkOnlyConfig, getRpcUrl, getVersionConfig } from './network-config';
 import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
 import { getNetworkInteractive } from './utils/interactive-prompt';
 import { updateAdapterFromBroadcast } from './utils/update-config';
@@ -10,16 +10,14 @@ import { verifyBroadcastContracts } from './utils/verify-forge';
 export async function deployAdapterWorkflow(network: string, privateKey: string): Promise<void> {
     console.log(`🚀 Deploying BullaClaimV2InvoiceProviderAdapterV2 to ${network} network...\n`);
 
-    // Get network configuration (adapter is network-only, not pool-specific)
+    // The adapter is per chain and pool contract version, not per pool
     const config = getNetworkOnlyConfig(network);
+    const existingAdapter = getVersionConfig(network, CURRENT_POOL_VERSION).invoiceProviderAdapterAddress;
 
-    // Check if adapter is already deployed
-    if (
-        config.BullaClaimInvoiceProviderAdapterAddress &&
-        config.BullaClaimInvoiceProviderAdapterAddress !== '0x0000000000000000000000000000000000000000'
-    ) {
-        console.log('⚠️  Adapter already deployed on this network:');
-        console.log(`   Address: ${config.BullaClaimInvoiceProviderAdapterAddress}`);
+    // Check if adapter is already deployed for this version
+    if (existingAdapter && existingAdapter !== '0x0000000000000000000000000000000000000000') {
+        console.log(`⚠️  ${CURRENT_POOL_VERSION} adapter already deployed on this network:`);
+        console.log(`   Address: ${existingAdapter}`);
         console.log('   Skipping deployment.\n');
         return;
     }

@@ -1,4 +1,6 @@
 import { getConfig, getRpcUrl, PoolName } from './network-config';
+import { runPreDeployChecks } from './predeploy-checks';
+import { buildFactoringEnv } from './utils/factoring-env';
 import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
 import { getNetworkAndPoolInteractive } from './utils/interactive-prompt';
 import { updateFactoringFromBroadcast } from './utils/update-config';
@@ -30,31 +32,16 @@ export async function deployFactoringWorkflow(network: string, pool: PoolName, p
     // Get RPC URL using shared config
     const rpcUrl = getRpcUrl(network);
 
+    // Pre-deployment checks (spec: bulla-specs deploy-pool.md, POOLDEPLOY). Throws if any check fails,
+    // so nothing is broadcast. There is intentionally no skip flag.
+    await runPreDeployChecks(network, pool);
+
     // Set environment variables for the deployment script
     const env: NodeJS.ProcessEnv = {
         ...process.env,
-        NETWORK: network,
+        ...buildFactoringEnv(config, network),
         PRIVATE_KEY: privateKey,
         DEPLOY_PK: privateKey,
-        // Network-specific config
-        BULLA_CLAIM: config.bullaClaim,
-        UNDERLYING_ASSET: config.underlyingAsset,
-        UNDERWRITER: config.underwriter,
-        BULLA_DAO: config.bullaDao,
-        PROTOCOL_FEE_BPS: config.protocolFeeBps.toString(),
-        ADMIN_FEE_BPS: config.adminFeeBps.toString(),
-        POOL_NAME: config.poolName,
-        TARGET_YIELD_BPS: config.targetYieldBps.toString(),
-        POOL_TOKEN_NAME: config.poolTokenName,
-        POOL_TOKEN_SYMBOL: config.poolTokenSymbol,
-        BULLA_CLAIM_INVOICE_PROVIDER_ADAPTER_ADDRESS: config.BullaClaimInvoiceProviderAdapterAddress || '',
-        FACTORING_PERMISSIONS_ADDRESS: config.factoringPermissionsAddress || '',
-        DEPOSIT_PERMISSIONS_ADDRESS: config.depositPermissionsAddress || '',
-        REDEEM_PERMISSIONS_ADDRESS: config.redeemPermissionsAddress || '',
-        BULLA_FREND_LEND_ADDRESS: config.bullaFrendLendAddress || '',
-        BULLA_INVOICE_ADDRESS: config.bullaInvoiceAddress || '',
-        BULLA_FACTORING_ADDRESS: config.bullaFactoringAddress || '',
-        ...(config.insuranceFeeBps !== undefined && { INSURANCE_FEE_BPS: config.insuranceFeeBps.toString() }),
     };
 
     // Run forge script and wait for completion

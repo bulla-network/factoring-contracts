@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { PoolName } from '../network-config';
+import { CURRENT_POOL_VERSION, PoolName, PoolVersion } from '../network-config';
 
 /**
  * Read the latest broadcast file for a script
@@ -46,31 +46,35 @@ function extractDeployedAddress(broadcast: any, contractName: string): string | 
 }
 
 /**
- * Update adapter address in network config
+ * Record the adapter for one chain and pool contract version in versionConfigs (POOLDEPLOY R5)
  */
-export function updateAdapterAddress(network: string, adapterAddress: string): void {
+export function updateAdapterAddress(network: string, adapterAddress: string, version: PoolVersion = CURRENT_POOL_VERSION): void {
     const configPath = join('scripts', 'network-config.ts');
     let content = readFileSync(configPath, 'utf-8');
 
-    // Find the network config section and update the adapter address
-    const networkPattern = new RegExp(`(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*)'[^']*'`, 's');
+    const blockMatch = content.match(/export const versionConfigs[^=]*=\s*\{[\s\S]*?\n\};/);
+    if (!blockMatch) {
+        console.warn('⚠️  Could not find versionConfigs in network-config.ts');
+        return;
+    }
+    let block = blockMatch[0];
+    const entry = `'${version}': { invoiceProviderAdapterAddress: '${adapterAddress}' },`;
 
-    if (networkPattern.test(content)) {
-        content = content.replace(networkPattern, `$1'${adapterAddress}'`);
-        console.log(`✅ Updated BullaClaimInvoiceProviderAdapterAddress for ${network}: ${adapterAddress}`);
+    const networkBlock = block.match(new RegExp(`\\n    ${network}: \\{[\\s\\S]*?\\n    \\},`));
+    const versionEntry = new RegExp(`'${version.replace('.', '\\.')}': \\{[^}]*\\},`);
+
+    if (networkBlock && versionEntry.test(networkBlock[0])) {
+        block = block.replace(networkBlock[0], networkBlock[0].replace(versionEntry, entry));
+        console.log(`✅ Updated ${version} adapter for ${network}: ${adapterAddress}`);
+    } else if (networkBlock) {
+        block = block.replace(networkBlock[0], networkBlock[0].replace(/\n    \},$/, `\n        ${entry}\n    },`));
+        console.log(`✅ Added ${version} adapter for ${network}: ${adapterAddress}`);
     } else {
-        // If it doesn't exist, add it
-        const networkSectionPattern = new RegExp(`(${network}:\\s*{[^}]*bullaInvoiceAddress:\\s*'[^']*',)`, 's');
-
-        if (networkSectionPattern.test(content)) {
-            content = content.replace(networkSectionPattern, `$1\n        BullaClaimInvoiceProviderAdapterAddress: '${adapterAddress}',`);
-            console.log(`✅ Added BullaClaimInvoiceProviderAdapterAddress for ${network}: ${adapterAddress}`);
-        } else {
-            console.warn(`⚠️  Could not find ${network} network config to update`);
-            return;
-        }
+        block = block.replace(/\n\};$/, `\n    ${network}: {\n        ${entry}\n    },\n};`);
+        console.log(`✅ Added ${network} with ${version} adapter: ${adapterAddress}`);
     }
 
+    content = content.replace(blockMatch[0], block);
     writeFileSync(configPath, content, 'utf-8');
 }
 
@@ -145,9 +149,9 @@ export function updateSumsubKycIssuerAddress(network: string, issuerAddress: str
         content = content.replace(networkPattern, `$1'${issuerAddress}'`);
         console.log(`✅ Updated sumsubKycIssuerAddress for ${network}: ${issuerAddress}`);
     } else {
-        // If it doesn't exist, add it after BullaClaimInvoiceProviderAdapterAddress (or bullaInvoiceAddress as fallback)
+        // If it doesn't exist, add it after bullaInvoiceAddress
         const afterAdapterPattern = new RegExp(
-            `(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*'[^']*',)`,
+            `(${network}:\\s*{[^}]*bullaInvoiceAddress:\\s*'[^']*',)`,
             's',
         );
         const afterInvoicePattern = new RegExp(`(${network}:\\s*{[^}]*bullaInvoiceAddress:\\s*'[^']*',)`, 's');
@@ -199,13 +203,13 @@ export function updateAgreementSignatureRepoAddress(network: string, repoAddress
         content = content.replace(networkPattern, `$1'${repoAddress}'`);
         console.log(`✅ Updated agreementSignatureRepoAddress for ${network}: ${repoAddress}`);
     } else {
-        // If it doesn't exist, add it after sumsubKycIssuerAddress (or BullaClaimInvoiceProviderAdapterAddress as fallback)
+        // If it doesn't exist, add it after sumsubKycIssuerAddress (or bullaInvoiceAddress as fallback)
         const afterSumsubPattern = new RegExp(
             `(${network}:\\s*{[^}]*sumsubKycIssuerAddress:\\s*'[^']*',)`,
             's',
         );
         const afterAdapterPattern = new RegExp(
-            `(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*'[^']*',)`,
+            `(${network}:\\s*{[^}]*bullaInvoiceAddress:\\s*'[^']*',)`,
             's',
         );
 
@@ -378,9 +382,9 @@ export function updateSanctionsListAddress(network: string, sanctionsListAddress
         content = content.replace(networkPattern, `$1'${sanctionsListAddress}'`);
         console.log(`✅ Updated sanctionsListAddress for ${network}: ${sanctionsListAddress}`);
     } else {
-        // Field doesn't exist — add it after BullaClaimInvoiceProviderAdapterAddress
+        // Field doesn't exist — add it after bullaInvoiceAddress
         const afterAdapterPattern = new RegExp(
-            `(${network}:\\s*{[^}]*BullaClaimInvoiceProviderAdapterAddress:\\s*'[^']*',)`,
+            `(${network}:\\s*{[^}]*bullaInvoiceAddress:\\s*'[^']*',)`,
             's',
         );
 
@@ -450,6 +454,10 @@ export function updateFactoringFromBroadcast(scriptName: string, network: string
         };
 
         updatePoolDeployment(network, pool, addresses);
+
+        // The deploy script deploys an adapter when this version has none on the chain; record it so later pools reuse it
+        const adapterAddress = extractDeployedAddress(broadcast, 'BullaClaimV2InvoiceProviderAdapterV2');
+        if (adapterAddress) updateAdapterAddress(network, adapterAddress);
     } catch (error) {
         console.error('❌ Error updating factoring addresses:', (error as Error).message);
     }

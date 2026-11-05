@@ -6,6 +6,8 @@ solc = "0.8.30"
 via_ir = true
 optimizer = true
 optimizer_runs = 160
+# PreDeployChecks reads the compiled adapter interface ABI (PD-02)
+fs_permissions = [{ access = "read", path = "./artifacts/foundry" }]
 remappings = [
     'contracts/=contracts/',
     '@ensdomains/=node_modules/@ensdomains/',
