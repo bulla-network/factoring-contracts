@@ -1,4 +1,4 @@
-import { getNetworkOnlyConfig, getRpcUrl, DEFAULT_PROTOCOL_FEE_BPS } from './network-config';
+import { CURRENT_POOL_VERSION, getNetworkOnlyConfig, getRpcUrl, getVersionConfig, DEFAULT_PROTOCOL_FEE_BPS } from './network-config';
 import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
 import { getNetworkInteractive } from './utils/interactive-prompt';
 import { verifyBroadcastContracts } from './utils/verify-forge';
@@ -11,13 +11,14 @@ export async function deployFactoryWorkflow(network: string, privateKey: string)
 
     // Get network-specific configuration
     const config = getNetworkOnlyConfig(network);
+    const adapterAddress = getVersionConfig(network, CURRENT_POOL_VERSION).invoiceProviderAdapterAddress;
 
     // Display deployment info
     console.log('📋 Factory Configuration:');
     console.log(`   Network: ${network}`);
     console.log(`   BullaDao (Owner): ${config.bullaDao}`);
     console.log(`   BullaFrendLend: ${config.bullaFrendLendAddress || '(none)'}`);
-    console.log(`   Invoice Provider Adapter: ${config.BullaClaimInvoiceProviderAdapterAddress || '(will deploy new)'}`);
+    console.log(`   Invoice Provider Adapter: ${adapterAddress || '(will deploy new)'}`);
     console.log(`   Protocol Fee: ${DEFAULT_PROTOCOL_FEE_BPS} bps (${DEFAULT_PROTOCOL_FEE_BPS / 100}%)\n`);
 
     console.log(`📡 Starting deployment to ${network}...\n`);
@@ -36,7 +37,7 @@ export async function deployFactoryWorkflow(network: string, privateKey: string)
         BULLA_DAO: config.bullaDao,
         BULLA_FREND_LEND_ADDRESS: config.bullaFrendLendAddress || '',
         BULLA_INVOICE_ADDRESS: config.bullaInvoiceAddress || '',
-        BULLA_CLAIM_INVOICE_PROVIDER_ADAPTER_ADDRESS: config.BullaClaimInvoiceProviderAdapterAddress || '',
+        BULLA_CLAIM_INVOICE_PROVIDER_ADAPTER_ADDRESS: adapterAddress || '',
         PROTOCOL_FEE_BPS: DEFAULT_PROTOCOL_FEE_BPS.toString(),
     };
 

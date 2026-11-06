@@ -14,19 +14,32 @@ export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 const allPools = ['tcs', 'taram', 'fundora', 'ola', 'tcs-wyoming', 'egm'] as const;
 export type PoolName = typeof allPools[number];
 
-/** Network-specific configuration (not tied to any pool) */
+const allPoolVersions = ['v2.1', 'v2.2'] as const;
+export type PoolVersion = typeof allPoolVersions[number];
+
+/** The pool contract version this repo builds (contracts/BullaFactoring.sol), so the version every deploy from here uses */
+export const CURRENT_POOL_VERSION: PoolVersion = 'v2.2';
+
+/** Network-specific configuration shared by every pool on the chain, whatever its version (not tied to any pool) */
 export type NetworkConfig = {
     bullaClaim: string;
     bullaDao: string;
     bullaFrendLendAddress: string;
     bullaInvoiceAddress: string;
-    BullaClaimInvoiceProviderAdapterAddress?: string;
     bullaFactoringFactoryAddress?: string;
     sumsubKycIssuerAddress?: string;
     agreementSignatureRepoAddress?: string;
     sanctionsListAddress?: string;
     bullaKycGateAddress?: string;
     complianceDepositPermissionsAddress?: string;
+};
+
+/**
+ * Configuration shared by every pool of one contract version on one chain (POOLDEPLOY R5).
+ * Each pool version is compiled against its own adapter interface, so an adapter belongs to one version.
+ */
+export type VersionConfig = {
+    invoiceProviderAdapterAddress?: string;
 };
 
 /** Pool-specific configuration (not tied to any network) */
@@ -52,7 +65,15 @@ export type DeployedPoolConfig = {
 };
 
 /** Combined config returned by getConfig() */
-export type FullConfig = NetworkConfig & PoolConfig & DeployedPoolConfig & { poolName: PoolName; network: string };
+export type FullConfig = NetworkConfig &
+    PoolConfig &
+    DeployedPoolConfig & {
+        /** From the chain and version config, never from another version's */
+        BullaClaimInvoiceProviderAdapterAddress?: string;
+        poolName: PoolName;
+        poolVersion: PoolVersion;
+        network: string;
+    };
 
 // ============================================================================
 // Network Configurations (Network-only, no pool info)
@@ -64,7 +85,6 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x4d6A66D32CF34270e4cc9C9F201CA4dB650Be3f2',
         bullaInvoiceAddress: '0xa2c4B7239A0d179A923751cC75277fe139AB092F',
-        BullaClaimInvoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78',
         sumsubKycIssuerAddress: '0x4f51c54d5a335c4e42c974d0709ef034a5864858',
         agreementSignatureRepoAddress: '0xead7c69c5216fdf189c4bed56185dbbdb456812c',
         bullaKycGateAddress: '0xe8681068fa56b8e1423fabb904e1413b2fff36aa',
@@ -77,7 +97,6 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x0000000000000000000000000000000000000000',
         bullaInvoiceAddress: '0x0000000000000000000000000000000000000000',
-        BullaClaimInvoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10',
         sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
     },
     mainnet: {
@@ -85,7 +104,6 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x1097b7ecf0721aaffff147cf7bec154422896317',
         bullaInvoiceAddress: '0xfe2631bcb3e622750b6fbb605a416173ffa3a770',
-        BullaClaimInvoiceProviderAdapterAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
         sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
     },
     base: {
@@ -93,7 +111,6 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x777A7966464a4E5684FE95025aDb2AD56bdaE77B',
         bullaInvoiceAddress: '0x1E1d535a41515D3D2c29C1524C825236D67733E1',
-        BullaClaimInvoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca',
         sanctionsListAddress: '0x3A91A31cB3dC49b4db9Ce721F50a9D076c8D739B', // Chainalysis OFAC oracle (Base-specific)
     },
     arbitrum: {
@@ -101,8 +118,38 @@ export const networkConfigs: Record<string, NetworkConfig> = {
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
         bullaFrendLendAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
         bullaInvoiceAddress: '0x74c62f475464a03a462578d65629240b34221c1b',
-        BullaClaimInvoiceProviderAdapterAddress: '0xdb44baa27F4C4c57CdbdAC684D39900A0C54bc89', // DEV-2824: synced from release/v2.1 (#230); 0x2C6c46d6... was a Sepolia copy-paste with no code on Arbitrum
         sanctionsListAddress: '0x40C57923924B5c5c5455c48D93317139ADDaC8fb', // Chainalysis OFAC oracle
+    },
+};
+
+// ============================================================================
+// Version Configurations (Network + pool contract version)
+// ============================================================================
+
+/**
+ * Per chain and pool contract version. A new pool version gets a new entry, so a pool never
+ * picks up an older version's adapter. If the entry has no adapter, the pool deploy deploys one
+ * and writes it here, and later pools of that version on that chain reuse it.
+ */
+// The adapters below predate v2.2 (none has getImpairTarget), so a v2.2 pool must not use them.
+export const versionConfigs: Record<string, Partial<Record<PoolVersion, VersionConfig>>> = {
+    sepolia: {
+        'v2.1': { invoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78' },
+        'v2.2': { invoiceProviderAdapterAddress: '0x63fadf50d85135baf709c9dc65553f14029fd89b' },
+    },
+    polygon: {
+        'v2.1': { invoiceProviderAdapterAddress: '0xB5B31E95f0C732450Bc869A6467A9941C8565b10' },
+    },
+    mainnet: {
+        'v2.1': { invoiceProviderAdapterAddress: '0x74c62f475464a03a462578d65629240b34221c1b' },
+    },
+    base: {
+        'v2.1': { invoiceProviderAdapterAddress: '0x4d4f494f4e6232d2be0a055359eb29edb17ae0ca' },
+    },
+    arbitrum: {
+        // DEV-2824: synced from release/v2.1 (#230); 0x2C6c46d6... was a Sepolia copy-paste with no code on Arbitrum
+        'v2.1': { invoiceProviderAdapterAddress: '0xdb44baa27F4C4c57CdbdAC684D39900A0C54bc89' },
+        'v2.2': { invoiceProviderAdapterAddress: '0x7b3776dccdb3965ab9d414f5c9db5a07177ea449' },
     },
 };
 
@@ -198,7 +245,8 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0x36c6cff33f726f05fa024fd3132f42998e713948',
+                        // DEV-2928: redeployed on the v2.2 adapter. Old pool 0x36c6cff33f726f05fa024fd3132f42998e713948 used adapter 0x2C6c46d6... (no getImpairTarget)
+                        bullaFactoringAddress: '0x5068c979e40247de3903dbaa44ce1d90d5bf7a80',
                         writeNewAddresses: true,
                     };
                 case 'egm':
@@ -212,7 +260,8 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
                         factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0xe35f1637fc306da228e88747576e60a832ff40cd',
+                        // DEV-2932: redeployed on the v2.2 adapter. Old pool 0xe35f1637fc306da228e88747576e60a832ff40cd used adapter 0x2C6c46d6... (no getImpairTarget)
+                        bullaFactoringAddress: '0x04da9ebda15ad3009eb99754a34284e27c1c20bf',
                         writeNewAddresses: true,
                     };
                 default:
@@ -302,8 +351,9 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
                         factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
                         depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
                         redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        // DEV-2824: redeployed with the correct adapter. Old pool 0x23406d0af351923d9845c5a726c21315cbf36915 used the wrong adapter
-                        bullaFactoringAddress: '0x85314b08a20873c3eebc41111cd02a530bf5c6bc',
+                        // DEV-2927: redeployed on the v2.2 adapter. Old pools 0x85314b08a20873c3eebc41111cd02a530bf5c6bc (adapter
+                        // 0xdb44baa2..., v2.1, no getImpairTarget) and 0x23406d0af351923d9845c5a726c21315cbf36915 (adapter with no code on Arbitrum)
+                        bullaFactoringAddress: '0xa7033191eb07dc6205015075b204ba0544bc460d',
                         writeNewAddresses: true,
                     };
                 default:
@@ -323,9 +373,10 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
  * Get full configuration for a network and pool combination
  * @param network - Network name (sepolia, polygon, mainnet, base)
  * @param pool - Pool name (tcs, taram, fundora). Defaults to 'tcs'
+ * @param version - Pool contract version. Defaults to the version this repo builds
  * @throws Error if network is unsupported, pool doesn't exist, or pool is not deployed on the network
  */
-export function getConfig(network: string, pool: PoolName = 'tcs'): FullConfig {
+export function getConfig(network: string, pool: PoolName = 'tcs', version: PoolVersion = CURRENT_POOL_VERSION): FullConfig {
     if (!network) {
         throw new Error('Network parameter is required');
     }
@@ -349,7 +400,9 @@ export function getConfig(network: string, pool: PoolName = 'tcs'): FullConfig {
         ...networkConfig,
         ...poolConfig,
         ...deployedPoolConfig,
+        BullaClaimInvoiceProviderAdapterAddress: getVersionConfig(network, version).invoiceProviderAdapterAddress,
         poolName: pool,
+        poolVersion: version,
         network: network,
     };
 }
@@ -439,6 +492,17 @@ export function getNetworkOnlyConfig(network: string): NetworkConfig {
         throw new Error(`Unsupported network: ${network}. Available: ${Object.keys(networkConfigs).join(', ')}`);
     }
     return config;
+}
+
+/** Config for one chain and pool contract version. Empty if that version has nothing on the chain yet */
+export function getVersionConfig(network: string, version: PoolVersion = CURRENT_POOL_VERSION): VersionConfig {
+    if (!networkConfigs[network]) {
+        throw new Error(`Unsupported network: ${network}. Available: ${Object.keys(networkConfigs).join(', ')}`);
+    }
+    if (!allPoolVersions.includes(version)) {
+        throw new Error(`Unsupported pool version: ${version}. Available: ${allPoolVersions.join(', ')}`);
+    }
+    return versionConfigs[network]?.[version] ?? {};
 }
 
 export function getDeployedPoolConfig(network: string, pool: PoolName): DeployedPoolConfig | undefined {

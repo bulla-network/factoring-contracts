@@ -26,7 +26,8 @@
         "verify": "dotenv -e .env -- npx ts-node scripts/verify-all-contracts.ts",
         "verify:factory": "dotenv -e .env -- npx ts-node scripts/verify-factory.ts",
         "set-impair-reserve": "dotenv -e .env -- npx ts-node scripts/set-impair-reserve.ts",
-        "whitelist-callback": "dotenv -e .env -- npx ts-node scripts/whitelist-callback.ts"
+        "whitelist-callback": "dotenv -e .env -- npx ts-node scripts/whitelist-callback.ts",
+        "predeploy:check": "dotenv -e .env -- npx ts-node scripts/predeploy-checks.ts"
     },
     "dependencies": {
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
