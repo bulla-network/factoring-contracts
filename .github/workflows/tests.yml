@@ -19,6 +19,7 @@ jobs:
               uses: actions/setup-node@v3
               with:
                   node-version: 24
+                  check-latest: true
                   cache: 'yarn'
 
             - name: Install Foundry
@@ -29,7 +30,8 @@ jobs:
             - name: Install dependencies
               run: |
                   forge install
-                  yarn
+                  # hardhat 2.12 (used only by the deploy scripts) declares node <=18; CI only runs forge.
+                  yarn --ignore-engines
 
             - name: Run forge build
               run: make build
