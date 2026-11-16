@@ -15,36 +15,21 @@ contract TestPoolBroadcasts is Test {
         string network;
         string displayName;
         address addr;
+        string version;
     }
 
-    uint256 internal constant EXCEPTION_COUNT = 8;
-
-    /// The listed exceptions (R6), by chain id and address, each with its reason. Adding one needs review.
-    function _exceptions() internal pure returns (uint256[EXCEPTION_COUNT] memory chainIds, address[EXCEPTION_COUNT] memory pools) {
-        // Pre-V2.1, deployed before broadcasts were kept:
-        //   Sepolia V1 TCS test pool (the subgraph's "Main") and V1 Fundora test pool
-        //   Polygon V0 TCS and V1 TCS ("Bulla TCS Factoring Pool - Polygon V2")
-        //   Mainnet V1 TCS, Base V1 TCS, Redbelly V1 TARAM
-        // Sepolia Fundora V2.2 test pool: its broadcast was never committed, on any branch (config added in 0925d87)
-        chainIds = [uint256(11155111), 11155111, 137, 137, 1, 8453, 151, 11155111];
-        pools = [
-            0xDF0fCe31285dcAB9124bF763AB9E5466723BeF35,
-            0x9efBa474E79e7e37C87AB5CAf3D32347Bb9e604F,
-            0x573119CF113281270F21cFE6537482E84D0300eF,
-            0xA7033191Eb07DC6205015075B204Ba0544bc460d,
-            0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5,
-            0x1968f9440724B3148C8152190eeCb18a2F3b2eec,
-            0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D,
-            0x8ce8Fe0C4aDf44469f138A8389bDA91cC721A515
-        ];
+    /// V0 and V1 pools were deployed before broadcasts were kept, so pools.json's `version` exempts them
+    function _predatesBroadcasts(ConfiguredPool memory pool) internal pure returns (bool) {
+        return _eq(pool.version, "V0") || _eq(pool.version, "V1");
     }
 
-    function _isException(uint256 chainId, address pool) internal pure returns (bool) {
-        (uint256[EXCEPTION_COUNT] memory chainIds, address[EXCEPTION_COUNT] memory pools) = _exceptions();
-        for (uint256 e; e < EXCEPTION_COUNT; e++) {
-            if (chainIds[e] == chainId && pools[e] == pool) return true;
-        }
-        return false;
+    /// The one pool from V2.1 on with no broadcast: the Sepolia Fundora V2.2 test pool ("Test Pool V2.1" in
+    /// pools.json). Its broadcast was never committed, on any branch (config added in 0925d87). Adding another needs review.
+    uint256 internal constant LOST_BROADCAST_CHAIN_ID = 11155111;
+    address internal constant LOST_BROADCAST_POOL = 0x8ce8Fe0C4aDf44469f138A8389bDA91cC721A515;
+
+    function _isExempt(ConfiguredPool memory pool) internal pure returns (bool) {
+        return _predatesBroadcasts(pool) || (pool.chainId == LOST_BROADCAST_CHAIN_ID && pool.addr == LOST_BROADCAST_POOL);
     }
 
     function test_POOLDEPLOY15_everyConfiguredPoolHasItsBroadcast() public view {
@@ -53,7 +38,7 @@ contract TestPoolBroadcasts is Test {
 
         string memory missing;
         for (uint256 i; i < pools.length; i++) {
-            if (_isException(pools[i].chainId, pools[i].addr)) continue;
+            if (_isExempt(pools[i])) continue;
             if (!broadcastCreatesPool(pools[i].chainId, pools[i].addr)) {
                 missing = string.concat(
                     missing,
@@ -79,17 +64,17 @@ contract TestPoolBroadcasts is Test {
         );
     }
 
-    function test_POOLDEPLOY15_everyExceptionIsAConfiguredPool() public view {
-        // So the list can't keep an exception for a pool that left the config, or one with a mistyped address
+    function test_POOLDEPLOY15_lostBroadcastPoolIsAConfiguredV2Pool() public view {
+        // So the exception can't outlive its pool, carry a mistyped address, or cover a pool the version rule already does
         ConfiguredPool[] memory pools = configuredPools(vm.readFile(POOLS));
-        (uint256[EXCEPTION_COUNT] memory chainIds, address[EXCEPTION_COUNT] memory addrs) = _exceptions();
-        for (uint256 e; e < EXCEPTION_COUNT; e++) {
-            bool found;
-            for (uint256 i; i < pools.length; i++) {
-                if (pools[i].chainId == chainIds[e] && pools[i].addr == addrs[e]) found = true;
-            }
-            assertTrue(found, string.concat("POOLDEPLOY-15: exception not in pools.json: ", vm.toString(addrs[e])));
+        bool found;
+        for (uint256 i; i < pools.length; i++) {
+            if (pools[i].chainId != LOST_BROADCAST_CHAIN_ID || pools[i].addr != LOST_BROADCAST_POOL) continue;
+            found = true;
+            assertFalse(_predatesBroadcasts(pools[i]), "POOLDEPLOY-15: the lost-broadcast pool is V0/V1, so it needs no exception");
+            assertFalse(broadcastCreatesPool(pools[i].chainId, pools[i].addr), "POOLDEPLOY-15: the lost broadcast is committed now; drop the exception");
         }
+        assertTrue(found, "POOLDEPLOY-15: the lost-broadcast pool is not in pools.json");
     }
 
     function test_POOLDEPLOY15_poolWithoutBroadcastIsCaught() public view {
@@ -139,7 +124,7 @@ contract TestPoolBroadcasts is Test {
     // pools.json
     // ------------------------------------------------------------------
 
-    /// Every pool in pools.json, with its chain, network and display name.
+    /// Every pool in pools.json, with its chain, network, display name and contract version.
     function configuredPools(string memory json) public view returns (ConfiguredPool[] memory out) {
         uint256 n;
         while (vm.keyExistsJson(json, string.concat("$.pools[", vm.toString(n), "]"))) n++;
@@ -150,7 +135,8 @@ contract TestPoolBroadcasts is Test {
                 vm.parseJsonUint(json, string.concat(key, ".chainId")),
                 vm.parseJsonString(json, string.concat(key, ".network")),
                 vm.parseJsonString(json, string.concat(key, ".displayName")),
-                vm.parseJsonAddress(json, string.concat(key, ".address"))
+                vm.parseJsonAddress(json, string.concat(key, ".address")),
+                vm.parseJsonString(json, string.concat(key, ".version"))
             );
         }
     }

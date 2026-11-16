@@ -1,18 +1,13 @@
 import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { getVerifiableNetworkByChainId } from './networks';
 import { verifyBroadcastContracts } from './utils/verify-forge';
 
 /**
- * Get network name from chain ID
+ * Network name for a broadcast's chain id, if the scripts can verify contracts there
  */
 function getNetworkFromChainId(chainId: string): string | null {
-    const chainIdMap: Record<string, string> = {
-        '1': 'mainnet',
-        '137': 'polygon',
-        '11155111': 'sepolia',
-        '42161': 'arbitrum',
-    };
-    return chainIdMap[chainId] || null;
+    return getVerifiableNetworkByChainId(chainId) ?? null;
 }
 
 /**

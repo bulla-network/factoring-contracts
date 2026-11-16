@@ -127,10 +127,20 @@ This eliminates redundant configuration and ensures type safety across all deplo
 
 ### Deploying a pool
 
-1. Add the pool to `scripts/pending-pools.json`: its network, `poolKey`, `client` (add a new client to `clients` in `pools.json`), display name, share token, asset, underwriter and fees. Name existing permissions contracts to reuse them; any left out are deployed with the pool. To redeploy a pool, use its current `poolKey`.
+You edit `scripts/pending-pools.json`; the deploy writes `bulla_registry_export/pools.json`, the record of every deployed pool. Don't add pools to `pools.json` by hand; only its `clients`, display names and categories are edited directly.
+
+1. Add the pool to `scripts/pending-pools.json`, either by hand or from a past pool with `yarn pool:new` (below).
 2. Run `yarn deploy:full` or `scripts/deploy-bullaFactoring.ts`. The deploy refuses a `poolKey` that is already deployed and not pending.
 3. After the broadcast, the script moves the entry into `pools.json` with its address, permissions and deploy block. If it replaces a pool with the same network and `poolKey`, it marks the old one `archived` with `supersededBy`, so its history still resolves.
-4. Commit `pools.json`, `pending-pools.json` and the broadcast. `TestPoolBroadcasts` fails for any pool in `pools.json` with no committed broadcast (POOLDEPLOY-15).
+4. Commit `pools.json`, `pending-pools.json` and the broadcast. `TestPoolBroadcasts` fails for any V2.1+ pool in `pools.json` with no committed broadcast (POOLDEPLOY-15).
+
+`yarn pool:new --from <network>/<poolKey|address> [--network <network>] [--pool-key <key>] [--asset <address>]` copies a past pool's config into a pending entry. On the same chain it reuses the pool's permissions contracts; on another chain it leaves them out, so the deploy creates new ones, and takes the asset on that chain (from `--asset`, or the one asset `pools.json` lists there with the same symbol). Keeping the source's `poolKey` on the same chain makes the deploy replace that pool.
+
+**A) A new client.** Add the client under `clients` in `pools.json` (with `logos/<client>.svg|png` if they have a logo). Add a pending entry with a new `poolKey`, by hand or with `pool:new --from` a similar pool and `--pool-key`, then edit the client, names and fees.
+
+**B) A new chain.** Add it to `scripts/networks.ts` (chain id, RPC, explorer key env) and to the `network` enum in `pools.schema.json` (`yarn validate:pools` fails until both match). Add its Bulla contracts to `networkConfigs` in `scripts/network-config.ts`. Then deploy as in A or C with `--network`; the first pool of a version on the chain deploys the adapter and records it in `versionConfigs`.
+
+**C) An existing client on a new pool version.** Once the contracts are released: add the version at the end of `POOL_CONTRACT_VERSIONS` in `scripts/utils/pools.ts` and to the `version` enum in `pools.schema.json`, and set `CURRENT_POOL_VERSION` in `scripts/network-config.ts`. The deploy then records the new version and looks for its contract (`BullaFactoringV2_3`) in the broadcast. The Solidity deploy scripts and the constructor signature in `scripts/utils/verify-forge.ts` change with the contract itself. Then `yarn pool:new --from <network>/<poolKey>` and deploy: the new pool supersedes the old one. A version's adapter is per chain, so the first deploy of a new version on a chain deploys one.
 
 ## Environment Variables Required
 

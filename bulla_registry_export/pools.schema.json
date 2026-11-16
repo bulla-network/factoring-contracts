@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://github.com/bulla-network/factoring-contracts/bulla_registry_export/pools.schema.json",
     "title": "Bulla factoring pools",
-    "description": "Every Bulla factoring pool on every chain, and the clients they belong to. Published through bulla-registry. Rules JSON Schema can't express (unique addresses, known clients, supersededBy targets, one current pool per poolKey and chain) are checked by scripts/validate-pools.ts.",
+    "description": "Every Bulla factoring pool on every chain, and the clients they belong to. Published through bulla-registry. Rules JSON Schema can't express (unique addresses, known clients, which fields each version has, supersededBy targets, one current pool per poolKey and chain) are checked by scripts/validate-pools.ts.",
     "type": "object",
     "additionalProperties": false,
     "required": ["clients", "pools"],
@@ -70,27 +70,27 @@
         "permissions": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["factoring", "deposit", "redeem"],
+            "required": ["factoring", "deposit"],
             "properties": {
                 "factoring": { "$ref": "#/definitions/address" },
                 "deposit": { "$ref": "#/definitions/address" },
                 "redeem": {
-                    "description": "Null for V0 and V1 pools, which have no redeem permissions.",
-                    "oneOf": [{ "$ref": "#/definitions/address" }, { "type": "null" }]
+                    "$ref": "#/definitions/address",
+                    "description": "Absent on V0 and V1 pools, which have no redeem permissions; present from V2.1 on."
                 }
             }
         },
         "fees": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["protocolBps", "adminBps", "targetYieldBps", "insuranceBps"],
+            "required": ["protocolBps", "adminBps", "targetYieldBps"],
             "properties": {
                 "protocolBps": { "$ref": "#/definitions/bps" },
                 "adminBps": { "$ref": "#/definitions/bps" },
                 "targetYieldBps": { "$ref": "#/definitions/bps" },
                 "insuranceBps": {
-                    "description": "Null before V2.2, which has no insurance fee.",
-                    "oneOf": [{ "$ref": "#/definitions/bps" }, { "type": "null" }]
+                    "$ref": "#/definitions/bps",
+                    "description": "Absent before V2.2, which has no insurance fee; present on every V2.2 pool."
                 }
             }
         },
@@ -122,13 +122,13 @@
                 "client": { "$ref": "#/definitions/key", "description": "A key of clients. Separate from poolKey: tcs-wyoming is client tcs." },
                 "poolKey": {
                     "$ref": "#/definitions/key",
-                    "description": "The pool name the deploy scripts take (network-config.ts). Only pools those scripts manage have one."
+                    "description": "The name the deploy scripts take (network-config.ts), e.g. tcs-wyoming. A redeploy keeps the poolKey, so several pools on a chain can share one, but only one of them is current (no supersededBy); the rest form its history. Only pools those scripts manage have one."
                 },
                 "displayName": { "type": "string", "minLength": 1 },
                 "category": { "$ref": "#/definitions/category" },
                 "supersededBy": {
                     "$ref": "#/definitions/address",
-                    "description": "The pool on the same chain that replaced this one when it was redeployed."
+                    "description": "The pool on the same chain, with the same poolKey, that replaced this one when it was redeployed: the next deploy, not the latest, so each pool is superseded by at most one and replaces at most one."
                 },
                 "shareToken": { "$ref": "#/definitions/shareToken" },
                 "asset": { "$ref": "#/definitions/asset" },

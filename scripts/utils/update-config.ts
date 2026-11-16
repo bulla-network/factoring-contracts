@@ -1,14 +1,14 @@
 import { utils } from 'ethers';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { CURRENT_POOL_VERSION, PoolName, PoolVersion } from '../network-config';
+import { CURRENT_POOL_VERSION, getChainId, PoolName, poolContractName, PoolVersion, toContractVersion } from '../network-config';
 import { findPendingPool, loadPendingPools, recordDeployedPool } from './pools';
 
 /**
  * Read the latest broadcast file for a script
  */
 function readLatestBroadcast(scriptName: string, network: string): any {
-    const broadcastPath = join('broadcast', scriptName, getChainIdForNetwork(network), 'run-latest.json');
+    const broadcastPath = join('broadcast', scriptName, String(getChainId(network)), 'run-latest.json');
     try {
         const content = readFileSync(broadcastPath, 'utf-8');
         return JSON.parse(content);
@@ -16,20 +16,6 @@ function readLatestBroadcast(scriptName: string, network: string): any {
         console.error(`Failed to read broadcast file: ${broadcastPath}`);
         throw error;
     }
-}
-
-/**
- * Get chain ID for network
- */
-function getChainIdForNetwork(network: string): string {
-    const chainIds: Record<string, string> = {
-        sepolia: '11155111',
-        polygon: '137',
-        mainnet: '1',
-        base: '8453',
-        arbitrum: '42161',
-    };
-    return chainIds[network] || '11155111';
 }
 
 /**
@@ -408,8 +394,10 @@ export function recordFactoringFromBroadcast(scriptName: string, network: string
     const pending = findPendingPool(loadPendingPools(), network, pool);
     if (!pending) throw new Error(`${network}/${pool} is not in scripts/pending-pools.json, so there is nothing to record`);
 
-    const poolAddress = extractDeployedAddress(broadcast, 'BullaFactoringV2_2');
-    if (!poolAddress) throw new Error('No BullaFactoringV2_2 created in the latest broadcast');
+    // The deploy builds this repo's pool contract, so the broadcast has the current version's
+    const contractName = poolContractName(CURRENT_POOL_VERSION);
+    const poolAddress = extractDeployedAddress(broadcast, contractName);
+    if (!poolAddress) throw new Error(`No ${contractName} created in the latest broadcast`);
     const deployBlock = extractDeployBlock(broadcast, poolAddress);
     if (deployBlock === undefined) throw new Error(`No receipt for the pool ${poolAddress} in the latest broadcast`);
 
@@ -422,7 +410,7 @@ export function recordFactoringFromBroadcast(scriptName: string, network: string
 
     const recorded = recordDeployedPool(pending, {
         address: checksum(poolAddress),
-        version: 'V2_2',
+        version: toContractVersion(CURRENT_POOL_VERSION),
         deployBlock,
         permissions: { factoring: checksum(factoring), deposit: checksum(deposit), redeem: checksum(redeem) },
         // DeployConfig.sol's default when INSURANCE_FEE_BPS is unset

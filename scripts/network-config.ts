@@ -2,14 +2,19 @@
 // Networks and adapters live here. Pools live in bulla_registry_export/pools.json (deployed, published through
 // bulla-registry) and scripts/pending-pools.json (to deploy next); see scripts/utils/pools.ts.
 
+import { getChainId, getEtherscanApiKey, getRpcUrl, NetworkName } from './networks';
 import {
     findCurrentPool,
     findPendingPool,
     loadValidatedPools,
-    NETWORK_CHAIN_IDS,
     PendingPool,
     Pool,
+    POOL_CONTRACT_VERSIONS,
+    PoolContractVersion,
 } from './utils/pools';
+
+// Chain ids, RPCs and explorer keys live in networks.ts
+export { getChainId, getEtherscanApiKey, getRpcUrl };
 
 // ============================================================================
 // Global Constants
@@ -25,8 +30,23 @@ export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 /** A pool's poolKey in pools.json, e.g. 'tcs' or 'tcs-wyoming' */
 export type PoolName = string;
 
-const allPoolVersions = ['v2.1', 'v2.2'] as const;
-export type PoolVersion = typeof allPoolVersions[number];
+/** The versions the scripts deploy, from V2.1 on, named the way the CLI and versionConfigs take them: V2_2 is 'v2.2' */
+type ScriptVersion<V> = V extends `V${infer Major}_${infer Minor}` ? `v${Major}.${Minor}` : never;
+export type PoolVersion = ScriptVersion<PoolContractVersion>;
+
+/** pools.json's version for a script version: 'v2.2' is V2_2 */
+export function toContractVersion(version: PoolVersion): PoolContractVersion {
+    return `V${version.slice(1).replace('.', '_')}` as PoolContractVersion;
+}
+
+const allPoolVersions = POOL_CONTRACT_VERSIONS.filter(v => v.includes('_')).map(
+    v => `v${v.slice(1).replace('_', '.')}` as PoolVersion,
+);
+
+/** The pool contract a deploy of `version` creates, as named in the broadcast: BullaFactoringV2_2 */
+export function poolContractName(version: PoolVersion = CURRENT_POOL_VERSION): string {
+    return `BullaFactoring${toContractVersion(version)}`;
+}
 
 /** The pool contract version this repo builds (contracts/BullaFactoring.sol), so the version every deploy from here uses */
 export const CURRENT_POOL_VERSION: PoolVersion = 'v2.2';
@@ -92,7 +112,8 @@ export type FullConfig = NetworkConfig &
 // Network Configurations (Network-only, no pool info)
 // ============================================================================
 
-export const networkConfigs: Record<string, NetworkConfig> = {
+/** The networks the scripts deploy to. A network here must be in networks.ts too */
+export const networkConfigs: Partial<Record<NetworkName, NetworkConfig>> = {
     sepolia: {
         bullaClaim: '0x0d9EF9d436fF341E500360a6B5E5750aB85BCCB6',
         bullaDao: '0x47Ee085AC0Cdd254D4BFeca3405cD970f44728AB', // Bulla Protocol Safe's address
@@ -145,7 +166,7 @@ export const networkConfigs: Record<string, NetworkConfig> = {
  * and writes it here, and later pools of that version on that chain reuse it.
  */
 // The adapters below predate v2.2 (none has getImpairTarget), so a v2.2 pool must not use them.
-export const versionConfigs: Record<string, Partial<Record<PoolVersion, VersionConfig>>> = {
+export const versionConfigs: Partial<Record<NetworkName, Partial<Record<PoolVersion, VersionConfig>>>> = {
     sepolia: {
         'v2.1': { invoiceProviderAdapterAddress: '0x2c6c46d6b1b5121b0072c8b9f4eb836fe1252f78' },
         'v2.2': { invoiceProviderAdapterAddress: '0x63fadf50d85135baf709c9dc65553f14029fd89b' },
@@ -175,7 +196,7 @@ function fromPool(pool: Pool): PoolConfig & DeployedPoolConfig {
         protocolFeeBps: pool.fees.protocolBps,
         adminFeeBps: pool.fees.adminBps,
         targetYieldBps: pool.fees.targetYieldBps,
-        ...(pool.fees.insuranceBps !== null && { insuranceFeeBps: pool.fees.insuranceBps }),
+        ...(pool.fees.insuranceBps !== undefined && { insuranceFeeBps: pool.fees.insuranceBps }),
         underlyingAsset: pool.asset.address,
         poolDisplayName: pool.displayName,
         poolTokenName: pool.shareToken.name,
@@ -183,7 +204,7 @@ function fromPool(pool: Pool): PoolConfig & DeployedPoolConfig {
         underwriter: pool.underwriter,
         factoringPermissionsAddress: pool.permissions.factoring,
         depositPermissionsAddress: pool.permissions.deposit,
-        redeemPermissionsAddress: pool.permissions.redeem ?? undefined,
+        redeemPermissionsAddress: pool.permissions.redeem,
         bullaFactoringAddress: pool.address,
     };
 }
@@ -223,7 +244,7 @@ function getDeploymentConfig(network: string, pool: PoolName): (PoolConfig & Dep
 
 /**
  * Get full configuration for a network and pool combination
- * @param network - Network name (sepolia, polygon, mainnet, base, arbitrum)
+ * @param network - Network name, a key of networkConfigs
  * @param pool - The pool's poolKey in pools.json or pending-pools.json. Defaults to 'tcs'
  * @param version - Pool contract version. Defaults to the version this repo builds
  * @throws Error if network is unsupported or neither pool file has the pool on the network
@@ -233,7 +254,7 @@ export function getConfig(network: string, pool: PoolName = 'tcs', version: Pool
         throw new Error('Network parameter is required');
     }
 
-    const networkConfig = networkConfigs[network];
+    const networkConfig = networkConfigs[network as NetworkName];
     if (!networkConfig) {
         throw new Error(`Unsupported network: ${network}. Available: ${Object.keys(networkConfigs).join(', ')}`);
     }
@@ -268,47 +289,6 @@ export function getNetworkConfig(network: string): FullConfig {
 // Utility Functions
 // ============================================================================
 
-export function getRpcUrl(network: string): string {
-    switch (network) {
-        case 'sepolia':
-            return process.env.INFURA_API_KEY
-                ? `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`
-                : `https://rpc.ankr.com/eth_sepolia/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc`;
-        case 'polygon':
-            return 'https://rpc.ankr.com/polygon/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
-        case 'mainnet':
-            return `https://go.getblock.io/${process.env.MAINNET_GETBLOCK_API_KEY}`;
-        case 'base':
-            return 'https://rpc.ankr.com/base/ba1559bd45627ea35b516452751976567e0fd8864450470f207b8d01cbc3f4dc';
-        case 'arbitrum':
-            return 'https://arb1.arbitrum.io/rpc';
-        default:
-            throw new Error(`Unsupported network: ${network}`);
-    }
-}
-
-export function getEtherscanApiKey(network: string): string {
-    switch (network) {
-        case 'sepolia':
-        case 'base':
-        case 'mainnet':
-            return process.env.ETHERSCAN_API_KEY!;
-        case 'polygon':
-            return process.env.POLYGONSCAN_API_KEY!;
-        case 'arbitrum':
-            return process.env.ARBISCAN_API_KEY!;
-        default:
-            throw new Error(`No Etherscan API key configured for network: ${network}`);
-    }
-}
-
-
-export function getChainId(network: string): number {
-    const chainId = NETWORK_CHAIN_IDS[network];
-    if (chainId === undefined) throw new Error(`Unknown chain ID for network: ${network}`);
-    return chainId;
-}
-
 /** Every poolKey on the network: pending pools, and pools pools.json currently lists with a poolKey */
 export function getAvailablePools(network: string): PoolName[] {
     const { pools, pending } = loadValidatedPools();
@@ -324,7 +304,7 @@ export function getAvailableNetworks(): string[] {
 }
 
 export function getNetworkOnlyConfig(network: string): NetworkConfig {
-    const config = networkConfigs[network];
+    const config = networkConfigs[network as NetworkName];
     if (!config) {
         throw new Error(`Unsupported network: ${network}. Available: ${Object.keys(networkConfigs).join(', ')}`);
     }
@@ -333,13 +313,13 @@ export function getNetworkOnlyConfig(network: string): NetworkConfig {
 
 /** Config for one chain and pool contract version. Empty if that version has nothing on the chain yet */
 export function getVersionConfig(network: string, version: PoolVersion = CURRENT_POOL_VERSION): VersionConfig {
-    if (!networkConfigs[network]) {
+    if (!networkConfigs[network as NetworkName]) {
         throw new Error(`Unsupported network: ${network}. Available: ${Object.keys(networkConfigs).join(', ')}`);
     }
     if (!allPoolVersions.includes(version)) {
         throw new Error(`Unsupported pool version: ${version}. Available: ${allPoolVersions.join(', ')}`);
     }
-    return versionConfigs[network]?.[version] ?? {};
+    return versionConfigs[network as NetworkName]?.[version] ?? {};
 }
 
 export function getDeployedPoolConfig(network: string, pool: PoolName): DeployedPoolConfig | undefined {

@@ -3,24 +3,30 @@
 import Ajv from 'ajv';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { NETWORK_CHAIN_IDS } from '../networks';
+
+export { NETWORK_CHAIN_IDS };
 
 const ROOT = join(__dirname, '..', '..');
 export const POOLS_PATH = join(ROOT, 'bulla_registry_export', 'pools.json');
 export const PENDING_POOLS_PATH = join(ROOT, 'scripts', 'pending-pools.json');
 export const POOLS_SCHEMA_PATH = join(ROOT, 'bulla_registry_export', 'pools.schema.json');
 
-/** Chain id of every network a pool can be on. Must match the `network` enum in pools.schema.json. */
-export const NETWORK_CHAIN_IDS: Record<string, number> = {
-    mainnet: 1,
-    sepolia: 11155111,
-    polygon: 137,
-    base: 8453,
-    arbitrum: 42161,
-    redbelly: 151,
-    xdc: 50,
-};
+/**
+ * Every pool contract version, oldest first. A new version goes at the end (and in the `version` enum in
+ * pools.schema.json; validate-pools checks they match), then bump CURRENT_POOL_VERSION in network-config.ts.
+ */
+export const POOL_CONTRACT_VERSIONS = ['V0', 'V1', 'V2_1', 'V2_2'] as const;
+export type PoolContractVersion = typeof POOL_CONTRACT_VERSIONS[number];
 
-export type PoolContractVersion = 'V0' | 'V1' | 'V2_1' | 'V2_2';
+/** True if `version` is `since` or newer */
+export function isAtLeast(version: PoolContractVersion, since: PoolContractVersion): boolean {
+    return POOL_CONTRACT_VERSIONS.indexOf(version) >= POOL_CONTRACT_VERSIONS.indexOf(since);
+}
+
+/** The first version with redeem permissions, and the first with an insurance fee */
+const REDEEM_SINCE: PoolContractVersion = 'V2_1';
+const INSURANCE_SINCE: PoolContractVersion = 'V2_2';
 export type PoolCategory = 'active' | 'archived';
 
 export type Client = {
@@ -51,9 +57,11 @@ export type Pool = {
     asset: Asset;
     insured: boolean;
     enforceKyc: boolean;
-    permissions: { factoring: string; deposit: string; redeem: string | null };
+    /** redeem is absent on V0 and V1 pools, which have none */
+    permissions: { factoring: string; deposit: string; redeem?: string };
     underwriter: string;
-    fees: { protocolBps: number; adminBps: number; targetYieldBps: number; insuranceBps: number | null };
+    /** insuranceBps is absent before V2.2, which has no insurance fee */
+    fees: { protocolBps: number; adminBps: number; targetYieldBps: number; insuranceBps?: number };
     deployBlock: number;
 };
 
@@ -113,16 +121,42 @@ export function poolsRuleErrors(file: PoolsFile): string[] {
             errors.push(`${where(p)}: chainId ${p.chainId} is not ${p.network}'s (${NETWORK_CHAIN_IDS[p.network]})`);
         }
         if (!file.clients[p.client]) errors.push(`${where(p)}: unknown client '${p.client}'`);
-        if (p.version === 'V2_2' && p.fees.insuranceBps === null) errors.push(`${where(p)}: a V2_2 pool has an insurance fee`);
-        if (['V0', 'V1'].includes(p.version) && p.permissions.redeem !== null) {
-            errors.push(`${where(p)}: a ${p.version} pool has no redeem permissions; set redeem to null`);
+        // A field is present exactly when the pool's version has it, never null
+        const hasInsurance = isAtLeast(p.version, INSURANCE_SINCE);
+        if (hasInsurance && p.fees.insuranceBps === undefined) errors.push(`${where(p)}: a ${p.version} pool needs fees.insuranceBps`);
+        if (!hasInsurance && p.fees.insuranceBps !== undefined) {
+            errors.push(`${where(p)}: a ${p.version} pool has no insurance fee; remove fees.insuranceBps`);
+        }
+        const hasRedeem = isAtLeast(p.version, REDEEM_SINCE);
+        if (hasRedeem && p.permissions.redeem === undefined) errors.push(`${where(p)}: a ${p.version} pool needs permissions.redeem`);
+        if (!hasRedeem && p.permissions.redeem !== undefined) {
+            errors.push(`${where(p)}: a ${p.version} pool has no redeem permissions; remove permissions.redeem`);
         }
         if (p.supersededBy) {
             const next = file.pools.find(q => q.chainId === p.chainId && same(q.address, p.supersededBy));
             if (!next) errors.push(`${where(p)}: supersededBy ${p.supersededBy} is not a pool on the same chain`);
             else if (same(next.address, p.address)) errors.push(`${where(p)}: supersedes itself`);
+            else {
+                if (next.poolKey !== p.poolKey) errors.push(`${where(p)}: superseded by ${next.address}, which has another poolKey`);
+                if (next.deployBlock <= p.deployBlock) errors.push(`${where(p)}: superseded by ${next.address}, which is not newer`);
+            }
         }
     });
+
+    // A poolKey's history is a line: each redeploy replaces the pool before it, so no pool replaces two
+    const replaced = new Map<string, Pool>();
+    file.pools
+        .filter(p => p.supersededBy)
+        .forEach(p => {
+            const k = `${p.chainId}-${p.supersededBy!.toLowerCase()}`;
+            const other = replaced.get(k);
+            if (other) {
+                errors.push(
+                    `${p.network} ${p.supersededBy}: supersedes two pools (${other.address}, ${p.address}); point the older one at the pool that replaced it`,
+                );
+            }
+            replaced.set(k, p);
+        });
 
     const seen = new Map<string, Pool>();
     file.pools.forEach(p => {
@@ -160,9 +194,24 @@ export function pendingRuleErrors(pending: PendingPoolsFile, pools: PoolsFile): 
     return errors;
 }
 
+/** The schema's network and version enums must list what the scripts know, so a new chain or version can't miss one */
+export function schemaDriftErrors(schema: any = readJson(POOLS_SCHEMA_PATH)): string[] {
+    const errors: string[] = [];
+    const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+    const networks = Object.keys(NETWORK_CHAIN_IDS);
+    if (!sameList([...(schema.definitions?.network?.enum ?? [])].sort(), [...networks].sort())) {
+        errors.push(`pools.schema.json network enum must be exactly the networks in scripts/networks.ts: ${networks.join(', ')}`);
+    }
+    if (!sameList(schema.definitions?.pool?.properties?.version?.enum ?? [], POOL_CONTRACT_VERSIONS)) {
+        errors.push(`pools.schema.json version enum must be POOL_CONTRACT_VERSIONS, in order: ${POOL_CONTRACT_VERSIONS.join(', ')}`);
+    }
+    return errors;
+}
+
 /** Every problem with pools.json and pending-pools.json, schema first. Empty if both are valid. */
 export function validatePoolFiles(pools: unknown = readJson(POOLS_PATH), pending: unknown = readJson(PENDING_POOLS_PATH)): string[] {
     const errors = [
+        ...schemaDriftErrors(),
         ...schemaErrors(pools, '#').map(e => `pools.json ${e}`),
         ...schemaErrors(pending, '#/definitions/pendingPoolsFile').map(e => `pending-pools.json ${e}`),
     ];
@@ -252,4 +301,54 @@ export function recordDeployedPool(
     writeJson(POOLS_PATH, pools);
     writeJson(PENDING_POOLS_PATH, pendingFile);
     return pool;
+}
+
+/** The pool `ref` names: `<network>/<poolKey>` (its current pool) or `<network>/<address>` (any pool, e.g. one with no poolKey) */
+export function findPoolByRef(file: PoolsFile, ref: string): Pool | undefined {
+    const [network, key] = ref.split('/');
+    if (!network || !key) return undefined;
+    if (/^0x[0-9a-fA-F]{40}$/.test(key)) return file.pools.find(p => p.network === network && same(p.address, key));
+    return findCurrentPool(file, network, key);
+}
+
+/** Assets pools.json already lists on `network`, by lowercase address */
+export function knownAssets(file: PoolsFile, network: string): Map<string, Asset> {
+    const assets = new Map<string, Asset>();
+    file.pools.filter(p => p.network === network).forEach(p => assets.set(p.asset.address.toLowerCase(), p.asset));
+    return assets;
+}
+
+/**
+ * A pending-pools.json entry that redeploys `source`'s config as `poolKey` on `network` (pool:new --from).
+ * Same chain: reuses its permissions contracts. Another chain: leaves them out, so the deploy creates new ones,
+ * and takes `asset`, the asset on that chain. The insurance fee carries over only if the source has one.
+ */
+export function pendingFromPool(source: Pool, target: { network: string; poolKey: string; asset?: Asset }): PendingPool {
+    const sameChain = source.network === target.network;
+    if (!sameChain && !target.asset) throw new Error(`${source.network} → ${target.network}: name the asset on ${target.network}`);
+    const { protocolBps, adminBps, targetYieldBps, insuranceBps } = source.fees;
+    return {
+        network: target.network,
+        poolKey: target.poolKey,
+        client: source.client,
+        displayName: source.displayName,
+        category: 'active',
+        shareToken: { symbol: source.shareToken.symbol, name: source.shareToken.name },
+        asset: target.asset ?? source.asset,
+        insured: source.insured,
+        enforceKyc: source.enforceKyc,
+        ...(sameChain && { permissions: { ...source.permissions } }),
+        underwriter: source.underwriter,
+        fees: { protocolBps, adminBps, targetYieldBps, ...(insuranceBps !== undefined && { insuranceBps }) },
+    };
+}
+
+/** Adds `entry` to pending-pools.json after validating both files with it */
+export function addPendingPool(entry: PendingPool): void {
+    const pools = loadPools();
+    const pending = loadPendingPools();
+    pending.pools.push(entry);
+    const errors = validatePoolFiles(pools, pending);
+    if (errors.length) throw new Error(`Refusing to write an invalid pending-pools.json:\n  ${errors.join('\n  ')}`);
+    writeJson(PENDING_POOLS_PATH, pending);
 }

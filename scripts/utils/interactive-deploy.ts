@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from 'child_process';
 import * as readline from 'readline';
+import { getAvailableNetworks } from '../network-config';
 
 // Function to prompt for private key
 export function promptForPrivateKey(): Promise<string> {
@@ -53,7 +54,7 @@ export function setupGracefulExit(): void {
 export function validateNetwork(network: string | undefined): string {
     if (!network) {
         console.error('❌ NETWORK environment variable is required');
-        console.error('   Available networks: sepolia, polygon, mainnet, base');
+        console.error(`   Available networks: ${getAvailableNetworks().join(', ')}`);
         console.error('   Usage examples:');
         console.error('   NETWORK=sepolia npx ts-node <script>');
         console.error('   NETWORK=base npx ts-node <script>');

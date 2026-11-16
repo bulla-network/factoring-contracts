@@ -28,7 +28,8 @@
         "set-impair-reserve": "dotenv -e .env -- npx ts-node scripts/set-impair-reserve.ts",
         "whitelist-callback": "dotenv -e .env -- npx ts-node scripts/whitelist-callback.ts",
         "predeploy:check": "dotenv -e .env -- npx ts-node scripts/predeploy-checks.ts",
-        "validate:pools": "ts-node scripts/validate-pools.ts"
+        "validate:pools": "ts-node scripts/validate-pools.ts",
+        "pool:new": "dotenv -e .env -- npx ts-node scripts/new-pool.ts"
     },
     "dependencies": {
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
