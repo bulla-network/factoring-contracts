@@ -6,8 +6,8 @@ solc = "0.8.30"
 via_ir = true
 optimizer = true
 optimizer_runs = 160
-# PreDeployChecks reads the compiled adapter interface ABI (PD-02)
-fs_permissions = [{ access = "read", path = "./artifacts/foundry" }, { access = "read", path = "./scripts" }, { access = "read", path = "./broadcast" }]
+# PreDeployChecks reads the compiled adapter interface ABI (PD-02); TestPoolBroadcasts reads bulla_registry_export/pools.json
+fs_permissions = [{ access = "read", path = "./artifacts/foundry" }, { access = "read", path = "./bulla_registry_export" }, { access = "read", path = "./broadcast" }]
 remappings = [
     'contracts/=contracts/',
     '@ensdomains/=node_modules/@ensdomains/',

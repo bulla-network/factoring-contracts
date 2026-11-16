@@ -1,0 +1,201 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/bulla-network/factoring-contracts/bulla_registry_export/pools.schema.json",
+    "title": "Bulla factoring pools",
+    "description": "Every Bulla factoring pool on every chain, and the clients they belong to. Published through bulla-registry. Rules JSON Schema can't express (unique addresses, known clients, supersededBy targets, one current pool per poolKey and chain) are checked by scripts/validate-pools.ts.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["clients", "pools"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "clients": {
+            "type": "object",
+            "description": "Keyed by client key, e.g. tcs. A client is who the pool factors invoices for; one client can have many pools.",
+            "propertyNames": { "$ref": "#/definitions/key" },
+            "additionalProperties": { "$ref": "#/definitions/client" }
+        },
+        "pools": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/pool" }
+        }
+    },
+    "definitions": {
+        "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "key": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "client": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["displayName"],
+            "properties": {
+                "displayName": { "type": "string", "minLength": 1 },
+                "website": { "type": "string", "pattern": "^https://" },
+                "logo": {
+                    "type": "string",
+                    "description": "An https URL, or a path relative to this file (e.g. logos/tcs.png). Absent: show the Bulla logo.",
+                    "pattern": "^(https://|logos/)"
+                }
+            }
+        },
+        "network": { "type": "string", "enum": ["mainnet", "sepolia", "polygon", "base", "arbitrum", "redbelly", "xdc"] },
+        "category": {
+            "type": "string",
+            "description": "Where the app lists the pool: active, test or archived tab; hidden is listed nowhere but still resolves (e.g. a pool superseded by a redeploy).",
+            "enum": ["active", "test", "archived", "hidden"]
+        },
+        "shareToken": {
+            "type": "object",
+            "description": "The pool's own ERC-20 share token. Its address is the pool address.",
+            "additionalProperties": false,
+            "required": ["symbol", "name", "decimals"],
+            "properties": {
+                "symbol": { "type": "string", "minLength": 1 },
+                "name": { "type": "string", "minLength": 1 },
+                "decimals": { "type": "integer", "minimum": 0, "maximum": 36 }
+            }
+        },
+        "asset": {
+            "type": "object",
+            "description": "The underlying asset the pool takes deposits in and funds invoices with.",
+            "additionalProperties": false,
+            "required": ["address", "symbol", "name", "decimals", "kind"],
+            "properties": {
+                "address": { "$ref": "#/definitions/address" },
+                "symbol": { "type": "string", "minLength": 1 },
+                "name": { "type": "string", "minLength": 1 },
+                "decimals": { "type": "integer", "minimum": 0, "maximum": 36 },
+                "kind": { "type": "string", "enum": ["stable", "volatile"] }
+            }
+        },
+        "permissions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["factoring", "deposit", "redeem"],
+            "properties": {
+                "factoring": { "$ref": "#/definitions/address" },
+                "deposit": { "$ref": "#/definitions/address" },
+                "redeem": {
+                    "description": "Null for V0 and V1 pools, which have no redeem permissions.",
+                    "oneOf": [{ "$ref": "#/definitions/address" }, { "type": "null" }]
+                }
+            }
+        },
+        "fees": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["protocolBps", "adminBps", "targetYieldBps", "insuranceBps"],
+            "properties": {
+                "protocolBps": { "$ref": "#/definitions/bps" },
+                "adminBps": { "$ref": "#/definitions/bps" },
+                "targetYieldBps": { "$ref": "#/definitions/bps" },
+                "insuranceBps": {
+                    "description": "Null before V2.2, which has no insurance fee.",
+                    "oneOf": [{ "$ref": "#/definitions/bps" }, { "type": "null" }]
+                }
+            }
+        },
+        "pool": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "chainId",
+                "network",
+                "address",
+                "version",
+                "client",
+                "displayName",
+                "category",
+                "shareToken",
+                "asset",
+                "insured",
+                "enforceKyc",
+                "permissions",
+                "underwriter",
+                "fees",
+                "deployBlock"
+            ],
+            "properties": {
+                "chainId": { "type": "integer", "minimum": 1 },
+                "network": { "$ref": "#/definitions/network" },
+                "address": { "$ref": "#/definitions/address", "description": "The pool contract, which is also its share token." },
+                "version": { "type": "string", "enum": ["V0", "V1", "V2", "V2_1", "V2_2"] },
+                "client": { "$ref": "#/definitions/key", "description": "A key of clients. Separate from poolKey: tcs-wyoming is client tcs." },
+                "poolKey": {
+                    "$ref": "#/definitions/key",
+                    "description": "The pool name the deploy scripts take (network-config.ts). Only pools those scripts manage have one."
+                },
+                "displayName": { "type": "string", "minLength": 1 },
+                "category": { "$ref": "#/definitions/category" },
+                "supersededBy": {
+                    "$ref": "#/definitions/address",
+                    "description": "The pool on the same chain that replaced this one when it was redeployed."
+                },
+                "shareToken": { "$ref": "#/definitions/shareToken" },
+                "asset": { "$ref": "#/definitions/asset" },
+                "insured": { "type": "boolean" },
+                "enforceKyc": { "type": "boolean" },
+                "permissions": { "$ref": "#/definitions/permissions" },
+                "underwriter": { "$ref": "#/definitions/address" },
+                "fees": { "$ref": "#/definitions/fees" },
+                "deployBlock": { "type": "integer", "minimum": 0, "description": "The block that created the pool; the subgraph's start block for it." }
+            }
+        },
+        "pendingPoolsFile": {
+            "description": "scripts/pending-pools.json: pools to deploy next. The deploy moves an entry into pools.json once it is live.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pools"],
+            "properties": {
+                "$schema": { "type": "string" },
+                "pools": { "type": "array", "items": { "$ref": "#/definitions/pendingPool" } }
+            }
+        },
+        "pendingPool": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["network", "poolKey", "client", "displayName", "category", "shareToken", "asset", "insured", "enforceKyc", "underwriter", "fees"],
+            "properties": {
+                "network": { "$ref": "#/definitions/network" },
+                "poolKey": { "$ref": "#/definitions/key" },
+                "client": { "$ref": "#/definitions/key" },
+                "displayName": { "type": "string", "minLength": 1 },
+                "category": { "$ref": "#/definitions/category" },
+                "shareToken": {
+                    "type": "object",
+                    "description": "Decimals follow the asset's.",
+                    "additionalProperties": false,
+                    "required": ["symbol", "name"],
+                    "properties": {
+                        "symbol": { "type": "string", "minLength": 1 },
+                        "name": { "type": "string", "minLength": 1 }
+                    }
+                },
+                "asset": { "$ref": "#/definitions/asset" },
+                "insured": { "type": "boolean" },
+                "enforceKyc": { "type": "boolean" },
+                "permissions": {
+                    "type": "object",
+                    "description": "Existing permissions contracts to reuse. Any left out is deployed with the pool.",
+                    "additionalProperties": false,
+                    "properties": {
+                        "factoring": { "$ref": "#/definitions/address" },
+                        "deposit": { "$ref": "#/definitions/address" },
+                        "redeem": { "$ref": "#/definitions/address" }
+                    }
+                },
+                "underwriter": { "$ref": "#/definitions/address" },
+                "fees": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["protocolBps", "adminBps", "targetYieldBps"],
+                    "properties": {
+                        "protocolBps": { "$ref": "#/definitions/bps" },
+                        "adminBps": { "$ref": "#/definitions/bps" },
+                        "targetYieldBps": { "$ref": "#/definitions/bps" },
+                        "insuranceBps": { "$ref": "#/definitions/bps", "description": "Left out: the deploy script's default (100)." }
+                    }
+                }
+            }
+        }
+    }
+}

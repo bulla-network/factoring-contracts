@@ -65,7 +65,7 @@ async function fullDeployFlow(): Promise<void> {
         console.log('   ✅ Callback Whitelisting');
 
         console.log('\n📋 Next Steps:');
-        console.log('   1. Check network-config.ts for all deployed addresses');
+        console.log('   1. Commit bulla_registry_export/pools.json, scripts/pending-pools.json and the broadcasts (POOLDEPLOY-15)');
         console.log('   2. Test deposit/withdraw functionality');
         console.log('   3. Approve and fund test invoices');
         console.log('   4. Monitor contract interactions on block explorer\n');

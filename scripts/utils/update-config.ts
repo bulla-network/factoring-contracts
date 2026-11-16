@@ -1,6 +1,8 @@
+import { utils } from 'ethers';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { CURRENT_POOL_VERSION, PoolName, PoolVersion } from '../network-config';
+import { findPendingPool, loadPendingPools, recordDeployedPool } from './pools';
 
 /**
  * Read the latest broadcast file for a script
@@ -75,63 +77,6 @@ export function updateAdapterAddress(network: string, adapterAddress: string, ve
     }
 
     content = content.replace(blockMatch[0], block);
-    writeFileSync(configPath, content, 'utf-8');
-}
-
-/**
- * Update deployed pool addresses in network config
- */
-export function updatePoolDeployment(
-    network: string,
-    pool: PoolName,
-    addresses: {
-        bullaFactoringAddress?: string;
-        factoringPermissionsAddress?: string;
-        depositPermissionsAddress?: string;
-        redeemPermissionsAddress?: string;
-    },
-): void {
-    const configPath = join('scripts', 'network-config.ts');
-    let content = readFileSync(configPath, 'utf-8');
-
-    // Find the deployment config for this network + pool
-    // This pattern captures everything inside the return {} block for the specific network/pool combination
-    const deploymentPattern = new RegExp(
-        `(case\\s+'${network}':[\\s\\S]*?case\\s+'${pool}':[\\s\\S]*?return\\s*\\{)([\\s\\S]*?)(\\};)`,
-        '',
-    );
-
-    const match = content.match(deploymentPattern);
-    if (!match) {
-        console.warn(`⚠️  Could not find deployment config for ${network}/${pool}`);
-        console.warn(`   Tried pattern: case '${network}': ... case '${pool}': ... return { ... };`);
-        return;
-    }
-
-    let deploymentConfig = match[2];
-
-    // Update each address if provided
-    Object.entries(addresses).forEach(([key, value]) => {
-        if (value) {
-            const addressPattern = new RegExp(`${key}:\\s*'[^']*'`);
-            if (addressPattern.test(deploymentConfig)) {
-                deploymentConfig = deploymentConfig.replace(addressPattern, `${key}: '${value}'`);
-                console.log(`✅ Updated ${key} for ${network}/${pool}: ${value}`);
-            } else {
-                // Add the address before writeNewAddresses
-                const writeNewAddressesPattern = /(writeNewAddresses:)/;
-                if (writeNewAddressesPattern.test(deploymentConfig)) {
-                    deploymentConfig = deploymentConfig.replace(
-                        writeNewAddressesPattern,
-                        `${key}: '${value}',\n                        $1`,
-                    );
-                    console.log(`✅ Added ${key} for ${network}/${pool}: ${value}`);
-                }
-            }
-        }
-    });
-
-    content = content.replace(match[0], `${match[1]}${deploymentConfig}${match[3]}`);
     writeFileSync(configPath, content, 'utf-8');
 }
 
@@ -440,25 +385,52 @@ export function updateAdapterFromBroadcast(scriptName: string, network: string):
 }
 
 /**
- * Extract factoring addresses from broadcast and update config
+ * The block of the transaction that created `address`, from the broadcast's receipts
  */
-export function updateFactoringFromBroadcast(scriptName: string, network: string, pool: PoolName): void {
-    try {
-        const broadcast = readLatestBroadcast(scriptName, network);
+function extractDeployBlock(broadcast: any, address: string): number | undefined {
+    const tx = (broadcast.transactions || []).find(
+        (t: any) => t.transactionType === 'CREATE' && t.contractAddress?.toLowerCase() === address.toLowerCase(),
+    );
+    const receipt = (broadcast.receipts || []).find((r: any) => r.transactionHash === tx?.hash);
+    if (!receipt?.blockNumber) return undefined;
+    return typeof receipt.blockNumber === 'number' ? receipt.blockNumber : parseInt(receipt.blockNumber, 16);
+}
 
-        const addresses = {
-            bullaFactoringAddress: extractDeployedAddress(broadcast, 'BullaFactoringV2_2'),
-            factoringPermissionsAddress: extractDeployedAddress(broadcast, 'FactoringPermissions'),
-            depositPermissionsAddress: extractDeployedAddress(broadcast, 'DepositPermissions'),
-            redeemPermissionsAddress: extractDeployedAddress(broadcast, 'RedemptionQueue'),
-        };
+/**
+ * Records the pool a DeployBullaFactoring broadcast created in bulla_registry_export/pools.json (DEV-2937), from its
+ * scripts/pending-pools.json entry, and the adapter it deployed, if any, in network-config.ts. Throws if the
+ * broadcast has no pool or the pool can't be recorded, since a deployed pool missing from pools.json is invisible
+ * to every other repo.
+ */
+export function recordFactoringFromBroadcast(scriptName: string, network: string, pool: PoolName): void {
+    const broadcast = readLatestBroadcast(scriptName, network);
 
-        updatePoolDeployment(network, pool, addresses);
+    const pending = findPendingPool(loadPendingPools(), network, pool);
+    if (!pending) throw new Error(`${network}/${pool} is not in scripts/pending-pools.json, so there is nothing to record`);
 
-        // The deploy script deploys an adapter when this version has none on the chain; record it so later pools reuse it
-        const adapterAddress = extractDeployedAddress(broadcast, 'BullaClaimV2InvoiceProviderAdapterV2');
-        if (adapterAddress) updateAdapterAddress(network, adapterAddress);
-    } catch (error) {
-        console.error('❌ Error updating factoring addresses:', (error as Error).message);
-    }
+    const poolAddress = extractDeployedAddress(broadcast, 'BullaFactoringV2_2');
+    if (!poolAddress) throw new Error('No BullaFactoringV2_2 created in the latest broadcast');
+    const deployBlock = extractDeployBlock(broadcast, poolAddress);
+    if (deployBlock === undefined) throw new Error(`No receipt for the pool ${poolAddress} in the latest broadcast`);
+
+    // Same choices as script/DeployBullaFactoring.s.sol: reuse what the pending entry names, else what the broadcast created
+    const factoring = pending.permissions?.factoring ?? extractDeployedAddress(broadcast, 'FactoringPermissions');
+    const deposit = pending.permissions?.deposit ?? extractDeployedAddress(broadcast, 'DepositPermissions');
+    if (!factoring || !deposit) throw new Error('Could not find the pool\'s permissions contracts in the pending entry or the broadcast');
+    const redeem = pending.permissions?.redeem ?? deposit;
+    const checksum = utils.getAddress;
+
+    const recorded = recordDeployedPool(pending, {
+        address: checksum(poolAddress),
+        version: 'V2_2',
+        deployBlock,
+        permissions: { factoring: checksum(factoring), deposit: checksum(deposit), redeem: checksum(redeem) },
+        // DeployConfig.sol's default when INSURANCE_FEE_BPS is unset
+        insuranceBps: pending.fees.insuranceBps ?? 100,
+    });
+    console.log(`✅ Recorded ${network}/${pool} in bulla_registry_export/pools.json: ${recorded.address} (block ${deployBlock})`);
+
+    // The deploy script deploys an adapter when this version has none on the chain; record it so later pools reuse it
+    const adapterAddress = extractDeployedAddress(broadcast, 'BullaClaimV2InvoiceProviderAdapterV2');
+    if (adapterAddress) updateAdapterAddress(network, adapterAddress);
 }

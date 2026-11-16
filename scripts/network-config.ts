@@ -1,4 +1,15 @@
-// Shared network and pool configurations for deployment and permissions scripts
+// Shared network and pool configurations for deployment and permissions scripts.
+// Networks and adapters live here. Pools live in bulla_registry_export/pools.json (deployed, published through
+// bulla-registry) and scripts/pending-pools.json (to deploy next); see scripts/utils/pools.ts.
+
+import {
+    findCurrentPool,
+    findPendingPool,
+    loadValidatedPools,
+    NETWORK_CHAIN_IDS,
+    PendingPool,
+    Pool,
+} from './utils/pools';
 
 // ============================================================================
 // Global Constants
@@ -11,8 +22,8 @@ export const DEFAULT_PROTOCOL_FEE_BPS = 30;
 // Types
 // ============================================================================
 
-const allPools = ['tcs', 'taram', 'fundora', 'ola', 'tcs-wyoming', 'egm'] as const;
-export type PoolName = typeof allPools[number];
+/** A pool's poolKey in pools.json, e.g. 'tcs' or 'tcs-wyoming' */
+export type PoolName = string;
 
 const allPoolVersions = ['v2.1', 'v2.2'] as const;
 export type PoolVersion = typeof allPoolVersions[number];
@@ -42,7 +53,7 @@ export type VersionConfig = {
     invoiceProviderAdapterAddress?: string;
 };
 
-/** Pool-specific configuration (not tied to any network) */
+/** A pool's fees, from its pools.json or pending-pools.json entry */
 export type PoolConfig = {
     protocolFeeBps: number;
     adminFeeBps: number;
@@ -50,7 +61,7 @@ export type PoolConfig = {
     insuranceFeeBps?: number;
 };
 
-/** Deployed pool configuration (specific to network + pool combination) */
+/** A pool on one network, from its pools.json entry or, if it is about to be deployed, its pending-pools.json entry */
 export type DeployedPoolConfig = {
     underlyingAsset: string;
     poolDisplayName: string;
@@ -60,8 +71,8 @@ export type DeployedPoolConfig = {
     factoringPermissionsAddress?: string;
     depositPermissionsAddress?: string;
     redeemPermissionsAddress?: string;
+    /** Unset while the pool is pending */
     bullaFactoringAddress?: string;
-    writeNewAddresses: boolean;
 };
 
 /** Combined config returned by getConfig() */
@@ -73,6 +84,8 @@ export type FullConfig = NetworkConfig &
         poolName: PoolName;
         poolVersion: PoolVersion;
         network: string;
+        /** Set when the pool is in pending-pools.json, i.e. the next deploy creates it */
+        pending?: PendingPool;
     };
 
 // ============================================================================
@@ -154,215 +167,54 @@ export const versionConfigs: Record<string, Partial<Record<PoolVersion, VersionC
 };
 
 // ============================================================================
-// Pool Configurations (Pool-only, network-agnostic)
+// Pools (bulla_registry_export/pools.json and scripts/pending-pools.json)
 // ============================================================================
 
-export const poolConfigs: Record<PoolName, PoolConfig> = {
-    tcs: {
-        protocolFeeBps: 30,
-        adminFeeBps: 0,
-        targetYieldBps: 795,
-    },
-    taram: {
-        protocolFeeBps: 30,
-        adminFeeBps: 50,
-        targetYieldBps: 800,
-    },
-    fundora: {
-        protocolFeeBps: 30,
-        adminFeeBps: 50,
-        targetYieldBps: 900,
-    },
-    ola: {
-        protocolFeeBps: 50,
-        adminFeeBps: 0,
-        // 18% p.a. on the amount advanced, expressed on the full claim value (~80.24% advanced)
-        targetYieldBps: 1444,
-        insuranceFeeBps: 0,
-    },
-    // Mirrors the live Arbitrum PYUSD TCS pool (0xc0997732...): 30 bps protocol, 0 admin, 800 bps yield, no insurance
-    'tcs-wyoming': {
-        protocolFeeBps: 30,
-        adminFeeBps: 0,
-        targetYieldBps: 800,
-        insuranceFeeBps: 0,
-    },
-    // EGM Foundry Phase 0 test pool: 50 bps protocol, 0 admin, no insurance fee
-    egm: {
-        protocolFeeBps: 50,
-        adminFeeBps: 0,
-        // 11% p.a. on the amount advanced, expressed on the full claim value (95% advanced)
-        targetYieldBps: 1045,
-        insuranceFeeBps: 0,
-    },
-};
+function fromPool(pool: Pool): PoolConfig & DeployedPoolConfig {
+    return {
+        protocolFeeBps: pool.fees.protocolBps,
+        adminFeeBps: pool.fees.adminBps,
+        targetYieldBps: pool.fees.targetYieldBps,
+        ...(pool.fees.insuranceBps !== null && { insuranceFeeBps: pool.fees.insuranceBps }),
+        underlyingAsset: pool.asset.address,
+        poolDisplayName: pool.displayName,
+        poolTokenName: pool.shareToken.name,
+        poolTokenSymbol: pool.shareToken.symbol,
+        underwriter: pool.underwriter,
+        factoringPermissionsAddress: pool.permissions.factoring,
+        depositPermissionsAddress: pool.permissions.deposit,
+        redeemPermissionsAddress: pool.permissions.redeem ?? undefined,
+        bullaFactoringAddress: pool.address,
+    };
+}
 
-// ============================================================================
-// Deployed Pool Configurations (Network + Pool specific)
-// ============================================================================
+function fromPendingPool(pool: PendingPool): PoolConfig & DeployedPoolConfig {
+    return {
+        protocolFeeBps: pool.fees.protocolBps,
+        adminFeeBps: pool.fees.adminBps,
+        targetYieldBps: pool.fees.targetYieldBps,
+        ...(pool.fees.insuranceBps !== undefined && { insuranceFeeBps: pool.fees.insuranceBps }),
+        underlyingAsset: pool.asset.address,
+        poolDisplayName: pool.displayName,
+        poolTokenName: pool.shareToken.name,
+        poolTokenSymbol: pool.shareToken.symbol,
+        underwriter: pool.underwriter,
+        factoringPermissionsAddress: pool.permissions?.factoring,
+        depositPermissionsAddress: pool.permissions?.deposit,
+        redeemPermissionsAddress: pool.permissions?.redeem,
+    };
+}
 
 /**
- * Get deployed pool configuration for a specific network + pool combination
- * Returns undefined if the pool is not deployed on that network
+ * A pool's config: its pending-pools.json entry if it has one (the deploy is about to create it), else the pool
+ * pools.json currently lists for that network and poolKey. Undefined if neither has it.
  */
-function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfig | undefined {
-    switch (network) {
-        case 'sepolia':
-            switch (pool) {
-                case 'tcs':
-                    return {
-                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // Sepolia USDC
-                        poolDisplayName: 'Bulla TCS Factoring Pool Sepolia Test v2.1',
-                        poolTokenName: 'Bulla TCS Factoring Pool',
-                        poolTokenSymbol: 'BFT-TCS',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        factoringPermissionsAddress: '0x996e2beFD170CeB741b0072AE97E524Bdf410E9e',
-                        depositPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-                        redeemPermissionsAddress: '0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8',
-                        bullaFactoringAddress: '0xbc1dd527c3CF1302Cb189CaB9683Ef5CF27F0308',
-                        writeNewAddresses: true,
-                    };
-                case 'fundora':
-                    return {
-                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
-                        poolDisplayName: 'Test Pool V2.1',
-                        poolTokenName: 'Test Token V2.1',
-                        poolTokenSymbol: 'BFT-V2_1',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
-                        redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
-                        factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        bullaFactoringAddress: '0x8ce8Fe0C4aDf44469f138A8389bDA91cC721A515',
-                        writeNewAddresses: true,
-                    };
-                case 'ola':
-                    return {
-                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
-                        poolDisplayName: 'Ola Truckload Test Pool',
-                        poolTokenName: 'Ola Truckload Test Token',
-                        poolTokenSymbol: 'BFT-OLA',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
-                        redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
-                        factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        // DEV-2928: redeployed on the v2.2 adapter. Old pool 0x36c6cff33f726f05fa024fd3132f42998e713948 used adapter 0x2C6c46d6... (no getImpairTarget)
-                        bullaFactoringAddress: '0x5068c979e40247de3903dbaa44ce1d90d5bf7a80',
-                        writeNewAddresses: true,
-                    };
-                case 'egm':
-                    return {
-                        underlyingAsset: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8', // USDC
-                        poolDisplayName: 'EGM Pilot Test Pool',
-                        poolTokenName: 'EGM Pilot Test Token',
-                        poolTokenSymbol: 'BFT-EGM',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        // Shared with the Sepolia Ola pool
-                        depositPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
-                        redeemPermissionsAddress: '0x764E845528e177aF40D508F46E948d5440AaC13D',
-                        factoringPermissionsAddress: '0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F',
-                        // DEV-2932: redeployed on the v2.2 adapter. Old pool 0xe35f1637fc306da228e88747576e60a832ff40cd used adapter 0x2C6c46d6... (no getImpairTarget)
-                        bullaFactoringAddress: '0x04da9ebda15ad3009eb99754a34284e27c1c20bf',
-                        writeNewAddresses: true,
-                    };
-                default:
-                    return undefined;
-            }
-
-        case 'polygon':
-            switch (pool) {
-                case 'tcs':
-                    return {
-                        underlyingAsset: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359', // Polygon USDC
-                        poolDisplayName: 'Bulla TCS Factoring Pool - Polygon V2',
-                        poolTokenName: 'Bulla TCS Factoring Pool Token',
-                        poolTokenSymbol: 'BFT-TCS',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        factoringPermissionsAddress: '0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4',
-                        depositPermissionsAddress: '0xBB56c6E4e0812de05bf870941676F6467D964d5e',
-                        redeemPermissionsAddress: '0x0000000000000000000000000000000000000000',
-                        bullaFactoringAddress: '0xA7033191Eb07DC6205015075B204Ba0544bc460d',
-                        writeNewAddresses: true,
-                    };
-                default:
-                    return undefined;
-            }
-
-        case 'mainnet':
-            switch (pool) {
-                case 'tcs':
-                    return {
-                        underlyingAsset: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8', // Mainnet PyUSD
-                        poolDisplayName: 'TCS Settlement Pool - Mainnet V2.1',
-                        poolTokenName: 'TCS Settlement Pool Token V2.1',
-                        poolTokenSymbol: 'BFT-TCS-V2_1',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        factoringPermissionsAddress: '0x1c534661326b41c8b8aab5631ECED6D9755ff192',
-                        depositPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
-                        redeemPermissionsAddress: '0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6',
-                        bullaFactoringAddress: '0x1a34dfd1ee17130228452f3d9cdda5908865d22d',
-                        writeNewAddresses: true,
-                    };
-                default:
-                    return undefined;
-            }
-
-        case 'base':
-            switch (pool) {
-                case 'tcs':
-                    return {
-                        underlyingAsset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
-                        poolDisplayName: 'TCS Settlement Pool V2',
-                        poolTokenName: 'TCS Settlement Pool Token V2',
-                        poolTokenSymbol: 'BFT-TCS-V2',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        depositPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
-                        redeemPermissionsAddress: '0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf',
-                        factoringPermissionsAddress: '0x0313433613F24c73efc15c5c74408F40B462fd9e',
-                        bullaFactoringAddress: '0xc65abf8aba06510f777be4ba2c29da4d93257d42',
-                        writeNewAddresses: true,
-                    };
-                default:
-                    return undefined;
-            }
-
-        case 'arbitrum':
-            switch (pool) {
-                case 'tcs':
-                    return {
-                        underlyingAsset: '0x46850aD61C2B7d64d08c9C754F45254596696984', // pyUSD
-                        poolDisplayName: 'TCS Settlement Pool - Arbitrum V2.1',
-                        poolTokenName: 'TCS Settlement Pool Token V2.1',
-                        poolTokenSymbol: 'BFT-TCS-V2_1',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
-                        depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        bullaFactoringAddress: '0xc099773267308D8e9E805f47EABf9ab13bBc9e37', // synced from release/v2.1 (#230); 0x30fbdae8... was the dead pool on the bad adapter
-                        writeNewAddresses: true,
-                    };
-                case 'tcs-wyoming':
-                    return {
-                        underlyingAsset: '0x5E817F2AbCCB9095585D26c2a3ce234a440574Fc', // FRNT (Frontier Stable Token)
-                        poolDisplayName: 'TCS Wyoming Settlement Pool - Arbitrum V2.2',
-                        poolTokenName: 'TCS Wyoming Settlement Pool Token V2.2',
-                        poolTokenSymbol: 'BFT-TCSWY-V2_2',
-                        underwriter: '0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3',
-                        // Shared with the Arbitrum PYUSD TCS pool (owned by Safe 0xB17f273e...)
-                        factoringPermissionsAddress: '0x3204562dbb6465193525e0da1e5e016643b2b117',
-                        depositPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        redeemPermissionsAddress: '0xb842d5c5200841ef153100cc4d9fcac47620dd0a',
-                        // DEV-2927: redeployed on the v2.2 adapter. Old pools 0x85314b08a20873c3eebc41111cd02a530bf5c6bc (adapter
-                        // 0xdb44baa2..., v2.1, no getImpairTarget) and 0x23406d0af351923d9845c5a726c21315cbf36915 (adapter with no code on Arbitrum)
-                        bullaFactoringAddress: '0xa7033191eb07dc6205015075b204ba0544bc460d',
-                        writeNewAddresses: true,
-                    };
-                default:
-                    return undefined;
-            }
-
-        default:
-            return undefined;
-    }
+function getDeploymentConfig(network: string, pool: PoolName): (PoolConfig & DeployedPoolConfig & { pending?: PendingPool }) | undefined {
+    const { pools, pending } = loadValidatedPools();
+    const pendingPool = findPendingPool(pending, network, pool);
+    if (pendingPool) return { ...fromPendingPool(pendingPool), pending: pendingPool };
+    const current = findCurrentPool(pools, network, pool);
+    return current && fromPool(current);
 }
 
 // ============================================================================
@@ -371,10 +223,10 @@ function getDeploymentConfig(network: string, pool: PoolName): DeployedPoolConfi
 
 /**
  * Get full configuration for a network and pool combination
- * @param network - Network name (sepolia, polygon, mainnet, base)
- * @param pool - Pool name (tcs, taram, fundora). Defaults to 'tcs'
+ * @param network - Network name (sepolia, polygon, mainnet, base, arbitrum)
+ * @param pool - The pool's poolKey in pools.json or pending-pools.json. Defaults to 'tcs'
  * @param version - Pool contract version. Defaults to the version this repo builds
- * @throws Error if network is unsupported, pool doesn't exist, or pool is not deployed on the network
+ * @throws Error if network is unsupported or neither pool file has the pool on the network
  */
 export function getConfig(network: string, pool: PoolName = 'tcs', version: PoolVersion = CURRENT_POOL_VERSION): FullConfig {
     if (!network) {
@@ -386,19 +238,16 @@ export function getConfig(network: string, pool: PoolName = 'tcs', version: Pool
         throw new Error(`Unsupported network: ${network}. Available: ${Object.keys(networkConfigs).join(', ')}`);
     }
 
-    const poolConfig = poolConfigs[pool];
-    if (!poolConfig) {
-        throw new Error(`Unsupported pool: ${pool}. Available: ${Object.keys(poolConfigs).join(', ')}`);
-    }
-
     const deployedPoolConfig = getDeploymentConfig(network, pool);
     if (!deployedPoolConfig) {
-        throw new Error(`Pool '${pool}' is not deployed on network '${network}'`);
+        throw new Error(
+            `Pool '${pool}' is not on network '${network}'. Available: ${getAvailablePools(network).join(', ') || 'none'}. ` +
+                `To deploy a new pool, add it to scripts/pending-pools.json`,
+        );
     }
 
     return {
         ...networkConfig,
-        ...poolConfig,
         ...deployedPoolConfig,
         BullaClaimInvoiceProviderAdapterAddress: getVersionConfig(network, version).invoiceProviderAdapterAddress,
         poolName: pool,
@@ -453,37 +302,25 @@ export function getEtherscanApiKey(network: string): string {
     }
 }
 
+
 export function getChainId(network: string): number {
-    switch (network) {
-        case 'sepolia':
-            return 11155111;
-        case 'polygon':
-            return 137;
-        case 'mainnet':
-            return 1;
-        case 'base':
-            return 8453;
-        case 'arbitrum':
-            return 42161;
-        default:
-            throw new Error(`Unknown chain ID for network: ${network}`);
-    }
+    const chainId = NETWORK_CHAIN_IDS[network];
+    if (chainId === undefined) throw new Error(`Unknown chain ID for network: ${network}`);
+    return chainId;
 }
 
+/** Every poolKey on the network: pending pools, and pools pools.json currently lists with a poolKey */
 export function getAvailablePools(network: string): PoolName[] {
-    return allPools.filter(pool => getDeploymentConfig(network, pool) !== undefined);
+    const { pools, pending } = loadValidatedPools();
+    const keys = [
+        ...pending.pools.filter(p => p.network === network).map(p => p.poolKey),
+        ...pools.pools.filter(p => p.network === network && p.poolKey && !p.supersededBy).map(p => p.poolKey as string),
+    ];
+    return [...new Set(keys)];
 }
 
 export function getAvailableNetworks(): string[] {
     return Object.keys(networkConfigs);
-}
-
-export function getPoolConfig(pool: PoolName): PoolConfig {
-    const config = poolConfigs[pool];
-    if (!config) {
-        throw new Error(`Unsupported pool: ${pool}. Available: ${Object.keys(poolConfigs).join(', ')}`);
-    }
-    return config;
 }
 
 export function getNetworkOnlyConfig(network: string): NetworkConfig {
@@ -509,6 +346,7 @@ export function getDeployedPoolConfig(network: string, pool: PoolName): Deployed
     return getDeploymentConfig(network, pool);
 }
 
+/** True if pools.json lists a current pool for the network and poolKey */
 export function isPoolDeployed(network: string, pool: PoolName): boolean {
-    return getDeploymentConfig(network, pool) !== undefined;
+    return findCurrentPool(loadValidatedPools().pools, network, pool) !== undefined;
 }

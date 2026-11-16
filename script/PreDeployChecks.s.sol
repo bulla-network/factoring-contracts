@@ -301,7 +301,7 @@ contract PreDeployChecks is DeployConfig {
                 string.concat(
                     "pool already configured at ",
                     vm.toString(config.bullaFactoringAddress),
-                    "; clear bullaFactoringAddress in scripts/network-config.ts to redeploy"
+                    "; add the pool to scripts/pending-pools.json to redeploy"
                 )
             );
             return;
