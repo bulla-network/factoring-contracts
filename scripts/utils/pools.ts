@@ -20,8 +20,8 @@ export const NETWORK_CHAIN_IDS: Record<string, number> = {
     xdc: 50,
 };
 
-export type PoolContractVersion = 'V0' | 'V1' | 'V2' | 'V2_1' | 'V2_2';
-export type PoolCategory = 'active' | 'test' | 'archived' | 'hidden';
+export type PoolContractVersion = 'V0' | 'V1' | 'V2_1' | 'V2_2';
+export type PoolCategory = 'active' | 'archived';
 
 export type Client = {
     displayName: string;
@@ -198,7 +198,7 @@ export function findPendingPool(file: PendingPoolsFile, network: string, poolKey
 
 /**
  * Records a pool the deploy script just created: adds it to pools.json, marks the pool it replaces (same network
- * and poolKey) as superseded and hidden, and removes the pending entry. Validates before writing.
+ * and poolKey) as superseded and archived, and removes the pending entry. Validates before writing.
  */
 export function recordDeployedPool(
     pending: PendingPool,
@@ -241,7 +241,7 @@ export function recordDeployedPool(
     const previous = findCurrentPool(pools, pending.network, pending.poolKey);
     if (previous) {
         previous.supersededBy = deployed.address;
-        previous.category = 'hidden';
+        previous.category = 'archived';
     }
     pools.pools.push(pool);
     pendingFile.pools = pendingFile.pools.filter(p => !(p.network === pending.network && p.poolKey === pending.poolKey));

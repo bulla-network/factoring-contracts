@@ -40,8 +40,8 @@
         "network": { "type": "string", "enum": ["mainnet", "sepolia", "polygon", "base", "arbitrum", "redbelly", "xdc"] },
         "category": {
             "type": "string",
-            "description": "Where the app lists the pool: active, test or archived tab; hidden is listed nowhere but still resolves (e.g. a pool superseded by a redeploy).",
-            "enum": ["active", "test", "archived", "hidden"]
+            "description": "active: live, including test pools. archived: no longer in use but still resolves, e.g. a pool superseded by a redeploy.",
+            "enum": ["active", "archived"]
         },
         "shareToken": {
             "type": "object",
@@ -118,7 +118,7 @@
                 "chainId": { "type": "integer", "minimum": 1 },
                 "network": { "$ref": "#/definitions/network" },
                 "address": { "$ref": "#/definitions/address", "description": "The pool contract, which is also its share token." },
-                "version": { "type": "string", "enum": ["V0", "V1", "V2", "V2_1", "V2_2"] },
+                "version": { "type": "string", "enum": ["V0", "V1", "V2_1", "V2_2"] },
                 "client": { "$ref": "#/definitions/key", "description": "A key of clients. Separate from poolKey: tcs-wyoming is client tcs." },
                 "poolKey": {
                     "$ref": "#/definitions/key",

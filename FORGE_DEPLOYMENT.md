@@ -129,7 +129,7 @@ This eliminates redundant configuration and ensures type safety across all deplo
 
 1. Add the pool to `scripts/pending-pools.json`: its network, `poolKey`, `client` (add a new client to `clients` in `pools.json`), display name, share token, asset, underwriter and fees. Name existing permissions contracts to reuse them; any left out are deployed with the pool. To redeploy a pool, use its current `poolKey`.
 2. Run `yarn deploy:full` or `scripts/deploy-bullaFactoring.ts`. The deploy refuses a `poolKey` that is already deployed and not pending.
-3. After the broadcast, the script moves the entry into `pools.json` with its address, permissions and deploy block. If it replaces a pool with the same network and `poolKey`, it marks the old one `hidden` with `supersededBy`, so its history still resolves.
+3. After the broadcast, the script moves the entry into `pools.json` with its address, permissions and deploy block. If it replaces a pool with the same network and `poolKey`, it marks the old one `archived` with `supersededBy`, so its history still resolves.
 4. Commit `pools.json`, `pending-pools.json` and the broadcast. `TestPoolBroadcasts` fails for any pool in `pools.json` with no committed broadcast (POOLDEPLOY-15).
 
 ## Environment Variables Required
