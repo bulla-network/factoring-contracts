@@ -27,7 +27,9 @@
         "verify:factory": "dotenv -e .env -- npx ts-node scripts/verify-factory.ts",
         "set-impair-reserve": "dotenv -e .env -- npx ts-node scripts/set-impair-reserve.ts",
         "whitelist-callback": "dotenv -e .env -- npx ts-node scripts/whitelist-callback.ts",
-        "predeploy:check": "dotenv -e .env -- npx ts-node scripts/predeploy-checks.ts"
+        "predeploy:check": "dotenv -e .env -- npx ts-node scripts/predeploy-checks.ts",
+        "validate:pools": "ts-node scripts/validate-pools.ts",
+        "pool:new": "dotenv -e .env -- npx ts-node scripts/new-pool.ts"
     },
     "dependencies": {
         "@aragon/osx-commons-contracts": "^1.4.0-alpha.3",
@@ -52,6 +54,7 @@
         "@typechain/hardhat": "6.1.4",
         "@types/bs58": "^4.0.1",
         "@types/mocha": "^8.2.0",
+        "ajv": "6.12.6",
         "bs58": "^4.0.1",
         "chai": "^4.2.0",
         "cross-env": "^7.0.3",

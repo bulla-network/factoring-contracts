@@ -265,7 +265,7 @@ contract TestPreDeployChecks is CommonSetup {
         _assertStatus(r, "POOLDEPLOY-10", PreDeployChecks.Status.FAIL);
         string memory detail = _detail(r, "POOLDEPLOY-10");
         assertTrue(_contains(detail, vm.toString(address(bullaFactoring))), "POOLDEPLOY-10: prints the pool address");
-        assertTrue(_contains(detail, "bullaFactoringAddress"), "POOLDEPLOY-10: says what to clear");
+        assertTrue(_contains(detail, "scripts/pending-pools.json"), "POOLDEPLOY-10: says how to redeploy");
     }
 
     function test_POOLDEPLOY10_noPoolPasses() public {

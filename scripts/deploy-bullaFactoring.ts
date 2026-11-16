@@ -3,7 +3,7 @@ import { runPreDeployChecks } from './predeploy-checks';
 import { buildFactoringEnv } from './utils/factoring-env';
 import { getPrivateKeyInteractively, runForgeScript, setupGracefulExit } from './utils/interactive-deploy';
 import { getNetworkAndPoolInteractive } from './utils/interactive-prompt';
-import { updateFactoringFromBroadcast } from './utils/update-config';
+import { recordFactoringFromBroadcast } from './utils/update-config';
 import { verifyBroadcastContracts } from './utils/verify-forge';
 
 /**
@@ -14,6 +14,12 @@ export async function deployFactoringWorkflow(network: string, pool: PoolName, p
 
     // Get full configuration
     const config = getConfig(network, pool);
+    if (!config.pending) {
+        throw new Error(
+            `${network}/${pool} is already deployed at ${config.bullaFactoringAddress} (bulla_registry_export/pools.json). ` +
+                `To deploy it again, add it to scripts/pending-pools.json.`,
+        );
+    }
 
     // Display deployment info
     console.log('📋 Deployment Configuration:');
@@ -54,15 +60,20 @@ export async function deployFactoringWorkflow(network: string, pool: PoolName, p
                 console.log('\n✅ Deployment completed successfully!');
                 console.log(`🎉 Your BullaFactoring contracts are now live on ${network}/${pool}!`);
 
-                // Update network config with new deployment addresses
-                console.log('\n📝 Updating network-config.ts...');
-                updateFactoringFromBroadcast('DeployBullaFactoring.s.sol', network, pool);
+                // Move the pool from pending-pools.json to pools.json, which bulla-registry publishes
+                console.log('\n📝 Recording the pool in bulla_registry_export/pools.json...');
+                try {
+                    recordFactoringFromBroadcast('DeployBullaFactoring.s.sol', network, pool);
+                } catch (error) {
+                    reject(new Error(`Pool deployed but not recorded in pools.json: ${(error as Error).message}`));
+                    return;
+                }
 
                 // Verify contracts using broadcast files
                 await verifyBroadcastContracts('DeployBullaFactoring.s.sol', network, false); // false = only latest broadcast
 
                 console.log('\n📝 Next steps:');
-                console.log('   1. Check network-config.ts for updated deployment addresses');
+                console.log('   1. Commit bulla_registry_export/pools.json, scripts/pending-pools.json and the broadcast (POOLDEPLOY-15)');
                 console.log('   2. Contract verification has been attempted automatically');
                 console.log('   3. Set up permissions and whitelist callbacks');
 

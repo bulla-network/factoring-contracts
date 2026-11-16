@@ -1,0 +1,957 @@
+{
+    "$schema": "./pools.schema.json",
+    "clients": {
+        "egm": {
+            "displayName": "EGM"
+        },
+        "fundora": {
+            "displayName": "Fundora",
+            "website": "https://beta.fundora.biz/",
+            "logo": "logos/fundora.svg"
+        },
+        "olatech": {
+            "displayName": "OlaTech"
+        },
+        "taram": {
+            "displayName": "TARAM"
+        },
+        "tcs": {
+            "displayName": "TCS",
+            "website": "https://www.tcsblockchain.com/",
+            "logo": "logos/tcs.png"
+        }
+    },
+    "pools": [
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0xbc1dd527c3CF1302Cb189CaB9683Ef5CF27F0308",
+            "version": "V2_1",
+            "client": "tcs",
+            "poolKey": "tcs",
+            "displayName": "Bulla TCS Factoring Pool Sepolia Test v2.1",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS",
+                "name": "Bulla TCS Factoring Pool",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e",
+                "deposit": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8",
+                "redeem": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 25,
+                "adminBps": 50,
+                "targetYieldBps": 730
+            },
+            "deployBlock": 9454274
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x8ce8Fe0C4aDf44469f138A8389bDA91cC721A515",
+            "version": "V2_2",
+            "client": "fundora",
+            "poolKey": "fundora",
+            "displayName": "Test Pool V2.1",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-V2_1",
+                "name": "Test Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x4CAa16f952F8502f1ee314dDcb83afA11e1D3734",
+                "deposit": "0x62919a63ad1E3176C5b178A072ff2b04cd8A748A",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 50,
+                "targetYieldBps": 900,
+                "insuranceBps": 100
+            },
+            "deployBlock": 10721735
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x5068C979e40247de3903dBaA44ce1D90d5bf7A80",
+            "version": "V2_2",
+            "client": "olatech",
+            "poolKey": "ola",
+            "displayName": "OlaTech Test Pool",
+            "category": "active",
+            "shareToken": {
+                "symbol": "BFT-OLA",
+                "name": "Ola Truckload Test Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": true,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 50,
+                "adminBps": 0,
+                "targetYieldBps": 1444,
+                "insuranceBps": 0
+            },
+            "deployBlock": 12071037
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x36c6cfF33f726F05fa024fD3132F42998E713948",
+            "version": "V2_2",
+            "client": "olatech",
+            "poolKey": "ola",
+            "displayName": "OlaTech Test Pool (Legacy)",
+            "category": "archived",
+            "supersededBy": "0x5068C979e40247de3903dBaA44ce1D90d5bf7A80",
+            "shareToken": {
+                "symbol": "BFT-OLA",
+                "name": "Ola Truckload Test Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": true,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 50,
+                "adminBps": 0,
+                "targetYieldBps": 1444,
+                "insuranceBps": 0
+            },
+            "deployBlock": 11830102
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x04da9eBdA15Ad3009eB99754A34284e27C1C20BF",
+            "version": "V2_2",
+            "client": "egm",
+            "poolKey": "egm",
+            "displayName": "EGM Pilot Test Pool",
+            "category": "active",
+            "shareToken": {
+                "symbol": "BFT-EGM",
+                "name": "EGM Pilot Test Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": true,
+            "enforceKyc": true,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 50,
+                "adminBps": 0,
+                "targetYieldBps": 1045,
+                "insuranceBps": 0
+            },
+            "deployBlock": 12071095
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0xe35F1637FC306Da228e88747576e60a832ff40cD",
+            "version": "V2_2",
+            "client": "egm",
+            "poolKey": "egm",
+            "displayName": "EGM Pilot Test Pool (Legacy)",
+            "category": "archived",
+            "supersededBy": "0x04da9eBdA15Ad3009eB99754A34284e27C1C20BF",
+            "shareToken": {
+                "symbol": "BFT-EGM",
+                "name": "EGM Pilot Test Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": true,
+            "enforceKyc": true,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 50,
+                "adminBps": 0,
+                "targetYieldBps": 1045,
+                "insuranceBps": 0
+            },
+            "deployBlock": 11949267
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0xA5E94F122d421c9579a5cb1E687F55E109Ba270b",
+            "version": "V2_1",
+            "client": "fundora",
+            "displayName": "Test Pool Sepolia v2.1",
+            "category": "active",
+            "shareToken": {
+                "symbol": "BFT-V2_1",
+                "name": "Test Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": true,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x62919a63ad1E3176C5b178A072ff2b04cd8A748A",
+                "redeem": "0x62919a63ad1E3176C5b178A072ff2b04cd8A748A"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 20,
+                "adminBps": 50,
+                "targetYieldBps": 900
+            },
+            "deployBlock": 9992428
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x9efBa474E79e7e37C87AB5CAf3D32347Bb9e604F",
+            "version": "V1",
+            "client": "fundora",
+            "displayName": "Fundora Sepolia Test",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-FNDRA",
+                "name": "Fundora Sepolia Test Token",
+                "decimals": 18
+            },
+            "asset": {
+                "address": "0x3894374b3ffd1DB45b760dD094963Dd1167e5568",
+                "symbol": "WYST",
+                "name": "WYST",
+                "decimals": 18,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e",
+                "deposit": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 25,
+                "adminBps": 200,
+                "targetYieldBps": 900
+            },
+            "deployBlock": 8825858
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x59973c8dBb88C7D3f5480175Cef253C771cCB3EF",
+            "version": "V2_1",
+            "client": "fundora",
+            "displayName": "Fundora Management Pool V2.1",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "FACT-V2_1",
+                "name": "Fundora Management Token V2.1",
+                "decimals": 18
+            },
+            "asset": {
+                "address": "0x3894374b3ffd1DB45b760dD094963Dd1167e5568",
+                "symbol": "WYST",
+                "name": "WYST",
+                "decimals": 18,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 10,
+                "adminBps": 50,
+                "targetYieldBps": 900
+            },
+            "deployBlock": 9861156
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0xDF0fCe31285dcAB9124bF763AB9E5466723BeF35",
+            "version": "V1",
+            "client": "tcs",
+            "displayName": "Bulla TCS Factoring Pool Sepolia Test v2",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS",
+                "name": "Bulla TCS Factoring Pool",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x996e2beFD170CeB741b0072AE97E524Bdf410E9e",
+                "deposit": "0xB39bF6Fcd9bd97F7616FAD7b6118Fc2E911eA1d8"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 100,
+                "adminBps": 50,
+                "targetYieldBps": 1100
+            },
+            "deployBlock": 6813150
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x262d36FA1740DBeEC72a88d69b6e1E4888dF41FF",
+            "version": "V2_2",
+            "client": "fundora",
+            "displayName": "Test Pool V2.2",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-V2_1",
+                "name": "Test Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 50,
+                "targetYieldBps": 900,
+                "insuranceBps": 100
+            },
+            "deployBlock": 10708958
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0xd4116f515A6958da851080B390DDE4B81f408978",
+            "version": "V2_1",
+            "client": "fundora",
+            "displayName": "Fundora Management Pool V2.1",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "FACT-V2_1",
+                "name": "Fundora Management Token V2.1",
+                "decimals": 18
+            },
+            "asset": {
+                "address": "0x3894374b3ffd1DB45b760dD094963Dd1167e5568",
+                "symbol": "WYST",
+                "name": "WYST",
+                "decimals": 18,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 10,
+                "adminBps": 50,
+                "targetYieldBps": 900
+            },
+            "deployBlock": 9475592
+        },
+        {
+            "chainId": 11155111,
+            "network": "sepolia",
+            "address": "0x1E1d535a41515D3D2c29C1524C825236D67733E1",
+            "version": "V2_1",
+            "client": "fundora",
+            "displayName": "Fundora Management Pool V2.1",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "FACT-V2_1",
+                "name": "Fundora Management Token V2.1",
+                "decimals": 18
+            },
+            "asset": {
+                "address": "0x3894374b3ffd1DB45b760dD094963Dd1167e5568",
+                "symbol": "WYST",
+                "name": "WYST",
+                "decimals": 18,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x523e35a7A0c2f2e48E32bb6363090BB436Ac433F",
+                "deposit": "0x764E845528e177aF40D508F46E948d5440AaC13D",
+                "redeem": "0x764E845528e177aF40D508F46E948d5440AaC13D"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 10,
+                "adminBps": 50,
+                "targetYieldBps": 900
+            },
+            "deployBlock": 9608136
+        },
+        {
+            "chainId": 137,
+            "network": "polygon",
+            "address": "0x573119CF113281270F21cFE6537482E84D0300eF",
+            "version": "V0",
+            "client": "tcs",
+            "displayName": "Bulla TCS Settlement Pool Matic v1.0",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS",
+                "name": "Bulla TCS Factoring Pool Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                "symbol": "USDC",
+                "name": "USD Coin",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4",
+                "deposit": "0xBB56c6E4e0812de05bf870941676F6467D964d5e"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 100,
+                "adminBps": 5,
+                "targetYieldBps": 1148
+            },
+            "deployBlock": 59503521
+        },
+        {
+            "chainId": 137,
+            "network": "polygon",
+            "address": "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
+            "version": "V1",
+            "client": "tcs",
+            "poolKey": "tcs",
+            "displayName": "Bulla TCS Settlement Pool Matic v2.0",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS",
+                "name": "Bulla TCS Factoring Pool Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+                "symbol": "USDC",
+                "name": "USD Coin",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x72c1cD1C6A7132e58b334E269Ec5bE1adC1030d4",
+                "deposit": "0xBB56c6E4e0812de05bf870941676F6467D964d5e"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 100,
+                "adminBps": 50,
+                "targetYieldBps": 1050
+            },
+            "deployBlock": 62622219
+        },
+        {
+            "chainId": 1,
+            "network": "mainnet",
+            "address": "0x0af8C15D19058892cDEA66C8C74B7D7bB696FaD5",
+            "version": "V1",
+            "client": "tcs",
+            "displayName": "Bulla TCS Settlement Pool Mainnet v2.0",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS",
+                "name": "Bulla TCS Settlement Pool Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                "symbol": "USDC",
+                "name": "USD Coin",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x1c534661326b41c8b8aab5631ECED6D9755ff192",
+                "deposit": "0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 100,
+                "adminBps": 50,
+                "targetYieldBps": 800
+            },
+            "deployBlock": 22226609
+        },
+        {
+            "chainId": 1,
+            "network": "mainnet",
+            "address": "0x1A34dfd1Ee17130228452f3D9cDDa5908865D22D",
+            "version": "V2_1",
+            "client": "tcs",
+            "poolKey": "tcs",
+            "displayName": "TCS Settlement Pool - Mainnet V2.1",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS-V2_1",
+                "name": "TCS Settlement Pool Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
+                "symbol": "PYUSD",
+                "name": "PayPal USD",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x1c534661326b41c8b8aab5631ECED6D9755ff192",
+                "deposit": "0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6",
+                "redeem": "0xeB0f09EEF3DCc3f35f605dAefa474e6caab96CD6"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 0,
+                "targetYieldBps": 795
+            },
+            "deployBlock": 24627965
+        },
+        {
+            "chainId": 8453,
+            "network": "base",
+            "address": "0x1968f9440724B3148C8152190eeCb18a2F3b2eec",
+            "version": "V1",
+            "client": "tcs",
+            "displayName": "Bulla TCS Settlement Pool Base v1.0",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS",
+                "name": "Bulla TCS Settlement Pool Token",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "symbol": "USDC",
+                "name": "USD Coin",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x3287d25C2Ff250467E4e375886FEe49A936C2F1c",
+                "deposit": "0x7B3776dcCDb3965Ab9d414F5c9Db5a07177Ea449"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 100,
+                "adminBps": 75,
+                "targetYieldBps": 800
+            },
+            "deployBlock": 33204905
+        },
+        {
+            "chainId": 8453,
+            "network": "base",
+            "address": "0xC65ABF8ABA06510F777BE4bA2C29da4d93257D42",
+            "version": "V2_1",
+            "client": "tcs",
+            "poolKey": "tcs",
+            "displayName": "TCS Settlement Pool V2",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TCS-V2",
+                "name": "TCS Settlement Pool Token V2",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "symbol": "USDC",
+                "name": "USD Coin",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x0313433613F24c73efc15c5c74408F40B462fd9e",
+                "deposit": "0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf",
+                "redeem": "0xFCD0440E253A00FD938ce4a67fC3680aD2D685cf"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 20,
+                "adminBps": 0,
+                "targetYieldBps": 800
+            },
+            "deployBlock": 40428428
+        },
+        {
+            "chainId": 42161,
+            "network": "arbitrum",
+            "address": "0xc099773267308D8e9E805f47EABf9ab13bBc9e37",
+            "version": "V2_1",
+            "client": "tcs",
+            "poolKey": "tcs",
+            "displayName": "TCS Settlement Pool - Arbitrum V2.1",
+            "category": "active",
+            "shareToken": {
+                "symbol": "BFT-TCS-V2_1",
+                "name": "TCS Settlement Pool Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x46850aD61C2B7d64d08c9C754F45254596696984",
+                "symbol": "PYUSD",
+                "name": "PayPal USD",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x3204562dBb6465193525e0dA1e5E016643b2b117",
+                "deposit": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A",
+                "redeem": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 0,
+                "targetYieldBps": 800
+            },
+            "deployBlock": 455955959
+        },
+        {
+            "chainId": 42161,
+            "network": "arbitrum",
+            "address": "0x30Fbdae8d1a2946Ca00137eAF3De9B512d1ee859",
+            "version": "V2_1",
+            "client": "tcs",
+            "poolKey": "tcs",
+            "displayName": "TCS Settlement Pool - Arbitrum V2.1 (Legacy)",
+            "category": "archived",
+            "supersededBy": "0xc099773267308D8e9E805f47EABf9ab13bBc9e37",
+            "shareToken": {
+                "symbol": "BFT-TCS-V2_1",
+                "name": "TCS Settlement Pool Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x46850aD61C2B7d64d08c9C754F45254596696984",
+                "symbol": "PYUSD",
+                "name": "PayPal USD",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x3204562dBb6465193525e0dA1e5E016643b2b117",
+                "deposit": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A",
+                "redeem": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 0,
+                "targetYieldBps": 800
+            },
+            "deployBlock": 445194319
+        },
+        {
+            "chainId": 42161,
+            "network": "arbitrum",
+            "address": "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
+            "version": "V2_2",
+            "client": "tcs",
+            "poolKey": "tcs-wyoming",
+            "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2",
+            "category": "active",
+            "shareToken": {
+                "symbol": "BFT-TCSWY-V2_2",
+                "name": "TCS Wyoming Settlement Pool Token V2.2",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x5E817F2AbCCB9095585D26c2a3ce234a440574Fc",
+                "symbol": "FRNT",
+                "name": "Frontier Stable Token",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x3204562dBb6465193525e0dA1e5E016643b2b117",
+                "deposit": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A",
+                "redeem": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 0,
+                "targetYieldBps": 800,
+                "insuranceBps": 0
+            },
+            "deployBlock": 521552017
+        },
+        {
+            "chainId": 42161,
+            "network": "arbitrum",
+            "address": "0x23406d0Af351923D9845C5A726c21315Cbf36915",
+            "version": "V2_2",
+            "client": "tcs",
+            "poolKey": "tcs-wyoming",
+            "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2 (Legacy)",
+            "category": "archived",
+            "supersededBy": "0x85314b08A20873c3eEbc41111CD02a530bF5C6bC",
+            "shareToken": {
+                "symbol": "BFT-TCSWY-V2_2",
+                "name": "TCS Wyoming Settlement Pool Token V2.2",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x5E817F2AbCCB9095585D26c2a3ce234a440574Fc",
+                "symbol": "FRNT",
+                "name": "Frontier Stable Token",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x3204562dBb6465193525e0dA1e5E016643b2b117",
+                "deposit": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A",
+                "redeem": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 0,
+                "targetYieldBps": 800,
+                "insuranceBps": 0
+            },
+            "deployBlock": 515095130
+        },
+        {
+            "chainId": 42161,
+            "network": "arbitrum",
+            "address": "0x85314b08A20873c3eEbc41111CD02a530bF5C6bC",
+            "version": "V2_2",
+            "client": "tcs",
+            "poolKey": "tcs-wyoming",
+            "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2 (Legacy 2)",
+            "category": "archived",
+            "supersededBy": "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
+            "shareToken": {
+                "symbol": "BFT-TCSWY-V2_2",
+                "name": "TCS Wyoming Settlement Pool Token V2.2",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x5E817F2AbCCB9095585D26c2a3ce234a440574Fc",
+                "symbol": "FRNT",
+                "name": "Frontier Stable Token",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x3204562dBb6465193525e0dA1e5E016643b2b117",
+                "deposit": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A",
+                "redeem": "0xB842d5C5200841eF153100CC4D9fcaC47620Dd0A"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 30,
+                "adminBps": 0,
+                "targetYieldBps": 800,
+                "insuranceBps": 0
+            },
+            "deployBlock": 518534350
+        },
+        {
+            "chainId": 151,
+            "network": "redbelly",
+            "address": "0x8f5952d2122A8DF42a3dcB5286D7576ff640cF5D",
+            "version": "V1",
+            "client": "taram",
+            "displayName": "Maritime Settlement Pool - Redbelly",
+            "category": "archived",
+            "shareToken": {
+                "symbol": "BFT-TARAM",
+                "name": "TARAM Funding Pool",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0x8201c02d4AB2214471E8C3AD6475C8b0CD9F2D06",
+                "symbol": "USDC.e",
+                "name": "Bridged USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0x03754cc78848FBc52130a8EEdD8d3d079F7Bb042",
+                "deposit": "0x772b675A4180B4F48d9D816619620664f90Cf281"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 1,
+                "adminBps": 100,
+                "targetYieldBps": 1500
+            },
+            "deployBlock": 2493549
+        },
+        {
+            "chainId": 50,
+            "network": "xdc",
+            "address": "0xa259331Cd3daCC5D1229beA06BAc7d957614a64E",
+            "version": "V2_1",
+            "client": "taram",
+            "displayName": "Maritime Settlement Pool - XDC V2.1",
+            "category": "active",
+            "shareToken": {
+                "symbol": "BFT-TARAM-V2_1",
+                "name": "TARAM Factoring Pool Token V2.1",
+                "decimals": 6
+            },
+            "asset": {
+                "address": "0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1",
+                "symbol": "USDC",
+                "name": "USDC",
+                "decimals": 6,
+                "kind": "stable"
+            },
+            "insured": false,
+            "enforceKyc": false,
+            "permissions": {
+                "factoring": "0xcc32679a9BBFCE9e49d1EbA4fAf42E68A227BD06",
+                "deposit": "0xd8fae753F0122Ab92D75F7dF0D9Ec98Bda4C6903",
+                "redeem": "0xd8fae753F0122Ab92D75F7dF0D9Ec98Bda4C6903"
+            },
+            "underwriter": "0x5d72984B2e1170EAA0DA4BC22B25C87729C5EBB3",
+            "fees": {
+                "protocolBps": 50,
+                "adminBps": 50,
+                "targetYieldBps": 1200
+            },
+            "deployBlock": 101784171
+        }
+    ]
+}
