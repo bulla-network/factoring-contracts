@@ -1,15 +1,29 @@
 // Starts a pool deploy from a past pool's config: writes a scripts/pending-pools.json entry to review, then deploy.
 //
 //   yarn pool:new --from <network>/<poolKey|address> [--network <network>] [--pool-key <key>] [--asset <address>]
+//                 [--replaces archived|hidden]
 //
 //   --from      The pool to copy: a network's current pool for a poolKey (sepolia/ola), or any pool by address
 //   --network   Where to deploy. Default: the source's network. On another chain the permissions are left out
 //               (the deploy creates new ones) and --asset is needed unless that chain has one asset with the same symbol
 //   --pool-key  The new pool's key. Default: the source's, which makes the deploy replace (supersede) that pool
 //   --asset     The asset's address on --network. Its symbol, name and decimals come from pools.json, else the chain
+//   --replaces  Required when the deploy replaces a current pool (same network and poolKey): the category that pool
+//               gets. hidden for a bad deploy nobody should see; archived to keep its history on the Archived tab
 import { Contract, providers, utils } from 'ethers';
 import { getAvailableNetworks, getRpcUrl } from './network-config';
-import { addPendingPool, Asset, findPoolByRef, knownAssets, loadValidatedPools, pendingFromPool, PoolsFile } from './utils/pools';
+import {
+    addPendingPool,
+    Asset,
+    findCurrentPool,
+    findPoolByRef,
+    knownAssets,
+    loadValidatedPools,
+    pendingFromPool,
+    PoolsFile,
+    SUPERSEDED_CATEGORIES,
+    SupersededCategory,
+} from './utils/pools';
 
 function parseArgs(argv: string[]): Record<string, string> {
     const args: Record<string, string> = {};
@@ -56,13 +70,28 @@ async function main(): Promise<void> {
     if (!poolKey) throw new Error(`${args.from} has no poolKey; pass --pool-key`);
 
     const asset = network === source.network && !args.asset ? undefined : await resolveAsset(pools, network, source.asset, args.asset);
-    const entry = pendingFromPool(source, { network, poolKey, asset });
+    const replaced = findCurrentPool(pools, network, poolKey);
+    const replaces = args.replaces as SupersededCategory | undefined;
+    if (replaced && !replaces) {
+        throw new Error(
+            `${network}/${poolKey} replaces ${replaced.address}; pass --replaces ${SUPERSEDED_CATEGORIES.join(
+                '|',
+            )}, the category that pool gets`,
+        );
+    }
+    if (!replaced && replaces) throw new Error(`${network}/${poolKey} replaces no pool; drop --replaces`);
+    if (replaces && !(SUPERSEDED_CATEGORIES as readonly string[]).includes(replaces)) {
+        throw new Error(`--replaces must be ${SUPERSEDED_CATEGORIES.join(' or ')}`);
+    }
+
+    const entry = pendingFromPool(source, { network, poolKey, asset, replaces });
     addPendingPool(entry);
 
     console.log(`✅ Added ${network}/${poolKey} to scripts/pending-pools.json, from ${source.network} ${source.address}:\n`);
     console.log(JSON.stringify(entry, null, 4));
     console.log('\nReview it (display name, share token, fees), then run yarn deploy:full.');
     if (network !== source.network) console.log('Permissions are left out, so the deploy creates new ones on this chain.');
+    if (replaced) console.log(`The deploy replaces ${replaced.address} and makes it ${replaces}.`);
     if (entry.fees.insuranceBps === undefined) console.log('No insurance fee given: the deploy uses its default (100 bps).');
 }
 
