@@ -40,8 +40,8 @@
         "network": { "type": "string", "enum": ["mainnet", "sepolia", "polygon", "base", "arbitrum", "redbelly", "xdc"] },
         "category": {
             "type": "string",
-            "description": "active: live, including test pools. archived: no longer in use but still resolves, e.g. a pool superseded by a redeploy.",
-            "enum": ["active", "archived"]
+            "description": "Where the app lists the pool. active: live, on the Active tab. test: a test pool, on the Test tab. archived: no longer in use but has history, e.g. a pool superseded by a redeploy; on the Archived tab and not offered when batch factoring. hidden: on no tab and not offered when batch factoring, and its details page shows nothing of it; for a pool with no history worth showing.",
+            "enum": ["active", "test", "archived", "hidden"]
         },
         "shareToken": {
             "type": "object",

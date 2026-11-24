@@ -131,7 +131,7 @@ You edit `scripts/pending-pools.json`; the deploy writes `bulla_registry_export/
 
 1. Add the pool to `scripts/pending-pools.json`, either by hand or from a past pool with `yarn pool:new` (below).
 2. Run `yarn deploy:full` or `scripts/deploy-bullaFactoring.ts`. The deploy refuses a `poolKey` that is already deployed and not pending.
-3. After the broadcast, the script moves the entry into `pools.json` with its address, permissions and deploy block. If it replaces a pool with the same network and `poolKey`, it marks the old one `archived` with `supersededBy`, so its history still resolves.
+3. After the broadcast, the script moves the entry into `pools.json` with its address, permissions and deploy block. If it replaces a pool with the same network and `poolKey`, it marks the old one `archived` with `supersededBy`, so its history still shows on the Archived tab. Only a pool with no history should be set to `hidden`, by hand.
 4. Commit `pools.json`, `pending-pools.json` and the broadcast. `TestPoolBroadcasts` fails for any V2.1+ pool in `pools.json` with no committed broadcast (POOLDEPLOY-15).
 
 `yarn pool:new --from <network>/<poolKey|address> [--network <network>] [--pool-key <key>] [--asset <address>]` copies a past pool's config into a pending entry. On the same chain it reuses the pool's permissions contracts; on another chain it leaves them out, so the deploy creates new ones, and takes the asset on that chain (from `--asset`, or the one asset `pools.json` lists there with the same symbol). Keeping the source's `poolKey` on the same chain makes the deploy replace that pool.

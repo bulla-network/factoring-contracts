@@ -27,7 +27,12 @@ export function isAtLeast(version: PoolContractVersion, since: PoolContractVersi
 /** The first version with redeem permissions, and the first with an insurance fee */
 const REDEEM_SINCE: PoolContractVersion = 'V2_1';
 const INSURANCE_SINCE: PoolContractVersion = 'V2_2';
-export type PoolCategory = 'active' | 'archived';
+/**
+ * Where the app lists a pool (POOLVIEW-17, POOLVIEW-34): active, test and archived each have a tab on the pool list;
+ * hidden is on none, and its details page shows nothing of it. Must match the `category` enum in pools.schema.json.
+ */
+export const POOL_CATEGORIES = ['active', 'test', 'archived', 'hidden'] as const;
+export type PoolCategory = typeof POOL_CATEGORIES[number];
 
 export type Client = {
     displayName: string;
@@ -194,7 +199,7 @@ export function pendingRuleErrors(pending: PendingPoolsFile, pools: PoolsFile): 
     return errors;
 }
 
-/** The schema's network and version enums must list what the scripts know, so a new chain or version can't miss one */
+/** The schema's network, version and category enums must list what the scripts know, so a new chain, version or category can't miss one */
 export function schemaDriftErrors(schema: any = readJson(POOLS_SCHEMA_PATH)): string[] {
     const errors: string[] = [];
     const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -204,6 +209,9 @@ export function schemaDriftErrors(schema: any = readJson(POOLS_SCHEMA_PATH)): st
     }
     if (!sameList(schema.definitions?.pool?.properties?.version?.enum ?? [], POOL_CONTRACT_VERSIONS)) {
         errors.push(`pools.schema.json version enum must be POOL_CONTRACT_VERSIONS, in order: ${POOL_CONTRACT_VERSIONS.join(', ')}`);
+    }
+    if (!sameList(schema.definitions?.category?.enum ?? [], POOL_CATEGORIES)) {
+        errors.push(`pools.schema.json category enum must be POOL_CATEGORIES, in order: ${POOL_CATEGORIES.join(', ')}`);
     }
     return errors;
 }
@@ -247,7 +255,8 @@ export function findPendingPool(file: PendingPoolsFile, network: string, poolKey
 
 /**
  * Records a pool the deploy script just created: adds it to pools.json, marks the pool it replaces (same network
- * and poolKey) as superseded and archived, and removes the pending entry. Validates before writing.
+ * and poolKey) as superseded and archived, so its history stays on the Archived tab, and removes the pending entry.
+ * A superseded pool is never hidden by default; hide one by hand only if it has no history. Validates before writing.
  */
 export function recordDeployedPool(
     pending: PendingPool,
@@ -321,7 +330,8 @@ export function knownAssets(file: PoolsFile, network: string): Map<string, Asset
 /**
  * A pending-pools.json entry that redeploys `source`'s config as `poolKey` on `network` (pool:new --from).
  * Same chain: reuses its permissions contracts. Another chain: leaves them out, so the deploy creates new ones,
- * and takes `asset`, the asset on that chain. The insurance fee carries over only if the source has one.
+ * and takes `asset`, the asset on that chain. The insurance fee carries over only if the source has one. A test pool's
+ * redeploy stays a test pool; any other source gives an active one.
  */
 export function pendingFromPool(source: Pool, target: { network: string; poolKey: string; asset?: Asset }): PendingPool {
     const sameChain = source.network === target.network;
@@ -332,7 +342,7 @@ export function pendingFromPool(source: Pool, target: { network: string; poolKey
         poolKey: target.poolKey,
         client: source.client,
         displayName: source.displayName,
-        category: 'active',
+        category: source.category === 'test' ? 'test' : 'active',
         shareToken: { symbol: source.shareToken.symbol, name: source.shareToken.name },
         asset: target.asset ?? source.asset,
         insured: source.insured,
