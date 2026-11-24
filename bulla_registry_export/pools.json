@@ -140,7 +140,7 @@
             "client": "olatech",
             "poolKey": "ola",
             "displayName": "OlaTech Test Pool (Legacy)",
-            "category": "hidden",
+            "category": "archived",
             "supersededBy": "0x5068C979e40247de3903dBaA44ce1D90d5bf7A80",
             "shareToken": {
                 "symbol": "BFT-OLA",
@@ -215,7 +215,7 @@
             "client": "egm",
             "poolKey": "egm",
             "displayName": "EGM Pilot Test Pool (Legacy)",
-            "category": "hidden",
+            "category": "archived",
             "supersededBy": "0x04da9eBdA15Ad3009eB99754A34284e27C1C20BF",
             "shareToken": {
                 "symbol": "BFT-EGM",
@@ -742,7 +742,7 @@
             "client": "tcs",
             "poolKey": "tcs",
             "displayName": "TCS Settlement Pool - Arbitrum V2.1 (Legacy)",
-            "category": "hidden",
+            "category": "archived",
             "supersededBy": "0xc099773267308D8e9E805f47EABf9ab13bBc9e37",
             "shareToken": {
                 "symbol": "BFT-TCS-V2_1",
@@ -816,7 +816,7 @@
             "client": "tcs",
             "poolKey": "tcs-wyoming",
             "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2 (Legacy)",
-            "category": "hidden",
+            "category": "archived",
             "supersededBy": "0x85314b08A20873c3eEbc41111CD02a530bF5C6bC",
             "shareToken": {
                 "symbol": "BFT-TCSWY-V2_2",
@@ -854,7 +854,7 @@
             "client": "tcs",
             "poolKey": "tcs-wyoming",
             "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2 (Legacy 2)",
-            "category": "hidden",
+            "category": "archived",
             "supersededBy": "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
             "shareToken": {
                 "symbol": "BFT-TCSWY-V2_2",

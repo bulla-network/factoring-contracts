@@ -255,8 +255,8 @@ export function findPendingPool(file: PendingPoolsFile, network: string, poolKey
 
 /**
  * Records a pool the deploy script just created: adds it to pools.json, marks the pool it replaces (same network
- * and poolKey) as superseded and hidden, so the app no longer shows it (POOLVIEW-17, POOLVIEW-34), and removes the
- * pending entry. Validates before writing.
+ * and poolKey) as superseded and archived, so its history stays on the Archived tab, and removes the pending entry.
+ * A superseded pool is never hidden by default; hide one by hand only if it has no history. Validates before writing.
  */
 export function recordDeployedPool(
     pending: PendingPool,
@@ -299,7 +299,7 @@ export function recordDeployedPool(
     const previous = findCurrentPool(pools, pending.network, pending.poolKey);
     if (previous) {
         previous.supersededBy = deployed.address;
-        previous.category = 'hidden';
+        previous.category = 'archived';
     }
     pools.pools.push(pool);
     pendingFile.pools = pendingFile.pools.filter(p => !(p.network === pending.network && p.poolKey === pending.poolKey));
