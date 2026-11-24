@@ -30,7 +30,7 @@
             "client": "tcs",
             "poolKey": "tcs",
             "displayName": "Bulla TCS Factoring Pool Sepolia Test v2.1",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "BFT-TCS",
                 "name": "Bulla TCS Factoring Pool",
@@ -66,7 +66,7 @@
             "client": "fundora",
             "poolKey": "fundora",
             "displayName": "Test Pool V2.2",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "BFT-V2_1",
                 "name": "Test Token V2.1",
@@ -103,7 +103,7 @@
             "client": "olatech",
             "poolKey": "ola",
             "displayName": "OlaTech Test Pool",
-            "category": "active",
+            "category": "test",
             "shareToken": {
                 "symbol": "BFT-OLA",
                 "name": "Ola Truckload Test Token",
@@ -140,7 +140,7 @@
             "client": "olatech",
             "poolKey": "ola",
             "displayName": "OlaTech Test Pool (Legacy)",
-            "category": "archived",
+            "category": "hidden",
             "supersededBy": "0x5068C979e40247de3903dBaA44ce1D90d5bf7A80",
             "shareToken": {
                 "symbol": "BFT-OLA",
@@ -178,7 +178,7 @@
             "client": "egm",
             "poolKey": "egm",
             "displayName": "EGM Pilot Test Pool",
-            "category": "active",
+            "category": "test",
             "shareToken": {
                 "symbol": "BFT-EGM",
                 "name": "EGM Pilot Test Token",
@@ -215,7 +215,7 @@
             "client": "egm",
             "poolKey": "egm",
             "displayName": "EGM Pilot Test Pool (Legacy)",
-            "category": "archived",
+            "category": "hidden",
             "supersededBy": "0x04da9eBdA15Ad3009eB99754A34284e27C1C20BF",
             "shareToken": {
                 "symbol": "BFT-EGM",
@@ -252,7 +252,7 @@
             "version": "V2_1",
             "client": "fundora",
             "displayName": "Test Pool Sepolia v2.1",
-            "category": "active",
+            "category": "test",
             "shareToken": {
                 "symbol": "BFT-V2_1",
                 "name": "Test Token V2.1",
@@ -356,7 +356,7 @@
             "version": "V1",
             "client": "tcs",
             "displayName": "Bulla TCS Factoring Pool Sepolia Test v2",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "BFT-TCS",
                 "name": "Bulla TCS Factoring Pool",
@@ -390,7 +390,7 @@
             "version": "V2_2",
             "client": "fundora",
             "displayName": "Test Pool V2.2",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "BFT-V2_1",
                 "name": "Test Token V2.1",
@@ -426,7 +426,7 @@
             "version": "V2_1",
             "client": "fundora",
             "displayName": "Fundora Management Pool V2.1",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "FACT-V2_1",
                 "name": "Fundora Management Token V2.1",
@@ -461,7 +461,7 @@
             "version": "V2_1",
             "client": "fundora",
             "displayName": "Fundora Management Pool V2.1",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "FACT-V2_1",
                 "name": "Fundora Management Token V2.1",
@@ -600,7 +600,7 @@
             "client": "tcs",
             "poolKey": "tcs",
             "displayName": "TCS Settlement Pool - Mainnet V2.1",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "BFT-TCS-V2_1",
                 "name": "TCS Settlement Pool Token V2.1",
@@ -742,7 +742,7 @@
             "client": "tcs",
             "poolKey": "tcs",
             "displayName": "TCS Settlement Pool - Arbitrum V2.1 (Legacy)",
-            "category": "archived",
+            "category": "hidden",
             "supersededBy": "0xc099773267308D8e9E805f47EABf9ab13bBc9e37",
             "shareToken": {
                 "symbol": "BFT-TCS-V2_1",
@@ -816,7 +816,7 @@
             "client": "tcs",
             "poolKey": "tcs-wyoming",
             "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2 (Legacy)",
-            "category": "archived",
+            "category": "hidden",
             "supersededBy": "0x85314b08A20873c3eEbc41111CD02a530bF5C6bC",
             "shareToken": {
                 "symbol": "BFT-TCSWY-V2_2",
@@ -854,7 +854,7 @@
             "client": "tcs",
             "poolKey": "tcs-wyoming",
             "displayName": "TCS Wyoming Settlement Pool - Arbitrum V2.2 (Legacy 2)",
-            "category": "archived",
+            "category": "hidden",
             "supersededBy": "0xA7033191Eb07DC6205015075B204Ba0544bc460d",
             "shareToken": {
                 "symbol": "BFT-TCSWY-V2_2",
@@ -891,7 +891,7 @@
             "version": "V1",
             "client": "taram",
             "displayName": "Maritime Settlement Pool - Redbelly",
-            "category": "archived",
+            "category": "hidden",
             "shareToken": {
                 "symbol": "BFT-TARAM",
                 "name": "TARAM Funding Pool",
@@ -925,7 +925,7 @@
             "version": "V2_1",
             "client": "taram",
             "displayName": "Maritime Settlement Pool - XDC V2.1",
-            "category": "active",
+            "category": "test",
             "shareToken": {
                 "symbol": "BFT-TARAM-V2_1",
                 "name": "TARAM Factoring Pool Token V2.1",
