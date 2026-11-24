@@ -33,6 +33,9 @@ const INSURANCE_SINCE: PoolContractVersion = 'V2_2';
  */
 export const POOL_CATEGORIES = ['active', 'test', 'archived', 'hidden'] as const;
 export type PoolCategory = typeof POOL_CATEGORIES[number];
+/** The categories a pool superseded by a redeploy can take; its redeploy's pending entry picks one (`replaces`) */
+export const SUPERSEDED_CATEGORIES = ['archived', 'hidden'] as const;
+export type SupersededCategory = typeof SUPERSEDED_CATEGORIES[number];
 
 export type Client = {
     displayName: string;
@@ -80,6 +83,8 @@ export type PoolsFile = {
 export type PendingPool = {
     network: string;
     poolKey: string;
+    /** Set exactly when this deploy replaces a pool (same network and poolKey): the category that pool gets */
+    replaces?: SupersededCategory;
     client: string;
     displayName: string;
     category: PoolCategory;
@@ -136,6 +141,9 @@ export function poolsRuleErrors(file: PoolsFile): string[] {
         if (hasRedeem && p.permissions.redeem === undefined) errors.push(`${where(p)}: a ${p.version} pool needs permissions.redeem`);
         if (!hasRedeem && p.permissions.redeem !== undefined) {
             errors.push(`${where(p)}: a ${p.version} pool has no redeem permissions; remove permissions.redeem`);
+        }
+        if (p.supersededBy && !(SUPERSEDED_CATEGORIES as readonly string[]).includes(p.category)) {
+            errors.push(`${where(p)}: superseded, so its category must be ${SUPERSEDED_CATEGORIES.join(' or ')}, not ${p.category}`);
         }
         if (p.supersededBy) {
             const next = file.pools.find(q => q.chainId === p.chainId && same(q.address, p.supersededBy));
@@ -194,7 +202,18 @@ export function pendingRuleErrors(pending: PendingPoolsFile, pools: PoolsFile): 
         const k = `${p.network}-${p.poolKey}`;
         if (seen.has(k)) errors.push(`pending ${p.network} ${p.poolKey}: listed twice`);
         seen.add(k);
-        if (!pools.clients[p.client]) errors.push(`pending ${p.network} ${p.poolKey}: unknown client '${p.client}' (add it to pools.json clients)`);
+        if (!pools.clients[p.client])
+            errors.push(`pending ${p.network} ${p.poolKey}: unknown client '${p.client}' (add it to pools.json clients)`);
+        // A redeploy must say what happens to the pool it replaces; nothing picks that for it
+        const replaced = findCurrentPool(pools, p.network, p.poolKey);
+        if (replaced && !p.replaces) {
+            errors.push(
+                `pending ${p.network} ${p.poolKey}: replaces ${replaced.address}; set replaces to ${SUPERSEDED_CATEGORIES.join(
+                    ' or ',
+                )}, the category that pool gets`,
+            );
+        }
+        if (!replaced && p.replaces) errors.push(`pending ${p.network} ${p.poolKey}: replaces no pool; remove replaces`);
     });
     return errors;
 }
@@ -255,8 +274,8 @@ export function findPendingPool(file: PendingPoolsFile, network: string, poolKey
 
 /**
  * Records a pool the deploy script just created: adds it to pools.json, marks the pool it replaces (same network
- * and poolKey) as superseded and archived, so its history stays on the Archived tab, and removes the pending entry.
- * A superseded pool is never hidden by default; hide one by hand only if it has no history. Validates before writing.
+ * and poolKey) as superseded with the category the pending entry's `replaces` gives, and removes the pending entry.
+ * Validates before writing.
  */
 export function recordDeployedPool(
     pending: PendingPool,
@@ -298,8 +317,10 @@ export function recordDeployedPool(
 
     const previous = findCurrentPool(pools, pending.network, pending.poolKey);
     if (previous) {
+        if (!pending.replaces)
+            throw new Error(`${pending.network} ${pending.poolKey} replaces ${previous.address}, but its pending entry has no replaces`);
         previous.supersededBy = deployed.address;
-        previous.category = 'archived';
+        previous.category = pending.replaces;
     }
     pools.pools.push(pool);
     pendingFile.pools = pendingFile.pools.filter(p => !(p.network === pending.network && p.poolKey === pending.poolKey));
@@ -331,15 +352,20 @@ export function knownAssets(file: PoolsFile, network: string): Map<string, Asset
  * A pending-pools.json entry that redeploys `source`'s config as `poolKey` on `network` (pool:new --from).
  * Same chain: reuses its permissions contracts. Another chain: leaves them out, so the deploy creates new ones,
  * and takes `asset`, the asset on that chain. The insurance fee carries over only if the source has one. A test pool's
- * redeploy stays a test pool; any other source gives an active one.
+ * redeploy stays a test pool; any other source gives an active one. `replaces` is set only when the entry redeploys
+ * over a current pool, and is the category that pool gets.
  */
-export function pendingFromPool(source: Pool, target: { network: string; poolKey: string; asset?: Asset }): PendingPool {
+export function pendingFromPool(
+    source: Pool,
+    target: { network: string; poolKey: string; asset?: Asset; replaces?: SupersededCategory },
+): PendingPool {
     const sameChain = source.network === target.network;
     if (!sameChain && !target.asset) throw new Error(`${source.network} → ${target.network}: name the asset on ${target.network}`);
     const { protocolBps, adminBps, targetYieldBps, insuranceBps } = source.fees;
     return {
         network: target.network,
         poolKey: target.poolKey,
+        ...(target.replaces && { replaces: target.replaces }),
         client: source.client,
         displayName: source.displayName,
         category: source.category === 'test' ? 'test' : 'active',
