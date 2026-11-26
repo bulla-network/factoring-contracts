@@ -40,8 +40,8 @@
         "network": { "type": "string", "enum": ["mainnet", "sepolia", "polygon", "base", "arbitrum", "redbelly", "xdc"] },
         "category": {
             "type": "string",
-            "description": "Where the app lists the pool. active: live, on the Active tab. test: a test pool, on the Test tab. archived: no longer in use; on the Archived tab and not offered when batch factoring. hidden: on no tab and not offered when batch factoring, and its details page shows nothing of it, e.g. a bad deploy that a redeploy replaced. A pool superseded by a redeploy is archived or hidden, as its redeploy's pending entry says (replaces).",
-            "enum": ["active", "test", "archived", "hidden"]
+            "description": "Where the app lists the pool. active: live, on the Active tab. test: a test pool, on the Test tab. archived: no longer in use; on the Archived tab and not offered when batch factoring. hidden: on no tab and not offered when batch factoring, and its details page shows nothing of it, e.g. a bad deploy that a redeploy replaced. A pool superseded by a redeploy is archived or hidden, as its redeploy's pending entry says (replaces). deprecated: a record of a pool no consumer can read, because its contract has the interface of no version (e.g. a pre-release test deploy); bulla-registry leaves it out of registry.json, so no consumer sees it, and it is never a poolKey's current pool.",
+            "enum": ["active", "test", "archived", "hidden", "deprecated"]
         },
         "shareToken": {
             "type": "object",
