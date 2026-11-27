@@ -5,6 +5,7 @@
 import { getChainId, getEtherscanApiKey, getRpcUrl, NetworkName } from './networks';
 import {
     findCurrentPool,
+    isCurrent,
     findPendingPool,
     loadValidatedPools,
     PendingPool,
@@ -294,7 +295,7 @@ export function getAvailablePools(network: string): PoolName[] {
     const { pools, pending } = loadValidatedPools();
     const keys = [
         ...pending.pools.filter(p => p.network === network).map(p => p.poolKey),
-        ...pools.pools.filter(p => p.network === network && p.poolKey && !p.supersededBy).map(p => p.poolKey as string),
+        ...pools.pools.filter(p => p.network === network && isCurrent(p)).map(p => p.poolKey as string),
     ];
     return [...new Set(keys)];
 }

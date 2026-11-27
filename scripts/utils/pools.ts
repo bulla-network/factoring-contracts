@@ -29,9 +29,11 @@ const REDEEM_SINCE: PoolContractVersion = 'V2_1';
 const INSURANCE_SINCE: PoolContractVersion = 'V2_2';
 /**
  * Where the app lists a pool (POOLVIEW-17, POOLVIEW-34): active, test and archived each have a tab on the pool list;
- * hidden is on none, and its details page shows nothing of it. Must match the `category` enum in pools.schema.json.
+ * hidden is on none, and its details page shows nothing of it. deprecated is only a record: a pool whose contract has
+ * the interface of no version, which bulla-registry leaves out of registry.json, so no consumer reads it (DEV-3158).
+ * Must match the `category` enum in pools.schema.json.
  */
-export const POOL_CATEGORIES = ['active', 'test', 'archived', 'hidden'] as const;
+export const POOL_CATEGORIES = ['active', 'test', 'archived', 'hidden', 'deprecated'] as const;
 export type PoolCategory = typeof POOL_CATEGORIES[number];
 /** The categories a pool superseded by a redeploy can take; its redeploy's pending entry picks one (`replaces`) */
 export const SUPERSEDED_CATEGORIES = ['archived', 'hidden'] as const;
@@ -152,6 +154,8 @@ export function poolsRuleErrors(file: PoolsFile): string[] {
             else {
                 if (next.poolKey !== p.poolKey) errors.push(`${where(p)}: superseded by ${next.address}, which has another poolKey`);
                 if (next.deployBlock <= p.deployBlock) errors.push(`${where(p)}: superseded by ${next.address}, which is not newer`);
+                // bulla-registry leaves deprecated pools out, so it couldn't resolve this supersededBy
+                if (next.category === 'deprecated') errors.push(`${where(p)}: superseded by ${next.address}, which is deprecated`);
             }
         }
     });
@@ -180,7 +184,7 @@ export function poolsRuleErrors(file: PoolsFile): string[] {
 
     const current = new Map<string, Pool>();
     file.pools
-        .filter(p => p.poolKey && !p.supersededBy)
+        .filter(isCurrent)
         .forEach(p => {
             const k = `${p.chainId}-${p.poolKey}`;
             const other = current.get(k);
@@ -214,6 +218,7 @@ export function pendingRuleErrors(pending: PendingPoolsFile, pools: PoolsFile): 
             );
         }
         if (!replaced && p.replaces) errors.push(`pending ${p.network} ${p.poolKey}: replaces no pool; remove replaces`);
+        if (p.category === 'deprecated') errors.push(`pending ${p.network} ${p.poolKey}: a deploy can't be deprecated; pick another category`);
     });
     return errors;
 }
@@ -264,8 +269,13 @@ export function loadValidatedPools(): { pools: PoolsFile; pending: PendingPoolsF
 }
 
 /** The pool a network and poolKey currently point at (the one no redeploy superseded) */
+/** A poolKey's current pool: not superseded, and not deprecated, so a deploy never replaces (and republishes) a deprecated pool */
+export function isCurrent(p: Pool): boolean {
+    return !!p.poolKey && !p.supersededBy && p.category !== 'deprecated';
+}
+
 export function findCurrentPool(file: PoolsFile, network: string, poolKey: string): Pool | undefined {
-    return file.pools.find(p => p.network === network && p.poolKey === poolKey && !p.supersededBy);
+    return file.pools.find(p => p.network === network && p.poolKey === poolKey && isCurrent(p));
 }
 
 export function findPendingPool(file: PendingPoolsFile, network: string, poolKey: string): PendingPool | undefined {
